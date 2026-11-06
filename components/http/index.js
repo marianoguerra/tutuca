@@ -6,6 +6,9 @@
 // item toggle does), that edits it in place. The checking is in check.js, on plain JSON.
 import {
 	$if,
+	AGENT_META,
+	agentTool,
+	apply,
 	component,
 	DATA_META,
 	each,
@@ -253,6 +256,64 @@ const headerMessages = () => ({
 		},
 	},
 });
+// What an agent changes a request's or response's headers and body with, by name: a header
+// set replaces the one of that name (any case) or adds it, and a body is none, text or JSON.
+const isSchemaValue = (v) =>
+	typeof v === "boolean" || (typeof v === "object" && v !== null && !Array.isArray(v));
+const sameName = (a, b) => a.toLowerCase() === b.toLowerCase();
+const agentMessageHandlers = () => ({
+	set_header: {
+		pure: true,
+		args: [t.string().len(1), t.string()],
+		run(next, [name, value]) {
+			const header = scopeOf(this).components.HttpHeader({ name, value });
+			const at = this.headers.findIndex((h) => sameName(h.name, name));
+			if (at === -1) next.headers.push(header);
+			else next.headers[at] = header;
+		},
+	},
+	remove_header: {
+		pure: true,
+		args: [t.string()],
+		pre: (self, [name]) => self.headers.some((h) => sameName(h.name, name)),
+		why: (_self, [name]) => `there's no ${name} header`,
+		run(next, [name]) {
+			next.headers = this.headers.filter((h) => !sameName(h.name, name));
+		},
+	},
+	set_body: {
+		pure: true,
+		args: [t.enum("none", "text", "json"), t.any()],
+		run(next, [kind, value]) {
+			next.bodyKind = kind;
+			if (kind === "text") {
+				next.bodyText = typeof value === "string" ? value : JSON.stringify(value, null, 2);
+			} else if (kind === "json") {
+				next.body = droppable(scopeOf(this).components, value ?? {});
+			}
+		},
+	},
+});
+const messageTools = [
+	agentTool(
+		"set_header",
+		"message",
+		["name", "value"],
+		"Set a header, replacing the one of that name.",
+	),
+	agentTool("remove_header", "message", ["name"], "Remove the header of that name."),
+	agentTool(
+		"set_body",
+		"message",
+		["kind", "value"],
+		"Set the body: none (value null), text (value a string) or json (value any JSON).",
+	),
+];
+const HTTP_SKILL = {
+	"http.md":
+		"Safe methods (GET, HEAD, OPTIONS) change nothing on the server; PUT and DELETE are idempotent, POST isn't. A JSON body needs Content-Type: application/json. 201 Created comes with a Location header; 204 has no body. Cache-Control and ETag say what caches may keep.",
+};
+
 // The kinds a body can be, and their buttons' text.
 const BODY_KINDS = [
 	["none", "None"],
@@ -359,7 +420,24 @@ export const HttpRequest = component({
 		"📨",
 		"What a client sends: a method, a URL, headers and maybe a body.",
 		480,
-		dataMeta(REQUEST_SCHEMA),
+		{
+			...dataMeta(REQUEST_SCHEMA),
+			[AGENT_META]: {
+				prompt:
+					"An HTTP request. The outline is the request as it goes on the wire, and what its method promises.",
+				summary: "outline",
+				tools: [
+					agentTool("set_method", "message", ["method"], "Set the method.", {
+						target: "setMethod",
+					}),
+					agentTool("set_url", "message", ["url"], "Set the URL, with its query.", {
+						target: "setUrl",
+					}),
+					...messageTools,
+				],
+				skills: HTTP_SKILL,
+			},
+		},
 	),
 	fields: {
 		method: t.enum(...METHOD_NAMES),
@@ -390,6 +468,9 @@ export const HttpRequest = component({
 		},
 		get wire() {
 			return rawRequest(this.toJson());
+		},
+		get outline() {
+			return `${this.wire}\n\n${this.traits}`;
 		},
 		get asJson() {
 			return this.toJson();
@@ -438,6 +519,7 @@ export const HttpRequest = component({
 		...headerMessages(),
 		setMethod: setMethod(),
 		setUrl: setString("url"),
+		...agentMessageHandlers(),
 		load: loadFrom(REQUEST_SCHEMA, (C, json) => requestFields(C, json)),
 	},
 });
@@ -451,7 +533,19 @@ export const HttpResponse = component({
 		"📬",
 		"What the server answers: a status, headers and a body.",
 		480,
-		dataMeta(RESPONSE_SCHEMA),
+		{
+			...dataMeta(RESPONSE_SCHEMA),
+			[AGENT_META]: {
+				prompt:
+					"An HTTP response. The outline is the response as it goes on the wire, what its status means and what caches may do with it.",
+				summary: "outline",
+				tools: [
+					agentTool("set_status", "message", ["status"], "Set the status code."),
+					...messageTools,
+				],
+				skills: HTTP_SKILL,
+			},
+		},
 	),
 	fields: {
 		status: t.number().int().min(100).max(599).default(200),
@@ -483,6 +577,10 @@ export const HttpResponse = component({
 		},
 		get wire() {
 			return rawResponse(this.toJson());
+		},
+		get outline() {
+			const caching = this.caching.map((c) => `- ${c.text}`).join("\n");
+			return `${this.wire}\n\n${this.statusLabel}: ${this.statusMeans}\nCaching:\n${caching}`;
 		},
 		get asJson() {
 			return this.toJson();
@@ -524,6 +622,14 @@ export const HttpResponse = component({
 		...sectionMessages(RESPONSE_SECTIONS, ["headers", "body"]),
 		...headerMessages(),
 		setStatus: setNumber("status", isStatus),
+		set_status: {
+			pure: true,
+			args: [t.number().int().min(100).max(599)],
+			run(next, [status]) {
+				next.status = status;
+			},
+		},
+		...agentMessageHandlers(),
 		load: loadFrom(RESPONSE_SCHEMA, (C, json) => responseFields(C, json)),
 	},
 });
@@ -617,7 +723,53 @@ export const ApiOperation = component({
 		"📘",
 		"An OpenAPI operation: a method on a path, its parameters, its body and its responses.",
 		520,
-		dataMeta(OPERATION_OR_DOC_SCHEMA),
+		{
+			...dataMeta(OPERATION_OR_DOC_SCHEMA),
+			[AGENT_META]: {
+				prompt:
+					"An OpenAPI 3.1 operation: a method on a path template, its parameters (OpenAPI Parameter Objects), an optional JSON request body and its documented responses by status (200, 4XX, default). The outline is the operation as JSON. To rewrite it whole, use set_state.",
+				summary: "outline",
+				tools: [
+					agentTool("set_method", "message", ["method"], "Set the method.", {
+						target: "setMethod",
+					}),
+					agentTool("set_path", "message", ["path"], "Set the path template, like /tasks/{id}.", {
+						target: "setPath",
+					}),
+					agentTool("set_operation_id", "message", ["operationId"], "Set the operationId.", {
+						target: "setOperationId",
+					}),
+					agentTool("set_summary", "message", ["summary"], "Set its one-line summary.", {
+						target: "setSummary",
+					}),
+					agentTool(
+						"set_parameters",
+						"message",
+						["parameters"],
+						"Replace its parameters: a list of OpenAPI Parameter Objects ({ name, in, required, schema }).",
+					),
+					agentTool(
+						"set_request_body",
+						"message",
+						["schema", "required"],
+						"Set the JSON request body's schema and whether it's required; schema null takes no body.",
+					),
+					agentTool(
+						"set_response",
+						"message",
+						["status", "description", "schema"],
+						"Document a response by status (200, 4XX, default), replacing one of that status; schema is its JSON body's, or null for none.",
+					),
+					agentTool(
+						"remove_response",
+						"message",
+						["status"],
+						"Remove the response of that status.",
+					),
+				],
+				skills: HTTP_SKILL,
+			},
+		},
 	),
 	fields: {
 		method: t.enum(...METHOD_NAMES),
@@ -669,6 +821,9 @@ export const ApiOperation = component({
 		},
 		get openapi() {
 			return JSON.stringify(this.toOpenApi(), null, 2);
+		},
+		get outline() {
+			return JSON.stringify(this.toJson());
 		},
 		get asJson() {
 			return this.toJson();
@@ -782,6 +937,47 @@ export const ApiOperation = component({
 			);
 		},
 		load: loadFrom(OPERATION_OR_DOC_SCHEMA, (C, json) => operationFields(C, json)),
+		set_parameters: {
+			pure: true,
+			args: [t.array(t.any())],
+			run(next, [parameters]) {
+				next.parameters = jsonRoot(scopeOf(this).components, parameters);
+			},
+		},
+		set_request_body: {
+			pure: true,
+			args: [t.any(), t.boolean()],
+			pre: (_self, [schema]) => schema === null || isSchemaValue(schema),
+			why: () => "a schema is an object or a boolean",
+			run(next, [schema, required]) {
+				next.requestBody = schema === null ? null : schemaEditor(scopeOf(this).components, schema);
+				next.bodyRequired = required;
+			},
+		},
+		set_response: {
+			pure: true,
+			args: [t.string().len(1), t.string(), t.any()],
+			pre: (_self, [, , schema]) => schema === null || isSchemaValue(schema),
+			why: () => "a schema is an object or a boolean, or null for no body",
+			run(next, [status, description, schema]) {
+				const C = scopeOf(this).components;
+				const made = schema === null ? null : schemaEditor(C, schema);
+				const response = C.ApiResponse({ status, description, schema: made });
+				const at = this.responses.findIndex((r) => r.status === status);
+				if (at === -1) next.responses.push(response);
+				else next.responses[at] = response;
+			},
+		},
+		remove_response: {
+			pure: true,
+			args: [t.string()],
+			pre: (self, [status]) => self.responses.some((r) => r.status === status),
+			why: (self, [status]) =>
+				`there's no ${status} response; there are ${self.responses.map((r) => r.status).join(", ") || "none"}`,
+			run(next, [status]) {
+				next.responses = this.responses.filter((r) => r.status !== status);
+			},
+		},
 		removeResponse: {
 			args: [t.index("responses")],
 			run(next, [at]) {
@@ -800,7 +996,35 @@ export const HttpExchange = component({
 		"🔁",
 		"A request and its response, checked against the API operation they follow.",
 		560,
-		dataMeta(EXCHANGE_SCHEMA),
+		{
+			...dataMeta(EXCHANGE_SCHEMA),
+			[AGENT_META]: {
+				prompt:
+					"An HTTP exchange: a request, the response it got and, maybe, the OpenAPI operation they should follow. The outline lists every check, ✓ or ✗, then the request and response on the wire and the operation as JSON. Explain each ✗ in plain words; fix one only when asked, and check the outline after.",
+				summary: "outline",
+				tools: [
+					agentTool(
+						"set_request",
+						"message",
+						["request"],
+						"Replace the request: { method, url, headers: [[name, value]], body, bodyType: json or text }.",
+					),
+					agentTool(
+						"set_response",
+						"message",
+						["response"],
+						"Replace the response: { status, headers: [[name, value]], body, bodyType: json or text }.",
+					),
+					agentTool(
+						"set_operation",
+						"message",
+						["operation"],
+						"Replace the operation they follow: { method, path, operationId, summary, parameters, requestBody, responses } as OpenAPI's; null for none.",
+					),
+				],
+				skills: HTTP_SKILL,
+			},
+		},
 	),
 	fields: {
 		operation: t.option(t.component("ApiOperation")),
@@ -837,6 +1061,11 @@ export const HttpExchange = component({
 			const n = this.failures;
 			return n === 0 ? "Everything checks out" : `${n} problem${n === 1 ? "" : "s"}`;
 		},
+		get outline() {
+			const checks = this.checks.map((c) => `${c.mark} ${c.text}`).join("\n");
+			const operation = this.operation === null ? "none" : JSON.stringify(this.operation.toJson());
+			return `${this.summary}:\n${checks}\n\nRequest:\n${this.request.wire}\n\nResponse:\n${this.response.wire}\n\nOperation: ${operation}`;
+		},
 		get summaryClass() {
 			return `${BADGE} ${this.failures === 0 ? "badge-success" : "badge-error"}`;
 		},
@@ -851,6 +1080,32 @@ export const HttpExchange = component({
 		...sectionMessages(EXCHANGE_SECTIONS, ["operation", "request", "response"]),
 		toggleOperation(next, _args, ctx) {
 			next.operation = this.operation === null ? apiOperation(ctx.scope.components) : null;
+		},
+		// The agent's: each part replaced from its JSON, through that part's load.
+		set_request: {
+			pure: true,
+			args: [t.any()],
+			run(next, [json]) {
+				next.request = apply(next.request, "load", json);
+			},
+		},
+		set_response: {
+			pure: true,
+			args: [t.any()],
+			run(next, [json]) {
+				next.response = apply(next.response, "load", json);
+			},
+		},
+		set_operation: {
+			pure: true,
+			args: [t.any()],
+			run(next, [json]) {
+				if (json === null) next.operation = null;
+				else if (this.operation === null) {
+					const C = scopeOf(this).components;
+					next.operation = C.ApiOperation(operationFields(C, json));
+				} else next.operation = apply(next.operation, "load", json);
+			},
 		},
 		load: loadFrom(EXCHANGE_SCHEMA, (C, { operation, request, response }) => ({
 			operation: operation === undefined ? null : C.ApiOperation(operationFields(C, operation)),

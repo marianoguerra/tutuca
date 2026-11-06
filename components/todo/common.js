@@ -60,6 +60,8 @@ export const applyEach = (tasks, name, ...args) => {
 	});
 };
 export const allTasks = (tasks) => tasks.flatMap((task) => [task, ...allTasks(task.subtasks)]);
+// Whether task's subtasks hold the task id, at any depth.
+export const hasTaskId = (task, id) => allTasks(task.subtasks).some((sub) => sub.id === id);
 // The index of the next task after i in direction delta that passes keep, or -1.
 export const neighbor = (items, i, delta, keep) => {
 	for (let j = i + delta; j >= 0 && j < items.length; j += delta) {

@@ -7,6 +7,8 @@
 // selectors and the explorer that shows them on either in select.js, and the theory in
 // theory.js, on plain numbers and names.
 import {
+	AGENT_META,
+	agentTool,
 	component,
 	each,
 	field,
@@ -34,8 +36,11 @@ import {
 	chordNotes,
 	chordOfIntervals,
 	INTERVALS,
+	isNoteName,
 	midiOf,
 	PICKABLE,
+	parseNoteName,
+	pcOfName,
 	ROOTS,
 	scaleOf,
 	signatureText,
@@ -72,18 +77,29 @@ const { div, g, option, p, path, select, span, svg, text } = tag;
 // changes the fields, then marks notesOf(next) on it.
 const remarking = (notesOf, handlers) =>
 	Object.fromEntries(
-		Object.entries(handlers).map(([name, { args, run }]) => [
-			name,
-			{
-				args,
-				run(next, values, ctx) {
-					run.call(this, next, values, ctx);
-					const notes = notesOf(next);
-					next.piano = markOn(this.piano, notes);
-				},
-			},
-		]),
+		Object.entries(handlers).map(([name, { run, ...spec }]) => {
+			const remark = (self, next) => {
+				next.piano = markOn(self.piano, notesOf(next));
+			};
+			// A pure one gets no ctx, and says so.
+			const wrapped = spec.pure
+				? function (next, values) {
+						run.call(this, next, values);
+						remark(this, next);
+					}
+				: function (next, values, ctx) {
+						run.call(this, next, values, ctx);
+						remark(this, next);
+					};
+			return [name, { ...spec, run: wrapped }];
+		}),
 	);
+// A root as an agent names it: C, F♯, Bb.
+const rootName = () => t.string().where(isNoteName, "a note name like C, F♯ or Bb");
+const pcOfText = (text) => parseNoteName(text).pc;
+const MUSIC_PROMPT =
+	"Name notes as C, F♯ or Bb (b and # work for ♭ and ♯). Explain the theory in plain words when you change something.";
+
 const rootHandlers = {
 	setRoot: {
 		args: [t.number().int().min(0).max(11)],
@@ -120,6 +136,22 @@ export const IntervalPicker = component({
 		"📐",
 		"Pick a root and intervals, and see the notes they make.",
 		480,
+		{
+			[AGENT_META]: {
+				prompt: `Builds notes from a root and intervals above it (m2 M2 m3 M3 P4 A4 P5 m6 M6 m7 M7 P8), spelled by letter, and names the chord they make when they make one. ${MUSIC_PROMPT}`,
+				tools: [
+					agentTool(
+						"set_intervals",
+						"message",
+						["root", "intervals"],
+						"Set the root and the intervals above it.",
+					),
+					agentTool("shift_octave", "message", ["by"], "Move it up or down by octaves.", {
+						target: "shiftOctave",
+					}),
+				],
+			},
+		},
 	),
 	fields: {
 		root: t.number().int().min(0).max(11),
@@ -129,6 +161,12 @@ export const IntervalPicker = component({
 	},
 	queries: {
 		...rootQueries,
+		get summary() {
+			const notes = intervalNotes(this)
+				.map((n) => `${n.name} (${n.interval})`)
+				.join(", ");
+			return `Root ${this.rootName}, octave ${this.octave}: ${notes}. ${this.chordText}`;
+		},
 		get notes() {
 			return intervalNotes(this).map((n) => ({
 				...n,
@@ -174,6 +212,14 @@ export const IntervalPicker = component({
 	views: { edit: pickerView() },
 	on: remarking(intervalNotes, {
 		...rootHandlers,
+		set_intervals: {
+			pure: true,
+			args: [rootName(), t.array(t.enum(...PICKABLE))],
+			run(next, [root, intervals]) {
+				next.root = pcOfText(root);
+				next.intervals = sortIntervals([...new Set(intervals)]);
+			},
+		},
 		toggleInterval: {
 			args: [
 				t
@@ -237,6 +283,22 @@ export const ChordExplorer = component({
 		"🎼",
 		"Pick a chord, its root, octave and inversion, and see its keys on a piano.",
 		520,
+		{
+			[AGENT_META]: {
+				prompt: `Shows a chord on a piano: its root, kind (${Object.keys(CHORDS).join(", ")}), octave and inversion (0 for root position, 1 first, 2 second, 3 third for sevenths). ${MUSIC_PROMPT}`,
+				tools: [
+					agentTool(
+						"set_chord",
+						"message",
+						["root", "kind", "inversion"],
+						"Show a chord: its root, kind and inversion.",
+					),
+					agentTool("shift_octave", "message", ["by"], "Move it up or down by octaves.", {
+						target: "shiftOctave",
+					}),
+				],
+			},
+		},
 	),
 	fields: {
 		root: t.number().int().min(0).max(11),
@@ -247,6 +309,12 @@ export const ChordExplorer = component({
 	},
 	queries: {
 		...rootQueries,
+		get summary() {
+			const notes = chordOf(this)
+				.map((n) => `${n.name} (${n.interval})`)
+				.join(", ");
+			return `${this.symbol}, ${this.chordName}, octave ${this.octave}: ${notes}, from the lowest. ${this.inversionText}`;
+		},
 		get notes() {
 			return chordOf(this).map((n) => ({ ...n, about: INTERVALS[n.interval].name }));
 		},
@@ -286,6 +354,18 @@ export const ChordExplorer = component({
 	views: { edit: explorerView() },
 	on: remarking(chordOf, {
 		...rootHandlers,
+		set_chord: {
+			pure: true,
+			args: [rootName(), t.enum(...Object.keys(CHORDS)), t.number().int().min(0).max(3)],
+			pre: (_self, [, kind, inversion]) => inversion < CHORDS[kind].intervals.length,
+			why: (_self, [, kind]) =>
+				`a ${CHORDS[kind].name} chord has ${CHORDS[kind].intervals.length} notes, so inversions 0 to ${CHORDS[kind].intervals.length - 1}`,
+			run(next, [root, kind, inversion]) {
+				next.root = pcOfText(root);
+				next.kind = kind;
+				next.inversion = inversion;
+			},
+		},
 		setKind: {
 			args: [t.enum(...Object.keys(CHORDS))],
 			run(next, [kind]) {
@@ -418,6 +498,19 @@ export const CircleOfFifths = component({
 		"⭕",
 		"The twelve keys, a fifth apart: pick one to see its signature, scale and neighbors.",
 		400,
+		{
+			[AGENT_META]: {
+				prompt: `The circle of fifths: the twelve major keys and their relative minors, a fifth apart. Picking a key shows its signature, scale, relative and neighbors (the summary). ${MUSIC_PROMPT}`,
+				tools: [
+					agentTool(
+						"set_key",
+						"message",
+						["tonic", "mode"],
+						"Pick a key: its tonic and major or minor.",
+					),
+				],
+			},
+		},
 	),
 	fields: {
 		selected: t.number().int().min(0).max(11),
@@ -436,6 +529,9 @@ export const CircleOfFifths = component({
 		},
 		get keyName() {
 			return `${this.key} ${this.mode}`;
+		},
+		get summary() {
+			return `${this.keyName}: ${this.signature}. Scale: ${this.scale}. ${this.relative} ${this.neighbors}`;
 		},
 		get signature() {
 			return signatureText(CIRCLE[this.selected].major);
@@ -462,6 +558,16 @@ export const CircleOfFifths = component({
 	on: {
 		pickMajor: pick("major"),
 		pickMinor: pick("minor"),
+		// The key whose tonic sounds as tonic does in mode (F♯ major and G♭ major are one).
+		set_key: {
+			pure: true,
+			args: [rootName(), t.enum("major", "minor")],
+			run(next, [tonic, mode]) {
+				const pc = pcOfText(tonic);
+				next.selected = CIRCLE.findIndex((k) => pcOfName(k[mode]) === pc);
+				next.mode = mode;
+			},
+		},
 	},
 });
 function pick(mode) {

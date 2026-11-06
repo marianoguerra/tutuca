@@ -1,8 +1,8 @@
 // What the music cards share: their colors, the palette an instrument paints its marks with,
 // the root picker, the octave stepper and marking notes on an instrument.
-import { apply, each, field, send, sourceKey, t, tag } from "../../src/tutuca.js";
+import { agentTool, apply, each, field, send, sourceKey, t, tag } from "../../src/tutuca.js";
 import { SMALL_BUTTON } from "../common/card.js";
-import { octaveOf, ROOTS } from "./theory.js";
+import { isNoteName, octaveOf, parseNoteName, ROOTS } from "./theory.js";
 
 const { div, span } = tag;
 
@@ -211,3 +211,67 @@ export const noteChips = (warning) =>
 		),
 		span({ class: "text-xs text-warning" }, field(warning)),
 	);
+
+// The palette by name, for an agent: amber, sky, pink, green, violet.
+export const PAINT_NAMES = Object.fromEntries(
+	PALETTE.map(([name, color]) => [name.toLowerCase(), color]),
+);
+const paintOf = (name) => PAINT_NAMES[name] ?? COLORS.note;
+// What an agent marks an instrument with, by note names: markedOf(parsed) is what's marked
+// (a MIDI number on a piano, a pitch class on a guitar's neck).
+export const agentMarkMessages = (markedOf) => {
+	const notesType = t.array(t.string().where(isNoteName, "a note name like C, F♯, Bb or E♭4"));
+	const colorType = t.enum(...Object.keys(PAINT_NAMES));
+	const marksOf = (notes, color) =>
+		notes.map((text) => {
+			const note = parseNoteName(text);
+			return { value: markedOf(note), label: note.name, color: paintOf(color) };
+		});
+	const setMarks = (next, marks) => {
+		next.marked = marks.map((m) => m.value);
+		next.labels = marks.map((m) => m.label);
+		next.colors = marks.map((m) => m.color);
+	};
+	const current = (self) =>
+		self.marked.map((value, i) => ({ value, label: self.labels[i], color: self.colors[i] }));
+	return {
+		set_marks: {
+			pure: true,
+			args: [notesType, colorType],
+			run(next, [notes, color]) {
+				setMarks(next, marksOf(notes, color));
+			},
+		},
+		add_marks: {
+			pure: true,
+			args: [notesType, colorType],
+			run(next, [notes, color]) {
+				const added = marksOf(notes, color);
+				const kept = current(this).filter((m) => !added.some((a) => a.value === m.value));
+				setMarks(next, [...kept, ...added]);
+			},
+		},
+		clear_marks: {
+			pure: true,
+			args: [],
+			run(next) {
+				setMarks(next, []);
+			},
+		},
+	};
+};
+export const agentMarkTools = (what) => [
+	agentTool(
+		"set_marks",
+		"message",
+		["notes", "color"],
+		`Mark these notes ${what}, in one color, unmarking the rest.`,
+	),
+	agentTool(
+		"add_marks",
+		"message",
+		["notes", "color"],
+		`Mark these notes ${what} too, in one color.`,
+	),
+	agentTool("clear_marks", "message", [], "Unmark every note."),
+];

@@ -6,6 +6,7 @@ export {
 	agentMetaSchemas,
 	agentOf,
 	agentProblems,
+	agentTool,
 	callArgs,
 	hasAgentMeta,
 	MAX_STEPS,

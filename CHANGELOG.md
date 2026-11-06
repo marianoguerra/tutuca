@@ -71,6 +71,26 @@
   kanban `Board` says agent meta: add, move, rename and remove cards, add columns, and a week
   sample. The canvas demo has `?bundle=agent`, and the storybook has an Agent book and a
   Transcript section in the LLM book.
+- **More components an agent can drive.** These canvas components now have agent meta, each
+  with a summary that has ids and tools that take ids or names (`agentTool` builds one):
+  - **TodoApp:** `add_task` (a quick-add line), plus completing, reopening, renaming,
+    describing, dating, prioritizing, labelling, moving and removing a task by id, at any depth
+    (TodoTask's `applyDeep` and `removeDeep`); `add_project`; `clear_completed`.
+  - **Notes:** add, edit, tick off and remove notes by index.
+  - **Drawing:** add a rect, ellipse, line or polyline, then move, style, layer and remove it
+    by id; undo, redo and clear (now pure).
+  - **HTTP:** a request's or response's headers by name and its body (`set_header`,
+    `remove_header`, `set_body`, `set_status`); an operation's parameters, request body and
+    responses by status; an exchange's request, response and operation, with its checks in the
+    summary. Each has an `outline` query for the agent.
+  - **JsonSchemaEditor:** `check_value` checks a value against the schema; it's rewritten with
+    `set_state`.
+  - **InferenceRequest:** the system prompt, messages, tool calls and results, tools by name,
+    the output schema and options.
+  - **Music:** the chord explorer, interval picker and circle of fifths take note names
+    (`parseNoteName`: C, F♯, Bb, E♭4); the piano and guitar neck mark notes by name in the
+    palette's colors.
+  - **TrackerCell:** log a thing by id.
 - **A demo as an app.** `node scripts/app.js <demo> [port]` (`just app canvas`) serves a demo
   without the demos' chrome, with the inference API beside it:
   - `/` redirects to `/demos/<demo>/app.html`, keeping `?sync=`, `?doc=` and `?bundle=`. That

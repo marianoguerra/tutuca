@@ -6,6 +6,7 @@
 // highlight.
 import {
 	AGENT_META,
+	agentTool,
 	apply,
 	component,
 	DATA_META,
@@ -209,14 +210,7 @@ const WEEK = {
 		{ title: "Done", cards: [] },
 	],
 };
-const tool = (name, kind, params, description) => ({
-	name,
-	kind,
-	target: null,
-	description,
-	params,
-	result: null,
-});
+const tool = agentTool;
 // What the board says to an agent that drives it: its tools are its own messages and queries.
 const AGENT = {
 	prompt:

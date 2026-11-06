@@ -3,11 +3,15 @@
 // draft is none (lost on reload).
 import {
 	$if,
+	AGENT_META,
+	agentTool,
+	apply,
 	component,
 	DISPLAY_META,
 	each,
 	field,
 	renderIt,
+	scopeOf,
 	send,
 	t,
 	tag,
@@ -48,9 +52,17 @@ export const Note = component({
 			next.done = !this.done;
 		},
 		setText: {
+			pure: true,
 			args: [t.string()],
 			run(next, [text]) {
 				next.text = text;
+			},
+		},
+		setDone: {
+			pure: true,
+			args: [t.boolean()],
+			run(next, [done]) {
+				next.done = done;
 			},
 		},
 		remove: {
@@ -63,6 +75,8 @@ export const Note = component({
 });
 
 const FILTERS = { all: () => true, open: (n) => !n.done, done: (n) => n.done };
+const hasNote = (self, i) => Number.isInteger(i) && i >= 0 && i < self.notes.length;
+const noNote = (self, [i]) => `there's no note ${i}; they go from 0 to ${self.notes.length - 1}`;
 
 export const Notes = component({
 	name: "Notes",
@@ -71,6 +85,21 @@ export const Notes = component({
 			title: "Notes",
 			icon: "📝",
 			description: "A list of short notes to tick off.",
+		},
+		// An agent adds, edits, ticks off and removes notes by their index (in the outline).
+		[AGENT_META]: {
+			prompt:
+				"A list of short notes, each open or done, by index from 0 (indexes move when a note is removed: read them from the outline each time).",
+			summary: "outline",
+			tools: [
+				agentTool("add_notes", "message", ["texts"], "Add notes at the end, one per text."),
+				agentTool("set_note", "message", ["index", "text"], "Change a note's text."),
+				agentTool("set_done", "message", ["index", "done"], "Tick a note off, or open it again."),
+				agentTool("remove_note", "message", ["index"], "Remove a note."),
+				agentTool("set_title", "message", ["title"], "Change the list's title.", {
+					target: "setTitle",
+				}),
+			],
 		},
 	},
 	fields: {
@@ -83,6 +112,11 @@ export const Notes = component({
 		get summary() {
 			const open = this.notes.filter(FILTERS.open).length;
 			return `${open} open of ${this.notes.length}`;
+		},
+		// The title and each note, by index, for an agent.
+		get outline() {
+			const lines = this.notes.map((n, i) => `${i}. [${n.done ? "x" : " "}] ${n.text}`);
+			return `${this.title} (${this.summary})\n${lines.join("\n") || "No notes."}`;
 		},
 		get isEmpty() {
 			return !this.notes.some(FILTERS[this.filter]);
@@ -161,6 +195,41 @@ export const Notes = component({
 				if (text === "") return;
 				next.notes.push(ctx.scope.make("Note", { text }));
 				next.draft = "";
+			},
+		},
+		add_notes: {
+			pure: true,
+			args: [t.array(t.string().len(1))],
+			run(next, [texts]) {
+				const scope = scopeOf(this);
+				for (const text of texts) next.notes.push(scope.make("Note", { text }));
+			},
+		},
+		set_note: {
+			pure: true,
+			args: [t.number().int(), t.string().len(1)],
+			pre: (self, [i]) => hasNote(self, i),
+			why: noNote,
+			run(next, [i, text]) {
+				next.notes[i] = apply(next.notes[i], "setText", text);
+			},
+		},
+		set_done: {
+			pure: true,
+			args: [t.number().int(), t.boolean()],
+			pre: (self, [i]) => hasNote(self, i),
+			why: noNote,
+			run(next, [i, done]) {
+				next.notes[i] = apply(next.notes[i], "setDone", done);
+			},
+		},
+		remove_note: {
+			pure: true,
+			args: [t.number().int()],
+			pre: (self, [i]) => hasNote(self, i),
+			why: noNote,
+			run(next, [i]) {
+				next.notes.splice(i, 1);
 			},
 		},
 		removeNote: {

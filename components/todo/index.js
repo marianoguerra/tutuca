@@ -4,6 +4,8 @@
 
 import {
 	$if,
+	AGENT_META,
+	agentTool,
 	apply,
 	button,
 	component,
@@ -25,6 +27,8 @@ import {
 	allTasks,
 	applyEach,
 	COLORS,
+	dueType,
+	hasTaskId,
 	NAV,
 	NAV_ACTIVE,
 	neighbor,
@@ -138,6 +142,85 @@ const EMPTY = {
 	search: "No tasks match your search.",
 };
 
+// What an agent does to a task by its id, at any depth: the pure message name(...args).
+const onTask = (self, next, id, name, args = []) => {
+	self.tasks.forEach((task, i) => {
+		if (task.id === id) next.tasks[i] = apply(next.tasks[i], name, ...args);
+		else if (hasTaskId(task, id)) next.tasks[i] = apply(next.tasks[i], "applyDeep", id, name, args);
+	});
+};
+const hasTask = (self, id) => allTasks(self.tasks).some((task) => task.id === id);
+const noTask = (_self, [id]) => `there's no task ${id}`;
+// An agent tool on one task: the app's message name, pure, applying the task's message.
+const taskTool = (message, args = [], { pre, why } = {}) => ({
+	pure: true,
+	args: [t.string(), ...args],
+	pre: (self, values) => hasTask(self, values[0]) && (pre?.(self, values) ?? true),
+	why: (self, values) =>
+		hasTask(self, values[0]) ? (why?.(self, values) ?? "") : noTask(self, values),
+	run(next, [id, ...values]) {
+		onTask(this, next, id, message, values);
+	},
+});
+const projectNamed = (self, name) =>
+	self.projects.find((p) => p.name.toLowerCase() === String(name).toLowerCase());
+const taskLine = (task, projects, depth) => {
+	const project = projects.find((p) => p.id === task.projectId)?.name ?? task.projectId;
+	const parts = [
+		`${"  ".repeat(depth)}- [${task.isCompleted ? "x" : " "}] ${task.id} "${task.title}"`,
+		task.due === "" ? "" : `due ${task.due}`,
+		task.priority < 4 ? `p${task.priority}` : "",
+		`#${project}`,
+		...task.labels.map((l) => `@${l}`),
+	];
+	return [
+		parts.filter(Boolean).join(" "),
+		...task.subtasks.map((s) => taskLine(s, projects, depth + 1)),
+	].join("\n");
+};
+const AGENT = {
+	prompt:
+		"A todo list like Todoist: projects (Inbox first), labels, and tasks with subtasks, each with an id, a title, an optional due date (YYYY-MM-DD), a priority (1 highest, 4 none) and labels. add_task takes a quick-add line: 'Buy milk tomorrow p1 #Errands @shop' is the task Buy milk, due tomorrow, priority 1, in Errands, labelled shop (due words: today, tomorrow, weekday names, next week, 'in 3 days', 'jan 5'). Everything else names a task by its id from the outline.",
+	summary: "outline",
+	tools: [
+		agentTool("add_task", "message", ["text"], "Add a task from a quick-add line.", {
+			target: "addTask",
+		}),
+		agentTool("complete_task", "message", ["id"], "Complete a task, and its subtasks."),
+		agentTool("reopen_task", "message", ["id"], "Open a completed task again."),
+		agentTool("rename_task", "message", ["id", "title"], "Change a task's title."),
+		agentTool("set_description", "message", ["id", "description"], "Change a task's description."),
+		agentTool(
+			"set_due",
+			"message",
+			["id", "due"],
+			'Set a task\'s due date, YYYY-MM-DD, or "" for none.',
+		),
+		agentTool(
+			"set_priority",
+			"message",
+			["id", "priority"],
+			"Set a task's priority: 1 highest, 4 none.",
+		),
+		agentTool("set_labels", "message", ["id", "labels"], "Set a task's labels."),
+		agentTool(
+			"move_task",
+			"message",
+			["id", "project"],
+			"Move a task, with its subtasks, to a project by name.",
+		),
+		agentTool("remove_task", "message", ["id"], "Remove a task, with its subtasks."),
+		agentTool("add_project", "message", ["name"], "Add a project."),
+		agentTool("clear_completed", "message", [], "Remove every completed task.", {
+			target: "clearCompleted",
+		}),
+	],
+	skills: {
+		"planning.md":
+			"Due dates are relative to today, in the outline. Overdue means due before today and not completed. Priority 1 is for what can't wait; most tasks have none (4). Put a task in a project when its name says where it belongs; else leave it in the Inbox.",
+	},
+};
+
 export const TodoApp = component({
 	name: "TodoApp",
 	meta: {
@@ -146,6 +229,7 @@ export const TodoApp = component({
 			icon: "✅",
 			description: "Projects, labels and due dates.",
 		},
+		[AGENT_META]: AGENT,
 	},
 	fields: {
 		today: todayType(),
@@ -235,6 +319,12 @@ export const TodoApp = component({
 		},
 	},
 	queries: {
+		// Today, the projects and labels, and every task with its id, for an agent.
+		get outline() {
+			const tasks = this.tasks.map((task) => taskLine(task, this.projects, 0)).join("\n");
+			const labels = this.labels.map((l) => `@${l}`).join(" ") || "none";
+			return `Today is ${this.today}. Projects: ${this.projects.map((p) => p.name).join(", ")}. Labels: ${labels}.\n${tasks || "No tasks."}`;
+		},
 		get currentProject() {
 			return this.projects[this.projectIndex];
 		},
@@ -500,6 +590,54 @@ export const TodoApp = component({
 				next.projects.splice(key, 1);
 				next.projectIndex = 0;
 				if (this.view === "project") next.view = "inbox";
+			},
+		},
+		// The agent's, on a task by its id.
+		complete_task: taskTool("complete"),
+		reopen_task: taskTool("reopen"),
+		rename_task: taskTool("setTitle", [t.string().len(1)]),
+		set_description: taskTool("setDescription", [t.string()]),
+		set_due: taskTool("setDue", [dueType()]),
+		set_priority: taskTool("setPriorityLevel", [t.enum(1, 2, 3, 4)]),
+		set_labels: {
+			...taskTool("setLabels", [t.array(t.string())]),
+			run(next, [id, labels]) {
+				onTask(this, next, id, "setLabels", [labels]);
+				for (const l of labels) if (!next.labels.includes(l)) next.labels.push(l);
+			},
+		},
+		move_task: {
+			...taskTool("setProject", [t.string()], {
+				pre: (self, [, project]) => projectNamed(self, project) !== undefined,
+				why: (self, [, project]) =>
+					`there's no project ${project}; there are ${self.projects.map((p) => p.name).join(", ")}`,
+			}),
+			run(next, [id, project]) {
+				onTask(this, next, id, "setProject", [projectNamed(this, project).id]);
+			},
+		},
+		remove_task: {
+			pure: true,
+			args: [t.string()],
+			pre: (self, [id]) => hasTask(self, id),
+			why: noTask,
+			run(next, [id]) {
+				const at = this.tasks.findIndex((task) => task.id === id);
+				if (at !== -1) next.tasks.splice(at, 1);
+				else {
+					this.tasks.forEach((task, i) => {
+						if (hasTaskId(task, id)) next.tasks[i] = apply(next.tasks[i], "removeDeep", id);
+					});
+				}
+			},
+		},
+		add_project: {
+			args: [t.string().len(1)],
+			pre: (self, [name]) => projectNamed(self, name) === undefined,
+			why: (_self, [name]) => `there's a project ${name} already`,
+			run(next, [name], ctx) {
+				const color = Object.keys(COLORS)[this.projects.length % 6];
+				next.projects.push(ctx.scope.make("TodoProject", { id: ctx.uuid(), name, color }));
 			},
 		},
 		// From QuickAdd: parses text against today and the project names.

@@ -61,6 +61,23 @@ export const agentMetaSchemas = {
 	},
 };
 const DEFAULTS = { prompt: null, summary: "summary", tools: [] };
+// A tool for an agent meta's tools: name runs the message or query of that name (or target),
+// with params naming its args in order; a message answers with its result query (summary when
+// null).
+export const agentTool = (
+	name,
+	kind,
+	params,
+	description,
+	{ target = null, result = null } = {},
+) => ({
+	name,
+	kind,
+	target,
+	description,
+	params,
+	result,
+});
 // What c (a component or, with scope, its spec) says to an agent, with every key filled.
 export const agentOf = (c, scope = undefined) => {
 	const meta = metaOf(c, AGENT_META, scope);

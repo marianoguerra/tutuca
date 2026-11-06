@@ -2,6 +2,7 @@
 
 import {
 	$if,
+	apply,
 	button,
 	component,
 	each,
@@ -14,7 +15,17 @@ import {
 	tag,
 	targetValue,
 } from "../../src/tutuca.js";
-import { applyEach, CHECKS, DUES, dueType, ICON_BTN, labelsOf, swap, todayType } from "./common.js";
+import {
+	applyEach,
+	CHECKS,
+	DUES,
+	dueType,
+	hasTaskId,
+	ICON_BTN,
+	labelsOf,
+	swap,
+	todayType,
+} from "./common.js";
 import { dueLabel, dueTone } from "./dates.js";
 
 const { div, form, input, option, p, select, span, textarea } = tag;
@@ -230,18 +241,21 @@ export const TodoTask = component({
 			},
 		},
 		setTitle: {
+			pure: true,
 			args: [t.string()],
 			run(next, [title]) {
 				next.title = title;
 			},
 		},
 		setDescription: {
+			pure: true,
 			args: [t.string()],
 			run(next, [description]) {
 				next.description = description;
 			},
 		},
 		setDue: {
+			pure: true,
 			args: [dueType()],
 			run(next, [due]) {
 				next.due = due;
@@ -260,6 +274,55 @@ export const TodoTask = component({
 			run(next, [text], ctx) {
 				next.labels = labelsOf(text);
 				ctx.notify("labelsChanged", [[...next.labels]]);
+			},
+		},
+		// What an agent sets: a priority as a number, the labels as a list, and reopening.
+		setPriorityLevel: {
+			pure: true,
+			args: [t.enum(1, 2, 3, 4)],
+			run(next, [priority]) {
+				next.priority = priority;
+			},
+		},
+		setLabels: {
+			pure: true,
+			args: [t.array(t.string())],
+			run(next, [labels]) {
+				next.labels = labels;
+			},
+		},
+		reopen: {
+			pure: true,
+			args: [],
+			run(next) {
+				next.isCompleted = false;
+			},
+		},
+		// The pure message name(...args) to its subtask id, at any depth (a no-op without one).
+		applyDeep: {
+			pure: true,
+			args: [t.string(), t.string(), t.array(t.any())],
+			run(next, [id, name, args]) {
+				this.subtasks.forEach((sub, i) => {
+					if (sub.id === id) next.subtasks[i] = apply(next.subtasks[i], name, ...args);
+					else if (hasTaskId(sub, id)) {
+						next.subtasks[i] = apply(next.subtasks[i], "applyDeep", id, name, args);
+					}
+				});
+			},
+		},
+		// Its subtask id gone, at any depth.
+		removeDeep: {
+			pure: true,
+			args: [t.string()],
+			run(next, [id]) {
+				const at = this.subtasks.findIndex((sub) => sub.id === id);
+				if (at !== -1) next.subtasks.splice(at, 1);
+				else {
+					this.subtasks.forEach((sub, i) => {
+						if (hasTaskId(sub, id)) next.subtasks[i] = apply(next.subtasks[i], "removeDeep", id);
+					});
+				}
 			},
 		},
 		// Its subtasks move with it.

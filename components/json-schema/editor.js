@@ -4,6 +4,8 @@
 // schema is the last JSON that did.
 import {
 	$if,
+	AGENT_META,
+	agentTool,
 	apply,
 	button,
 	canApply,
@@ -18,8 +20,12 @@ import {
 	tag,
 } from "../../src/tutuca.js";
 import { fromJson, jsonComponents, VALUE_NAMES } from "../json/index.js";
+import { validate } from "../llm/validate.js";
 import { schemaComponents } from "./index.js";
 import { fromSchema, isSchema } from "./read.js";
+
+// The longest summary an agent reads of a schema: longer, it's cut, and get_state has it whole.
+const SUMMARY_LENGTH = 4000;
 
 const { div, header, p, span } = tag;
 
@@ -68,6 +74,23 @@ export const JsonSchemaEditor = component({
 				description: "A JSON Schema document: an object of keywords, or true or false.",
 			},
 		},
+		// An agent writes the schema whole (set_state) and checks values against it.
+		[AGENT_META]: {
+			prompt:
+				"A JSON Schema (2020-12). To change it, write the whole new schema with set_state; the summary is the schema now. Check example values against it with check_value before saying it fits them.",
+			tools: [
+				agentTool(
+					"check_value",
+					"query",
+					["value"],
+					"Check a JSON value against the schema: the paths that don't fit and why, [] when it fits.",
+				),
+			],
+			skills: {
+				"conventions.md":
+					"Prefer required over defaults for what must be there. Say additionalProperties: false only when asked for a closed object. Give every property a description when its name doesn't say it.",
+			},
+		},
 	},
 	fields: {
 		json: t.component(VALUE_NAMES), // The schema as edited.
@@ -97,6 +120,20 @@ export const JsonSchemaEditor = component({
 		// The schema, what load takes back.
 		get schema() {
 			return this.toSchema();
+		},
+		// The schema as compact JSON, for an agent's prompt.
+		get summary() {
+			const text = this.source;
+			return text.length > SUMMARY_LENGTH
+				? `${text.slice(0, SUMMARY_LENGTH)}… (cut: get_state has it all)`
+				: text;
+		},
+		// Where value doesn't fit the schema: [{ path, message }], [] when it does.
+		check_value: {
+			args: [t.any()],
+			run(value) {
+				return validate(this.toSchema(), value);
+			},
 		},
 	},
 	view: div(

@@ -21,6 +21,17 @@ const pcOf = ({ letter, accidental }) => (((NATURAL[letter] + accidental) % 12) 
 const nameOf = ({ letter, accidental }) =>
 	`${LETTERS[letter]}${ACCIDENTALS[accidental] ?? `(${accidental})`}`;
 export const pcOfName = (name) => pcOf(parse(name));
+// A note name as people type it, C, F♯, Bb or E♭4 (b and # for ♭ and ♯, any case for the
+// letter), as { name, pc, octave }, octave null without one; null when it isn't one.
+const NOTE_NAME = /^([A-Ga-g])(♯|♭|#|b)?(-?\d)?$/;
+export const parseNoteName = (text) => {
+	const m = NOTE_NAME.exec(String(text).trim());
+	if (m === null) return null;
+	const accidental = m[2] === "#" || m[2] === "♯" ? "♯" : m[2] === "b" || m[2] === "♭" ? "♭" : "";
+	const name = `${m[1].toUpperCase()}${accidental}`;
+	return { name, pc: pcOfName(name), octave: m[3] === undefined ? null : Number(m[3]) };
+};
+export const isNoteName = (text) => parseNoteName(text) !== null;
 
 // Intervals by name: semitones, and steps (letters) above the root.
 export const INTERVALS = {

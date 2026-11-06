@@ -1,9 +1,22 @@
 // A piano, as many octaves as its edit view says from the octave it says, that marks keys,
 // each in its color and with its note's name.
-import { $if, component, each, field, send, sourceKey, t, tag } from "../../src/tutuca.js";
+import {
+	$if,
+	AGENT_META,
+	agentTool,
+	component,
+	each,
+	field,
+	send,
+	sourceKey,
+	t,
+	tag,
+} from "../../src/tutuca.js";
 import { labeled, metaFor, numberInput, setNumber } from "../common/card.js";
 import { isBlack, midiName, midiOf, SHARP_NAMES } from "./theory.js";
 import {
+	agentMarkMessages,
+	agentMarkTools,
 	between,
 	COLORS,
 	markFields,
@@ -103,7 +116,22 @@ const keyboard = () =>
 // as it is in a card that marks it.
 export const Piano = component({
 	name: "Piano",
-	meta: metaFor("Piano", "🎹", "A piano that marks keys: pick its octaves in its edit view.", 420),
+	meta: metaFor("Piano", "🎹", "A piano that marks keys: pick its octaves in its edit view.", 420, {
+		[AGENT_META]: {
+			prompt:
+				"A piano keyboard that marks keys. Name notes with their octave (C4 is middle C; without one, octave 4). Colors: amber, sky, pink, green, violet. The summary is its range and what's marked.",
+			summary: "ariaLabel",
+			tools: [
+				...agentMarkTools("on the keys"),
+				agentTool(
+					"set_range",
+					"message",
+					["startOctave", "octaves"],
+					"Show octaves octaves from startOctave.",
+				),
+			],
+		},
+	}),
 	fields: {
 		startOctave: t.number().int().min(0).max(8).default(3),
 		octaves: t.number().int().min(1).max(7).default(2),
@@ -167,6 +195,15 @@ export const Piano = component({
 		pressBlack: pressKey("blacks"),
 		...paintMessages,
 		...markMessage(t.number().int()),
+		...agentMarkMessages((note) => midiOf(note.pc, note.octave ?? 4)),
+		set_range: {
+			pure: true,
+			args: [t.number().int().min(0).max(8), t.number().int().min(1).max(7)],
+			run(next, [startOctave, octaves]) {
+				next.startOctave = startOctave;
+				next.octaves = octaves;
+			},
+		},
 	},
 });
 function pressKey(list) {

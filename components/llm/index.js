@@ -6,11 +6,14 @@
 // json components' edit views) and the schemas as JSON text (JsonSchemaEditor).
 import {
 	$if,
+	AGENT_META,
+	agentTool,
 	component,
 	each,
 	field,
 	render,
 	renderIt,
+	scopeOf,
 	send,
 	specOf,
 	t,
@@ -491,6 +494,58 @@ export const InferenceRequest = component({
 		"📤",
 		"What's sent to the model in one call: the conversation so far, its tools and options.",
 		560,
+		{
+			[AGENT_META]: {
+				prompt:
+					"An LLM inference request, to explain or build one: the model, an optional system prompt, the conversation (user and assistant messages, the model's tool calls and their results), the tools the model may call (each a name, description and JSON Schema for its input), an optional schema the answer must follow, and the options. The summary is the request as JSON, about as it's sent.",
+				tools: [
+					agentTool("set_model", "message", ["model"], "Set the model, provider/id.", {
+						target: "setModel",
+					}),
+					agentTool("set_system", "message", ["text"], "Set the system prompt; null for none."),
+					agentTool(
+						"add_message",
+						"message",
+						["role", "text"],
+						"Add a user or assistant message at the end.",
+					),
+					agentTool(
+						"add_tool_call",
+						"message",
+						["id", "name", "input"],
+						"Add the model's call of a tool, with its call id and JSON input.",
+					),
+					agentTool(
+						"add_tool_result",
+						"message",
+						["callId", "content", "isError"],
+						"Add what running the call callId gave back.",
+					),
+					agentTool("remove_message", "message", ["index"], "Remove a message by its index.", {
+						target: "removeMessage",
+					}),
+					agentTool(
+						"set_tool",
+						"message",
+						["name", "description", "parameters"],
+						"Define a tool the model may call, replacing one of that name: parameters is its input's JSON Schema.",
+					),
+					agentTool("remove_tool", "message", ["name"], "Remove the tool of that name."),
+					agentTool(
+						"set_output_schema",
+						"message",
+						["schema"],
+						"Set the schema the answer must follow; null for none.",
+					),
+					agentTool(
+						"set_options",
+						"message",
+						["temperature", "maxTokens"],
+						"Set the temperature (0 to 2) and max tokens.",
+					),
+				],
+			},
+		},
 	),
 	fields: {
 		model: t.string(),
@@ -518,6 +573,9 @@ export const InferenceRequest = component({
 		},
 	},
 	queries: {
+		get summary() {
+			return `${JSON.stringify(this.toJson())}\n(about ${this.tokens} tokens in)`;
+		},
 		get hasSystem() {
 			return this.system !== null;
 		},
@@ -666,6 +724,76 @@ export const InferenceRequest = component({
 		},
 		addTool(next, _args, ctx) {
 			next.tools.push(toolDefinition(ctx.scope.components));
+		},
+		// The agent's: each part made from what it says.
+		set_system: {
+			pure: true,
+			args: [t.option(t.string())],
+			run(next, [text]) {
+				next.system = text === null ? null : systemMessage(scopeOf(this).components, text);
+			},
+		},
+		add_message: {
+			pure: true,
+			args: [t.enum("user", "assistant"), t.string()],
+			run(next, [role, text]) {
+				const C = scopeOf(this).components;
+				next.messages.push(role === "user" ? userMessage(C, text) : assistantMessage(C, text));
+			},
+		},
+		add_tool_call: {
+			pure: true,
+			args: [t.string().len(1), t.string().len(1), t.any()],
+			run(next, [id, name, input]) {
+				next.messages.push(toolCall(scopeOf(this).components, { id, name, input: input ?? {} }));
+			},
+		},
+		add_tool_result: {
+			pure: true,
+			args: [t.string().len(1), t.any(), t.boolean()],
+			run(next, [callId, content, isError]) {
+				next.messages.push(toolResult(scopeOf(this).components, content, { callId, isError }));
+			},
+		},
+		set_tool: {
+			pure: true,
+			args: [t.string().len(1), t.string(), t.any()],
+			pre: (_self, [, , parameters]) => typeof parameters === "object" && parameters !== null,
+			why: () => "parameters is a JSON Schema object",
+			run(next, [name, description, parameters]) {
+				const tool = toolDefinition(scopeOf(this).components, { name, description, parameters });
+				const at = this.tools.findIndex((tl) => tl.name === name);
+				if (at === -1) next.tools.push(tool);
+				else next.tools[at] = tool;
+			},
+		},
+		remove_tool: {
+			pure: true,
+			args: [t.string()],
+			pre: (self, [name]) => self.tools.some((tl) => tl.name === name),
+			why: (self, [name]) =>
+				`there's no tool ${name}; there are ${self.tools.map((tl) => tl.name).join(", ") || "none"}`,
+			run(next, [name]) {
+				next.tools = this.tools.filter((tl) => tl.name !== name);
+			},
+		},
+		set_output_schema: {
+			pure: true,
+			args: [t.any()],
+			pre: (_self, [schema]) =>
+				schema === null || typeof schema === "object" || typeof schema === "boolean",
+			why: () => "a schema is an object or a boolean, or null for none",
+			run(next, [schema]) {
+				next.outputSchema = schema === null ? null : schemaEditor(scopeOf(this).components, schema);
+			},
+		},
+		set_options: {
+			pure: true,
+			args: [t.number().min(0).max(2), t.number().int().min(1)],
+			run(next, [temperature, maxTokens]) {
+				next.temperature = temperature;
+				next.maxTokens = maxTokens;
+			},
 		},
 		removeTool: {
 			args: [t.index("tools")],

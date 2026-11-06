@@ -9,6 +9,8 @@
 import { notesComponents } from "../../demos/notes/notes.js";
 import {
 	$if,
+	AGENT_META,
+	agentTool,
 	apply,
 	component,
 	DISPLAY_META,
@@ -68,6 +70,16 @@ export const TrackerCell = component({
 			icon: "📈",
 			description: "A group of things to log with a tap.",
 		},
+		// An agent logs things by their id: when someone says they did one.
+		[AGENT_META]: {
+			prompt:
+				"A tracker of one group of things a person does (drink water, take a walk, ...): each thing has an id, a title, how many times it's been logged and when last. Log a thing when the person says they did it, once per time they did it.",
+			tools: [
+				agentTool("log_thing", "message", ["id"], "Log a thing as done now.", {
+					target: "logThing",
+				}),
+			],
+		},
 	},
 	fields: {
 		section: t.component("Section"),
@@ -77,6 +89,15 @@ export const TrackerCell = component({
 	provides: {
 		things(b) {
 			b.field("things");
+		},
+	},
+	queries: {
+		// Each thing with its id and how often it's been logged, for an agent.
+		get summary() {
+			const lines = this.things.map(
+				(th) => `${th.id} ${th.emoji} ${th.title}: logged ${th.total} times, last ${th.lastText}`,
+			);
+			return `${this.section.title}:\n${lines.join("\n")}`;
 		},
 	},
 	view: render(field("section")),

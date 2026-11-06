@@ -6,6 +6,8 @@
 
 import {
 	$if,
+	AGENT_META,
+	agentTool,
 	apply,
 	button,
 	component,
@@ -59,6 +61,57 @@ const remember = (self, next) => {
 };
 const newId = (ctx) => `s-${ctx.uuid()}`;
 
+// What an agent draws with: shapes by id, in canvas coordinates, colors as #rrggbb or none.
+const shapeAt = (self, id) => self.shapes.findIndex((s) => s.id === id);
+const hasShape = (self, id) => shapeAt(self, id) !== -1;
+const noShape = (_self, [id]) => `there's no shape ${id}`;
+const widthType = () => t.enum(2, 1, 4, 8);
+const shapeLine = (s) => {
+	const kind = specOf(s).name.toLowerCase();
+	const where =
+		kind === "polyline"
+			? `points ${s.points.join(",")}`
+			: kind === "line"
+				? `from (${s.x0}, ${s.y0}) to (${s.x1}, ${s.y1})`
+				: `at (${s.left}, ${s.top}), ${s.boxWidth}×${s.boxHeight}`;
+	return `${s.id} ${kind} ${where}, fill ${s.fill}, stroke ${s.stroke} ${s.width}px`;
+};
+const AGENT = {
+	prompt:
+		"An SVG drawing: shapes from back to front, in canvas coordinates (x right, y down, from the top left corner, inside its width and height). Rectangles and ellipses fill the box between two corners, lines go from one point to the other, polylines join points [x0, y0, x1, y1, ...]. Colors are #rrggbb (lowercase) or none; stroke widths are 1, 2, 4 or 8. Draw scenes from simple shapes, back ones first; check the summary after.",
+	tools: [
+		agentTool(
+			"add_shape",
+			"message",
+			["kind", "x0", "y0", "x1", "y1", "fill", "stroke", "width"],
+			"Add a rect, ellipse or line between two corners (a line between two points), in front of the rest.",
+		),
+		agentTool(
+			"add_polyline",
+			"message",
+			["points", "fill", "stroke", "width"],
+			"Add a polyline through points [x0, y0, x1, y1, ...], in front of the rest.",
+		),
+		agentTool("move_shape", "message", ["id", "dx", "dy"], "Move a shape by dx, dy."),
+		agentTool(
+			"style_shape",
+			"message",
+			["id", "fill", "stroke", "width"],
+			"Change a shape's colors and stroke width.",
+		),
+		agentTool(
+			"layer_shape",
+			"message",
+			["id", "to"],
+			"Move a shape to the front or back, or one step up or down.",
+		),
+		agentTool("remove_shape", "message", ["id"], "Remove a shape."),
+		agentTool("undo", "message", [], "Undo the last change."),
+		agentTool("redo", "message", [], "Redo what was undone."),
+		agentTool("clear", "message", [], "Remove every shape."),
+	],
+};
+
 export const Drawing = component({
 	name: "Drawing",
 	meta: {
@@ -67,6 +120,7 @@ export const Drawing = component({
 			icon: "🎨",
 			description: "Shapes you draw, move and layer.",
 		},
+		[AGENT_META]: AGENT,
 	},
 	fields: {
 		width: t.number(640).int().min(16).max(4000),
@@ -122,6 +176,11 @@ export const Drawing = component({
 		},
 	},
 	queries: {
+		// The canvas and each shape, back to front, for an agent.
+		get summary() {
+			const shapes = this.shapes.map(shapeLine).join("\n");
+			return `${this.width}×${this.height} canvas, ${this.shapes.length} shapes:\n${shapes || "none"}`;
+		},
 		get viewBox() {
 			return `0 0 ${this.width} ${this.height}`;
 		},
@@ -580,7 +639,99 @@ export const Drawing = component({
 				next.selected = "";
 			},
 		},
+		// The agent's: shapes made and changed by id, each change undoable.
+		add_shape: {
+			args: [
+				t.enum("rect", "ellipse", "line"),
+				coord(),
+				coord(),
+				coord(),
+				coord(),
+				paintType("none"),
+				paintType("#000000"),
+				widthType(),
+			],
+			run(next, [kind, x0, y0, x1, y1, fill, stroke, width], ctx) {
+				const name = { rect: "Rect", ellipse: "Ellipse", line: "Line" }[kind];
+				remember(this, next);
+				next.shapes.push(
+					ctx.scope.make(name, { id: newId(ctx), x0, y0, x1, y1, fill, stroke, width }),
+				);
+			},
+		},
+		add_polyline: {
+			args: [
+				t
+					.array(coord())
+					.where((ps) => ps.length >= 4 && ps.length % 2 === 0, "at least two x, y pairs")
+					.arb((fc) =>
+						fc
+							.array(fc.integer({ min: 0, max: 600 }), { minLength: 4, maxLength: 8 })
+							.map((ps) => (ps.length % 2 === 0 ? ps : ps.slice(1))),
+					),
+				paintType("none"),
+				paintType("#000000"),
+				widthType(),
+			],
+			run(next, [points, fill, stroke, width], ctx) {
+				remember(this, next);
+				next.shapes.push(
+					ctx.scope.make("Polyline", { id: newId(ctx), points, fill, stroke, width }),
+				);
+			},
+		},
+		move_shape: {
+			pure: true,
+			args: [t.string(), t.number(), t.number()],
+			pre: (self, [id]) => hasShape(self, id),
+			why: noShape,
+			run(next, [id, dx, dy]) {
+				const i = shapeAt(this, id);
+				remember(this, next);
+				next.shapes[i] = apply(next.shapes[i], "moveBy", dx, dy);
+			},
+		},
+		style_shape: {
+			pure: true,
+			args: [t.string(), paintType("none"), paintType("#000000"), widthType()],
+			pre: (self, [id]) => hasShape(self, id),
+			why: noShape,
+			run(next, [id, fill, stroke, width]) {
+				const i = shapeAt(this, id);
+				remember(this, next);
+				next.shapes[i] = apply(next.shapes[i], "setStyle", fill, stroke, width);
+			},
+		},
+		layer_shape: {
+			pure: true,
+			args: [t.string(), t.enum("front", "back", "up", "down")],
+			pre: (self, [id]) => hasShape(self, id),
+			why: noShape,
+			run(next, [id, to]) {
+				const i = shapeAt(this, id);
+				const last = this.shapes.length - 1;
+				const j = { front: last, back: 0, up: Math.min(i + 1, last), down: Math.max(i - 1, 0) }[to];
+				if (i === j) return;
+				remember(this, next);
+				const shapes = [...this.shapes];
+				const [shape] = shapes.splice(i, 1);
+				shapes.splice(j, 0, shape);
+				next.shapes = shapes;
+			},
+		},
+		remove_shape: {
+			pure: true,
+			args: [t.string()],
+			pre: (self, [id]) => hasShape(self, id),
+			why: noShape,
+			run(next, [id]) {
+				remember(this, next);
+				next.shapes.splice(shapeAt(this, id), 1);
+				if (this.selected === id) next.selected = "";
+			},
+		},
 		undo: {
+			pure: true,
 			args: [],
 			run(next) {
 				if (this.past.length === 0) return;
@@ -591,6 +742,7 @@ export const Drawing = component({
 			},
 		},
 		redo: {
+			pure: true,
 			args: [],
 			run(next) {
 				if (this.future.length === 0) return;
@@ -601,6 +753,7 @@ export const Drawing = component({
 			},
 		},
 		clear: {
+			pure: true,
 			args: [],
 			post: (_prev, next) => next.shapes.length === 0,
 			run(next) {
