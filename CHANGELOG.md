@@ -71,6 +71,16 @@
   kanban `Board` says agent meta: add, move, rename and remove cards, add columns, and a week
   sample. The canvas demo has `?bundle=agent`, and the storybook has an Agent book and a
   Transcript section in the LLM book.
+- **A demo as an app.** `node scripts/app.js <demo> [port]` (`just app canvas`) serves a demo
+  without the demos' chrome, with the inference API beside it:
+  - `/` redirects to `/demos/<demo>/app.html`, keeping `?sync=`, `?doc=` and `?bundle=`. That
+    page is the demo's own `index.html` without its demo bar, its body marked
+    `data-chrome="none"`, so `boot` adds no time travel bar or sync log. A
+    `<meta name="tutuca-api">` points the canvas's agents at this server.
+  - The API is tutuca-wax's, now its own module (`tutuca-wax/scripts/inference-api.mjs`,
+    `GET /api/check` and `POST /api/infer`), which the studio server builds on. Keys come from
+    `tutuca-wax/.env`.
+  - `--no-inference` serves a demo without it, as does a missing tutuca-wax install.
 
 ## 1.0.0-beta.3
 

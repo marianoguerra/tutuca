@@ -44,6 +44,12 @@ serve path="":
 # Serve and print the URL of the demos.
 demos: (serve "demos/")
 
+# Serve one demo as an app, without the demos' chrome, with the inference API beside it (its
+# agents ask models; keys from tutuca-wax/.env): `just app canvas` → http://127.0.0.1:8010/,
+# then ?bundle=, ?sync= and ?doc= as on the demo.
+app demo="canvas" port="8010" *flags="":
+    node scripts/app.js {{demo}} {{port}} {{flags}}
+
 # Serve and print the URL of the storybook, optionally at a story, e.g. `just storybook Todo/App/Today`.
 storybook story="": (serve "storybook.html#" + story)
 

@@ -16,12 +16,17 @@ const TYPES = {
 	".tcd": "text/plain; charset=utf-8",
 	".json": "application/json",
 	".wat": "text/plain; charset=utf-8",
+	".svg": "image/svg+xml",
+	".png": "image/png",
+	".ico": "image/x-icon",
+	".woff2": "font/woff2",
+	".map": "application/json",
 };
 
-// A server for root's files; routes maps a path to a page served as HTML,
-// and handle(req, res), when given, answers first, resolving true when it did
-// (the studio's API, scripts/studio-server.mjs).
-export function createStaticServer(routes = {}, handle = null) {
+// A server for base's files (this directory's by default); routes maps a path
+// to a page served as HTML, and handle(req, res), when given, answers first,
+// resolving true when it did (the studio's API, scripts/studio-server.mjs).
+export function createStaticServer(routes = {}, handle = null, base = root) {
 	return createServer(async (req, res) => {
 		if (handle && (await handle(req, res))) return;
 		const url = new URL(req.url, "http://x");
@@ -35,8 +40,8 @@ export function createStaticServer(routes = {}, handle = null) {
 			res.writeHead(302, { ...headers, location: `${path}index.html${url.search}` }).end();
 			return;
 		}
-		const file = normalize(join(root, path));
-		if (!file.startsWith(root.endsWith(sep) ? root : root + sep)) {
+		const file = normalize(join(base, path));
+		if (!file.startsWith(base.endsWith(sep) ? base : base + sep)) {
 			res.writeHead(403, headers).end();
 			return;
 		}

@@ -227,3 +227,10 @@ body.demo-fullscreen {
 .demo-bar-collapsed.demo-fullscreen #app {
 	padding: 2.5rem 0 0;
 }
+/* A demo served as an app (scripts/app.js), without the demos' chrome: it fills the window. */
+body[data-chrome="none"]:not(.demo-bar-collapsed) #app {
+	padding: 0.5rem;
+}
+body[data-chrome="none"].demo-fullscreen:not(.demo-bar-collapsed) #app {
+	padding: 0;
+}

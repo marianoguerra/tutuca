@@ -31,8 +31,14 @@ export const start = (document = globalThis.document, id = undefined, handlers =
 };
 
 const DEFAULT_API = "http://127.0.0.1:8003/api/";
-const apiOf = (document) =>
-	new URLSearchParams(document.defaultView?.location.search ?? "").get("api") ?? DEFAULT_API;
+// Where agents ask models: ?api=, else what the page says (scripts/app.js serves the API beside
+// the demo and says /api/), else the studio server's.
+const apiOf = (document) => {
+	const query = new URLSearchParams(document.defaultView?.location.search ?? "").get("api");
+	const meta = document.querySelector('meta[name="tutuca-api"]')?.getAttribute("content");
+	const api = query ?? meta ?? DEFAULT_API;
+	return new URL(api, document.defaultView?.location.href ?? "http://127.0.0.1/").href;
+};
 // Runs fn once host has a root.
 const whenStarted = (host, fn, tries = 100) => {
 	if (host.root !== null) fn();

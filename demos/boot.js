@@ -23,20 +23,25 @@ export const boot = ({
 	const { host, watch } = setup({ components, askHandlers, metaSchemas, document });
 	const window = document.defaultView;
 	const mode = window === null ? null : syncModeOf(window);
+	// A bare page (scripts/app.js, a demo served as an app) gets none of the demos' chrome.
+	const bare = isBare(document);
 	addSyncSwitcher(document, mode);
 	addBarToggle(document);
-	if (window !== null) addTimeTravel(document, host, historyOf(window));
+	if (window !== null && !bare) addTimeTravel(document, host, historyOf(window));
 	if (mode === null) {
 		host.start(make(host.scope.components));
 		watch();
 		return host;
 	}
-	syncFromQuery(window, { log: addSyncLog(document) })
+	syncFromQuery(window, { log: bare ? null : addSyncLog(document) })
 		.then((engines) => startSynced(host, { engines, make }))
 		.then(watch)
 		.catch((error) => console.error("sync failed to start", error));
 	return host;
 };
+
+// Whether the page is a demo served without the demos' chrome: its body says data-chrome="none".
+export const isBare = (document) => document.body?.dataset?.chrome === "none";
 
 // A button at the start of the demo bar that collapses it, and the time travel bar under it, to
 // itself in the top left corner, so the demo has the whole window; pressed again, they're back.

@@ -1,5 +1,5 @@
 import assert from "node:assert/strict";
-import { readFileSync } from "node:fs";
+import { readdirSync, readFileSync } from "node:fs";
 import test from "node:test";
 import { inferSchema, schemaDocument } from "../../components/json-schema/infer.js";
 import { quadraticLabel } from "../../components/math/workbench.js";
@@ -18,6 +18,7 @@ import { RELAY_URL, syncFromQuery } from "../../demos/sync/engines.js";
 import { start as startTracker } from "../../demos/thing-tracker/main.js";
 import { start as startTodo } from "../../demos/todo/main.js";
 import { start as startTreeSpec } from "../../demos/tree-spec/main.js";
+import { bareShell } from "../../scripts/app.js";
 import { lint } from "../../src/lint/index.js";
 import { startSynced } from "../../src/sync/index.js";
 import { relay } from "../../src/sync/remote.js";
@@ -750,4 +751,31 @@ test("canvas demo, agent bundle: without a model, nothing to wrap in an agent", 
 	assert.equal(app.state().agentsAvailable, false);
 	assert.equal(app.$('[title="Wrap in an agent"]'), null);
 	await checkClean(app);
+});
+
+test("a demo served as an app (scripts/app.js): every demo's page without the demo bar", () => {
+	const demos = readdirSync(new URL("../../demos/", import.meta.url), { withFileTypes: true })
+		.filter((d) => d.isDirectory() && d.name !== "deps" && d.name !== "sync")
+		.map((d) => d.name);
+	assert.ok(demos.includes("canvas"));
+	for (const name of demos) {
+		const html = readFileSync(new URL(`../../demos/${name}/index.html`, import.meta.url), "utf8");
+		const page = bareShell(html, { api: "/api/" });
+		assert.ok(!page.includes('class="demo-bar"'), `${name} has no demo bar`);
+		assert.match(page, /<body data-chrome="none"[\s>]/, `${name} is marked bare`);
+		assert.match(page, /<meta name="tutuca-api" content="\/api\/" \/>\s*<\/head>/);
+		assert.match(page, /<div id="app">/, `${name} keeps its app`);
+	}
+	const html = readFileSync(new URL("../../demos/canvas/index.html", import.meta.url), "utf8");
+	assert.ok(!bareShell(html).includes("tutuca-api"), "no API, no meta");
+});
+
+test("a bare demo page boots without the time travel bar", async () => {
+	const window = dom('<div id="app"></div>');
+	window.document.body.dataset.chrome = "none";
+	startLang(window.document);
+	const rootNode = window.document.getElementById("app");
+	assert.equal(window.document.querySelector(".time-travel"), null);
+	assert.ok(rootNode.childNodes.length > 0, "renders");
+	await settle();
 });

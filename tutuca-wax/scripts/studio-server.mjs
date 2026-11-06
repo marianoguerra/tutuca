@@ -25,13 +25,14 @@
 // lists them all). The system prompt is read on every request from
 // studio/assistant/: its *.md files in order, the examples, and the runtime's
 // functions from src/abi.wax, so editing them needs no restart.
-import { existsSync } from "node:fs";
 import { readdir, readFile } from "node:fs/promises";
 import { fileURLToPath } from "node:url";
 import { Type } from "@earendil-works/pi-ai";
 import { builtinModels } from "@earendil-works/pi-ai/providers/all";
+import { apiHandler, availableModels, inferenceRoutes, json, loadEnv, modelsReport, offeredModel, readJson } from "./inference-api.mjs";
 import { createStaticServer } from "./serve.mjs";
-import { modelRule } from "./studio-models.mjs";
+
+export { availableModels } from "./inference-api.mjs";
 
 const root = new URL("../", import.meta.url);
 const ASSISTANT = new URL("studio/assistant/", root);
@@ -106,56 +107,21 @@ export async function systemPrompt(component) {
 	return parts.map((p) => p.trim()).join("\n\n");
 }
 
-// ---- Models -----------------------------------------------------------------------------
-
-// The chat models of the providers that have credentials, those offer picks
-// (by default, the ones studio-models.mjs's rules match).
-export async function availableModels(models, offer = (m) => modelRule(m.id) !== null) {
-	const out = [];
-	for (const provider of models.getProviders()) {
-		let auth;
-		try {
-			auth = await models.getAuth(provider.id);
-		} catch {
-			continue; // broken credentials: as if it had none
-		}
-		if (!auth) continue;
-		for (const m of models.getModels(provider.id)) if (offer(m)) out.push({ provider: provider.id, id: m.id, name: m.name ?? m.id });
-	}
-	return out;
-}
-
 // ---- The server -------------------------------------------------------------------------
 
-const LOCAL_ORIGIN = /^http:\/\/(127\.0\.0\.1|localhost)(:\d+)?$/;
-const json = (res, status, body) => res.writeHead(status, { "content-type": "application/json", "cache-control": "no-store" }).end(JSON.stringify(body));
-const readJson = async (req, limit = 4 * 1024 * 1024) => {
-	let size = 0;
-	const chunks = [];
-	for await (const chunk of req) {
-		size += chunk.length;
-		if (size > limit) throw new Error("the request is too large");
-		chunks.push(chunk);
-	}
-	return JSON.parse(Buffer.concat(chunks).toString("utf8") || "{}");
-};
-
-// The studio's server, asking models (a pi Models collection) for the chat,
-// offering the ones offer picks (availableModels).
+// The studio's server, asking models (a pi Models collection) for the chat, offering the ones
+// offer picks (availableModels): the inference API (inference-api.mjs) and the studio's chat.
 export function createStudioServer({ models = builtinModels(), offer } = {}) {
 	const api = {
-		"GET /api/check": async (req, res) => {
-			const available = await availableModels(models, offer);
-			json(res, 200, { server: true, assistant: available.length > 0, models: available });
-		},
+		...inferenceRoutes({ models, offer }),
 		"POST /api/prompt": async (req, res) => {
 			const { component } = await readJson(req);
 			json(res, 200, { prompt: await systemPrompt(component) });
 		},
 		"POST /api/chat": async (req, res) => {
 			const { model: wanted, messages, component } = await readJson(req);
-			const model = wanted && models.getModel(wanted.provider, wanted.id);
-			if (!model || !(await availableModels(models, offer)).some((m) => m.provider === wanted.provider && m.id === wanted.id)) {
+			const model = await offeredModel(models, offer, wanted);
+			if (!model) {
 				json(res, 400, { error: `no model ${wanted?.provider}/${wanted?.id} with credentials here` });
 				return;
 			}
@@ -170,56 +136,20 @@ export function createStudioServer({ models = builtinModels(), offer } = {}) {
 			const message = await models.complete(model, context, { signal: controller.signal });
 			if (!res.writableEnded) json(res, 200, { message });
 		},
-		"POST /api/infer": async (req, res) => {
-			const { model: wanted, systemPrompt: system, tools, transcript } = await readJson(req);
-			if (typeof system !== "string") return json(res, 400, { error: "no systemPrompt" });
-			if (!Array.isArray(tools)) return json(res, 400, { error: "no tools" });
-			if (!Array.isArray(transcript) || transcript.length === 0) return json(res, 400, { error: "no transcript" });
-			const model = wanted && models.getModel(wanted.provider, wanted.id);
-			if (!model || !(await availableModels(models, offer)).some((m) => m.provider === wanted.provider && m.id === wanted.id)) {
-				return json(res, 400, { error: `no model ${wanted?.provider}/${wanted?.id} with credentials here` });
-			}
-			const controller = new AbortController();
-			res.on("close", () => controller.abort());
-			const message = await models.complete(model, { systemPrompt: system, messages: transcript, tools }, { signal: controller.signal });
-			if (!res.writableEnded) json(res, 200, { message });
-		},
 	};
-	return createStaticServer({}, async (req, res) => {
-		const path = new URL(req.url, "http://x").pathname;
-		// Pages served from another local port (tutuca's demos, `just demos`) may call the API;
-		// only local ones, since the server holds the API keys.
-		const origin = req.headers.origin;
-		if (path.startsWith("/api/") && typeof origin === "string" && LOCAL_ORIGIN.test(origin)) {
-			res.setHeader("access-control-allow-origin", origin);
-			res.setHeader("vary", "origin");
-			if (req.method === "OPTIONS") {
-				res.writeHead(204, { "access-control-allow-methods": "GET, POST", "access-control-allow-headers": "content-type", "access-control-max-age": "600" }).end();
-				return true;
-			}
-		}
-		const handler = api[`${req.method} ${path}`];
-		if (!handler) return false;
-		try {
-			await handler(req, res);
-		} catch (error) {
-			if (!res.headersSent) json(res, 500, { error: error.message });
-		}
-		return true;
-	});
+	return createStaticServer({}, apiHandler(api));
 }
 
 if (process.argv[1] === fileURLToPath(import.meta.url)) {
 	const args = process.argv.slice(2);
 	const envAt = args.indexOf("--env");
 	const envFile = envAt >= 0 ? args.splice(envAt, 2)[1] : fileURLToPath(new URL(".env", root));
-	if (existsSync(envFile)) process.loadEnvFile(envFile);
+	loadEnv(envFile);
 	const port = Number(args[0] ?? 8003);
 	const models = builtinModels();
 	const available = await availableModels(models);
 	createStudioServer({ models }).listen(port, "127.0.0.1", () => {
 		console.log(`the studio at http://127.0.0.1:${port}/studio/, the micro-agents at http://127.0.0.1:${port}/microagents/`);
-		const providers = [...new Set(available.map((m) => m.provider))];
-		console.log(providers.length > 0 ? `assistant models from ${providers.join(", ")} (${available.length})` : `no API keys found (${envFile} or the environment): the studio runs without its assistant`);
+		console.log(available.length > 0 ? `assistant ${modelsReport(available, envFile)}` : `${modelsReport(available, envFile)}: the studio runs without its assistant`);
 	});
 }
