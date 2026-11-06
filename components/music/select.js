@@ -2,14 +2,12 @@
 // selector picks by an interval, and an explorer that shows both, in different colors, on a
 // piano or a guitar's neck, as its toggle says.
 import {
-	$if,
 	apply,
 	component,
 	each,
 	field,
 	render,
 	send,
-	sourceKey,
 	t,
 	tag,
 	targetValue,
@@ -26,11 +24,22 @@ import {
 	selectionNotes,
 	selectionSymbol,
 } from "./theory.js";
-import { COLORS, NOTE, rootPicker, rootQueries } from "./ui.js";
+import {
+	COLORS,
+	instrumentField,
+	instrumentMessages,
+	instrumentQueries,
+	instrumentToggle,
+	instrumentView,
+	NOTE,
+	pair,
+	rootPicker,
+	rootQueries,
+	SELECT,
+} from "./ui.js";
 
 const { div, input, label, option, p, select, span } = tag;
 
-const INSTRUMENTS = ["piano", "guitar"];
 const CHANGED = { notify: ["selectionChanged"] };
 
 // Picks a root and a single note or a chord on it, and tells what holds it, with
@@ -68,19 +77,21 @@ export const NoteChordSelector = component({
 	view: div(
 		{ class: "note-chord-selector flex flex-col gap-2" },
 		rootPicker(),
-		div(
-			{ class: "flex flex-wrap items-center gap-2" },
+		pair(
 			select(
 				{
-					class: "select select-bordered select-sm",
+					class: SELECT,
 					"aria-label": "Note or chord",
 					value: field("kind"),
 					"on:change": send("setKind", targetValue()),
 				},
 				each(field("kinds"), option({ value: field("key") }, field("text"))),
 			),
-			span({ class: "font-bold" }, field("symbol")),
-			span({ class: `${NOTE} font-mono` }, field("names")),
+			span(
+				{ class: "flex items-baseline gap-2" },
+				span({ class: "font-bold" }, field("symbol")),
+				span({ class: `${NOTE} font-mono` }, field("names")),
+			),
 		),
 	),
 	on: {
@@ -249,7 +260,7 @@ export const OffsetExplorer = component({
 	),
 	fields: {
 		picker: t.component("OffsetSelector"),
-		instrument: t.enum("piano", "guitar"),
+		...instrumentField(),
 		piano: t.component("Piano"),
 		guitar: t.component("GuitarNeck"),
 	},
@@ -257,17 +268,7 @@ export const OffsetExplorer = component({
 		get symbol() {
 			return this.picker.selector.symbol;
 		},
-		get onPiano() {
-			return this.instrument === "piano";
-		},
-		get toggles() {
-			return INSTRUMENTS.map((name) => ({
-				name,
-				text: name === "piano" ? "🎹 Piano" : "🎸 Guitar",
-				cls: `btn btn-xs join-item ${name === this.instrument ? "btn-primary" : ""}`,
-				pressed: name === this.instrument ? "true" : "false",
-			}));
-		},
+		...instrumentQueries,
 		get legend() {
 			const { kind } = this.picker.selector;
 			const items = [
@@ -293,12 +294,7 @@ export const OffsetExplorer = component({
 				Object.assign(next, marked(this.picker, this.piano, this.guitar));
 			},
 		},
-		setInstrument: {
-			args: [t.number().int().min(0).max(1)],
-			run(next, [at]) {
-				next.instrument = INSTRUMENTS[at];
-			},
-		},
+		...instrumentMessages,
 	},
 });
 function explorerView() {
@@ -306,23 +302,8 @@ function explorerView() {
 		{ class: cardClass("music-offset") },
 		cardHeader("Offset", "badge-secondary", span({ class: "font-bold" }, field("symbol"))),
 		render(field("picker")),
-		div(
-			{ class: "flex flex-wrap items-center gap-3" },
-			div(
-				{ class: "join", role: "group", "aria-label": "Instrument" },
-				each(
-					field("toggles"),
-					tag.button(
-						{
-							type: "button",
-							class: field("cls"),
-							"aria-pressed": field("pressed"),
-							"on:click": send("setInstrument", sourceKey()),
-						},
-						field("text"),
-					),
-				),
-			),
+		pair(
+			instrumentToggle(),
 			div(
 				{ class: "flex flex-wrap gap-2 text-xs" },
 				each(
@@ -335,7 +316,7 @@ function explorerView() {
 				),
 			),
 		),
-		$if(field("onPiano"), render(field("piano")), render(field("guitar"))),
+		instrumentView(),
 		p({ class: NOTE }, "Edit it to set the piano's octaves or the neck's frets."),
 	);
 }

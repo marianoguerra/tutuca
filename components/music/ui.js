@@ -1,6 +1,17 @@
 // What the music cards share: their colors, the palette an instrument paints its marks with,
 // the root picker, the octave stepper and marking notes on an instrument.
-import { agentTool, apply, each, field, send, sourceKey, t, tag } from "../../src/tutuca.js";
+import {
+	$if,
+	agentTool,
+	apply,
+	each,
+	field,
+	render,
+	send,
+	sourceKey,
+	t,
+	tag,
+} from "../../src/tutuca.js";
 import { SMALL_BUTTON } from "../common/card.js";
 import { isNoteName, octaveOf, parseNoteName, ROOTS } from "./theory.js";
 
@@ -210,15 +221,109 @@ export const octaveStepper = () =>
 		),
 	);
 
-// A row of notes, each its name and interval on one line, and a warning after them.
-export const noteChips = (warning) =>
+// A card that shows its notes on a piano or a guitar's neck, as its toggle says: it marks both,
+// so switching shows the other at once.
+export const INSTRUMENTS = ["piano", "guitar"];
+export const instrumentField = () => ({ instrument: t.enum(...INSTRUMENTS) });
+export const instrumentQueries = {
+	onPiano: {
+		get() {
+			return this.instrument === "piano";
+		},
+	},
+	instrumentToggles: {
+		get() {
+			return INSTRUMENTS.map((name) => ({
+				text: name === "piano" ? "🎹 Piano" : "🎸 Guitar",
+				cls: `btn btn-xs join-item flex-1 ${name === this.instrument ? "btn-primary" : "bg-base-100"}`,
+				pressed: name === this.instrument ? "true" : "false",
+			}));
+		},
+	},
+};
+export const instrumentMessages = {
+	setInstrument: {
+		args: [
+			t
+				.number()
+				.int()
+				.min(0)
+				.max(INSTRUMENTS.length - 1),
+		],
+		run(next, [at]) {
+			next.instrument = INSTRUMENTS[at];
+		},
+	},
+	set_instrument: {
+		pure: true,
+		args: [t.enum(...INSTRUMENTS)],
+		run(next, [instrument]) {
+			next.instrument = instrument;
+		},
+	},
+};
+export const instrumentTool = () =>
+	agentTool(
+		"set_instrument",
+		"message",
+		["instrument"],
+		"Show it on the piano or the guitar's neck.",
+	);
+export const instrumentToggle = () =>
+	div(
+		{ class: "join flex w-full", role: "group", "aria-label": "Instrument" },
+		each(
+			field("instrumentToggles"),
+			tag.button(
+				{
+					type: "button",
+					class: field("cls"),
+					"aria-pressed": field("pressed"),
+					"on:click": send("setInstrument", sourceKey()),
+				},
+				field("text"),
+			),
+		),
+	);
+// The piano or the guitar's neck, as the toggle says.
+export const instrumentView = () =>
+	$if(field("onPiano"), render(field("piano")), render(field("guitar")));
+
+// A card's rows under its header are as wide as it, each one control or two side by side, the
+// two halves as wide, each filling its half: their edges line up from row to row.
+export const pair = (left, right) =>
+	div({ class: "grid grid-cols-2 items-center gap-2" }, left, right);
+// A value read off a card, in a box as tall as a row's buttons and as wide as its half.
+export const readout = (text, title) =>
+	span(
+		{
+			class:
+				"flex h-6 w-full items-center justify-center rounded border border-base-300 font-mono text-xs",
+			title,
+		},
+		text,
+	);
+// A note, as wide as its share of the row: the notes fill their half evenly, and wrap when they
+// can't.
+export const CHIP =
+	"inline-flex flex-1 items-baseline justify-center gap-1 rounded border border-base-300 px-1 text-sm";
+// A select as wide as its half and as tall as the row's buttons.
+export const SELECT = "select select-bordered select-xs w-full";
+
+// A row of notes, each its name and interval on one line, and a warning after them; with end
+// (an instrument toggle), the notes in one half and end in the other.
+export const noteChips = (warning, end = null) => {
+	const chips = noteChipsOnly(warning);
+	return end === null ? chips : pair(chips, end);
+};
+const noteChipsOnly = (warning) =>
 	div(
 		{ class: "music-notes flex flex-wrap items-center gap-1" },
 		each(
 			field("notes"),
 			span(
 				{
-					class: "inline-flex items-baseline gap-1 rounded border border-base-300 px-1.5 text-sm",
+					class: CHIP,
 					title: field("about"),
 				},
 				span({ class: "font-bold" }, field("name")),

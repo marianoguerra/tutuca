@@ -170,6 +170,8 @@ test("music: chords, keys and marks by note name", () => {
 	assert.match(summaryOf(scales), /^F♯ harmonic minor/);
 	assert.deepEqual(scales.guitar.labels, ["F♯", "G♯", "A", "B", "C♯", "D", "E♯"]);
 	failsWith(scales, "set_scale", { root: "C", kind: "bebop" }, /kind/);
+	scales = ran(scales, "set_instrument", { instrument: "guitar" });
+	assert.equal(scales.instrument, "guitar");
 	let keys = MUSIC_KINDS.piano.make(C, {});
 	keys = ran(keys, "set_marks", { notes: ["C4", "E4", "G4"], color: "sky" });
 	assert.deepEqual(keys.marked, [60, 64, 67]);

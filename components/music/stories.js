@@ -172,6 +172,11 @@ export default stories({
 					),
 					click('[title="Octave up"]'),
 					step.check("off the keyboard", (s) => s.content.outside.startsWith("D6 E6 are")),
+					click('[aria-label="Instrument"] > button:nth-of-type(2)'),
+					step.check(
+						"on the guitar, nothing off it",
+						(s) => s.content.instrument === "guitar" && s.content.outside === "",
+					),
 				],
 			},
 		},

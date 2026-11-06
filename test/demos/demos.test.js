@@ -428,7 +428,10 @@ test("canvas demo, music bundle: the circle, the chords, the intervals and a pia
 	app.fire("change", app.$('.music-scales [aria-label="Scale"]'), "minor");
 	assert.deepEqual(scales().piano.labels, ["A", "B", "C", "D", "E", "F", "G", "A"]);
 	assert.deepEqual(scales().guitar.marked, [9, 11, 0, 2, 4, 5, 7]);
+	assert.equal(app.$(".music-scales .guitar-neck"), null, "the piano first");
+	app.fire("click", app.$('.music-scales [aria-label="Instrument"] > button:nth-of-type(2)'));
 	assert.ok(app.$(".music-scales .guitar-neck"));
+	assert.equal(app.$(".music-scales .piano-keys"), null, "then the guitar alone");
 	await checkClean(app);
 });
 
