@@ -71,6 +71,12 @@ export const startStorybook = ({
 				if (node) node.scrollTop = 0;
 			}
 		},
+		// The story's id as the URL's hash, which initialId reads on a reload; replaced, so
+		// picking stories doesn't fill the history.
+		rememberStory: ([id]) => {
+			const history = document.defaultView?.history;
+			history?.replaceState(history.state, "", `#${encodeURI(id)}`);
+		},
 	});
 	host.start(makeStorybook(host.scope.components, books, initialId));
 	return { host, registry };

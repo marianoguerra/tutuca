@@ -124,25 +124,28 @@ export const Storybook = component({
 				syncCollapsed(next);
 			},
 		},
+		// A group opens or closes; with all, every group does as it does.
 		groupToggled: {
-			args: [t.string()],
-			run(next, [group], ctx) {
+			args: [t.string(), t.boolean()],
+			run(next, [group, all], ctx) {
 				ctx.stopNext();
 				const { collapsed } = this;
-				next.collapsed = collapsed.includes(group)
-					? collapsed.filter((g) => g !== group)
-					: [...collapsed, group];
+				const opens = collapsed.includes(group);
+				if (all) next.collapsed = opens ? [] : [...new Set(this.links.map((l) => l.group))];
+				else next.collapsed = opens ? collapsed.filter((g) => g !== group) : [...collapsed, group];
 				syncCollapsed(next);
 			},
 		},
-		// Shows the new story from its top, wherever the list was scrolled to.
+		// Shows the new story from its top, wherever the list was scrolled to, and remembers it
+		// (in the page's URL) to open it again on a reload.
 		storySelected: {
 			args: [t.string()],
-			emits: { ask: ["scrollToTop"] },
+			emits: { ask: ["scrollToTop", "rememberStory"] },
 			run(next, [id], ctx) {
 				selectStory(this, next, id);
 				ctx.stopNext();
 				ctx.ask("scrollToTop");
+				ctx.ask("rememberStory", [id]);
 			},
 		},
 		setPanel: {
@@ -166,6 +169,11 @@ export const Storybook = component({
 	},
 	answers: {
 		scrollToTop: {
+			ok() {},
+			error() {},
+			unhandled() {},
+		},
+		rememberStory: {
 			ok() {},
 			error() {},
 			unhandled() {},

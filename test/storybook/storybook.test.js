@@ -13,7 +13,8 @@ testGenericProperties(storybookComponents);
 const tick = (ms = 0) => new Promise((resolve) => setTimeout(resolve, ms));
 
 const start = (initialId = "") => {
-	const window = dom("<body></body>");
+	// A page's URL, as the storybook's: on about:blank, the hash can't be set.
+	const window = dom("<body></body>", { url: "http://localhost/storybook.html" });
 	const rootNode = window.document.createElement("div");
 	window.document.body.append(rootNode);
 	const failures = [];
@@ -79,6 +80,30 @@ test("groups collapse, a filter shows their matches, and a pick scrolls to the t
 	click(byText("li button", "Bool (edit)"));
 	await settle();
 	assert.equal(main.scrollTop, 0);
+	assert.deepEqual(failures, []);
+});
+
+test("Ctrl+click on a group collapses every group, and again expands them", async () => {
+	const { host, rootNode, window, byText, failures } = start();
+	const ctrlClick = (node) =>
+		node.dispatchEvent(new window.MouseEvent("click", { bubbles: true, ctrlKey: true }));
+	const group = (name) => byText("aside li button span.flex-1", name).parentNode;
+	ctrlClick(group("JSON"));
+	await settle();
+	assert.deepEqual(host.root.collapsed, ["JSON", "Math"]);
+	assert.equal(rootNode.querySelectorAll("aside li button[title]").length, 0);
+	ctrlClick(group("Math"));
+	await settle();
+	assert.deepEqual(host.root.collapsed, []);
+	assert.deepEqual(failures, []);
+});
+
+test("a picked story goes in the URL's hash, which opens it again", async () => {
+	const { window, click, byText, failures } = start();
+	click(byText("li button", "Bool (edit)"));
+	await settle();
+	assert.equal(window.location.hash, "#JSON/Bool%20(edit)");
+	assert.equal(decodeURIComponent(window.location.hash.slice(1)), "JSON/Bool (edit)");
 	assert.deepEqual(failures, []);
 });
 

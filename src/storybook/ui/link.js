@@ -82,8 +82,10 @@ export const StoryLink = component({
 		toggleGroup: {
 			args: [],
 			emits: { notify: ["groupToggled"] },
+			// With Ctrl (⌘ on a Mac), every group does as this one.
 			run(_next, _args, ctx) {
-				ctx.notify("groupToggled", [this.group]);
+				const all = Boolean(ctx.event?.ctrlKey || ctx.event?.metaKey);
+				ctx.notify("groupToggled", [this.group, all]);
 			},
 		},
 		select: {
