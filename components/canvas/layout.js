@@ -22,8 +22,10 @@
 // CANVAS_META (see canvasMetaSchemas).
 import {
 	$if,
+	AGENT_META,
 	component,
 	DISPLAY_META,
+	dataMetaSchemas,
 	displayLabel,
 	displayMetaSchemas,
 	displayOf,
@@ -31,11 +33,13 @@ import {
 	field,
 	metaOf,
 	renderIt,
+	sampleChoices,
 	send,
 	sourceKey,
 	t,
 	tag,
 	targetValue,
+	withSample,
 } from "../../src/tutuca.js";
 
 const { button, div, input, li, p, span, ul } = tag;
@@ -46,6 +50,7 @@ const { button, div, input, li, p, span, ul } = tag;
 export const CANVAS_META = "https://tutuca.dev/meta/canvas";
 export const canvasMetaSchemas = {
 	...displayMetaSchemas,
+	...dataMetaSchemas,
 	[CANVAS_META]: {
 		width: t.option(t.number().int().min(0).max(4000)),
 		height: t.option(t.number().int().min(0).max(4000)),
@@ -111,29 +116,48 @@ export const kindLook = (kind, c, scope = undefined, picked = null) => {
 	};
 };
 
+// The choices a kind is picked with: its own, else, in a hole that lists what an agent can
+// drive (asking for AGENT_META), its component's samples (empty and each one), else none.
+const choicesOf = (kind, spec, scope, meta) =>
+	kind.choices ?? (meta === AGENT_META && spec ? sampleChoices(spec, scope) : []);
+// Whether the component a kind names says something under the meta uri.
+const saysMeta = (spec, uri) => spec !== null && Object.hasOwn(spec.meta ?? {}, uri);
+
 // The ask handlers a hole needs, for a table of kinds and the builtins. A kind is a recipe:
 // { component, blurb, make, choices } and, to say more than its component's meta, title, icon
-// and width.
+// and width. A hole asking for the components that say a meta lists those alone; asking for
+// AGENT_META, a kind without choices of its own is picked with its component's samples, if it
+// has them, and what it makes starts from the one picked.
 export const kindHandlers = (kinds) => {
 	const all = withBuiltins(kinds);
+	const specOfKind = (kind, scope) =>
+		kind.component ? (scope.lookupByName(kind.component) ?? null) : null;
 	return {
-		// [] → [{ id, label, blurb, choices }], from the meta of the component each names.
-		componentKinds: (_args, read) =>
-			Object.entries(all).map(([id, kind]) => {
-				const spec = kind.component ? read.scope.lookupByName(kind.component) : null;
+		// [meta?] → [{ id, label, blurb, choices }], from the meta of the component each names;
+		// with meta, a URI, only the kinds whose component says something under it.
+		componentKinds: ([meta = ""] = [], read) =>
+			Object.entries(all).flatMap(([id, kind]) => {
+				const spec = specOfKind(kind, read.scope);
+				if (meta !== "" && !saysMeta(spec, meta)) return [];
 				const { label, blurb } = kindLook(kind, spec, read.scope);
-				return { id, label, blurb, choices: kind.choices ?? [] };
+				return [{ id, label, blurb, choices: choicesOf(kind, spec, read.scope, meta) }];
 			}),
-		// [id, choice] → { content, label, width }, made in the asker's scope.
+		// [id, choice] → { content, label, width }, made in the asker's scope. A choice the kind
+		// doesn't have of its own is one of its component's samples.
 		makeComponent: ([id, choice], read) => {
 			const kind = all[id];
 			if (kind === undefined) throw new Error(`no component kind ${id}`);
-			const picked = kind.choices?.find((c) => c.id === choice) ?? null;
-			if (kind.choices !== undefined && picked === null) {
+			const spec = specOfKind(kind, read.scope);
+			const sample = kind.choices === undefined && choice !== null && choice !== undefined;
+			const choices = sample ? choicesOf(kind, spec, read.scope, AGENT_META) : (kind.choices ?? []);
+			const picked = choices.find((c) => c.id === choice) ?? null;
+			if (choices.length > 0 && picked === null) {
 				throw new Error(`${id} needs one of its choices`);
 			}
-			const content = kind.make(read.scope.components, kindEnv(read, picked?.id ?? null));
-			const { label, width } = kindLook(kind, content, undefined, picked);
+			const own = sample ? null : picked;
+			let content = kind.make(read.scope.components, kindEnv(read, own?.id ?? null));
+			if (sample) content = withSample(content, picked.id);
+			const { label, width } = kindLook(kind, content, undefined, own);
 			return { content, label, width };
 		},
 	};
@@ -163,6 +187,8 @@ export const Hole = component({
 	name: "Hole",
 	meta: layoutMeta("Empty", "", "An empty slot, to put a component in.", 240),
 	fields: {
+		// A meta URI: only what says something under it can go here ("" for anything).
+		meta: t.string(),
 		// closed, kind while the kinds are listed, choice while the picked kind's choices are.
 		step: t.enum("closed", "kind", "choice").sync("none"),
 		// The host's answer to componentKinds, while the menu is open: not part of the layout.
@@ -247,7 +273,7 @@ export const Hole = component({
 			emits: { ask: ["componentKinds"] },
 			run(next, _args, ctx) {
 				next.error = "";
-				ctx.ask("componentKinds");
+				ctx.ask("componentKinds", this.meta === "" ? [] : [this.meta]);
 			},
 		},
 		close(next) {

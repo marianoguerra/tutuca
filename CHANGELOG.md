@@ -1,5 +1,77 @@
 # Changelog
 
+## Unreleased
+
+### Added
+
+- **Agent meta.** Under `AGENT_META` (`https://tutuca.dev/meta/agent`), a component says how an
+  LLM agent drives it:
+  - `tools`, each one of its own messages or queries, with `params` naming its positional args
+    and a `description`;
+  - a `prompt` on its domain;
+  - a `summary` query, which goes in every system prompt;
+  - `skills`, read-only texts.
+
+  What its whole content is as data is the data meta's (below), which gives the agent
+  `get_state`, `set_state` and its samples.
+
+  Register `agentMetaSchemas` in a scope to check its shape. `agentProblems(c)` checks what the
+  shape can't express, such as a tool naming a message or query the component doesn't have, or
+  `params` that don't match the args. Lint reports these as `agent-meta`.
+- **Data meta.** Under `DATA_META` (`https://tutuca.dev/meta/data`, src/data.js), a component
+  says what its whole content is as plain JSON:
+  - `load`, a pure message of one arg that replaces the content (`"load"` by default);
+  - `data`, a zero-arg query whose value `load` takes back;
+  - `schema`, the JSON Schema of what `load` takes, for when its arg type can't say it (an any
+    with a where check). Without it, `dataSchema(c)` derives the schema from the arg type
+    (`typeSchema`, now in src/data.js);
+  - `samples` to start from.
+
+  Everything that sets a component from data reads it:
+  - an agent's `get_state` and its new `set_state`, whose `value` parameter has that schema;
+  - a dropped JSON file;
+  - a canvas hole's samples.
+
+  `loadData(c, json)` gives `{ next }` or `{ error }`, in the words `contractErrorText` uses
+  for any `ContractError`. `dataProblems(c)` checks that `load` and `data` are a pure one-arg
+  message and a zero-arg query, and lint reports these as `data-meta`. The law is that
+  `load(data)` reads back as `data`. test/components/data.test.js checks it for every bundle's
+  kinds.
+  - Who says it: kanban's `Board`, `JsonRoot`, `SchemaRoot`, `JsonSchemaEditor`,
+    `HttpRequest`, `HttpResponse`, `ApiOperation`, `HttpExchange` and `Transcript`.
+    `ApiOperation` also loads the first operation of a whole OpenAPI document. The HTTP cards
+    check what they load against a JSON Schema (`schemaChecked` in
+    components/common/data.js), which lists the paths that don't fit.
+  - components/common/drop.js: `jsonDrop(load)` is now `dataDrop({ after })`, which loads a
+    dropped file through the component's data `load`.
+  - On the canvas, an item whose content says its data gets a ⤓ button in its chrome that
+    downloads it as JSON, named after its title. A JSON file dropped on its content loads into
+    it, and the item shows why when it doesn't fit.
+- **The agent's pure core,** for any host:
+  - `toolsFor(c)` gives pi-ai tools whose JSON Schema comes from the args' types (`typeSchema`),
+    plus the shared tools the meta calls for.
+  - `systemPrompt(c)` and `nextAction(transcript)`.
+  - `planToolCall(c, call)` runs a query or a pure message at once, and turns a `ContractError`
+    into words the model reads. A message that needs a context is checked but not run: the host
+    sends it.
+  - `withSample(c, name)` and `sampleChoices(spec)` for the data meta's samples.
+- **`Agent` (components/agent):** a generic agent for any component that says agent meta.
+  - It drives the component through its tools, shown beside a `Transcript` (components/llm).
+    In the transcript every message is a card. Consecutive tool calls are grouped in a
+    collapsible `MessageGroup`, and each call's arguments are a collapsible JSON tree.
+  - Its model is picked from what the tutuca-wax studio server's `/api/check` offers. That
+    server's `/api/infer` now answers local origins (CORS). The echo model, which needs no key
+    and runs the tool a prompt names (`/move_card {...}`), is always offered.
+  - On its own, the agent starts with a hole that lists only components that say agent meta.
+    A Hole takes a `meta` URI to filter by, and then offers their samples or empty.
+- **Agents on the canvas.** Once a canvas starts, it asks whether the host has a model
+  (`checkInference`, the `inferenceAvailable` ask). If it does, an item whose component says
+  agent meta gets a 🤖 button that wraps the component in an agent, and a wrapped one gets ⏏ to
+  eject it. Ejecting puts the component back as the agent left it, as wide as it was. The
+  kanban `Board` says agent meta: add, move, rename and remove cards, add columns, and a week
+  sample. The canvas demo has `?bundle=agent`, and the storybook has an Agent book and a
+  Transcript section in the LLM book.
+
 ## 1.0.0-beta.3
 
 Components have a public interface (pure messages, queries and interfaces), the routing core

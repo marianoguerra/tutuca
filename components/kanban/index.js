@@ -5,13 +5,16 @@
 // dragged. The host marks the target under the drag with data-draggingover, which the styles
 // highlight.
 import {
+	AGENT_META,
 	apply,
 	component,
+	DATA_META,
 	DISPLAY_META,
 	each,
 	field,
 	renderEach,
 	renderIt,
+	scopeOf,
 	send,
 	sourceKey,
 	t,
@@ -174,6 +177,67 @@ const dropIndex = (node, clientY) => {
 	}).length;
 };
 
+// Where the card id is: [column, index], or null.
+const findCard = (self, id) => {
+	for (let i = 0; i < self.columns.length; i++) {
+		const at = self.columns[i].cards.findIndex((c) => c.id === id);
+		if (at !== -1) return [i, at];
+	}
+	return null;
+};
+const hasCard = (self, id) => findCard(self, id) !== null;
+const hasColumn = (self, i) => Number.isInteger(i) && i >= 0 && i < self.columns.length;
+// A board as plain JSON, what load takes and domain gives.
+const boardJson = t.record({
+	columns: t.array(
+		t.record({
+			title: t.string(),
+			cards: t.array(t.record({ id: t.string(), title: t.string() })),
+		}),
+	),
+});
+const WEEK = {
+	columns: [
+		{
+			title: "To do",
+			cards: [
+				{ id: "c00", title: "Write the drag and drop docs" },
+				{ id: "c01", title: "Port the touch support" },
+			],
+		},
+		{ title: "Doing", cards: [{ id: "c10", title: "Review the event routing" }] },
+		{ title: "Done", cards: [] },
+	],
+};
+const tool = (name, kind, params, description) => ({
+	name,
+	kind,
+	target: null,
+	description,
+	params,
+	result: null,
+});
+// What the board says to an agent that drives it: its tools are its own messages and queries.
+const AGENT = {
+	prompt:
+		"A kanban board: columns, by index from 0, of cards, each with an id and a title. Move cards between columns as work progresses.",
+	summary: "summary",
+	tools: [
+		tool("add_card", "message", ["column", "title"], "Add a card at the end of a column."),
+		tool("move_card", "message", ["id", "column", "at"], "Move a card to a position in a column."),
+		tool("rename_card", "message", ["id", "title"], "Change a card's title."),
+		tool("remove_card", "message", ["id"], "Remove a card."),
+		tool("add_column", "message", ["title"], "Add a column at the end."),
+		tool("cards_in", "query", ["column"], "The cards of a column, as JSON."),
+	],
+	skills: {
+		"workflow.md":
+			"Cards flow left to right: To do, Doing, Done. Keep at most 3 cards in Doing; when asked to start something with Doing full, say so instead.",
+	},
+};
+// The board as JSON: load replaces it, domain reads it back.
+const DATA = { load: "load", data: "domain", samples: { week: WEEK } };
+
 export const Board = component({
 	name: "Board",
 	meta: {
@@ -182,8 +246,36 @@ export const Board = component({
 			icon: "🗂️",
 			description: "Cards you drag between columns.",
 		},
+		[AGENT_META]: AGENT,
+		[DATA_META]: DATA,
 	},
 	fields: { columns: t.array(t.component("Column")) },
+	queries: {
+		// A line per column, with its index and its cards' ids, for the agent's prompt.
+		get summary() {
+			if (this.columns.length === 0) return "No columns.";
+			return this.columns
+				.map((col, i) => {
+					const cards = col.cards.map((c) => `${c.id} "${c.title}"`).join(", ");
+					return `${i}. ${col.title} (${col.cards.length}): ${cards || "empty"}`;
+				})
+				.join("\n");
+		},
+		get domain() {
+			return {
+				columns: this.columns.map((col) => ({
+					title: col.title,
+					cards: col.cards.map(({ id, title }) => ({ id, title })),
+				})),
+			};
+		},
+		cards_in: {
+			args: [t.number().int().min(0)],
+			run(column) {
+				return (this.columns[column]?.cards ?? []).map(({ id, title }) => ({ id, title }));
+			},
+		},
+	},
 	view: div(
 		{ class: "grid gap-4 sm:grid-cols-3" },
 		each(
@@ -214,6 +306,79 @@ export const Board = component({
 			run(next, [to], ctx) {
 				const id = draggedCardId(ctx);
 				if (id !== undefined) moveCard(this, next, id, to, dropIndex(ctx.node, ctx.event?.clientY));
+			},
+		},
+		// The agent's: a new card, with a new id, at the end of column.
+		add_card: {
+			args: [t.number().int().min(0), t.string().len(1)],
+			pre: (self, [column]) => hasColumn(self, column),
+			why: (self, [column]) => `there's no column ${column}, there are ${self.columns.length}`,
+			run(next, [column, title], ctx) {
+				const card = ctx.scope.make("Card", { id: ctx.uuid(), title });
+				next.columns[column] = apply(
+					next.columns[column],
+					"putCard",
+					card,
+					this.columns[column].cards.length,
+				);
+			},
+		},
+		move_card: {
+			pure: true,
+			args: [t.string(), t.number().int().min(0), t.number().int().min(0)],
+			pre: (self, [id, column]) => hasCard(self, id) && hasColumn(self, column),
+			why: (self, [id, column]) =>
+				hasCard(self, id) ? `there's no column ${column}` : `there's no card ${id}`,
+			run(next, [id, column, at]) {
+				moveCard(this, next, id, column, Math.min(at, this.columns[column].cards.length));
+			},
+		},
+		rename_card: {
+			pure: true,
+			args: [t.string(), t.string().len(1)],
+			pre: (self, [id]) => hasCard(self, id),
+			why: (_self, [id]) => `there's no card ${id}`,
+			run(next, [id, title]) {
+				const [column, at] = findCard(this, id);
+				const card = scopeOf(this).make("Card", { id, title });
+				const taken = apply(next.columns[column], "takeCard", at);
+				next.columns[column] = apply(taken, "putCard", card, at);
+			},
+		},
+		remove_card: {
+			pure: true,
+			args: [t.string()],
+			pre: (self, [id]) => hasCard(self, id),
+			why: (_self, [id]) => `there's no card ${id}`,
+			run(next, [id]) {
+				const [column, at] = findCard(this, id);
+				next.columns[column] = apply(next.columns[column], "takeCard", at);
+			},
+		},
+		add_column: {
+			pure: true,
+			args: [t.string().len(1)],
+			run(next, [title]) {
+				next.columns.push(scopeOf(this).make("Column", { title, cards: [] }));
+			},
+		},
+		// The whole board from JSON, replacing it: the agent's samples start from here.
+		load: {
+			pure: true,
+			args: [boardJson],
+			pre: (_self, [board]) => {
+				const ids = board.columns.flatMap((column) => column.cards.map((card) => card.id));
+				return new Set(ids).size === ids.length;
+			},
+			why: () => "two cards have the same id",
+			run(next, [board]) {
+				const scope = scopeOf(this);
+				next.columns = board.columns.map(({ title, cards }) =>
+					scope.make("Column", {
+						title,
+						cards: cards.map((card) => scope.make("Card", card)),
+					}),
+				);
 			},
 		},
 		// From the column at ctx.sourceKey: the card id was dropped on one of its cards.

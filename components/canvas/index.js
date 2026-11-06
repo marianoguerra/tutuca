@@ -7,7 +7,9 @@
 // answers for a table of kinds; canvasComponents and canvasAskHandlers are the notebook's.
 // Every item has a chrome, shown while the pointer is over it: a header to drag it by, collapse
 // it, toggle editing it, clone it or remove it, and a corner to resize it by. Editing pushes the edit view
-// above its content, so a layout in it (and every layout in that) shows what edits it.
+// above its content, so a layout in it (and every layout in that) shows what edits it. A content
+// that says what its data is (DATA_META) can be downloaded as JSON from the header, and a JSON
+// file dropped on it is loaded into it.
 //
 // A foreignObject doesn't size to its content, so each one is as wide as its item and taller
 // than any of them, and lets the pointer through (pointer-events none) where its card isn't;
@@ -20,19 +22,29 @@ import {
 	component,
 	copy,
 	DISPLAY_META,
+	dataOf,
 	each,
 	field,
+	hasAgentMeta,
+	hasDataMeta,
+	loadData,
+	provided,
 	pushView,
+	query,
 	render,
 	renderEach,
+	scopeOf,
 	send,
 	specOf,
 	t,
 	tag,
 	targetValue,
 } from "../../src/tutuca.js";
+import { agent, agentComponents } from "../agent/index.js";
+import { DROP_TARGET, droppedJsonFile } from "../common/files.js";
 import { compositionComponents, GROUPS, KINDS, makeContent } from "../composition/index.js";
 import { capture, coord, paintType, svgPoint } from "../drawing/shapes.js";
+import { transcriptComponents } from "../llm/transcript.js";
 import {
 	BECOME_ARGS,
 	CANVAS_META,
@@ -58,6 +70,8 @@ const MIN_HEIGHT = 80;
 const MAX_AUTO_HEIGHT = 720;
 // How far the canvas reaches past what's on it, growing as items are moved or resized there.
 const GROW_MARGIN = 400;
+// How wide an item wrapped in an agent gets, at least.
+const AGENT_WIDTH = 900;
 // How far down and right of its item a clone goes.
 const CLONE_OFFSET = 24;
 const MAX_SIZE = 10000;
@@ -85,6 +99,20 @@ const CARD_COLLAPSED = `${CARD} border-base-300/60 bg-transparent`;
 const HEADER_OPEN = `${HEADER} ${CHROME}`;
 const HEADER_COLLAPSED = `${HEADER} rounded-b-box border-b-0 ${SHOWN}`;
 
+// Where an item's content shows, open: with drop, a JSON file dropped on it loads into it, with
+// the last drop's error under it. Main pushed too, so a nested item's content isn't edited with
+// this one's.
+const contentArea = (drop) =>
+	div(
+		drop
+			? { class: `min-h-0 flex-1 overflow-auto p-3 ${DROP_TARGET}`, "on:drop": send("dropFile") }
+			: { class: "min-h-0 flex-1 overflow-auto p-3" },
+		pushView(field("pushed"), render(field("content"))),
+		drop
+			? $if(field("hasDropError"), p({ class: "text-xs text-error" }, field("dropError")), "")
+			: "",
+	);
+
 // One component on the canvas, at x, y, with a chrome shown while the pointer is over it: a
 // header to drag it by, collapse it, toggle editing it, clone it or remove it, and a corner to
 // resize it by. Its height is its content's until it's resized (0). Editing, it pushes the edit view above
@@ -104,6 +132,11 @@ export const Item = component({
 		editing: t.boolean().sync("none"),
 		// What the header says while the title is empty: what it holds.
 		label: t.string().default("Empty"),
+		// Its width before its content was wrapped in an agent, which ejecting it gets back.
+		unwrappedWidth: t.number().int().min(0).max(4000),
+		// The file dropped on its content last, while it's read, and why it didn't load.
+		dropName: t.string().sync("none"),
+		dropError: t.string().sync("none"),
 	},
 	queries: {
 		get isOpen() {
@@ -134,6 +167,30 @@ export const Item = component({
 		},
 		get shownTitle() {
 			return this.title === "" ? this.label : this.title;
+		},
+		// Whether its content loads a dropped JSON file, saying what its data is.
+		get canLoad() {
+			return hasDataMeta(this.content);
+		},
+		// Whether its content can be downloaded as JSON: it says a query that reads its data.
+		get canSave() {
+			return this.canLoad && dataOf(this.content).data !== null;
+		},
+		get hasDropError() {
+			return this.dropError !== "";
+		},
+		// The name its data downloads as: its title's or its label's words, then .json.
+		get fileName() {
+			const words = this.shownTitle.toLowerCase().match(/[\p{L}\p{N}]+/gu) ?? [];
+			return `${words.join("-") || "data"}.json`;
+		},
+		// Whether its content says agent meta and an agent can be made here to wrap it.
+		get canWrap() {
+			return hasAgentMeta(this.content) && Boolean(scopeOf(this).lookupByName("Agent"));
+		},
+		// Whether its content is an agent wrapping something, which it can eject.
+		get isWrapped() {
+			return specOf(this.content).name === "Agent" && hasAgentMeta(this.content.target);
 		},
 		// Resized, the card keeps its height and its content scrolls; till then it's as tall as
 		// its content, up to MAX_AUTO_HEIGHT; collapsed, it's the header.
@@ -196,6 +253,38 @@ export const Item = component({
 					),
 					"",
 				),
+				// With a model to ask (the canvas provides whether there is one), a component that
+				// says agent meta can be wrapped in an agent; a wrapped one can be ejected again.
+				$if(
+					field("canWrap"),
+					$if(
+						provided("agentsAvailable"),
+						button(
+							{
+								class: "btn btn-ghost btn-xs w-6 px-0",
+								title: "Wrap in an agent",
+								"aria-label": "Wrap in an agent",
+								"on:click": send("wrapInAgent"),
+							},
+							"🤖",
+						),
+						"",
+					),
+					"",
+				),
+				$if(
+					field("isWrapped"),
+					button(
+						{
+							class: "btn btn-ghost btn-xs w-6 px-0",
+							title: "Eject it from the agent",
+							"aria-label": "Eject it from the agent",
+							"on:click": send("ejectAgent"),
+						},
+						"⏏",
+					),
+					"",
+				),
 				button(
 					{
 						class: "btn btn-ghost btn-xs w-6 px-0",
@@ -204,6 +293,19 @@ export const Item = component({
 						"on:click": send("maximize"),
 					},
 					"⤢",
+				),
+				$if(
+					field("canSave"),
+					button(
+						{
+							class: "btn btn-ghost btn-xs w-6 px-0",
+							title: "Download as JSON (drop a JSON file on it to load one)",
+							"aria-label": "Download as JSON",
+							"on:click": send("download"),
+						},
+						"⤓",
+					),
+					"",
 				),
 				button(
 					{
@@ -218,11 +320,9 @@ export const Item = component({
 			),
 			$if(
 				field("isOpen"),
-				// Main pushed too, so a nested item's content isn't edited with this one's.
-				div(
-					{ class: "min-h-0 flex-1 overflow-auto p-3" },
-					pushView(field("pushed"), render(field("content"))),
-				),
+				// Only a content that loads data takes a drop: a drop handler takes it whether it
+				// does anything or not, so the others leave it to what's around.
+				$if(field("canLoad"), contentArea(true), contentArea(false)),
 				"",
 			),
 			div({
@@ -373,6 +473,60 @@ export const Item = component({
 				next.height = 0;
 			},
 		},
+		// Its content in an agent that drives it, wider to fit the chat beside it.
+		wrapInAgent: {
+			args: [],
+			pre: (self) => self.canWrap,
+			run(next, _args, ctx) {
+				const C = ctx.scope.components;
+				// The agent asks which models there are, to start with one.
+				ctx.sendAt("loadModels", [], (s) => s.field("content"));
+				next.content = agent(C, { target: this.content, canChange: false });
+				next.unwrappedWidth = this.width;
+				next.width = clamp(Math.max(this.width * 2, AGENT_WIDTH), MIN_WIDTH, 4000);
+				next.height = 0;
+				next.editing = false;
+			},
+		},
+		// The agent's component back in its place, as the agent left it, as wide as it was.
+		ejectAgent: {
+			pure: true,
+			args: [],
+			pre: (self) => self.isWrapped,
+			run(next) {
+				next.content = this.content.target;
+				if (this.unwrappedWidth > 0) next.width = this.unwrappedWidth;
+				next.unwrappedWidth = 0;
+				next.height = 0;
+			},
+		},
+		// Its content's data, downloaded as a JSON file.
+		download: {
+			args: [],
+			pre: (self) => self.canSave,
+			emits: { ask: ["saveFile"] },
+			run(_next, _args, ctx) {
+				const json = query(this.content, dataOf(this.content).data);
+				ctx.ask("saveFile", [this.fileName, `${JSON.stringify(json, null, 2)}\n`]);
+			},
+		},
+		// A file dropped from outside the page on its content: the first JSON one is read, and
+		// loaded when the answer comes.
+		dropFile: {
+			args: [],
+			emits: { ask: ["readText"] },
+			run(next, _args, ctx) {
+				const dropped = droppedJsonFile(ctx.event);
+				if (dropped === null || !this.canLoad) return;
+				if (dropped.error !== undefined) {
+					next.dropError = dropped.error;
+					return;
+				}
+				next.dropName = dropped.file.name;
+				next.dropError = "";
+				ctx.ask("readText", [dropped.file]);
+			},
+		},
 		clone: {
 			args: [],
 			emits: { notify: ["cloneItem"] },
@@ -412,6 +566,37 @@ export const Item = component({
 		},
 		// From the hole, on its way to the canvas, which makes what it becomes.
 		become: { args: BECOME_ARGS, run() {} },
+	},
+	answers: {
+		// The dropped file's text: loaded into its content when it fits, the error shown otherwise.
+		readText: {
+			ok(next, [text]) {
+				const name = this.dropName || "the file";
+				next.dropName = "";
+				let json;
+				try {
+					json = JSON.parse(text);
+				} catch (error) {
+					next.dropError = `${name} is not JSON: ${error.message}`;
+					return;
+				}
+				const loaded = loadData(this.content, json, name);
+				if (loaded.error !== undefined) {
+					next.dropError = loaded.error;
+					return;
+				}
+				next.content = loaded.next;
+				next.dropError = "";
+			},
+			error(next, [error]) {
+				next.dropError = `Reading ${this.dropName || "the file"} failed: ${error?.message ?? error}`;
+				next.dropName = "";
+			},
+			unhandled(next) {
+				next.dropName = "";
+			},
+		},
+		saveFile: { ok() {} },
 	},
 });
 
@@ -517,6 +702,14 @@ export const Canvas = component({
 		grabY: t.number().sync("none"),
 		// Where the background was pressed, until it's released; a click there adds a hole.
 		pressed: t.option(t.array(t.number())).sync("none"),
+		// Whether the host has a model to ask, so its items' components can be wrapped in
+		// agents: the answer to inferenceAvailable, asked once the canvas starts (checkInference).
+		agentsAvailable: t.boolean().sync("none"),
+	},
+	provides: {
+		agentsAvailable(b) {
+			b.field("agentsAvailable");
+		},
 	},
 	loops: {
 		ordered: {
@@ -814,7 +1007,28 @@ export const Canvas = component({
 		),
 		renderEach(field("items"), "maximized"),
 	),
+	answers: {
+		inferenceAvailable: {
+			ok(next, [available]) {
+				next.agentsAvailable = available === true;
+			},
+			error(next) {
+				next.agentsAvailable = false;
+			},
+			unhandled(next) {
+				next.agentsAvailable = false;
+			},
+		},
+	},
 	on: {
+		// Asks the host whether it has a model to ask.
+		checkInference: {
+			args: [],
+			emits: { ask: ["inferenceAvailable"] },
+			run(_next, _args, ctx) {
+				ctx.ask("inferenceAvailable");
+			},
+		},
 		// A hole at x, y.
 		addHole: {
 			args: [coord(), coord()],
@@ -1273,7 +1487,16 @@ export const COMPOSITION_KINDS = Object.fromEntries(
 
 // The canvas's own components: its items, shapes, holes and layouts. Whoever uses it registers
 // these, the components its holes' kinds make, and kindHandlers(kinds) to answer the holes.
-export const canvasKitComponents = { ...layoutComponents, Canvas, Item, Arrow, Text };
+// The agent a component that says agent meta can be wrapped in comes with the canvas.
+export const canvasKitComponents = {
+	...layoutComponents,
+	...agentComponents,
+	...transcriptComponents,
+	Canvas,
+	Item,
+	Arrow,
+	Text,
+};
 // The notebook's components on a canvas, and the handlers for its kinds.
 export const canvasComponents = { ...compositionComponents, ...canvasKitComponents };
 export const canvasAskHandlers = kindHandlers(COMPOSITION_KINDS);

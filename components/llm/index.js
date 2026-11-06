@@ -38,6 +38,7 @@ import {
 } from "../common/card.js";
 import { fromJson, jsonRoot } from "../json/index.js";
 import { schemaEditor, schemaEditorComponents } from "../json-schema/editor.js";
+import { MessageGroup, Transcript, TranscriptEntry, transcript } from "./transcript.js";
 import { validate } from "./validate.js";
 
 const { button, div, footer, header, input, label, li, option, p, select, span, textarea, ul } =
@@ -889,6 +890,9 @@ export const llmComponents = {
 	StructuredOutput,
 	InferenceRequest,
 	InferenceResponse,
+	Transcript,
+	TranscriptEntry,
+	MessageGroup,
 };
 
 // A worked example to start from, and to make each kind with: a weather tool, called once.
@@ -998,6 +1002,7 @@ export const LLM_KINDS = {
 	structuredOutput: { component: "StructuredOutput", make: (C) => structuredOutput(C) },
 	request: { component: "InferenceRequest", make: (C) => inferenceRequest(C) },
 	response: { component: "InferenceResponse", make: (C) => inferenceResponse(C) },
+	transcript: { component: "Transcript", make: (C) => transcript(C) },
 	jsonSchema: {
 		component: "JsonSchemaEditor",
 		width: 420,

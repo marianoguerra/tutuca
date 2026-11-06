@@ -11,6 +11,7 @@ import {
 	button,
 	canApply,
 	component,
+	DATA_META,
 	each,
 	field,
 	isComponent,
@@ -19,12 +20,13 @@ import {
 	render,
 	renderEach,
 	renderIt,
+	scopeOf,
 	send,
 	specOf,
 	t,
 	tag,
 } from "../../src/tutuca.js";
-import { jsonDrop, jsonDropFields, jsonDropTarget } from "../common/drop.js";
+import { dataDrop, jsonDropFields, jsonDropTarget } from "../common/drop.js";
 import { VALUE_NAMES } from "../json/index.js";
 import { DEFAULT_PER_PAGE, fromSchema, isSchema } from "./read.js";
 
@@ -370,16 +372,23 @@ const viewButton = (view, label) =>
 		label,
 	);
 
-// A JSON file that reads as a schema replaces the tree, read the way it is.
-const rootDrop = jsonDrop((next, json, ctx) => {
-	if (!isSchema(json)) return "is not a JSON Schema: a schema is an object or a boolean.";
-	next.node = fromSchema(ctx.scope.components, json);
-});
+// A JSON file that reads as a schema replaces the tree, through load.
+const rootDrop = dataDrop();
+// What a JSON Schema is, as far as loading one goes.
+const SCHEMA_DATA = {
+	load: "load",
+	data: "schema",
+	schema: {
+		type: ["object", "boolean"],
+		description: "A JSON Schema document: an object of keywords, or true or false.",
+	},
+};
 
 // The entry point of a schema tree: a toolbar and one node. With allowDrop on, a JSON Schema
 // file dropped on it replaces the tree.
 export const SchemaRoot = component({
 	name: "SchemaRoot",
+	meta: { [DATA_META]: SCHEMA_DATA },
 	fields: {
 		node: schemaNode(),
 		view: t.enum("main", "format"),
@@ -397,6 +406,10 @@ export const SchemaRoot = component({
 		},
 		get isMain() {
 			return this.view === "main";
+		},
+		// The tree as a JSON Schema, what load takes back.
+		get schema() {
+			return this.node.toSchema();
 		},
 		get hasDropError() {
 			return this.dropError !== "";
@@ -435,6 +448,14 @@ export const SchemaRoot = component({
 	),
 	on: {
 		...rootDrop.on,
+		// A schema replaces the tree, read the way it is.
+		load: {
+			pure: true,
+			args: [t.any().where(isSchema, "a JSON Schema: an object or a boolean")],
+			run(next, [json]) {
+				next.node = fromSchema(scopeOf(this).components, json);
+			},
+		},
 		setView: {
 			args: [t.enum("main", "format")],
 			post: (_prev, next, [view]) => next.view === view,

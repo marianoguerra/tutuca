@@ -8,6 +8,7 @@ import {
 	button,
 	canApply,
 	component,
+	DATA_META,
 	DISPLAY_META,
 	each,
 	field,
@@ -15,13 +16,14 @@ import {
 	pushView,
 	render,
 	renderIt,
+	scopeOf,
 	send,
 	sourceKey,
 	t,
 	tag,
 	targetValue,
 } from "../../src/tutuca.js";
-import { jsonDrop, jsonDropFields, jsonDropTarget } from "../common/drop.js";
+import { dataDrop, jsonDropFields, jsonDropTarget } from "../common/drop.js";
 
 export const VALUE_NAMES = [
 	"JsonNull",
@@ -545,13 +547,11 @@ const jsonRootView = () =>
 			div({ class: "overflow-auto" }, render(field("value"))),
 		),
 	);
-// Any JSON replaces the value, and says so like an edit.
-const rootDrop = jsonDrop((next, json, ctx) => {
-	next.value = fromJson(ctx.scope.components, json);
-	ctx.notify("jsonEdited");
-});
+// A dropped file's JSON replaces the value, and says so like an edit.
+const rootDrop = dataDrop({ after: (_next, ctx) => ctx.notify("jsonEdited") });
 export const JsonRoot = component({
 	name: "JsonRoot",
+	meta: { [DATA_META]: { load: "load", data: "json" } },
 	fields: { value: t.component(VALUE_NAMES), ...jsonDropFields() },
 	methods: {
 		toJson() {
@@ -563,6 +563,10 @@ export const JsonRoot = component({
 		get isCollection() {
 			return canApply(this.value, "setOpen");
 		},
+		// The value as JSON, what load takes back.
+		get json() {
+			return this.value.toJson();
+		},
 		get hasDropError() {
 			return this.dropError !== "";
 		},
@@ -573,6 +577,14 @@ export const JsonRoot = component({
 		...passOpenDeep("value"),
 		// Passed on, to what holds the root.
 		jsonEdited: { args: [], run() {} },
+		// Any JSON replaces the value.
+		load: {
+			pure: true,
+			args: [t.any()],
+			run(next, [json]) {
+				next.value = fromJson(scopeOf(this).components, json);
+			},
+		},
 		...rootDrop.on,
 	},
 	answers: rootDrop.answers,

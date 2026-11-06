@@ -20,9 +20,10 @@ const { button, div, h3, header, input, label, section, span } = tag;
 
 // What a card says of itself (its title, icon and what it's for) and how wide it starts on a
 // canvas.
-export const metaFor = (title, icon, description, width) => ({
+export const metaFor = (title, icon, description, width, more = {}) => ({
 	[DISPLAY_META]: { title, icon, description },
 	[CANVAS_META]: { width },
+	...more,
 });
 
 export const BADGE = "badge badge-sm badge-soft font-semibold";

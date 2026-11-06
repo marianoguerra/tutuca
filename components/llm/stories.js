@@ -16,6 +16,7 @@ import {
 	userMessage,
 	WEATHER,
 } from "./index.js";
+import { SAMPLE_TRANSCRIPT, transcript } from "./transcript.js";
 
 const { button, div } = tag;
 
@@ -69,6 +70,55 @@ export default stories({
 	title: "LLM",
 	components: { ...llmComponents, Editable },
 	stories: {
+		// A conversation as pi-ai keeps it: what an agent shows, and sends the model.
+		Transcript: {
+			make: (C) => transcript(C),
+			sequences: {
+				"a row per text and per tool call, failures marked": [
+					step.check("user, text, two calls, two results, the answer", (s) =>
+						sameJson(
+							s.rows.map((r) => r.kind),
+							["user", "assistant", "call", "call", "result", "error", "assistant"],
+						),
+					),
+					step.check("a call shows its tool and arguments", (s) => {
+						const call = s.rows[2];
+						return call.label === "📞 move_card" && JSON.parse(call.text).id === "c00";
+					}),
+					step.check("the two calls are one group", (s) =>
+						sameJson(
+							s.entries.map((e) => e.kind ?? "group"),
+							["user", "assistant", "group", "result", "error", "assistant"],
+						),
+					),
+					step.check(
+						"collapsed, it says how many and which",
+						(s) =>
+							s.entries[2].summary === "📞 2 tool calls: move_card, remove_card" &&
+							!s.entries[2].open,
+					),
+					step.event("click", '[title="Show the tool calls"]'),
+					step.check(
+						"expanded, each call, its arguments collapsed",
+						(s) => s.entries[2].open && s.entries[2].entries.every((e) => e.isClosed),
+					),
+					step.event("click", '[data-kind="call"] [title="Show the arguments"]'),
+					step.check(
+						"the first call shows its arguments",
+						(s) => s.entries[2].entries[0].showsArgs,
+					),
+					step.event("click", '[data-kind="call"] [title="Hide the arguments"]'),
+					step.check("and hides them again", (s) => s.entries[2].entries[0].isClosed),
+					step.event("click", '[title="Hide the tool calls"]'),
+					step.check("the group collapses", (s) => !s.entries[2].open),
+					step.send("clear"),
+					step.check("cleared, nothing said yet", (s) => s.isEmpty && s.entries.length === 0),
+					step.send("append", [SAMPLE_TRANSCRIPT.slice(0, 1)]),
+					step.check("the prompt again", (s) => s.count === 1 && s.rows[0].kind === "user"),
+				],
+			},
+		},
+		"Transcript/Empty": { make: (C) => transcript(C, []) },
 		"System message": {
 			make: editable((C) => systemMessage(C)),
 			sequences: {

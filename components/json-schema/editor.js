@@ -8,9 +8,11 @@ import {
 	button,
 	canApply,
 	component,
+	DATA_META,
 	DISPLAY_META,
 	field,
 	render,
+	scopeOf,
 	send,
 	t,
 	tag,
@@ -58,6 +60,14 @@ export const JsonSchemaEditor = component({
 			icon: "📐",
 			description: "A JSON Schema, read as a tree or as JSON, and edited as JSON.",
 		},
+		[DATA_META]: {
+			load: "load",
+			data: "schema",
+			schema: {
+				type: ["object", "boolean"],
+				description: "A JSON Schema document: an object of keywords, or true or false.",
+			},
+		},
 	},
 	fields: {
 		json: t.component(VALUE_NAMES), // The schema as edited.
@@ -83,6 +93,10 @@ export const JsonSchemaEditor = component({
 		},
 		get isJson() {
 			return this.reading === "json";
+		},
+		// The schema, what load takes back.
+		get schema() {
+			return this.toSchema();
 		},
 	},
 	view: div(
@@ -126,6 +140,17 @@ export const JsonSchemaEditor = component({
 				for (const key of ["tree", "json"]) {
 					if (canApply(next[key], "setOpenDeep")) next[key] = apply(next[key], "setOpenDeep", open);
 				}
+			},
+		},
+		// A schema replaces the one edited.
+		load: {
+			pure: true,
+			args: [t.any().where(isSchema, "a JSON Schema: an object or a boolean")],
+			run(next, [schema]) {
+				const C = scopeOf(this).components;
+				next.json = fromJson(C, schema);
+				next.source = JSON.stringify(schema);
+				next.tree = bareTree(C, schema);
 			},
 		},
 		// The JSON changed below: the tree reads it again when it's a schema.

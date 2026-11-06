@@ -127,6 +127,7 @@ export async function availableModels(models, offer = (m) => modelRule(m.id) !==
 
 // ---- The server -------------------------------------------------------------------------
 
+const LOCAL_ORIGIN = /^http:\/\/(127\.0\.0\.1|localhost)(:\d+)?$/;
 const json = (res, status, body) => res.writeHead(status, { "content-type": "application/json", "cache-control": "no-store" }).end(JSON.stringify(body));
 const readJson = async (req, limit = 4 * 1024 * 1024) => {
 	let size = 0;
@@ -185,7 +186,19 @@ export function createStudioServer({ models = builtinModels(), offer } = {}) {
 		},
 	};
 	return createStaticServer({}, async (req, res) => {
-		const handler = api[`${req.method} ${new URL(req.url, "http://x").pathname}`];
+		const path = new URL(req.url, "http://x").pathname;
+		// Pages served from another local port (tutuca's demos, `just demos`) may call the API;
+		// only local ones, since the server holds the API keys.
+		const origin = req.headers.origin;
+		if (path.startsWith("/api/") && typeof origin === "string" && LOCAL_ORIGIN.test(origin)) {
+			res.setHeader("access-control-allow-origin", origin);
+			res.setHeader("vary", "origin");
+			if (req.method === "OPTIONS") {
+				res.writeHead(204, { "access-control-allow-methods": "GET, POST", "access-control-allow-headers": "content-type", "access-control-max-age": "600" }).end();
+				return true;
+			}
+		}
+		const handler = api[`${req.method} ${path}`];
 		if (!handler) return false;
 		try {
 			await handler(req, res);

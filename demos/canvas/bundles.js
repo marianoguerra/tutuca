@@ -3,6 +3,7 @@
 // become and make it, and the canvas it starts with. default is the notebook's components; llm
 // the parts of an LLM request and response; http an HTTP exchange and the OpenAPI operation it
 // follows; music the circle of fifths, intervals, chords and a piano.
+
 import {
 	COMPOSITION_KINDS,
 	canvas,
@@ -13,9 +14,15 @@ import {
 } from "../../components/canvas/index.js";
 import { kindHandlers } from "../../components/canvas/layout.js";
 import { HTTP_KINDS, httpComponents } from "../../components/http/index.js";
+import { kanbanComponents } from "../../components/kanban/index.js";
 import { LLM_KINDS, llmComponents } from "../../components/llm/index.js";
 import { MUSIC_KINDS, musicComponents } from "../../components/music/index.js";
+import { agentMetaSchemas, withSample } from "../../src/tutuca.js";
 
+// What the agent bundle's holes can become: what an agent can drive, a board.
+const AGENT_KINDS = {
+	board: { component: "Board", make: (C) => C.Board({}) },
+};
 export const BUNDLES = {
 	default: {
 		title: "Notebook",
@@ -98,6 +105,22 @@ export const BUNDLES = {
 				MUSIC_KINDS,
 			),
 	},
+};
+
+// A board, which says agent meta: with a model to ask, its item's 🤖 wraps it in an agent
+// that drives it, and ⏏ ejects it again.
+BUNDLES.agent = {
+	title: "Agent",
+	components: { ...llmComponents, ...kanbanComponents, ...canvasKitComponents },
+	askHandlers: kindHandlers(AGENT_KINDS),
+	metaSchemas: { ...canvasMetaSchemas, ...agentMetaSchemas },
+	make: (C) =>
+		canvas(
+			C,
+			[[48, 40, withSample(C.Board({}), "week"), "🗂️ Kanban board", 720]],
+			{ width: 1600, height: 1000 },
+			AGENT_KINDS,
+		),
 };
 
 // The bundle the page's ?bundle= names, or the default one.

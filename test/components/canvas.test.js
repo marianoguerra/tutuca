@@ -2,7 +2,7 @@ import assert from "node:assert/strict";
 import test from "node:test";
 import { canvas, canvasComponents } from "../../components/canvas/index.js";
 import { Driver } from "../../src/test/driver.js";
-import { idOf } from "../../src/tutuca.js";
+import { idOf, Selector, scopeOf } from "../../src/tutuca.js";
 import { document, scopeWith } from "../helpers.js";
 
 const start = () => {
@@ -102,4 +102,44 @@ test("picking a drawing tool by its key shows them; the hole tool hides them", (
 	key("h");
 	assert.equal(hasGroup(d, "Fill"), false);
 	assert.equal(toolLabels(d).length, 3);
+});
+
+// An item holding what says its data (DATA_META): the board, which loads a board's JSON.
+const itemCard = (d, key) =>
+	d.rootNode.querySelectorAll("foreignObject > .canvas-card")[d.state.order.indexOf(key)];
+const itemAt = (key) => new Selector().item("items", key);
+
+test("an item whose content says its data downloads it as JSON", async () => {
+	const d = start();
+	const saved = [];
+	scopeOf(d.state).registerAskHandlers({ saveFile: (args) => saved.push(args) });
+	itemCard(d, "item-1").querySelector('[aria-label="Download as JSON"]').click();
+	d.drain();
+	await new Promise((resolve) => setTimeout(resolve, 0));
+	assert.equal(saved.length, 1);
+	const [name, text] = saved[0];
+	assert.equal(name, "board.json");
+	assert.deepEqual(JSON.parse(text), d.state.items["item-1"].content.domain);
+	assert.deepEqual(d.problems, []);
+});
+
+test("a JSON file dropped on an item's content loads into it, or says why not", () => {
+	const d = start();
+	const board = { columns: [{ title: "Only", cards: [{ id: "x", title: "One" }] }] };
+	d.answer(itemAt("item-1"), "readText", "ok", [JSON.stringify(board)]);
+	assert.equal(d.state.items["item-1"].content.columns[0].title, "Only");
+	assert.equal(d.state.items["item-1"].dropError, "");
+	d.answer(itemAt("item-1"), "readText", "ok", ['{ "columns": 3 }']);
+	assert.match(d.state.items["item-1"].dropError, /isn't/);
+	assert.equal(d.state.items["item-1"].content.columns[0].title, "Only", "the board kept");
+	d.answer(itemAt("item-1"), "readText", "ok", ["nope"]);
+	assert.match(d.state.items["item-1"].dropError, /is not JSON/);
+	assert.deepEqual(d.problems, []);
+});
+
+test("an item whose content says no data has no download button", () => {
+	const C = scopeWith(canvasComponents).components;
+	const d = new Driver({ root: canvas(C, [[40, 60, "notes", "Notes"]]), document });
+	assert.notEqual(d.rootNode.querySelector('[aria-label="Clone"]'), null);
+	assert.equal(d.rootNode.querySelector('[aria-label="Download as JSON"]'), null);
 });

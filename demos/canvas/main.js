@@ -2,20 +2,41 @@
 // are registered with the canvas's, its kinds answer what the holes can become, and its make
 // is the canvas the page starts with. Without one, or with one that isn't known, it's the
 // notebook's.
+import { agentAskHandlers } from "../../components/agent/llm.js";
 import { boot, browserHandlers } from "../boot.js";
 import { BUNDLES, bundleOf } from "./bundles.js";
 
-export const start = (document = globalThis.document, id = undefined) => {
+// handlers, ask handlers over the page's, are for tests: a model or none, without a server.
+export const start = (document = globalThis.document, id = undefined, handlers = {}) => {
 	const bundle =
 		id === undefined ? bundleOf(document.defaultView) : (BUNDLES[id] ?? BUNDLES.default);
 	addBundleSwitcher(document, bundle);
-	return boot({
+	const host = boot({
 		document,
 		components: bundle.components,
-		askHandlers: { ...browserHandlers, ...bundle.askHandlers },
+		// Agents ask the studio server (tutuca-wax/scripts/studio-server.mjs) at ?api=.
+		askHandlers: {
+			...browserHandlers,
+			...agentAskHandlers({ api: apiOf(document) }),
+			...bundle.askHandlers,
+			...handlers,
+		},
 		metaSchemas: bundle.metaSchemas,
 		make: bundle.make,
 	});
+	// Once the canvas has started (synced, it starts later), it asks whether there's a model:
+	// only then can its components be wrapped in agents.
+	whenStarted(host, () => host.send("checkInference", [], { now: true }));
+	return host;
+};
+
+const DEFAULT_API = "http://127.0.0.1:8003/api/";
+const apiOf = (document) =>
+	new URLSearchParams(document.defaultView?.location.search ?? "").get("api") ?? DEFAULT_API;
+// Runs fn once host has a root.
+const whenStarted = (host, fn, tries = 100) => {
+	if (host.root !== null) fn();
+	else if (tries > 0) setTimeout(() => whenStarted(host, fn, tries - 1), 50);
 };
 
 // The demo bar's title says the bundle, with links to the others.

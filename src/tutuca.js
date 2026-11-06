@@ -1,7 +1,38 @@
 // The core: components, views, schemas, specs, paths, tasks and the host. Each lives in its own module;
 // this one is the public surface npm consumers and dist/ bundle.
+
+export {
+	AGENT_META,
+	agentMetaSchemas,
+	agentOf,
+	agentProblems,
+	callArgs,
+	hasAgentMeta,
+	MAX_STEPS,
+	nextAction,
+	planToolCall,
+	resultText,
+	summaryOf,
+	systemPrompt,
+	toolCallsOf,
+	toolResultMessage,
+	toolsFor,
+	typeSchema,
+} from "./agent.js";
 export { ComponentSpec, component } from "./component.js";
 export { apply, canApply, canQuery, contractOf, query, supports } from "./contract.js";
+export {
+	contractErrorText,
+	DATA_META,
+	dataMetaSchemas,
+	dataOf,
+	dataProblems,
+	dataSchema,
+	hasDataMeta,
+	loadData,
+	sampleChoices,
+	withSample,
+} from "./data.js";
 export { DISPLAY_META, displayLabel, displayMetaSchemas, displayOf } from "./display.js";
 export { DRAG_EVENTS, DROP_EVENTS, Drag } from "./drag.js";
 export { browserEnv, Host } from "./host.js";

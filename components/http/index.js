@@ -7,10 +7,12 @@
 import {
 	$if,
 	component,
+	DATA_META,
 	each,
 	field,
 	render,
 	renderIt,
+	scopeOf,
 	send,
 	sourceKey,
 	t,
@@ -36,6 +38,7 @@ import {
 	textInput,
 	titled,
 } from "../common/card.js";
+import { schemaChecked } from "../common/data.js";
 import { jsonRoot } from "../json/index.js";
 import { schemaEditor, schemaEditorComponents } from "../json-schema/editor.js";
 import {
@@ -74,6 +77,97 @@ const setMethod = () => ({
 	},
 });
 const isStatus = (n) => Number.isInteger(n) && n >= 100 && n <= 599;
+
+// What each card's load takes, as its asJson query gives it: the JSON Schemas an agent's
+// set_state shows and a dropped file is checked against.
+const HEADERS_SCHEMA = {
+	type: "array",
+	description: "The headers, each a [name, value] pair.",
+	items: { type: "array", items: { type: "string" }, minItems: 2, maxItems: 2 },
+};
+const BODY_SCHEMA = {
+	body: { description: "The body: JSON, or a string when bodyType is text. None when left out." },
+	bodyType: { enum: ["json", "text"] },
+};
+const REQUEST_SCHEMA = {
+	type: "object",
+	properties: {
+		method: { enum: METHOD_NAMES },
+		url: { type: "string" },
+		headers: HEADERS_SCHEMA,
+		...BODY_SCHEMA,
+	},
+	required: ["method", "url"],
+	additionalProperties: false,
+};
+const RESPONSE_SCHEMA = {
+	type: "object",
+	properties: {
+		status: { type: "integer", minimum: 100, maximum: 599 },
+		headers: HEADERS_SCHEMA,
+		...BODY_SCHEMA,
+	},
+	required: ["status"],
+	additionalProperties: false,
+};
+const MEDIA_SCHEMA = {
+	type: "object",
+	description: 'By media type; only "application/json" with a schema is read.',
+	additionalProperties: { type: "object", properties: { schema: {} } },
+};
+const OPERATION_SCHEMA = {
+	type: "object",
+	description: "An OpenAPI 3.1 Operation Object, with its method and path.",
+	properties: {
+		method: { enum: METHOD_NAMES },
+		path: { type: "string" },
+		operationId: { type: "string" },
+		summary: { type: "string" },
+		parameters: { type: "array", items: { type: "object" } },
+		requestBody: {
+			type: "object",
+			properties: { required: { type: "boolean" }, content: MEDIA_SCHEMA },
+		},
+		responses: {
+			type: "object",
+			description: "By status: 200, 4XX or default.",
+			additionalProperties: {
+				type: "object",
+				properties: { description: { type: "string" }, content: MEDIA_SCHEMA },
+			},
+		},
+	},
+	required: ["method", "path"],
+	additionalProperties: false,
+};
+// An OpenAPI document's first operation also loads one.
+const OPENAPI_SCHEMA = {
+	type: "object",
+	description: "An OpenAPI document: its first operation is read.",
+	properties: { openapi: { type: "string" }, paths: { type: "object" } },
+	required: ["openapi", "paths"],
+};
+const OPERATION_OR_DOC_SCHEMA = { anyOf: [OPERATION_SCHEMA, OPENAPI_SCHEMA] };
+const EXCHANGE_SCHEMA = {
+	type: "object",
+	properties: {
+		operation: OPERATION_SCHEMA,
+		request: REQUEST_SCHEMA,
+		response: RESPONSE_SCHEMA,
+	},
+	required: ["request", "response"],
+	additionalProperties: false,
+};
+// A card's data meta: it loads what its asJson gives, checked against schema.
+const dataMeta = (schema) => ({ [DATA_META]: { load: "load", data: "asJson", schema } });
+// A pure load that checks its arg against schema and sets the fields fields(C, json) makes.
+const loadFrom = (schema, fields) => ({
+	pure: true,
+	...schemaChecked(schema),
+	run(next, [json]) {
+		Object.assign(next, fields(scopeOf(this).components, json));
+	},
+});
 
 // A header: its name and value, and what it's for when it's a known one.
 export const HttpHeader = component({
@@ -265,6 +359,7 @@ export const HttpRequest = component({
 		"📨",
 		"What a client sends: a method, a URL, headers and maybe a body.",
 		480,
+		dataMeta(REQUEST_SCHEMA),
 	),
 	fields: {
 		method: t.enum(...METHOD_NAMES),
@@ -295,6 +390,9 @@ export const HttpRequest = component({
 		},
 		get wire() {
 			return rawRequest(this.toJson());
+		},
+		get asJson() {
+			return this.toJson();
 		},
 		...sectionQueries(REQUEST_SECTIONS),
 	},
@@ -340,6 +438,7 @@ export const HttpRequest = component({
 		...headerMessages(),
 		setMethod: setMethod(),
 		setUrl: setString("url"),
+		load: loadFrom(REQUEST_SCHEMA, (C, json) => requestFields(C, json)),
 	},
 });
 
@@ -352,6 +451,7 @@ export const HttpResponse = component({
 		"📬",
 		"What the server answers: a status, headers and a body.",
 		480,
+		dataMeta(RESPONSE_SCHEMA),
 	),
 	fields: {
 		status: t.number().int().min(100).max(599).default(200),
@@ -383,6 +483,9 @@ export const HttpResponse = component({
 		},
 		get wire() {
 			return rawResponse(this.toJson());
+		},
+		get asJson() {
+			return this.toJson();
 		},
 		...sectionQueries(RESPONSE_SECTIONS),
 	},
@@ -421,6 +524,7 @@ export const HttpResponse = component({
 		...sectionMessages(RESPONSE_SECTIONS, ["headers", "body"]),
 		...headerMessages(),
 		setStatus: setNumber("status", isStatus),
+		load: loadFrom(RESPONSE_SCHEMA, (C, json) => responseFields(C, json)),
 	},
 });
 
@@ -513,6 +617,7 @@ export const ApiOperation = component({
 		"📘",
 		"An OpenAPI operation: a method on a path, its parameters, its body and its responses.",
 		520,
+		dataMeta(OPERATION_OR_DOC_SCHEMA),
 	),
 	fields: {
 		method: t.enum(...METHOD_NAMES),
@@ -564,6 +669,9 @@ export const ApiOperation = component({
 		},
 		get openapi() {
 			return JSON.stringify(this.toOpenApi(), null, 2);
+		},
+		get asJson() {
+			return this.toJson();
 		},
 		...sectionQueries(OPERATION_SECTIONS),
 	},
@@ -673,6 +781,7 @@ export const ApiOperation = component({
 				ctx.scope.components.ApiResponse({ status: "default", description: "", schema: null }),
 			);
 		},
+		load: loadFrom(OPERATION_OR_DOC_SCHEMA, (C, json) => operationFields(C, json)),
 		removeResponse: {
 			args: [t.index("responses")],
 			run(next, [at]) {
@@ -691,6 +800,7 @@ export const HttpExchange = component({
 		"🔁",
 		"A request and its response, checked against the API operation they follow.",
 		560,
+		dataMeta(EXCHANGE_SCHEMA),
 	),
 	fields: {
 		operation: t.option(t.component("ApiOperation")),
@@ -717,6 +827,9 @@ export const HttpExchange = component({
 				cls: ok ? "http-ok text-success" : "http-fail text-error",
 			}));
 		},
+		get asJson() {
+			return this.toJson();
+		},
 		get failures() {
 			return this.checks.filter((c) => !c.ok).length;
 		},
@@ -739,6 +852,11 @@ export const HttpExchange = component({
 		toggleOperation(next, _args, ctx) {
 			next.operation = this.operation === null ? apiOperation(ctx.scope.components) : null;
 		},
+		load: loadFrom(EXCHANGE_SCHEMA, (C, { operation, request, response }) => ({
+			operation: operation === undefined ? null : C.ApiOperation(operationFields(C, operation)),
+			request: C.HttpRequest(requestFields(C, request)),
+			response: C.HttpResponse(responseFields(C, response)),
+		})),
 	},
 });
 function exchangeView(editing) {
@@ -887,17 +1005,61 @@ const headers = (C, list) => list.map(([name, value]) => C.HttpHeader({ name, va
 // Each part of the example, made with C.
 export const httpHeader = (C, [name, value] = TASKS.request.headers[0]) =>
 	C.HttpHeader({ name, value });
-// A body as the fields take it: a string is text, anything else JSON.
-const bodyOf = (C, body) =>
+// A body as the fields take it: text when bodyType says so (or, without one, a string),
+// anything else JSON; none when it's left out.
+const bodyOf = (C, body, bodyType = typeof body === "string" ? "text" : "json") =>
 	body === undefined
 		? { bodyKind: "none", body: null, bodyText: "" }
-		: typeof body === "string"
-			? { bodyKind: "text", body: null, bodyText: body }
+		: bodyType === "text"
+			? { bodyKind: "text", body: null, bodyText: String(body) }
 			: { bodyKind: "json", body: droppable(C, body), bodyText: "" };
-export const httpRequest = (C, { method, url, headers: hs, body } = TASKS.request) =>
-	C.HttpRequest({ method, url, headers: headers(C, hs), ...bodyOf(C, body) });
-export const httpResponse = (C, { status, headers: hs, body } = TASKS.response) =>
-	C.HttpResponse({ status, headers: headers(C, hs), ...bodyOf(C, body) });
+// The fields of a request, a response or an operation, from what their asJson gives.
+const requestFields = (C, { method, url, headers: hs = [], body, bodyType }) => ({
+	method,
+	url,
+	headers: headers(C, hs),
+	...bodyOf(C, body, bodyType),
+});
+const responseFields = (C, { status, headers: hs = [], body, bodyType }) => ({
+	status,
+	headers: headers(C, hs),
+	...bodyOf(C, body, bodyType),
+});
+const jsonSchemaOf = (content) => content?.["application/json"]?.schema;
+// An OpenAPI document's first operation, with its method and path; an operation as it is.
+const firstOperation = (json) => {
+	if (json.paths === undefined) return json;
+	for (const [path, item] of Object.entries(json.paths ?? {})) {
+		for (const [method, op] of Object.entries(item ?? {})) {
+			if (METHOD_NAMES.includes(method.toUpperCase())) {
+				return { ...op, method: method.toUpperCase(), path };
+			}
+		}
+	}
+	return { method: "GET", path: "/" };
+};
+const operationFields = (C, json) => {
+	const op = firstOperation(json);
+	const body = jsonSchemaOf(op.requestBody?.content);
+	return {
+		method: op.method,
+		path: op.path,
+		operationId: op.operationId ?? "",
+		summary: op.summary ?? "",
+		parameters: droppable(C, op.parameters ?? []),
+		requestBody: body === undefined ? null : schemaEditor(C, body),
+		bodyRequired: op.requestBody?.required ?? false,
+		responses: Object.entries(op.responses ?? {}).map(([status, r]) =>
+			apiResponse(C, {
+				status,
+				description: r?.description ?? "",
+				schema: jsonSchemaOf(r?.content),
+			}),
+		),
+	};
+};
+export const httpRequest = (C, json = TASKS.request) => C.HttpRequest(requestFields(C, json));
+export const httpResponse = (C, json = TASKS.response) => C.HttpResponse(responseFields(C, json));
 export const apiResponse = (C, { status, description, schema } = TASKS.operation.responses[0]) =>
 	C.ApiResponse({
 		status,

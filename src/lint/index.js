@@ -2,8 +2,10 @@ import {
 	ANSWER_OUTCOMES,
 	ArrayType,
 	AstNode,
+	agentProblems,
 	ComponentType,
 	DRAG_EVENTS,
+	dataProblems,
 	HandlerSpec,
 	IndexType,
 	Interface,
@@ -135,6 +137,10 @@ export class Lint extends Walker {
 	// component() already rejects a missing main view and copies each section into an
 	// object, so only the entries are left to check.
 	lintSpec(spec) {
+		// What its agent meta says it can't do: tools naming no message or query, wrong params.
+		for (const problem of agentProblems(spec)) this.report("error", "agent-meta", null, problem);
+		// What its data meta says it can't do: a load that isn't a pure one-arg message.
+		for (const problem of dataProblems(spec)) this.report("error", "data-meta", null, problem);
 		for (const [name, fn] of Object.entries(spec.provides)) {
 			if (typeof fn !== "function") {
 				this.report("error", "section-shape", null, `provides.${name} must be a function`);

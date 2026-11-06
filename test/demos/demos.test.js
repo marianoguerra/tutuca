@@ -41,6 +41,9 @@ const mount = (start, ...args) => {
 		if (value !== undefined) el.value = value;
 		const Event = type === "click" ? window.MouseEvent : window.Event;
 		el.dispatchEvent(new Event(type, { bubbles: true, cancelable: true }));
+		// A tick stops after 16ms and leaves the rest for a timer: on a busy machine what an event
+		// started (an ask's answer, a notify) would land after the assertion. Run it all now.
+		while (host.tasks.length > 0) host.handleTasks();
 	};
 	return { host, rootNode, $, fire, problems, state: () => host.root };
 };
@@ -705,4 +708,46 @@ test("?sync=automerge: tabs on the same document merge", async () => {
 		assert.equal(host.root.title, "Merged");
 		assert.equal(host.root.notes[0].text, "from a");
 	}
+});
+
+test("canvas demo, agent bundle: with a model, a board's item wraps it in an agent and ejects it", async () => {
+	const models = [{ provider: "echo", id: "echo", name: "Echo" }];
+	const app = mount(startCanvas, "agent", { inferenceAvailable: () => true, models: () => models });
+	const item = () => app.state().items["item-1"];
+	assert.equal(app.state().agentsAvailable, true);
+	assert.equal(specOf(item().content).name, "Board");
+	const width = item().width;
+	app.fire("click", app.$('[title="Wrap in an agent"]'));
+	assert.equal(specOf(item().content).name, "Agent");
+	assert.equal(specOf(item().content.target).name, "Board");
+	assert.ok(item().width > width, "wider, for the chat");
+	assert.equal(app.$('[title="Drive another component"]'), null, "the item ejects it instead");
+	assert.equal(app.$('[title="Wrap in an agent"]'), null);
+	// The echo model runs the tool a prompt names, on the board in the agent.
+	app.fire(
+		"input",
+		app.$('textarea[aria-label="Prompt"]'),
+		'/move_card {"id": "c00", "column": 2, "at": 0}',
+	);
+	app.fire("submit", app.$("form.agent-prompt"));
+	assert.deepEqual(
+		item().content.target.columns[2].cards.map((c) => c.id),
+		["c00"],
+	);
+	// Ejected, the board is back in the item as the agent left it, as wide as it was.
+	app.fire("click", app.$('[title="Eject it from the agent"]'));
+	assert.equal(specOf(item().content).name, "Board");
+	assert.deepEqual(
+		item().content.columns[2].cards.map((c) => c.id),
+		["c00"],
+	);
+	assert.equal(item().width, width);
+	await checkClean(app);
+});
+
+test("canvas demo, agent bundle: without a model, nothing to wrap in an agent", async () => {
+	const app = mount(startCanvas, "agent", { inferenceAvailable: () => false });
+	assert.equal(app.state().agentsAvailable, false);
+	assert.equal(app.$('[title="Wrap in an agent"]'), null);
+	await checkClean(app);
 });

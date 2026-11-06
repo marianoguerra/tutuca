@@ -1,5 +1,6 @@
-// Dropping a JSON file on a component to replace what it shows, when its allowDrop is on.
-import { $if, field, send, t, tag } from "../../src/tutuca.js";
+// Dropping a JSON file on a component to replace what it shows, when its allowDrop is on: the
+// file's JSON goes through the component's data load (DATA_META, src/data.js).
+import { $if, field, loadData, send, t, tag } from "../../src/tutuca.js";
 import { DROP_TARGET, droppedJsonFile } from "./files.js";
 
 const { div, p } = tag;
@@ -26,9 +27,10 @@ export const jsonDropTarget = (body) =>
 		body(),
 	);
 
-// The dropFile message and the readText answer that loads the file's JSON: load(next, json,
-// ctx) puts json in next, or returns why it can't.
-export const jsonDrop = (load) => ({
+// The dropFile message and the readText answer that load the file's JSON through the
+// component's data load (DATA_META), so a drop sets it the way an agent's set_state does and
+// is refused for the same reasons. after(next, ctx) runs once a drop loaded.
+export const dataDrop = ({ after = () => {} } = {}) => ({
 	on: {
 		// A file dropped from outside the page: the first JSON one is read, and loaded when the
 		// answer comes.
@@ -53,7 +55,7 @@ export const jsonDrop = (load) => ({
 		// The dropped file's text: loaded when it's valid, the error shown otherwise.
 		readText: {
 			ok(next, [text], ctx) {
-				const name = this.dropName || "The file";
+				const name = this.dropName || "the file";
 				next.dropName = "";
 				let json;
 				try {
@@ -62,8 +64,9 @@ export const jsonDrop = (load) => ({
 					next.dropError = `${name} is not JSON: ${error.message}`;
 					return;
 				}
-				const error = load(next, json, ctx);
-				next.dropError = error === undefined ? "" : `${name} ${error}`;
+				const { error } = loadData(next, json, name);
+				next.dropError = error ?? "";
+				if (error === undefined) after(next, ctx);
 			},
 			error(next, [error]) {
 				next.dropError = `Reading ${this.dropName || "the file"} failed: ${error?.message ?? error}`;
