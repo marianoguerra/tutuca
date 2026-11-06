@@ -150,6 +150,11 @@ test("stopping the canvas's agent mid-delegate stops its item's agent, aborting 
 	const board = () => app.state().target.items["item-1"].content;
 	assert.equal(app.state().status, "running");
 	assert.equal(board().status, "thinking");
+	// What it's doing shows in the conversation, after its last message, where the answer comes.
+	const status = app.own(".agent-chat .agent-status");
+	assert.match(status.textContent, /Running a tool/);
+	assert.equal(status.parentElement.lastElementChild, status);
+	assert.ok(status.previousElementSibling.classList.contains("transcript"));
 	app.fire("click", app.own('button[title^="Stop what"]'));
 	await app.idle();
 	assert.equal(signal.aborted, true);

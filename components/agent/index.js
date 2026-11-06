@@ -123,24 +123,34 @@ const chatPanel = () =>
 		// overflows where it can't be scrolled to).
 		div(
 			{ class: field("transcriptClass") },
-			div({ class: "mb-auto" }, render(field("transcript"))),
-		),
-		$if(
-			field("isBusy"),
 			div(
-				{ class: "flex items-center gap-2 text-xs opacity-70" },
-				p({}, field("statusText")),
-				button(
-					{
-						class: "btn btn-ghost btn-xs",
-						type: "button",
-						title: "Stop what it's doing, and the agents it asked",
-						"on:click": send("stop"),
-					},
-					"■ Stop",
+				{ class: "mb-auto flex flex-col gap-2" },
+				render(field("transcript")),
+				// While it works, a card where its answer will come, after the last message, so
+				// it's seen where one looks for the answer.
+				$if(
+					field("isBusy"),
+					div(
+						{
+							class:
+								"agent-status flex w-full items-center gap-2 rounded-box border border-dashed border-base-300 bg-base-100 px-3 py-2 text-sm",
+							role: "status",
+						},
+						span({ class: "loading loading-dots loading-xs opacity-60" }),
+						p({ class: "italic opacity-70" }, field("statusText")),
+						button(
+							{
+								class: "btn btn-ghost btn-xs ml-auto",
+								type: "button",
+								title: "Stop what it's doing, and the agents it asked",
+								"on:click": send("stop"),
+							},
+							"■ Stop",
+						),
+					),
+					"",
 				),
 			),
-			"",
 		),
 		$if(field("hasError"), p({ class: "text-xs text-error" }, field("error")), ""),
 		form(
