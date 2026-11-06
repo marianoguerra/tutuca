@@ -155,6 +155,7 @@ test("music: chords, keys and marks by note name", () => {
 	let chords = MUSIC_KINDS.chords.make(C, {});
 	chords = ran(chords, "set_chord", { root: "Eb", kind: "min7", inversion: 2 });
 	assert.match(summaryOf(chords), /^E♭m7\/B♭/);
+	assert.deepEqual(chords.guitar.marked, [10, 1, 3, 6], "on the neck too, by pitch class");
 	failsWith(chords, "set_chord", { root: "C", kind: "major", inversion: 3 }, /inversions 0 to 2/);
 	failsWith(chords, "set_chord", { root: "H", kind: "major", inversion: 0 }, /root isn't/);
 	let circle = MUSIC_KINDS.circle.make(C, {});
@@ -163,6 +164,12 @@ test("music: chords, keys and marks by note name", () => {
 	let intervals = MUSIC_KINDS.intervals.make(C, {});
 	intervals = ran(intervals, "set_intervals", { root: "D", intervals: ["m3", "P5"] });
 	assert.match(summaryOf(intervals), /D minor/);
+	assert.deepEqual(intervals.guitar.labels, ["D", "F", "A"]);
+	let scales = MUSIC_KINDS.scales.make(C, {});
+	scales = ran(scales, "set_scale", { root: "F#", kind: "harmonicMinor" });
+	assert.match(summaryOf(scales), /^F♯ harmonic minor/);
+	assert.deepEqual(scales.guitar.labels, ["F♯", "G♯", "A", "B", "C♯", "D", "E♯"]);
+	failsWith(scales, "set_scale", { root: "C", kind: "bebop" }, /kind/);
 	let keys = MUSIC_KINDS.piano.make(C, {});
 	keys = ran(keys, "set_marks", { notes: ["C4", "E4", "G4"], color: "sky" });
 	assert.deepEqual(keys.marked, [60, 64, 67]);

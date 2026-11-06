@@ -115,6 +115,22 @@ export const markOn = (piano, notes, colors = rootColors(notes)) =>
 		notes.map((n) => n.name),
 		colors,
 	);
+// Marks notes on a guitar's neck by pitch class, wherever they're played: the root in amber
+// and the others in blue, each pitch class once.
+export const markNeckOn = (neck, notes) => {
+	const seen = new Set();
+	const once = notes.filter((n) => {
+		const pc = ((n.midi % 12) + 12) % 12;
+		return !seen.has(pc) && seen.add(pc);
+	});
+	return apply(
+		neck,
+		"mark",
+		once.map((n) => ((n.midi % 12) + 12) % 12),
+		once.map((n) => n.name),
+		rootColors(once),
+	);
+};
 export const rootColors = (notes, root = COLORS.root, other = COLORS.note) =>
 	notes.map((n) => (n.interval === "P1" ? root : other));
 // The notes outside piano's keys, said, or "".

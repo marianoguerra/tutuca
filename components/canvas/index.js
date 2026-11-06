@@ -991,7 +991,9 @@ export const Canvas = component({
 	},
 	view: div(
 		{
-			class: "canvas-root flex flex-col gap-2 outline-none",
+			// As tall as the window, or as what holds it when that's shorter (an agent's column):
+			// the viewport takes what the toolbar leaves, and scrolls.
+			class: "canvas-root flex h-[calc(100dvh-1rem)] max-h-full flex-col gap-2 outline-none",
 			tabindex: "0",
 			"on:keydown": send("key"),
 		},
@@ -1118,7 +1120,7 @@ export const Canvas = component({
 		div(
 			{
 				class:
-					"canvas-viewport max-h-[80vh] overflow-auto rounded-box border border-base-300 bg-base-200",
+					"canvas-viewport min-h-0 flex-1 overflow-auto rounded-box border border-base-300 bg-base-200",
 			},
 			svg(
 				{

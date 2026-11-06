@@ -113,10 +113,34 @@ export const chordOfIntervals = (intervals) => {
 	return Object.keys(CHORDS).find((kind) => key(CHORDS[kind].intervals) === want) ?? null;
 };
 
-const MAJOR = ["P1", "M2", "M3", "P4", "P5", "M6", "M7"];
-const MINOR = ["P1", "M2", "m3", "P4", "P5", "m6", "m7"];
-export const scaleOf = (root, mode) =>
-	(mode === "minor" ? MINOR : MAJOR).map((i) => spell(root, i));
+// Scales by kind: their name and intervals above the root, each on its own letter where it
+// has seven notes, so they're spelled as music spells them.
+export const SCALES = {
+	major: { name: "major (Ionian)", intervals: ["P1", "M2", "M3", "P4", "P5", "M6", "M7"] },
+	minor: { name: "natural minor (Aeolian)", intervals: ["P1", "M2", "m3", "P4", "P5", "m6", "m7"] },
+	harmonicMinor: { name: "harmonic minor", intervals: ["P1", "M2", "m3", "P4", "P5", "m6", "M7"] },
+	melodicMinor: { name: "melodic minor", intervals: ["P1", "M2", "m3", "P4", "P5", "M6", "M7"] },
+	dorian: { name: "Dorian", intervals: ["P1", "M2", "m3", "P4", "P5", "M6", "m7"] },
+	phrygian: { name: "Phrygian", intervals: ["P1", "m2", "m3", "P4", "P5", "m6", "m7"] },
+	lydian: { name: "Lydian", intervals: ["P1", "M2", "M3", "A4", "P5", "M6", "M7"] },
+	mixolydian: { name: "Mixolydian", intervals: ["P1", "M2", "M3", "P4", "P5", "M6", "m7"] },
+	locrian: { name: "Locrian", intervals: ["P1", "m2", "m3", "P4", "d5", "m6", "m7"] },
+	majorPentatonic: { name: "major pentatonic", intervals: ["P1", "M2", "M3", "P5", "M6"] },
+	minorPentatonic: { name: "minor pentatonic", intervals: ["P1", "m3", "P4", "P5", "m7"] },
+	blues: { name: "blues", intervals: ["P1", "m3", "P4", "d5", "P5", "m7"] },
+	wholeTone: { name: "whole tone", intervals: ["P1", "M2", "M3", "A4", "A5", "m7"] },
+};
+export const scaleOf = (root, kind) => SCALES[kind].intervals.map((i) => spell(root, i));
+// The notes of a scale: root (a name), kind and octave, each { midi, name, interval }, from the
+// root up to the root an octave above.
+export const scaleNotes = (root, kind, octave) => {
+	const base = midiOf(pcOfName(root), octave);
+	return [...SCALES[kind].intervals, "P8"].map((interval) => ({
+		midi: base + INTERVALS[interval].semis,
+		name: spell(root, interval),
+		interval,
+	}));
+};
 
 // The circle of fifths, clockwise from the top: each major key and its relative minor.
 export const CIRCLE = [

@@ -409,6 +409,7 @@ test("canvas demo, music bundle: the circle, the chords, the intervals and a pia
 		"Piano",
 		"OffsetExplorer",
 		"GuitarNeck",
+		"ScaleExplorer",
 	]);
 	assert.equal(app.state().items["item-1"].label, "⭕ Circle of fifths");
 	const chords = () => app.state().items["item-2"].content;
@@ -421,6 +422,13 @@ test("canvas demo, music bundle: the circle, the chords, the intervals and a pia
 	assert.deepEqual(offset().piano.labels, ["C", "E", "G", "B", "D", "F♯"]);
 	app.fire("click", app.$('.music-offset [aria-label="Instrument"] > button:nth-of-type(2)'));
 	assert.ok(app.$(".music-offset .guitar-neck"));
+	// The scale explorer marks its scale on the piano and the guitar, the root in amber.
+	const scales = () => app.state().items["item-7"].content;
+	app.fire("click", app.rootNode.querySelectorAll('.music-scales [aria-label="Root"] > button')[9]);
+	app.fire("change", app.$('.music-scales [aria-label="Scale"]'), "minor");
+	assert.deepEqual(scales().piano.labels, ["A", "B", "C", "D", "E", "F", "G", "A"]);
+	assert.deepEqual(scales().guitar.marked, [9, 11, 0, 2, 4, 5, 7]);
+	assert.ok(app.$(".music-scales .guitar-neck"));
 	await checkClean(app);
 });
 

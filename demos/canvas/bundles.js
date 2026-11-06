@@ -3,7 +3,7 @@
 // meta schemas it checks them against, the ask handlers that tell its holes what they can
 // become and make it, and the canvas it starts with. default is the notebook's components; llm
 // the parts of an LLM request and response; http an HTTP exchange and the OpenAPI operation it
-// follows; music the circle of fifths, intervals, chords and a piano.
+// follows; music the circle of fifths, intervals, chords, scales and a piano.
 
 import {
 	COMPOSITION_KINDS,
@@ -88,7 +88,8 @@ export const BUNDLES = {
 			),
 	},
 	// The circle of fifths, an interval picker, a chord explorer, a piano and a guitar's neck to
-	// mark notes on, and an explorer of a note or chord moved by an interval offset.
+	// mark notes on, an explorer of a note or chord moved by an interval offset and a scale
+	// explorer that shows a scale on both.
 	music: {
 		title: "Music theory",
 		components: { ...musicComponents, ...canvasKitComponents },
@@ -104,8 +105,9 @@ export const BUNDLES = {
 					[500, 620, "piano"],
 					[48, 900, "offsetExplorer"],
 					[700, 900, "guitar"],
+					[700, 1240, "scales"],
 				],
-				{ width: 1700, height: 1600 },
+				{ width: 1700, height: 2000 },
 				MUSIC_KINDS,
 			),
 	},

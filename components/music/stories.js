@@ -10,6 +10,7 @@ import {
 	offsetExplorer,
 	offsetSelector,
 	piano,
+	scaleExplorer,
 } from "./index.js";
 import { COLORS } from "./ui.js";
 
@@ -146,6 +147,31 @@ export default stories({
 					edit,
 					type("Octaves", "1"),
 					step.check("the piano's edit view, inside", (s) => s.content.piano.octaves === 1),
+				],
+			},
+		},
+		"Scale explorer": {
+			make: editable((C) => scaleExplorer(C)),
+			sequences: {
+				"another scale, on another root, an octave up": [
+					step.check("E♭ major on the piano", (s) =>
+						same(s.content.piano.labels, ["E♭", "F", "G", "A♭", "B♭", "C", "D", "E♭"]),
+					),
+					step.check("its root in amber", (s) => s.content.guitar.colors[0] === COLORS.root),
+					step.event("change", '[aria-label="Scale"]', { value: "dorian" }),
+					step.check("E♭ Dorian, W H W W W H W", (s) => s.content.steps === "W H W W W H W"),
+					click('[aria-label="Root"] > button:nth-of-type(5)'),
+					step.event("change", '[aria-label="Scale"]', { value: "minorPentatonic" }),
+					step.check("E minor pentatonic on the neck", (s) =>
+						same(s.content.guitar.marked, [4, 7, 9, 11, 2]),
+					),
+					step.check(
+						"the open strings, all in it",
+						(s) =>
+							s.content.guitar.positions.filter((p) => p.fret === 0 && p.label !== "").length === 6,
+					),
+					click('[title="Octave up"]'),
+					step.check("off the keyboard", (s) => s.content.outside.startsWith("D6 E6 are")),
 				],
 			},
 		},

@@ -324,7 +324,7 @@ export const Agent = component({
 		get gridClass() {
 			if (!this.chatOpen) return "grid gap-3";
 			return this.layout === "side"
-				? "grid min-h-0 flex-1 gap-3 md:grid-cols-[minmax(0,1fr)_26rem]"
+				? "grid min-h-0 flex-1 gap-3 md:grid-cols-[minmax(0,1fr)_26rem] md:grid-rows-[minmax(0,1fr)]"
 				: "grid gap-3 md:grid-cols-2";
 		},
 		// Beside a wide target, the agent is as tall as the window (less the page's padding) and
@@ -340,9 +340,14 @@ export const Agent = component({
 			const base = "agent-chat flex min-w-0 flex-col gap-2";
 			return this.layout === "side" ? `${base} h-full` : base;
 		},
+		// A box of its own, bordered and a shade off the page, so an empty conversation reads as
+		// a place for one.
 		get transcriptClass() {
-			const scroll = "flex flex-col-reverse overflow-y-auto";
-			return this.layout === "side" ? `${scroll} min-h-0 flex-1` : `${scroll} max-h-[28rem]`;
+			const scroll =
+				"flex flex-col-reverse overflow-y-auto rounded-box border border-base-content/15 bg-base-100 p-3";
+			return this.layout === "side"
+				? `${scroll} min-h-0 flex-1`
+				: `${scroll} min-h-24 max-h-[28rem]`;
 		},
 		get showsTools() {
 			return this.toolsOpen && this.hasTarget;
@@ -409,7 +414,7 @@ export const Agent = component({
 		),
 		div(
 			{ class: field("gridClass") },
-			div({ class: "agent-target min-w-0" }, render(field("target"))),
+			div({ class: "agent-target min-h-0 min-w-0" }, render(field("target"))),
 			$if(field("chatOpen"), div({ class: field("chatClass") }, chatPanel()), ""),
 		),
 	),
