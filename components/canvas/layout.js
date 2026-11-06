@@ -133,14 +133,19 @@ export const kindHandlers = (kinds) => {
 	const specOfKind = (kind, scope) =>
 		kind.component ? (scope.lookupByName(kind.component) ?? null) : null;
 	return {
-		// [meta?] → [{ id, label, blurb, choices }], from the meta of the component each names;
+		// [meta?] → [{ id, label, blurb, choices, agent, samples }], from the meta of the component each names;
 		// with meta, a URI, only the kinds whose component says something under it.
 		componentKinds: ([meta = ""] = [], read) =>
 			Object.entries(all).flatMap(([id, kind]) => {
 				const spec = specOfKind(kind, read.scope);
 				if (meta !== "" && !saysMeta(spec, meta)) return [];
 				const { label, blurb } = kindLook(kind, spec, read.scope);
-				return [{ id, label, blurb, choices: choicesOf(kind, spec, read.scope, meta) }];
+				const choices = choicesOf(kind, spec, read.scope, meta);
+				// agent: whether an agent can drive what it makes; samples, what it can start from.
+				const agent = saysMeta(spec, AGENT_META);
+				const samples =
+					spec !== null && kind.choices === undefined ? sampleChoices(spec, read.scope) : [];
+				return [{ id, label, blurb, choices, agent, samples }];
 			}),
 		// [id, choice] → { content, label, width }, made in the asker's scope. A choice the kind
 		// doesn't have of its own is one of its component's samples.
@@ -169,11 +174,15 @@ export const BECOME_ARGS = [t.component(), t.string(), t.number().int().min(0)];
 const MENU =
 	"choices menu menu-sm w-full flex-nowrap overflow-y-auto rounded-box border border-base-300 bg-base-100";
 const choiceType = t.record({ id: t.string(), title: t.string() });
-const kindType = t.record({
+// What componentKinds says of a kind: agent, whether an agent can drive what it makes, and
+// samples, the samples it can start from (a choice, too, for makeComponent).
+export const kindType = t.record({
 	id: t.string(),
 	label: t.string(),
 	blurb: t.string(),
 	choices: t.array(choiceType),
+	agent: t.boolean(),
+	samples: t.array(choiceType),
 });
 const isKind = (k) =>
 	typeof k?.id === "string" &&

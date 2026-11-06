@@ -1,4 +1,5 @@
-// The bundles the canvas demo can load, by ?bundle=: each is the components it registers, the
+// The bundles the canvas demo can load, by ?bundle= (and ?agent, any of them in an agent: see
+// withAgent): each is the components it registers, the
 // meta schemas it checks them against, the ask handlers that tell its holes what they can
 // become and make it, and the canvas it starts with. default is the notebook's components; llm
 // the parts of an LLM request and response; http an HTTP exchange and the OpenAPI operation it
@@ -11,6 +12,7 @@ import {
 	canvasComponents,
 	canvasKitComponents,
 	canvasMetaSchemas,
+	withAssistant,
 } from "../../components/canvas/index.js";
 import { kindHandlers } from "../../components/canvas/layout.js";
 import { HTTP_KINDS, httpComponents } from "../../components/http/index.js";
@@ -19,8 +21,10 @@ import { LLM_KINDS, llmComponents } from "../../components/llm/index.js";
 import { MUSIC_KINDS, musicComponents } from "../../components/music/index.js";
 import { agentMetaSchemas, withSample } from "../../src/tutuca.js";
 
-// What the agent bundle's holes can become: what an agent can drive, a board.
+// What the agent bundle's holes can become: the notebook's, and a board, which an agent can
+// drive as it can most of the notebook's.
 const AGENT_KINDS = {
+	...COMPOSITION_KINDS,
 	board: { component: "Board", make: (C) => C.Board({}) },
 };
 export const BUNDLES = {
@@ -108,12 +112,15 @@ export const BUNDLES = {
 };
 
 // A board, which says agent meta: with a model to ask, its item's 🤖 wraps it in an agent
-// that drives it, and ⏏ ejects it again.
+// that drives it, and ⏏ ejects it again. Beside the canvas, its own agent adds components,
+// gives them agents, prompts those and ejects them.
 BUNDLES.agent = {
 	title: "Agent",
-	components: { ...llmComponents, ...kanbanComponents, ...canvasKitComponents },
+	components: { ...llmComponents, ...kanbanComponents, ...canvasComponents },
 	askHandlers: kindHandlers(AGENT_KINDS),
 	metaSchemas: { ...canvasMetaSchemas, ...agentMetaSchemas },
+	// With the canvas's own agent beside it, as ?agent gives any bundle.
+	agent: true,
 	make: (C) =>
 		canvas(
 			C,
@@ -123,8 +130,24 @@ BUNDLES.agent = {
 		),
 };
 
-// The bundle the page's ?bundle= names, or the default one.
+// bundle with its canvas in an agent of its own, beside it, which adds components, gives them
+// agents, prompts those and ejects them (withAssistant): what ?agent asks for. The documents
+// saved without it keep their shape.
+export const withAgent = (bundle) => ({
+	...bundle,
+	agent: true,
+	metaSchemas: { ...bundle.metaSchemas, ...agentMetaSchemas },
+	make: (C) => withAssistant(C, bundle.make(C)),
+});
+// The bundle id names (default when it isn't known), in an agent with agent or when it comes
+// in one; id says which it is.
+export const bundleFrom = (id, agent = false) => {
+	const known = Object.hasOwn(BUNDLES, id ?? "") ? id : "default";
+	const base = { ...BUNDLES[known], id: known };
+	return agent || base.agent ? withAgent(base) : base;
+};
+// The bundle the page's ?bundle= names, or the default one, in an agent with ?agent.
 export const bundleOf = (window) => {
-	const id = window ? new URLSearchParams(window.location.search).get("bundle") : null;
-	return BUNDLES[id] ?? BUNDLES.default;
+	const params = new URLSearchParams(window?.location.search ?? "");
+	return bundleFrom(params.get("bundle"), params.has("agent"));
 };

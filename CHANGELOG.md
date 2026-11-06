@@ -4,6 +4,42 @@
 
 ### Added
 
+- **Settle scopes (structured concurrency).** `ctx.sendAt(name, args, selector, watch)` with
+  a watch opens a settle scope (`src/tree/scope.js`). The message and everything it causes are
+  in it: what it sends, the notifications it bubbles, its asks and their answers (later ones
+  too), recursively. Once none of it is left, the sender gets `settled`, a name or
+  `[name, args]`, with a report `{ id, outcome, tasks, failed }` after the args. The outcome is
+  `ok`, `failed` (a handler threw), `cancelled` or `timeout`.
+  - `progress` tells the sender how far it got, at most one queued at a time.
+  - `timeout` (ms) cancels it.
+  - `sendAt` returns the scope's id, and `ctx.cancel(id)` cancels it: its queued tasks are
+    dropped, its asks' `signal` (in the ask handler's read context) is aborted and their
+    answers ignored, and the scopes inside it are cancelled too.
+  - A scope inside another counts as one open unit of it.
+  - `ask(name, args, { detached: true })` and `sendAt(..., { detached: true })` leave the scope,
+    for background work nothing should wait for.
+- **The Agent waits for its tools.** A tool that needs a context is sent in a settle scope. Its
+  call is answered once everything it caused ran, such as the asks it made or other agents it
+  prompted, and the answer says how many of its steps failed. A ■ Stop button cancels what's
+  running, stops the agents of a target that holds some (`stopAgents`), and closes the calls
+  left without a result. `maxSteps` in agent meta raises the 12 steps. `layout: "side"` puts the
+  chat in a narrow column beside a wide target. `lastAnswer` reads what the model said last.
+  `status` isn't kept (`sync("none")`), so nothing is running after a reload.
+- **An agent uses the model of the agent that prompts it.** `useModel(model)` tells an agent
+  (or a target that holds agents, like the canvas) which model the agent driving it uses. The
+  canvas's agent passes its model to the canvas on every step, and the canvas passes it to an
+  item's agent when it enables or prompts it. `modelFrom` records where an agent's model came
+  from: `default` (echo, then the first the server offers), `given` (by `useModel`) or `chosen`
+  (picked in its select). A chosen model is kept.
+- **The canvas says agent meta.** Its agent lists the kinds it can add (`list_kinds`;
+  `componentKinds` now says each kind's `agent` and `samples`) and adds one (`add_component`,
+  placed after the others unless given x and y). It moves, resizes, titles and removes items by
+  key. It gives an item an agent of its own (`enable_agent`), prompts that agent and waits for
+  it (`delegate`, which answers with what that agent said), reads an item's summary and tools,
+  and ejects the agent (`eject_agent`). `withAssistant(C, canvas)` puts a canvas in an agent.
+  In the canvas demo, `?agent` puts any bundle's canvas in an agent (`?bundle=music&agent`; the
+  demo bar's 🤖 Agent link toggles it), and `?bundle=agent` comes in one, with the notebook's
+  kinds and a board. Without `?agent`, the root is the canvas, as saved documents expect.
 - **Agent meta.** Under `AGENT_META` (`https://tutuca.dev/meta/agent`), a component says how an
   LLM agent drives it:
   - `tools`, each one of its own messages or queries, with `params` naming its positional args

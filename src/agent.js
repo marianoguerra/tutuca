@@ -38,6 +38,7 @@ import {
 	scopeOf,
 	specOf,
 } from "./spec.js";
+import { SCOPE_OUTCOMES } from "./tree/index.js";
 
 export { typeSchema };
 
@@ -58,9 +59,12 @@ export const agentMetaSchemas = {
 		summary: t.string("summary"),
 		tools: t.array(toolType),
 		skills: t.map(t.string()), // path -> text.
+		// The most model turns for one prompt; MAX_STEPS when null. One that drives other agents
+		// takes more.
+		maxSteps: t.option(t.number().int().min(1).max(200)),
 	},
 };
-const DEFAULTS = { prompt: null, summary: "summary", tools: [] };
+const DEFAULTS = { prompt: null, summary: "summary", tools: [], maxSteps: null };
 // A tool for an agent meta's tools: name runs the message or query of that name (or target),
 // with params naming its args in order; a message answers with its result query (summary when
 // null).
@@ -237,8 +241,9 @@ export const summaryOf = (c) => {
 };
 const asText = (v) => (typeof v === "string" ? v : JSON.stringify(v));
 
-// The most steps (model turns) an agent takes for one prompt.
+// The most steps (model turns) an agent takes for one prompt, unless its target's meta says.
 export const MAX_STEPS = 12;
+export const maxStepsOf = (c) => agentOf(c).maxSteps ?? MAX_STEPS;
 // The tool calls of a pi-ai assistant message.
 export const toolCallsOf = (message) =>
 	message?.role === "assistant" && Array.isArray(message.content)
@@ -335,6 +340,33 @@ const runShared = (c, meta, data, call, done) => {
 		return done(errorText(c, null, error), true);
 	}
 	return done(`There's no tool ${name}.`, true);
+};
+// What a settle scope (src/tree/scope.js) tells its watcher: a tool's message and everything it
+// caused ran (ok), some of it threw (failed), or it was stopped (cancelled, timeout).
+export const reportType = t.record({
+	id: t.number(),
+	outcome: t.enum(...SCOPE_OUTCOMES),
+	tasks: t.number().int().min(0),
+	failed: t.number().int().min(0),
+});
+// What answers a message tool's call once its settle scope settled with report: what c looks
+// like after (its result query) and, when it didn't go well, why; and whether it's an error.
+export const settledText = (c, result, report) => {
+	const now = resultText(c, result);
+	if (report.outcome === "ok") return { text: now, isError: false };
+	const why =
+		report.outcome === "failed"
+			? `It ran, but ${report.failed} of the ${report.tasks} steps it took failed.`
+			: report.outcome === "timeout"
+				? "It took too long and was stopped."
+				: "It was stopped before it finished.";
+	return { text: `${why} Now: ${now}`, isError: true };
+};
+// Results for the tool calls of transcript's last assistant message that have none, saying
+// text: a transcript a stopped loop left is one a model can be asked about again.
+export const pendingResults = (transcript, text) => {
+	const { action, calls } = nextAction(transcript);
+	return action === "tools" ? calls.map((call) => toolResultMessage(call, text, true)) : [];
 };
 // What answers a message tool's call once it ran: c's zero-arg query result, as text.
 export const resultText = (c, result) => {

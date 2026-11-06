@@ -14,11 +14,14 @@ import {
 	dataProblems,
 	dataSchema,
 	loadData,
+	maxStepsOf,
 	nextAction,
+	pendingResults,
 	planToolCall,
 	resultText,
 	Scope,
 	sampleChoices,
+	settledText,
 	systemPrompt,
 	t,
 	toolsFor,
@@ -303,4 +306,40 @@ test("nextAction: infer after a prompt or answered calls, tools for pending ones
 	assert.equal(nextAction([...calling, result("a"), result("b")]).action, "infer");
 	const answered = [...asked, { role: "assistant", content: [{ type: "text", text: "ok" }] }];
 	assert.equal(nextAction(answered).action, "complete");
+});
+
+test("settledText: a settled tool says what its target is now, and why when it didn't go well", () => {
+	const c = scoped(Counter).make("Counter", {});
+	const report = (outcome, failed = 0) => ({ id: 1, outcome, tasks: 3, failed });
+	assert.deepEqual(settledText(c, "summary", report("ok")), { text: "count 0", isError: false });
+	const failed = settledText(c, "summary", report("failed", 1));
+	assert.equal(failed.isError, true);
+	assert.match(failed.text, /1 of the 3 steps it took failed\. Now: count 0/);
+	assert.match(settledText(c, "summary", report("cancelled")).text, /stopped before it finished/);
+	assert.match(settledText(c, "summary", report("timeout")).text, /took too long/);
+	assert.equal(maxStepsOf(c), 12);
+});
+
+test("pendingResults: a result for each call a stopped loop left without one", () => {
+	const ask = { role: "user", content: "go" };
+	const calls = {
+		role: "assistant",
+		content: [
+			{ type: "toolCall", id: "a", name: "x", arguments: {} },
+			{ type: "toolCall", id: "b", name: "y", arguments: {} },
+		],
+	};
+	const answered = {
+		role: "toolResult",
+		toolCallId: "a",
+		toolName: "x",
+		content: [],
+		isError: false,
+	};
+	assert.deepEqual(pendingResults([ask], "stopped"), []);
+	const closed = pendingResults([ask, calls, answered], "stopped");
+	assert.deepEqual(
+		closed.map((m) => [m.toolCallId, m.isError, m.content[0].text]),
+		[["b", true, "stopped"]],
+	);
 });

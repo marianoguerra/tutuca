@@ -7,12 +7,14 @@
 // A prompt asks the host to infer (one model step, the ask's answer the model's message). The
 // tools it calls run here: a query or a pure message at once, through query and apply, its
 // ContractError told to the model in words; a message that needs a context is checked, then
-// sent to the target, and a toolSettled sent after it (the queue is FIFO) answers the call with
-// what the target looks like after. Once every call has its result it infers again, until the
-// model answers without calling a tool or MAX_STEPS steps.
+// sent to the target in a settle scope (src/tree/scope.js), and toolSettled, once that message
+// and everything it caused ran (the asks it made answered, the messages it sent handled, other
+// agents it prompted done), answers the call with what the target looks like after, and with
+// how many of its steps failed if any did. Once every call has its result it infers again,
+// until the model answers without calling a tool or the target's max steps.
 //
-// v1's limits: asks the target makes while handling a tool aren't waited for, and a target's
-// handler that fails tells the host, not the agent (the precondition is checked first).
+// Stop cancels the tool running (its scope, and every agent it prompted with it), and tells a
+// target that holds agents of its own to stop them (stopAgents, when it has it).
 import {
 	$if,
 	AGENT_META,
@@ -24,12 +26,15 @@ import {
 	each,
 	field,
 	hasAgentMeta,
-	MAX_STEPS,
+	maxStepsOf,
 	nextAction,
+	pendingResults,
 	planToolCall,
 	render,
-	resultText,
+	reportType,
 	send,
+	settledText,
+	specOf,
 	systemPrompt,
 	t,
 	tag,
@@ -55,7 +60,9 @@ const inferRequest = (target, transcript, model) => ({
 // The agent's loop from where it is, with appended the messages to add first: runs every tool
 // call it can here, until it has to infer, wait for a sent message, or stop. this is self.
 const advance = (self, next, ctx, appended, steps = self.steps) => {
-	let target = self.target;
+	// A target that holds agents of its own (a canvas) hears which model this one uses, so
+	// theirs is the same unless someone picked one for them.
+	let target = usesModel(self.target) ? apply(self.target, "useModel", self.model) : self.target;
 	const transcript = [...self.transcript.messages, ...appended];
 	const added = [...appended];
 	const answer = (call, text, isError) => {
@@ -69,8 +76,9 @@ const advance = (self, next, ctx, appended, steps = self.steps) => {
 		const { action, calls } = nextAction(transcript);
 		if (action === "complete") break;
 		if (action === "infer") {
-			if (steps >= MAX_STEPS) {
-				error = `Stopped after ${MAX_STEPS} steps.`;
+			const max = maxStepsOf(target);
+			if (steps >= max) {
+				error = `Stopped after ${max} steps.`;
 				break;
 			}
 			status = "thinking";
@@ -84,13 +92,18 @@ const advance = (self, next, ctx, appended, steps = self.steps) => {
 				target = plan.next;
 				continue;
 			}
-			// A message that needs a context: the target handles it, then toolSettled answers it.
+			// A message that needs a context: the target handles it, and once it and what it
+			// caused settled, toolSettled answers it.
 			status = "running";
-			ctx.sendAt(plan.send.name, plan.send.args, (s) => s.field("target"));
-			ctx.sendAt("toolSettled", [call.id, call.name, plan.result], (s) => s);
+			next.job = ctx.sendAt(plan.send.name, plan.send.args, (s) => s.field("target"), {
+				settled: ["toolSettled", [call.id, call.name, plan.result]],
+				progress: "toolProgress",
+			});
+			next.jobTasks = 0;
 			break loop;
 		}
 	}
+	if (status !== "running") next.job = 0;
 	if (target !== self.target) next.target = target;
 	if (added.length > 0) next.transcript = apply(next.transcript, "append", added);
 	next.steps = steps;
@@ -103,9 +116,32 @@ const advance = (self, next, ctx, appended, steps = self.steps) => {
 // "provider/id", echo/echo the model without a model that runs the tool a prompt names.
 const chatPanel = () =>
 	div(
-		{ class: "agent-chat flex min-w-0 flex-col gap-2" },
-		div({ class: "max-h-[28rem] overflow-y-auto" }, render(field("transcript"))),
-		$if(field("isBusy"), p({ class: "text-xs opacity-70" }, field("statusText")), ""),
+		{ class: field("chatPanelClass") },
+		// Laid out bottom-up (column-reverse), the scroll stays at the bottom as messages come,
+		// unless it was scrolled up; the one child keeps them in order, and its auto margin keeps
+		// them at the top while they're fewer than fill it (justify-end would leave what
+		// overflows where it can't be scrolled to).
+		div(
+			{ class: field("transcriptClass") },
+			div({ class: "mb-auto" }, render(field("transcript"))),
+		),
+		$if(
+			field("isBusy"),
+			div(
+				{ class: "flex items-center gap-2 text-xs opacity-70" },
+				p({}, field("statusText")),
+				button(
+					{
+						class: "btn btn-ghost btn-xs",
+						type: "button",
+						title: "Stop what it's doing, and the agents it asked",
+						"on:click": send("stop"),
+					},
+					"■ Stop",
+				),
+			),
+			"",
+		),
 		$if(field("hasError"), p({ class: "text-xs text-error" }, field("error")), ""),
 		form(
 			{ class: "agent-prompt flex flex-col gap-1", "on:submit": send("prompt") },
@@ -183,8 +219,26 @@ const sendDraft = (self, next, ctx) => {
 	const text = self.draft.trim();
 	if (!self.hasTarget || self.isBusy || text === "") return;
 	next.draft = "";
-	advance(self, next, ctx, [{ role: "user", content: text }], 0);
+	advance(self, next, ctx, userTurn(self, text), 0);
 };
+// text as the user's message, after results for calls a stopped loop (or a reload) left
+// without one, so the model can be asked again.
+const userTurn = (self, text) => [
+	...pendingResults(self.transcript.messages, "It was stopped before it finished."),
+	{ role: "user", content: text },
+];
+// Whether the target passes the model on to the agents it holds: its useModel is pure.
+const usesModel = (target) => specOf(target)?.on?.useModel?.pure === true;
+// Whether the target holds agents of its own, which stopping this one stops too.
+const holdsAgents = (target) => specOf(target)?.on?.stopAgents !== undefined;
+
+// What a tool's settle scope says while it runs.
+const progressType = t.record({
+	id: t.number(),
+	tasks: t.number().int().min(0),
+	open: t.number().int().min(0),
+	failed: t.number().int().min(0),
+});
 
 // Its handlers that advance the loop declare no emits: what they send to the target is the
 // target's own message, named by the tool the model calls.
@@ -204,8 +258,19 @@ export const Agent = component({
 		draft: t.string().sync("none"),
 		// The model, "provider/id": echo/echo needs no keys.
 		model: t.string(ECHO_MODEL),
-		// idle, thinking while the model is asked, running while a sent tool runs.
-		status: t.enum("idle", "thinking", "running"),
+		// Where the model came from: default (the first the host offers, or echo), given (the
+		// agent that prompts this one uses it: useModel) or chosen (picked in the select), which
+		// neither of the others changes.
+		modelFrom: t.enum("default", "given", "chosen"),
+		// idle, thinking while the model is asked, running while a sent tool runs. Not kept:
+		// after a reload nothing is running.
+		status: t.enum("idle", "thinking", "running").sync("none"),
+		// The settle scope of the tool running (0 when none) and how many tasks it ran so far.
+		job: t.number().int().min(0).sync("none"),
+		jobTasks: t.number().int().min(0).sync("none"),
+		// split: the target and the chat side by side, halves; side: the chat a narrow column
+		// beside a wide target (a canvas).
+		layout: t.enum("split", "side"),
 		steps: t.number().int().min(0),
 		error: t.string(),
 		chatOpen: t.boolean(true), // Off, the agent shows the component alone.
@@ -228,6 +293,15 @@ export const Agent = component({
 		get isBusy() {
 			return this.status !== "idle";
 		},
+		// What the model said last, as text: what an agent that prompted this one reads.
+		get lastAnswer() {
+			const last = this.transcript.messages.findLast((m) => m.role === "assistant");
+			if (!Array.isArray(last?.content)) return "";
+			return last.content
+				.filter((b) => b.type === "text")
+				.map((b) => b.text)
+				.join("\n");
+		},
 		get canSend() {
 			return this.hasTarget && !this.isBusy && this.draft.trim() !== "";
 		},
@@ -248,7 +322,27 @@ export const Agent = component({
 			return this.chatOpen ? "Hide the chat" : "Show the chat";
 		},
 		get gridClass() {
-			return this.chatOpen ? "grid gap-3 md:grid-cols-2" : "grid gap-3";
+			if (!this.chatOpen) return "grid gap-3";
+			return this.layout === "side"
+				? "grid min-h-0 flex-1 gap-3 md:grid-cols-[minmax(0,1fr)_26rem]"
+				: "grid gap-3 md:grid-cols-2";
+		},
+		// Beside a wide target, the agent is as tall as the window (less the page's padding) and
+		// the chat as tall as what's left: the conversation scrolls, the prompt at the bottom.
+		get rootClass() {
+			const base = "agent flex flex-col gap-3";
+			return this.layout === "side" ? `${base} md:h-[calc(100dvh-1rem)]` : base;
+		},
+		get chatClass() {
+			return this.layout === "side" ? "min-h-0 md:h-full" : "";
+		},
+		get chatPanelClass() {
+			const base = "agent-chat flex min-w-0 flex-col gap-2";
+			return this.layout === "side" ? `${base} h-full` : base;
+		},
+		get transcriptClass() {
+			const scroll = "flex flex-col-reverse overflow-y-auto";
+			return this.layout === "side" ? `${scroll} min-h-0 flex-1` : `${scroll} max-h-[28rem]`;
 		},
 		get showsTools() {
 			return this.toolsOpen && this.hasTarget;
@@ -264,7 +358,9 @@ export const Agent = component({
 		},
 		get statusText() {
 			if (this.status === "thinking") return `Thinking… (step ${this.steps + 1})`;
-			if (this.status === "running") return "Running a tool…";
+			if (this.status === "running") {
+				return this.jobTasks > 0 ? `Running a tool… (${this.jobTasks} steps)` : "Running a tool…";
+			}
 			return "";
 		},
 		get hasError() {
@@ -281,7 +377,7 @@ export const Agent = component({
 		},
 	},
 	view: div(
-		{ class: "agent flex flex-col gap-3" },
+		{ class: field("rootClass") },
 		header(
 			{ class: "flex items-center gap-2" },
 			// Held by what put the target there (a canvas item), whose header names it already.
@@ -314,7 +410,7 @@ export const Agent = component({
 		div(
 			{ class: field("gridClass") },
 			div({ class: "agent-target min-w-0" }, render(field("target"))),
-			$if(field("chatOpen"), chatPanel(), ""),
+			$if(field("chatOpen"), div({ class: field("chatClass") }, chatPanel()), ""),
 		),
 	),
 	on: {
@@ -336,10 +432,23 @@ export const Agent = component({
 				next.draft = text;
 			},
 		},
+		// Picked in the select: this one keeps it.
 		setModel: {
 			args: [t.string()],
 			run(next, [model]) {
 				next.model = model;
+				next.modelFrom = "chosen";
+			},
+		},
+		// The model the agent that drives this one uses, which it uses too, unless one was
+		// picked for it.
+		useModel: {
+			pure: true,
+			args: [t.string().len(1)],
+			run(next, [model]) {
+				if (this.modelFrom === "chosen") return;
+				next.model = model;
+				next.modelFrom = "given";
 			},
 		},
 		// The prompt typed: the user's message, and the model is asked.
@@ -365,7 +474,21 @@ export const Agent = component({
 			args: [t.string().len(1)],
 			pre: (self) => self.hasTarget && !self.isBusy,
 			run(next, [text], ctx) {
-				advance(this, next, ctx, [{ role: "user", content: text }], 0);
+				advance(this, next, ctx, userTurn(this, text), 0);
+			},
+		},
+		// Stops what it's doing: the tool running is cancelled (and whatever it started), the
+		// target's agents are stopped, and the calls left without a result get one saying so.
+		stop: {
+			args: [],
+			run(next, _args, ctx) {
+				if (this.job !== 0) ctx.cancel(this.job);
+				if (holdsAgents(this.target)) ctx.sendAt("stopAgents", [], (s) => s.field("target"));
+				const closed = pendingResults(this.transcript.messages, "Stopped by the user.");
+				if (closed.length > 0) next.transcript = apply(next.transcript, "append", closed);
+				next.status = "idle";
+				next.job = 0;
+				next.jobTasks = 0;
 			},
 		},
 		clear: {
@@ -404,25 +527,38 @@ export const Agent = component({
 				next.error = "";
 			},
 		},
-		// After a sent tool's message ran in the target: its result, and the loop goes on.
+		// After a sent tool's message, and everything it caused, ran: its result, and the loop
+		// goes on. One that timed out leaves the target's agents stopped too.
 		toolSettled: {
-			args: [t.string(), t.string(), t.string()],
-			run(next, [id, name, result], ctx) {
-				if (this.status !== "running") return;
-				const text = resultText(this.target, result);
-				advance(this, next, ctx, [toolResultMessage({ id, name }, text)]);
+			args: [t.string(), t.string(), t.string(), reportType],
+			run(next, [id, name, result, report], ctx) {
+				if (this.status !== "running" || report.id !== this.job) return;
+				if (report.outcome === "timeout" && holdsAgents(this.target)) {
+					ctx.sendAt("stopAgents", [], (s) => s.field("target"));
+				}
+				const { text, isError } = settledText(this.target, result, report);
+				advance(this, next, ctx, [toolResultMessage({ id, name }, text, isError)]);
+			},
+		},
+		// How far the tool running got: the steps its scope ran so far.
+		toolProgress: {
+			args: [progressType],
+			run(next, [report]) {
+				if (this.status === "running" && report.id === this.job) next.jobTasks = report.tasks;
 			},
 		},
 	},
 	answers: {
 		// [{ provider, id, name }] → the models to pick from; none when the host has none.
 		models: {
-			// Still on echo, it switches to the first model offered.
+			// Still on echo by default, it switches to the first model offered; not one given or
+			// chosen.
 			ok(next, [models]) {
 				next.models = (Array.isArray(models) ? models : [])
 					.filter((m) => typeof m?.provider === "string" && typeof m.id === "string")
 					.map((m) => ({ id: `${m.provider}/${m.id}`, name: String(m.name ?? m.id) }));
-				if (this.model === ECHO_MODEL && next.models.length > 0) next.model = next.models[0].id;
+				const switches = this.modelFrom === "default" && this.model === ECHO_MODEL;
+				if (switches && next.models.length > 0) next.model = next.models[0].id;
 			},
 			error(next) {
 				next.models = [];

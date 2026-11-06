@@ -40,7 +40,8 @@ export class Task {
 		this.target = fixed ? null : where;
 		/** @type {Address | null} */
 		this.to = fixed ? where : null;
-		hidden(this, { parent });
+		// Its settle scope (scope.js) is its parent's, unless it opens one or is detached.
+		hidden(this, { parent, scope: parent?.scope ?? null });
 	}
 	get hkey() {
 		return { mode: "send", name: this.name };

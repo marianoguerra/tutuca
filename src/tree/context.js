@@ -3,6 +3,7 @@
 import { Address } from "./address.js";
 import { AskTask, NotifyTask, Task } from "./messages.js";
 import { selectorFrom, Target } from "./path.js";
+import { SettleScope } from "./scope.js";
 
 export class MessageContext {
 	// nextRequest gives the id of an ask made from here; the scheduler's counts per scheduler, so
@@ -29,6 +30,7 @@ export class MessageContext {
 		this.emitted = []; // { kind, name, args } the handler sent, for the message's emits.
 		this.unhandled = []; // The messages it had no handler for.
 		this.nextHop = null; // For a notification going on up: its next hop.
+		this.cancels = []; // The ids of the settle scopes it cancels, once it commits.
 	}
 	// A message nobody handles here (instance is null when there is no node to handle it, as for
 	// a notification from the root or a reply to the host): reported after the commit.
@@ -43,10 +45,13 @@ export class MessageContext {
 		else this.push(NotifyTask, name, args, null);
 	}
 	// Asks the host; returns the request's id, which its answer's handler reads as ctx.request.
-	ask(name, args = []) {
+	// Detached, the ask and its answer are in no settle scope: nothing waits for them.
+	ask(name, args = [], { detached = false } = {}) {
 		this.emitted.push({ kind: "ask", name, args });
 		const request = this.nextRequest();
-		this.tasks.push(new AskTask(name, args, this.address, this.task, request));
+		const task = new AskTask(name, args, this.address, this.task, request);
+		if (detached) task.scope = null;
+		this.tasks.push(task);
 		return request;
 	}
 	// Stops the notification being handled from bubbling further. Anything else doesn't
@@ -55,9 +60,31 @@ export class MessageContext {
 		this.isStopNextSet = true;
 	}
 	// A message down the path the selector fn writes, relative to here (spec/tree's send-at).
-	sendAt(name, args, selectorFn) {
+	// With a watch it opens a settle scope (scope.js) and returns its id: settled, a name or
+	// [name, args], is sent back here, with args and the scope's report after them, once the
+	// message and everything it caused ran; progress, likewise, after what runs in it, at most
+	// one queued at a time; timeout (ms) cancels it if it hasn't settled by then. Detached, it's
+	// in no scope: nothing waits for it.
+	sendAt(name, args, selectorFn, watch = {}) {
 		this.emitted.push({ kind: "sendAt", name, args });
-		this.push(Task, name, args, new Target(this.path, selectorFrom(selectorFn)));
+		const task = new Task(
+			name,
+			args,
+			this.address,
+			new Target(this.path, selectorFrom(selectorFn)),
+			this.task,
+		);
+		this.tasks.push(task);
+		if (watch.detached) task.scope = null;
+		if (watch.settled == null && watch.progress == null && watch.timeout == null) return undefined;
+		const id = this.nextRequest();
+		const outer = watch.detached ? null : (this.task.scope ?? null);
+		task.scope = new SettleScope(id, this.address, watch, outer);
+		return id;
+	}
+	// Cancels the settle scope id opened (sendAt's), once this handler commits: see scope.js.
+	cancel(id) {
+		this.cancels.push(id);
 	}
 	forwardAt(selectorFn) {
 		this.sendAt(this.task.name, this.task.args, selectorFn);

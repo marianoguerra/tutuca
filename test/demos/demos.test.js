@@ -714,8 +714,8 @@ test("?sync=automerge: tabs on the same document merge", async () => {
 test("canvas demo, agent bundle: with a model, a board's item wraps it in an agent and ejects it", async () => {
 	const models = [{ provider: "echo", id: "echo", name: "Echo" }];
 	const app = mount(startCanvas, "agent", { inferenceAvailable: () => true, models: () => models });
-	const item = () => app.state().items["item-1"];
-	assert.equal(app.state().agentsAvailable, true);
+	const item = () => app.state().target.items["item-1"];
+	assert.equal(app.state().target.agentsAvailable, true);
 	assert.equal(specOf(item().content).name, "Board");
 	const width = item().width;
 	app.fire("click", app.$('[title="Wrap in an agent"]'));
@@ -727,10 +727,10 @@ test("canvas demo, agent bundle: with a model, a board's item wraps it in an age
 	// The echo model runs the tool a prompt names, on the board in the agent.
 	app.fire(
 		"input",
-		app.$('textarea[aria-label="Prompt"]'),
+		app.$('.canvas-card textarea[aria-label="Prompt"]'),
 		'/move_card {"id": "c00", "column": 2, "at": 0}',
 	);
-	app.fire("submit", app.$("form.agent-prompt"));
+	app.fire("submit", app.$(".canvas-card form.agent-prompt"));
 	assert.deepEqual(
 		item().content.target.columns[2].cards.map((c) => c.id),
 		["c00"],
@@ -748,7 +748,7 @@ test("canvas demo, agent bundle: with a model, a board's item wraps it in an age
 
 test("canvas demo, agent bundle: without a model, nothing to wrap in an agent", async () => {
 	const app = mount(startCanvas, "agent", { inferenceAvailable: () => false });
-	assert.equal(app.state().agentsAvailable, false);
+	assert.equal(app.state().target.agentsAvailable, false);
 	assert.equal(app.$('[title="Wrap in an agent"]'), null);
 	await checkClean(app);
 });

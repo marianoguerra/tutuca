@@ -14,4 +14,5 @@ export {
 } from "./messages.js";
 export { DispatchPath, Frame, KeyPath, Selector, selectorFrom, Target } from "./path.js";
 export { Scheduler } from "./scheduler.js";
+export { SCOPE_OUTCOMES, SettleScope } from "./scope.js";
 export { jsonText, keyText } from "./text.js";

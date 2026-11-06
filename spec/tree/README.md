@@ -266,6 +266,11 @@ Where the JS still differs from `core.rkt`:
   urgent response does; one answered by a promise is appended, as a normal one is.
 - **Requests don't bubble:** a scope ask handler is the host answering; components can't
   `answer` on the way up.
+- **Settle scopes aren't modeled:** `src/tree/scope.js` counts what a watched `sendAt` caused
+  (sends, hops, asks and their answers, recursively, scopes inside scopes) and tells the sender
+  once none of it is left, cancelled or timed out included. The core has no counterpart yet:
+  they observe the queue, they don't change delivery, except that a cancelled scope's tasks are
+  dropped.
 
 - **Copies are new instances:** `copy(value)` (`src/tree/identity.js`) is M8's `copy`, a deep
   copy with a fresh identity for every node in it. Sharing a component value elsewhere in the

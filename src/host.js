@@ -55,6 +55,19 @@ export class Host {
 				wake: () => {
 					if (!this._handlingTasks) this.scheduleNextTaskTick();
 				},
+				// A settle scope with a timeout is cancelled with timeout once it's up.
+				scopeOpened: (scope) => {
+					if (scope.timeout === null) return;
+					const timer = setTimeout(() => {
+						this._scopeTimers.delete(scope.id);
+						if (this.scheduler.cancelScope(scope.id, "timeout")) this.scheduleNextTaskTick();
+					}, scope.timeout);
+					this._scopeTimers.set(scope.id, timer);
+				},
+				scopeSettled: (scope) => {
+					clearTimeout(this._scopeTimers.get(scope.id));
+					this._scopeTimers.delete(scope.id);
+				},
 			},
 		});
 		this.scope = new Scope((spec) => this.addEventListeners(spec.eventNames));
@@ -66,6 +79,7 @@ export class Host {
 		this._handlingTasks = false;
 		this._eventsAdded = new Set();
 		this._idleWaiters = [];
+		this._scopeTimers = new Map();
 		this.drags = new DragTracker(rootNode);
 		this.engines = new SyncEngines((type, info) => this.notify(type, info));
 	}
@@ -204,6 +218,8 @@ export class Host {
 	// a stopped host drops it.
 	clearTasks() {
 		this.scheduler.clear();
+		for (const timer of this._scopeTimers.values()) clearTimeout(timer);
+		this._scopeTimers.clear();
 		this.cancelTick();
 	}
 	cancelTick() {
