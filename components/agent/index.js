@@ -115,6 +115,7 @@ const chatPanel = () =>
 				placeholder: field("placeholder"),
 				value: field("draft"),
 				"on:input": send("setDraft", targetValue()),
+				"on:keydown": send("promptKey"),
 			}),
 			$if(
 				field("showsTools"),
@@ -175,6 +176,15 @@ const chatPanel = () =>
 			),
 		),
 	);
+
+// The draft as the user's message, and the model is asked; nothing without a target, while
+// busy or for an empty draft.
+const sendDraft = (self, next, ctx) => {
+	const text = self.draft.trim();
+	if (!self.hasTarget || self.isBusy || text === "") return;
+	next.draft = "";
+	advance(self, next, ctx, [{ role: "user", content: text }], 0);
+};
 
 // Its handlers that advance the loop declare no emits: what they send to the target is the
 // target's own message, named by the tool the model calls.
@@ -250,7 +260,7 @@ export const Agent = component({
 			return !this.canSend;
 		},
 		get placeholder() {
-			return this.hasTarget ? "Ask the agent…" : "Pick a component first";
+			return this.hasTarget ? "Ask the agent… (Ctrl+Enter sends)" : "Pick a component first";
 		},
 		get statusText() {
 			if (this.status === "thinking") return `Thinking… (step ${this.steps + 1})`;
@@ -337,10 +347,17 @@ export const Agent = component({
 			args: [],
 			run(next, _args, ctx) {
 				ctx.event?.preventDefault();
-				const text = this.draft.trim();
-				if (!this.hasTarget || this.isBusy || text === "") return;
-				next.draft = "";
-				advance(this, next, ctx, [{ role: "user", content: text }], 0);
+				sendDraft(this, next, ctx);
+			},
+		},
+		// Ctrl+Enter (⌘+Enter on a Mac) in the prompt sends it; Enter alone is a new line.
+		promptKey: {
+			args: [],
+			run(next, _args, ctx) {
+				const e = ctx.event;
+				if (e?.key !== "Enter" || !(e.ctrlKey || e.metaKey)) return;
+				e.preventDefault();
+				sendDraft(this, next, ctx);
 			},
 		},
 		// Says text as the user, from outside (a test, a story, another component).

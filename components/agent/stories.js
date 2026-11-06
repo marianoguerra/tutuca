@@ -23,6 +23,19 @@ const resultsOf = (s) => s.transcript.messages.filter((m) => m.role === "toolRes
 const type = (text) => step.event("input", 'textarea[aria-label="Prompt"]', { value: text });
 const submit = step.event("submit", "form.agent-prompt");
 const click = (selector) => step.event("click", selector);
+// A keydown on the prompt, with Ctrl held or not: story steps fire plain events only.
+const keyCommand = (key, ctrlKey) => ({
+	check: () => true,
+	run(_model, driver) {
+		const el = driver.rootNode.querySelector('textarea[aria-label="Prompt"]');
+		const { KeyboardEvent } = el.ownerDocument.defaultView;
+		el.dispatchEvent(
+			new KeyboardEvent("keydown", { key, ctrlKey, bubbles: true, cancelable: true }),
+		);
+		driver.drain();
+	},
+	toString: () => `keydown ${ctrlKey ? "Ctrl+" : ""}${key}`,
+});
 
 export default stories({
 	title: "Agent",
@@ -113,6 +126,16 @@ export default stories({
 					step.check("the card is done", (s) => titles(s, 2)[0] === "Write the drag and drop docs"),
 					step.check("the model answered after the result", (s) => last(s).role === "assistant"),
 					step.check("idle again", (s) => s.status === "idle" && s.steps === 2),
+				],
+				"Ctrl+Enter sends the prompt, Enter alone doesn't": [
+					type('/remove_card {"id": "c00"}'),
+					step.command(keyCommand("Enter", false), "Enter"),
+					step.check("not sent", (s) => s.transcript.isEmpty),
+					step.command(keyCommand("Enter", true), "Ctrl+Enter"),
+					step.check(
+						"sent, and the card is gone",
+						(s) => titles(s, 0).length === 1 && s.draft === "",
+					),
 				],
 				"a tool that needs a context runs in the board": [
 					step.send("ask", ['/add_card {"column": 1, "title": "Ship it"}']),
