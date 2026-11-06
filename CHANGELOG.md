@@ -57,8 +57,10 @@
   - `withSample(c, name)` and `sampleChoices(spec)` for the data meta's samples.
 - **`Agent` (components/agent):** a generic agent for any component that says agent meta.
   - It drives the component through its tools, shown beside a `Transcript` (components/llm).
-    In the transcript every message is a card. Consecutive tool calls are grouped in a
-    collapsible `MessageGroup`, and each call's arguments are a collapsible JSON tree.
+    In the transcript every message is a card. A tool call and its result are one card, its
+    header saying how it went (… running, ✓ done, ✗ failed); collapsed by default, it opens to
+    its arguments, a JSON tree, and its result. Consecutive calls are grouped in a collapsible
+    `MessageGroup` that says each one's mark.
   - Its model is picked from what the tutuca-wax studio server's `/api/check` offers. That
     server's `/api/infer` now answers local origins (CORS). The echo model, which needs no key
     and runs the tool a prompt names (`/move_card {...}`), is always offered.

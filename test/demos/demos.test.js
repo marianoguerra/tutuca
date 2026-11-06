@@ -779,3 +779,24 @@ test("a bare demo page boots without the time travel bar", async () => {
 	assert.ok(rootNode.childNodes.length > 0, "renders");
 	await settle();
 });
+
+test("canvas demo: an item whose chrome is pressed comes to the front", async () => {
+	const app = mount(startCanvas, "http");
+	const order = () => app.state().order;
+	assert.equal(order().at(-1), "item-4");
+	const first = app.rootNode.querySelectorAll("foreignObject")[0];
+	// Its title, in its header: a press there doesn't pick it up, but brings it forward.
+	app.fire("pointerdown", first.querySelector('[aria-label="Title"]'));
+	assert.equal(order().at(-1), "item-1");
+	assert.deepEqual(order().slice(0, -1), ["item-2", "item-3", "item-4"]);
+	// The card around another one's content.
+	const second = [...app.rootNode.querySelectorAll("foreignObject")][0];
+	app.fire("pointerdown", second.querySelector(".canvas-card"));
+	assert.equal(order().at(-1), "item-2");
+	// Pressed again, it's in front already: nothing changes.
+	const before = app.state();
+	const front = [...app.rootNode.querySelectorAll("foreignObject")].at(-1);
+	app.fire("pointerdown", front.querySelector(".canvas-card"));
+	assert.equal(app.state(), before);
+	await checkClean(app);
+});

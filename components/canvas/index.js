@@ -213,6 +213,9 @@ export const Item = component({
 			{
 				class: field("cardClass"),
 				style: field("cardStyle"),
+				// Its chrome pressed (the card around its content), it comes to the front; a press in
+				// its content is its content's.
+				"on:pointerdown": send("raise"),
 			},
 			header(
 				{
@@ -527,6 +530,13 @@ export const Item = component({
 				ctx.ask("readText", [dropped.file]);
 			},
 		},
+		raise: {
+			args: [],
+			emits: { notify: ["raiseItem"] },
+			run(_next, _args, ctx) {
+				ctx.notify("raiseItem");
+			},
+		},
 		clone: {
 			args: [],
 			emits: { notify: ["cloneItem"] },
@@ -544,10 +554,14 @@ export const Item = component({
 		// The header pressed, not one of its buttons or its title: the canvas picks the item up.
 		grab: {
 			args: [],
-			emits: { notify: ["pickUp"] },
+			emits: { notify: ["pickUp", "raiseItem"] },
 			run(_next, _args, ctx) {
-				// Checked before pressPoint captures the pointer: a captured press never clicks.
-				if (ctx.event?.target?.closest?.("button, input")) return;
+				// Checked before pressPoint captures the pointer: a captured press never clicks. A
+				// button or the title pressed still brings the item to the front.
+				if (ctx.event?.target?.closest?.("button, input")) {
+					ctx.notify("raiseItem");
+					return;
+				}
 				const point = pressPoint(ctx.event);
 				if (point === null) return;
 				ctx.notify("pickUp", point);
@@ -1196,6 +1210,18 @@ export const Canvas = component({
 			next.drag = "none";
 			next.current = null;
 			next.pressed = null;
+		},
+		// From an item whose chrome was pressed: it comes to the front, over the others (nothing
+		// changes when it's there already).
+		raiseItem: {
+			args: [],
+			sourceKey: t.index("items"),
+			run(next, _args, ctx) {
+				ctx.stopNext(); // A canvas in an item raises its own items, not the outer ones.
+				if (this.order.at(-1) !== ctx.sourceKey) {
+					next.order = [...this.order.filter((k) => k !== ctx.sourceKey), ctx.sourceKey];
+				}
+			},
 		},
 		// From an item's header: it's picked up at x, y, and comes to the front.
 		pickUp: {

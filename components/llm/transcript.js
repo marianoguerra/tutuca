@@ -46,7 +46,6 @@ const prettyText = (text) => {
 		return text;
 	}
 };
-// Every entry is a card as wide as the transcript: a sequence of cards, not a chat.
 // Every entry is a card as wide as the transcript: a sequence of cards, not a chat. Its border's
 // color says what it is; the background is the same for all.
 const ROW = "w-full rounded-box border bg-base-100 px-3 py-2 text-sm";
@@ -62,19 +61,21 @@ const TOGGLE = "btn btn-ghost btn-xs ml-auto h-5 min-h-0 px-1";
 // The rows a message shows as: one for its text, one per tool call.
 export const transcriptRows = (messages) =>
 	messages.flatMap((m, i) => {
-		const row = (kind, label, text, mono = false, args = undefined) => ({
+		const row = (kind, label, text, mono = false, more = {}) => ({
 			key: `${i}`,
 			kind,
 			label,
 			text,
 			mono,
 			cls: STYLE[kind],
-			...(args === undefined ? {} : { args }),
+			...more,
 		});
 		if (m?.role === "user") return [row("user", "User", textOf(m.content))];
 		if (m?.role === "toolResult") {
 			const label = `${m.isError ? "✗" : "✓"} ${m.toolName}`;
-			return [row(m.isError ? "error" : "result", label, prettyText(textOf(m.content)), true)];
+			const text = prettyText(textOf(m.content));
+			const more = { callId: m.toolCallId ?? "", isError: Boolean(m.isError) };
+			return [row(m.isError ? "error" : "result", label, text, true, more)];
 		}
 		if (m?.role === "assistant") {
 			const rows = [];
@@ -82,7 +83,12 @@ export const transcriptRows = (messages) =>
 				if (b?.type === "text" && b.text.trim() !== "")
 					rows.push(row("assistant", "Assistant", b.text));
 				if (b?.type === "toolCall")
-					rows.push(row("call", `📞 ${b.name}`, pretty(b.arguments), true, b.arguments ?? {}));
+					rows.push(
+						row("call", `📞 ${b.name}`, pretty(b.arguments), true, {
+							args: b.arguments ?? {},
+							callId: b.id ?? "",
+						}),
+					);
 			}
 			if (m.stopReason === "error" || m.stopReason === "aborted") {
 				rows.push(row("error", "Model error", m.errorMessage ?? m.stopReason));
@@ -92,20 +98,37 @@ export const transcriptRows = (messages) =>
 		return [];
 	});
 
-// What an entry says under its header: a call's arguments, else its text.
+// What an entry says under its header: a call's arguments and its result (or that it's still
+// running), else its text.
 const entryBody = () =>
 	$if(
-		field("showsArgs"),
-		div({ class: "font-mono text-xs" }, render(field("args"))),
+		field("hasArgs"),
+		div(
+			{ class: "flex flex-col gap-1.5" },
+			div({ class: "font-mono text-xs" }, render(field("args"))),
+			$if(
+				field("hasResult"),
+				div(
+					{ class: "border-t border-base-300 pt-1.5" },
+					span({ class: "block text-xs font-semibold opacity-70" }, field("resultLabel")),
+					pre({ class: "overflow-x-auto whitespace-pre-wrap font-mono text-xs" }, field("result")),
+				),
+				p({ class: "text-xs italic opacity-60" }, "Running…"),
+			),
+		),
 		$if(
 			field("mono"),
 			pre({ class: "overflow-x-auto whitespace-pre-wrap font-mono text-xs" }, field("text")),
 			p({ class: "whitespace-pre-wrap" }, field("text")),
 		),
 	);
+// A call's border says how it went: running, done or failed.
+const CALL_STYLE = { none: STYLE.call, running: STYLE.call, ok: STYLE.result, failed: STYLE.error };
+const MARKS = { none: "", running: "…", ok: "✓", failed: "✗" };
 
-// A row of a transcript: who says it and what, a tool call's arguments as a JSON tree, which
-// its header's toggle hides and shows.
+// A row of a transcript: who says it and what. A tool call is one card with its result: its
+// header says the tool and how it went (… running, ✓ done, ✗ failed), and its toggle shows its
+// arguments, as a JSON tree, and what running it gave back.
 export const TranscriptEntry = component({
 	name: "TranscriptEntry",
 	fields: {
@@ -115,32 +138,42 @@ export const TranscriptEntry = component({
 		mono: t.boolean(),
 		args: t.option(t.component("JsonRoot")),
 		open: t.boolean(false), // Whether a tool call shows its arguments: it starts collapsed.
+		// A call's: the id its result answers, how it went, and what it gave back.
+		callId: t.string(),
+		status: t.enum("none", "running", "ok", "failed"), // none: not a call.
+		result: t.string(),
 	},
 	queries: {
 		get cls() {
-			return STYLE[this.kind];
+			return this.kind === "call" ? CALL_STYLE[this.status] : STYLE[this.kind];
 		},
 		get hasArgs() {
 			return this.args !== null;
 		},
-		get showsArgs() {
-			return this.hasArgs && this.open;
-		},
 		get isClosed() {
 			return this.hasArgs && !this.open;
+		},
+		get hasResult() {
+			return this.status === "ok" || this.status === "failed";
+		},
+		get mark() {
+			return this.kind === "call" ? MARKS[this.status] : "";
+		},
+		get resultLabel() {
+			return this.status === "failed" ? "Failed" : "Result";
 		},
 		get toggleIcon() {
 			return this.open ? "▾" : "▸";
 		},
 		get toggleTitle() {
-			return this.open ? "Hide the arguments" : "Show the arguments";
+			return this.open ? "Hide the call" : "Show the call";
 		},
 	},
 	view: div(
-		{ class: field("cls"), "data-kind": field("kind") },
+		{ class: field("cls"), "data-kind": field("kind"), "data-status": field("status") },
 		div(
 			{ class: "flex items-center gap-1" },
-			span({ class: "text-xs font-semibold opacity-70" }, field("label")),
+			span({ class: "text-xs font-semibold opacity-70" }, field("label"), " ", field("mark")),
 			$if(
 				field("hasArgs"),
 				button(
@@ -165,6 +198,15 @@ export const TranscriptEntry = component({
 				next.open = !this.open;
 			},
 		},
+		// What running the call gave back.
+		setResult: {
+			pure: true,
+			args: [t.string(), t.boolean()],
+			run(next, [result, isError]) {
+				next.result = result;
+				next.status = isError ? "failed" : "ok";
+			},
+		},
 	},
 });
 // Consecutive tool calls, as one card: collapsed, how many and which tools; expanded, each call.
@@ -175,12 +217,14 @@ export const MessageGroup = component({
 		open: t.boolean(false),
 	},
 	queries: {
+		// Its border says how its calls went: one failed, all done, or some still running.
 		get cls() {
-			return STYLE.group;
+			if (this.entries.some((e) => e.status === "failed")) return STYLE.error;
+			return this.entries.every((e) => e.status === "ok") ? STYLE.result : STYLE.group;
 		},
 		get summary() {
-			const names = [...new Set(this.entries.map((e) => e.label.replace(/^📞 /, "")))];
-			return `📞 ${this.entries.length} tool calls: ${names.join(", ")}`;
+			const calls = this.entries.map((e) => `${e.label.replace(/^📞 /, "")} ${e.mark}`);
+			return `📞 ${this.entries.length} tool calls: ${calls.join(", ")}`;
 		},
 		get toggleIcon() {
 			return this.open ? "▾" : "▸";
@@ -225,10 +269,39 @@ export const MessageGroup = component({
 				next.entries.push(entry);
 			},
 		},
+		// The result of its call callId.
+		setResult: {
+			pure: true,
+			args: [t.string(), t.string(), t.boolean()],
+			run(next, [callId, result, isError]) {
+				const at = this.entries.findIndex((e) => e.callId === callId);
+				if (at !== -1) next.entries[at] = apply(next.entries[at], "setResult", result, isError);
+			},
+		},
 	},
 });
 const isCall = (e) => specOf(e).name === "TranscriptEntry" && e.kind === "call";
 const isGroup = (e) => specOf(e).name === "MessageGroup";
+// Where in entries the call callId waiting for its result is, alone or in a group; -1 if not.
+const callAt = (entries, callId) =>
+	entries.findLastIndex((e) =>
+		isGroup(e)
+			? e.entries.some((c) => c.callId === callId && c.status === "running")
+			: isCall(e) && e.callId === callId && e.status === "running",
+	);
+// entries with a result: on its call's card, or a card of its own when its call isn't here.
+const withResult = (C, entries, { callId, label, text, isError }) => {
+	const at = callId === "" ? -1 : callAt(entries, callId);
+	if (at === -1) {
+		const kind = isError ? "error" : "result";
+		return [...entries, C.TranscriptEntry({ kind, label, text, mono: true, args: null })];
+	}
+	const entry = entries[at];
+	const done = isGroup(entry)
+		? apply(entry, "setResult", callId, text, isError)
+		: apply(entry, "setResult", text, isError);
+	return entries.with(at, done);
+};
 // entries with entry after them: a tool call right after another joins it in a group.
 const withEntry = (C, entries, entry) => {
 	const last = entries.at(-1);
@@ -295,13 +368,16 @@ export const Transcript = component({
 			run(next, [messages]) {
 				const C = scopeOf(this).components;
 				let entries = this.entries;
-				for (const { kind, label, text, mono, args } of transcriptRows(messages)) {
+				for (const row of transcriptRows(messages)) {
+					const { kind, label, text, mono, args, callId = "" } = row;
+					if (row.isError !== undefined) {
+						entries = withResult(C, entries, row);
+						continue;
+					}
 					const json = args === undefined ? null : jsonRoot(C, args);
-					entries = withEntry(
-						C,
-						entries,
-						C.TranscriptEntry({ kind, label, text, mono, args: json }),
-					);
+					const status = kind === "call" ? "running" : "none";
+					const entry = C.TranscriptEntry({ kind, label, text, mono, args: json, callId, status });
+					entries = withEntry(C, entries, entry);
 				}
 				next.entries = entries;
 				next.messages.push(...messages);
