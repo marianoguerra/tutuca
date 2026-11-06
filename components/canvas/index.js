@@ -28,6 +28,7 @@ import {
 	dataOf,
 	each,
 	field,
+	fileFormatOf,
 	hasAgentMeta,
 	hasDataMeta,
 	loadData,
@@ -45,10 +46,11 @@ import {
 	targetValue,
 } from "../../src/tutuca.js";
 import { agent, agentComponents } from "../agent/index.js";
-import { DROP_TARGET, droppedJsonFile } from "../common/files.js";
+import { DROP_TARGET, droppedFile } from "../common/files.js";
 import { compositionComponents, GROUPS, KINDS, makeContent } from "../composition/index.js";
 import { capture, coord, paintType, svgPoint } from "../drawing/shapes.js";
 import { transcriptComponents } from "../llm/transcript.js";
+import { markdownComponents } from "../markdown/index.js";
 import {
 	BECOME_ARGS,
 	CANVAS_META,
@@ -104,7 +106,7 @@ const CARD_COLLAPSED = `${CARD} border-base-300/60 bg-transparent`;
 const HEADER_OPEN = `${HEADER} ${CHROME}`;
 const HEADER_COLLAPSED = `${HEADER} rounded-b-box border-b-0 ${SHOWN}`;
 
-// Where an item's content shows, open: with drop, a JSON file dropped on it loads into it, with
+// Where an item's content shows, open: with drop, a file dropped on it loads into it, with
 // the last drop's error under it. Main pushed too, so a nested item's content isn't edited with
 // this one's.
 const contentArea = (drop) =>
@@ -173,21 +175,34 @@ export const Item = component({
 		get shownTitle() {
 			return this.title === "" ? this.label : this.title;
 		},
-		// Whether its content loads a dropped JSON file, saying what its data is.
+		// Whether its content loads a dropped file, saying what its data is.
 		get canLoad() {
 			return hasDataMeta(this.content);
 		},
-		// Whether its content can be downloaded as JSON: it says a query that reads its data.
+		// The file its content's data reads and saves as: JSON, or the text file it says.
+		get fileFormat() {
+			return fileFormatOf(this.content);
+		},
+		// What its download button says: the file it saves as, and that one dropped loads.
+		get downloadLabel() {
+			return `Download as ${this.fileFormat.json ? "JSON" : this.fileFormat.extensions[0]}`;
+		},
+		get downloadTitle() {
+			const what = this.fileFormat.json ? "a JSON" : `a ${this.fileFormat.extensions[0]}`;
+			return `${this.downloadLabel} (drop ${what} file on it to load one)`;
+		},
+		// Whether its content can be downloaded: it says a query that reads its data.
 		get canSave() {
 			return this.canLoad && dataOf(this.content).data !== null;
 		},
 		get hasDropError() {
 			return this.dropError !== "";
 		},
-		// The name its data downloads as: its title's or its label's words, then .json.
+		// The name its data downloads as: its title's or its label's words, then its file's
+		// extension (.json unless its data meta says another).
 		get fileName() {
 			const words = this.shownTitle.toLowerCase().match(/[\p{L}\p{N}]+/gu) ?? [];
-			return `${words.join("-") || "data"}.json`;
+			return `${words.join("-") || "data"}${this.fileFormat.extensions[0]}`;
 		},
 		// Whether its content says agent meta and an agent can be made here to wrap it.
 		get canWrap() {
@@ -307,8 +322,8 @@ export const Item = component({
 					button(
 						{
 							class: "btn btn-ghost btn-xs w-6 px-0",
-							title: "Download as JSON (drop a JSON file on it to load one)",
-							"aria-label": "Download as JSON",
+							title: field("downloadTitle"),
+							"aria-label": field("downloadLabel"),
 							"on:click": send("download"),
 						},
 						"⤓",
@@ -518,24 +533,28 @@ export const Item = component({
 				next.height = 0;
 			},
 		},
-		// Its content's data, downloaded as a JSON file.
+		// Its content's data, downloaded as a file: JSON, or its text as is when its data is a
+		// text file.
 		download: {
 			args: [],
 			pre: (self) => self.canSave,
 			emits: { ask: ["saveFile"] },
 			run(_next, _args, ctx) {
-				const json = query(this.content, dataOf(this.content).data);
-				ctx.ask("saveFile", [this.fileName, `${JSON.stringify(json, null, 2)}\n`]);
+				const data = query(this.content, dataOf(this.content).data);
+				const format = this.fileFormat;
+				const text = format.json ? `${JSON.stringify(data, null, 2)}\n` : data;
+				ctx.ask("saveFile", [this.fileName, text, format.type]);
 			},
 		},
-		// A file dropped from outside the page on its content: the first JSON one is read, and
-		// loaded when the answer comes.
+		// A file dropped from outside the page on its content: the first one of its data's file
+		// format is read, and loaded when the answer comes.
 		dropFile: {
 			args: [],
 			emits: { ask: ["readText"] },
 			run(next, _args, ctx) {
-				const dropped = droppedJsonFile(ctx.event);
-				if (dropped === null || !this.canLoad) return;
+				if (!this.canLoad) return;
+				const dropped = droppedFile(ctx.event, this.fileFormat);
+				if (dropped === null) return;
 				if (dropped.error !== undefined) {
 					next.dropError = dropped.error;
 					return;
@@ -597,19 +616,22 @@ export const Item = component({
 		become: { args: BECOME_ARGS, run() {} },
 	},
 	answers: {
-		// The dropped file's text: loaded into its content when it fits, the error shown otherwise.
+		// The dropped file's text, parsed as JSON unless its data is text: loaded into its content
+		// when it fits, the error shown otherwise.
 		readText: {
 			ok(next, [text]) {
 				const name = this.dropName || "the file";
 				next.dropName = "";
-				let json;
-				try {
-					json = JSON.parse(text);
-				} catch (error) {
-					next.dropError = `${name} is not JSON: ${error.message}`;
-					return;
+				let data = text;
+				if (this.fileFormat.json) {
+					try {
+						data = JSON.parse(text);
+					} catch (error) {
+						next.dropError = `${name} is not JSON: ${error.message}`;
+						return;
+					}
 				}
-				const loaded = loadData(this.content, json, name);
+				const loaded = loadData(this.content, data, name);
 				if (loaded.error !== undefined) {
 					next.dropError = loaded.error;
 					return;
@@ -1847,11 +1869,13 @@ export const COMPOSITION_KINDS = Object.fromEntries(
 	]),
 );
 
-// The canvas's own components: its items, shapes, holes and layouts. Whoever uses it registers
-// these, the components its holes' kinds make, and kindHandlers(kinds) to answer the holes.
+// The canvas's own components: its items, shapes, holes, layouts and markdown documents.
+// Whoever uses it registers these, the components its holes' kinds make, and kindHandlers(kinds)
+// to answer the holes.
 // The agent a component that says agent meta can be wrapped in comes with the canvas.
 export const canvasKitComponents = {
 	...layoutComponents,
+	...markdownComponents,
 	...agentComponents,
 	...transcriptComponents,
 	Canvas,

@@ -8,7 +8,8 @@
 // A hole becomes what's picked there, asking the host what that can be: componentKinds lists
 // the kinds it can become, and makeComponent makes the one picked, in the hole's scope. It
 // notifies become with what's made, which the nearest layout or canvas puts in its place.
-// kindHandlers(kinds) answers both for a table of kinds, adding a canvas and the layouts.
+// kindHandlers(kinds) answers both for a table of kinds, adding markdown, a canvas and the
+// layouts.
 //
 // A kind is a recipe, { component, blurb, make(C, env), choices }: make builds the component
 // with C, the asker's scope's components, and env { now, tz, uuid, choice }; choices, when
@@ -92,8 +93,16 @@ const CANVAS_KIND = {
 	blurb: "A canvas of its own, inside this one.",
 	make: (C) => C.Canvas({ width: 1200, height: 800 }),
 };
-// kinds, then a canvas and the layouts.
-export const withBuiltins = (kinds) => ({ ...kinds, canvas: CANVAS_KIND, ...LAYOUT_KINDS });
+// A markdown document, for rich text and notes on any canvas: what it says of itself, its
+// label, width and samples, is its meta (components/markdown).
+const MARKDOWN_KIND = { component: "Markdown", make: (C) => C.Markdown({}) };
+// kinds, then markdown, a canvas and the layouts: what every canvas's holes can become.
+export const withBuiltins = (kinds) => ({
+	...kinds,
+	markdown: MARKDOWN_KIND,
+	canvas: CANVAS_KIND,
+	...LAYOUT_KINDS,
+});
 
 // What a kind's make gets besides the components: the clock, ids, and the choice picked.
 export const kindEnv = (read, choice = null) => {

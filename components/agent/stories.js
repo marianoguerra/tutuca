@@ -60,10 +60,11 @@ export default stories({
 				"the hole lists what says agent meta, then its samples": [
 					step.check("no target, nothing to send", (s) => !s.hasTarget && s.cannotSend),
 					click('[title="Put a component here"]'),
-					// A canvas says agent meta too: its agent makes and drives components on it.
+					// Markdown and a canvas say agent meta too: an agent writes the one, and makes and
+					// drives components on the other.
 					step.check(
-						"only the board and a canvas",
-						(s) => s.target.kinds.map((k) => k.id).join() === "board,canvas",
+						"only the board, markdown and a canvas",
+						(s) => s.target.kinds.map((k) => k.id).join() === "board,markdown,canvas",
 					),
 					step.check(
 						"with empty and its sample to start from",

@@ -210,3 +210,45 @@ test("?agent puts any bundle's canvas in an agent; without it, the canvas is the
 	assert.ok(music.own('textarea[aria-label="Prompt"]'), "its prompt, beside the canvas");
 	assert.deepEqual(music.problems, []);
 });
+
+test("the canvas's agent adds a markdown document and has its agent write it; answers render as markdown", async () => {
+	let key = null;
+	const canvasTurns = [
+		() => [call("add_component", { kind: "markdown", choice: "empty", x: null, y: null })],
+		(r) => {
+			key = /Added (\S+)/.exec(lastResult(r))[1];
+			return [call("enable_agent", { key })];
+		},
+		() => [call("delegate", { key, prompt: "Write a plan for the week." })],
+		() => ["**Done**: the plan is in [the document](#)."],
+	];
+	const docTurns = [
+		() => [call("append_text", { text: "# Week\n\n- [ ] Plan" })],
+		() => [call("append_text", { text: "- [ ] Review" })],
+		() => ["Wrote the plan."],
+	];
+	const app = mount({
+		models: () => MODELS,
+		infer: ([request]) => {
+			const turns = isCanvasAgent(request) ? canvasTurns : docTurns;
+			const turn = turns.shift();
+			assert.ok(turn, "a turn for each request");
+			return later(assistantMessage(turn(request)));
+		},
+	});
+	assert.ok(app.state().target.kinds.some((k) => k.id === "markdown" && k.agent));
+	app.prompt("Write a plan for the week in a document.");
+	await app.idle();
+	assert.equal(canvasTurns.length + docTurns.length, 0, "every turn was asked");
+	const item = app.state().target.items[key];
+	assert.equal(specOf(item.content).name, "Agent");
+	assert.equal(item.content.target.text, "# Week\n\n- [ ] Plan\n\n- [ ] Review");
+	// The document shows in md-view; so do the canvas agent's answers, in its transcript.
+	const shown = [...app.rootNode.querySelectorAll("md-view")].map((el) =>
+		el.getAttribute("content"),
+	);
+	assert.ok(shown.includes(item.content.target.text), "the document");
+	assert.ok(shown.includes("**Done**: the plan is in [the document](#)."), "the answer");
+	assert.ok(shown.includes("Wrote the plan."), "its agent's answer");
+	assert.deepEqual(app.problems, []);
+});

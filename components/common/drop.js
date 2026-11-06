@@ -1,7 +1,7 @@
 // Dropping a JSON file on a component to replace what it shows, when its allowDrop is on: the
 // file's JSON goes through the component's data load (DATA_META, src/data.js).
 import { $if, field, loadData, send, t, tag } from "../../src/tutuca.js";
-import { DROP_TARGET, droppedJsonFile } from "./files.js";
+import { DROP_TARGET, droppedFile } from "./files.js";
 
 const { div, p } = tag;
 
@@ -39,7 +39,7 @@ export const dataDrop = ({ after = () => {} } = {}) => ({
 			emits: { ask: ["readText"] },
 			run(next, _args, ctx) {
 				if (!this.allowDrop) return;
-				const dropped = droppedJsonFile(ctx.event);
+				const dropped = droppedFile(ctx.event);
 				if (dropped === null) return;
 				if (dropped.error !== undefined) {
 					next.dropError = dropped.error;

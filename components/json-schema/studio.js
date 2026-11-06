@@ -12,7 +12,7 @@ import {
 	tag,
 	targetValue,
 } from "../../src/tutuca.js";
-import { DROP_TARGET, droppedJsonFile } from "../common/files.js";
+import { DROP_TARGET, droppedFile } from "../common/files.js";
 import { fromJson, jsonComponents } from "../json/index.js";
 import { schemaComponents } from "./index.js";
 import { inferSchema, schemaDocument } from "./infer.js";
@@ -264,7 +264,7 @@ export const Studio = component({
 			args: [],
 			emits: { ask: ["readText"] },
 			run(next, _args, ctx) {
-				const dropped = droppedJsonFile(ctx.event);
+				const dropped = droppedFile(ctx.event);
 				if (dropped === null) return;
 				if (dropped.error !== undefined) {
 					next.pasteError = dropped.error;

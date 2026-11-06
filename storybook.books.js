@@ -10,6 +10,7 @@ import jsonSchemaBook, { studioBook } from "./components/json-schema/stories.js"
 import kanbanBook from "./components/kanban/stories.js";
 import langBook from "./components/lang/stories.js";
 import llmBook from "./components/llm/stories.js";
+import markdownBook from "./components/markdown/stories.js";
 import mathBook, { workbenchBook } from "./components/math/stories.js";
 import musicBook from "./components/music/stories.js";
 import trackerBook from "./components/thing-tracker/stories.js";
@@ -33,6 +34,7 @@ export const books = [
 	agentBook,
 	httpBook,
 	musicBook,
+	markdownBook,
 	studioBook,
 	dataViewsBook,
 	devBook,

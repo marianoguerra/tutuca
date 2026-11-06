@@ -113,9 +113,9 @@ export const BUNDLES = {
 	},
 };
 
-// A board, which says agent meta: with a model to ask, its item's 🤖 wraps it in an agent
-// that drives it, and ⏏ ejects it again. Beside the canvas, its own agent adds components,
-// gives them agents, prompts those and ejects them.
+// A board and a markdown document for notes, which say agent meta: with a model to ask, an
+// item's 🤖 wraps it in an agent that drives it, and ⏏ ejects it again. Beside the canvas, its
+// own agent adds components, gives them agents, prompts those and ejects them.
 BUNDLES.agent = {
 	title: "Agent",
 	components: { ...llmComponents, ...kanbanComponents, ...canvasComponents },
@@ -126,7 +126,10 @@ BUNDLES.agent = {
 	make: (C) =>
 		canvas(
 			C,
-			[[48, 40, withSample(C.Board({}), "week"), "🗂️ Kanban board", 720]],
+			[
+				[48, 40, withSample(C.Board({}), "week"), "🗂️ Kanban board", 720],
+				[800, 40, withSample(C.Markdown({}), "notes"), "📄 Notes", 420],
+			],
 			{ width: 1600, height: 1000 },
 			AGENT_KINDS,
 		),

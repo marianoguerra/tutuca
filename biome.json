@@ -12,6 +12,7 @@
 			"!deps",
 			"!site/deps",
 			"!demos/deps",
+			"!components/markdown/vendor",
 			"!dist",
 			"!_site",
 			"!tutuca-mb",

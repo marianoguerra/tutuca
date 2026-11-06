@@ -20,6 +20,7 @@ import {
 } from "../../src/tutuca.js";
 import { CANVAS_META } from "../canvas/layout.js";
 import { jsonComponents, jsonRoot } from "../json/index.js";
+import { MD_VIEW } from "../markdown/element.js";
 
 const { button, div, p, pre, span } = tag;
 
@@ -99,7 +100,7 @@ export const transcriptRows = (messages) =>
 	});
 
 // What an entry says under its header: a call's arguments and its result (or that it's still
-// running), else its text.
+// running), else its text: the assistant's rendered as markdown.
 const entryBody = () =>
 	$if(
 		field("hasArgs"),
@@ -119,7 +120,11 @@ const entryBody = () =>
 		$if(
 			field("mono"),
 			pre({ class: "overflow-x-auto whitespace-pre-wrap font-mono text-xs" }, field("text")),
-			p({ class: "whitespace-pre-wrap" }, field("text")),
+			$if(
+				field("isMarkdown"),
+				tag[MD_VIEW]({ class: "block min-w-0", content: field("text") }),
+				p({ class: "whitespace-pre-wrap" }, field("text")),
+			),
 		),
 	);
 // A call's border says how it went: running, done or failed.
@@ -149,6 +154,10 @@ export const TranscriptEntry = component({
 		},
 		get hasArgs() {
 			return this.args !== null;
+		},
+		// Whether its text is the model's, which writes markdown.
+		get isMarkdown() {
+			return this.kind === "assistant";
 		},
 		get isClosed() {
 			return this.hasArgs && !this.open;

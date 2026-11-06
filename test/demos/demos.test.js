@@ -734,7 +734,8 @@ test("canvas demo, agent bundle: with a model, a board's item wraps it in an age
 	assert.equal(specOf(item().content.target).name, "Board");
 	assert.ok(item().width > width, "wider, for the chat");
 	assert.equal(app.$('[title="Drive another component"]'), null, "the item ejects it instead");
-	assert.equal(app.$('[title="Wrap in an agent"]'), null);
+	// The notes beside it can still have one.
+	assert.equal(app.rootNode.querySelectorAll('[title="Wrap in an agent"]').length, 1);
 	// The echo model runs the tool a prompt names, on the board in the agent.
 	app.fire(
 		"input",

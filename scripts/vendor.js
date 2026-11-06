@@ -5,8 +5,12 @@
 //               the sync demo's importmap maps every @automerge package to it.
 //   engines     demos/deps/{ajv,jq,jsonpath,picomatch,vega,echarts}.js: the micro-agents' engines,
 //               which tutuca-wax's build copies into its dist/engines/.
+//   markdownrswasm  components/markdown/vendor/: the <md-view> element and its wasm, copied from
+//               a markdownrswasm checkout beside this one (built with `just dist` there); it
+//               isn't on npm, so the copy is committed.
 // Bump the packages in package.json, then run `just vendor <name>` (and the tests).
-import { existsSync, mkdirSync, readFileSync, writeFileSync } from "node:fs";
+import { execFileSync } from "node:child_process";
+import { copyFileSync, existsSync, mkdirSync, readFileSync, writeFileSync } from "node:fs";
 import { dirname, resolve } from "node:path";
 import * as esbuild from "esbuild";
 
@@ -139,11 +143,38 @@ const TARGETS = {
 		license: "node_modules/echarts/LICENSE",
 		build: { ...reexports(['export * from "echarts";']), minify: true },
 	},
+	// Copied, not bundled: the element loads its wasm glue by path, and the glue its wasm.
+	markdownrswasm: {
+		out: "components/markdown/vendor/markdownrswasmwc.js",
+		copy: {
+			from: "../markdownrswasm",
+			to: "components/markdown/vendor",
+			files: ["markdownrswasm.js", "markdownrswasm_bg.wasm", "markdown.js", "markdownrswasmwc.js"],
+		},
+	},
+};
+
+// Copies a checkout's built pkg/ files, saying where they came from in a VERSION file.
+const copyBuilt = ({ from, to, files }) => {
+	const pkg = `${from}/pkg`;
+	const missing = files.filter((f) => !existsSync(`${pkg}/${f}`));
+	if (missing.length > 0)
+		throw new Error(`${pkg} lacks ${missing.join(", ")}: run \`just dist\` in ${from}`);
+	mkdirSync(to, { recursive: true });
+	for (const f of files) copyFileSync(`${pkg}/${f}`, `${to}/${f}`);
+	const sha = execFileSync("git", ["-C", from, "rev-parse", "--short", "HEAD"], {
+		encoding: "utf8",
+	}).trim();
+	const version = JSON.parse(readFileSync(`${pkg}/package.json`, "utf8")).version;
+	const title = `markdownrswasm ${version} (https://github.com/marianoguerra/markdownrswasm @ ${sha})`;
+	writeFileSync(`${to}/VERSION`, `${title}, copied by scripts/vendor.js from ${pkg}.\n`);
+	console.log(`${to}: ${title}`);
 };
 
 export const vendor = async (name) => {
 	const target = TARGETS[name];
 	if (!target) throw new Error(`unknown vendor target ${name}: one of ${Object.keys(TARGETS)}`);
+	if (target.copy) return copyBuilt(target.copy);
 	const { outputFiles } = await esbuild.build({
 		bundle: true,
 		format: "esm",

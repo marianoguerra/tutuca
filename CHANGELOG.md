@@ -4,6 +4,17 @@
 
 ### Added
 
+- **Markdown, a builtin canvas kind.** `components/markdown` has a `Markdown` component that
+  shows GitHub flavored markdown rendered by markdownrswasm's `<md-view>` element: wasm, raw
+  HTML escaped, in a shadow DOM. Its edit view is a textarea next to a live preview. Every
+  canvas's holes can become one, as they can a layout, and it says agent meta (`set_text`,
+  `append_text`, `replace_text`), so an agent can write it. `just vendor markdownrswasm` copies
+  the element and its wasm from a sibling checkout into `components/markdown/vendor/`.
+- **Assistant text renders as markdown** in the agent transcript.
+- **Data that's a text file.** Data meta takes `file: { type, extensions }` when a component's
+  data is text, not JSON (`fileFormatOf`, `JSON_FILE`). A canvas item loads a dropped file of
+  that format as is, and ⤓ downloads it with its extension, such as `notes.md`.
+  `droppedJsonFile(event)` is now `droppedFile(event, format)`, JSON by default.
 - **Settle scopes (structured concurrency).** `ctx.sendAt(name, args, selector, watch)` with
   a watch opens a settle scope (`src/tree/scope.js`). The message and everything it causes are
   in it: what it sends, the notifications it bubbles, its asks and their answers (later ones
