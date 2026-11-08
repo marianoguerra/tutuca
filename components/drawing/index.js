@@ -36,6 +36,7 @@ import {
 	Rect,
 	svgPoint,
 } from "./shapes.js";
+import { swatchStyle, TOOL_OFF, TOOL_ON, toolButton, toolButtons } from "./tools.js";
 
 const { div, g, rect, span } = tag;
 
@@ -50,10 +51,8 @@ const TOOLS = [
 ];
 const TOOL_KEYS = { s: "select", r: "rect", e: "ellipse", l: "line", p: "polyline" };
 const MAX_HISTORY = 50;
-const ON = "btn btn-sm btn-square btn-primary join-item";
-const OFF = "btn btn-sm btn-square join-item";
-const NONE_STYLE = "background:repeating-linear-gradient(45deg,#fff 0 4px,#ed1c24 4px 6px)";
-const swatchStyle = (paint) => (paint === "none" ? NONE_STYLE : `background:${paint}`);
+const ON = TOOL_ON;
+const OFF = TOOL_OFF;
 
 // Every change to the shapes goes through here, so it can be undone.
 const remember = (self, next) => {
@@ -212,12 +211,7 @@ export const Drawing = component({
 			return this.selectionBox.h;
 		},
 		get toolButtons() {
-			return TOOLS.map(([id, icon, label]) => ({
-				id,
-				icon,
-				label,
-				cls: id === this.tool ? ON : OFF,
-			}));
+			return TOOLS.map((tool) => toolButton(tool, this.tool));
 		},
 		get widthButtons() {
 			return [1, 2, 4, 8].map((w) => ({
@@ -275,22 +269,7 @@ export const Drawing = component({
 		{ class: "flex flex-col gap-2 rounded-box border border-base-300 bg-base-200 p-2 select-none" },
 		div(
 			{ class: "flex flex-wrap items-center gap-2" },
-			div(
-				{ class: "join", role: "toolbar", "aria-label": "Tools" },
-				each(
-					field("toolButtons"),
-					button(
-						{
-							class: field("cls"),
-							title: field("label"),
-							"aria-label": field("label"),
-							value: field("id"),
-							"on:click": send("setTool", targetValue()),
-						},
-						field("icon"),
-					),
-				),
-			),
+			div({ class: "join", role: "toolbar", "aria-label": "Tools" }, toolButtons()),
 			div(
 				{ class: "join", role: "group", "aria-label": "Stroke width" },
 				each(
