@@ -3,14 +3,8 @@ import assert from "node:assert/strict";
 import test from "node:test";
 import fc from "fast-check";
 import { Planets } from "../../site/examples/drag-and-drop.js";
-import { Driver } from "../../src/test/driver.js";
-import {
-	arbitraries,
-	dispatchDrag,
-	dispatchOn,
-	eventCommands,
-	runCommands,
-} from "../../src/test/pbt.js";
+import { Driver } from "../../src/testing/driver.js";
+import { arbitraries, eventCommands, runCommands } from "../../src/testing/pbt.js";
 import {
 	component,
 	DispatchPath,
@@ -71,8 +65,7 @@ const items = ["a", "b", "c"].map((label) => ({ label }));
 test("dropping an item on another moves it, with dragKey the dragged one's key", () => {
 	const d = start({ List }, (C) => C.List({ items }));
 	const lis = () => [...d.rootNode.querySelectorAll("li")];
-	dispatchDrag(lis()[0], lis()[2]);
-	d.drain();
+	d.drag(lis()[0], lis()[2]);
 	assert.deepEqual(d.state.dropped, [0, 2, "item"]);
 	assert.equal(d.state.seen, 0, "dragKey is set in dragstart too");
 	assert.deepEqual(
@@ -85,13 +78,13 @@ test("dropping an item on another moves it, with dragKey the dragged one's key",
 test("the dragged element and the drop target under it are marked until the drag ends", () => {
 	const d = start({ List }, (C) => C.List({ items }));
 	const [first, , third] = d.rootNode.querySelectorAll("li");
-	dispatchOn(first, "dragstart");
+	d.fire("dragstart", first);
 	assert.equal(first.dataset.dragging, "");
 	const over = new document.defaultView.Event("dragover", { bubbles: true, cancelable: true });
 	third.dispatchEvent(over);
 	assert.equal(over.defaultPrevented, true, "a drop target accepts the drop");
 	assert.equal(third.dataset.draggingover, "item");
-	dispatchOn(first, "dragend");
+	d.fire("dragend", first);
 	assert.equal(first.dataset.dragging, undefined);
 	assert.equal(third.dataset.draggingover, undefined);
 	assert.equal(d.host.drag, null);
@@ -167,8 +160,7 @@ test("a drop on a child component's elements reaches the enclosing component's h
 	const d = start({ Card, Column, Board }, board);
 	const [, y] = d.rootNode.querySelectorAll("p");
 	const [, second] = d.rootNode.querySelectorAll("section");
-	dispatchDrag(y.querySelector("span"), second);
-	d.drain();
+	d.drag(y.querySelector("span"), second);
 	// The drop came through the second column; the card was dragged from the first.
 	assert.deepEqual(d.state.log, [[1, 0, "y"]]);
 	assert.deepEqual(d.problems, []);

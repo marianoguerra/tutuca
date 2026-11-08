@@ -4,13 +4,8 @@ import fc from "fast-check";
 import { jsonComponents } from "../../components/json/index.js";
 import { todoAppArb } from "../../components/todo/fixtures.js";
 import { todoComponents } from "../../components/todo/index.js";
-import {
-	arbitraries,
-	Driver,
-	eventCommands,
-	messageCommands,
-	runCommands,
-} from "../../src/test/pbt.js";
+import { Driver } from "../../src/testing/driver.js";
+import { arbitraries, eventCommands, messageCommands, runCommands } from "../../src/testing/pbt.js";
 import {
 	$if,
 	apply,

@@ -2,7 +2,7 @@ import assert from "node:assert/strict";
 import test from "node:test";
 import { drawingComponents } from "../../components/drawing/index.js";
 import { fmt, mathComponents } from "../../components/math/index.js";
-import { Driver } from "../../src/test/pbt.js";
+import { Driver } from "../../src/testing/driver.js";
 import { DispatchPath } from "../../src/tutuca.js";
 import { document, scopeWith, testGenericProperties } from "../helpers.js";
 

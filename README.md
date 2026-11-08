@@ -54,7 +54,8 @@ host.start(host.scope.components.Counter());
 | `tutuca/dev` | Dev mode: the `DevChecks` a `Host` runs (`new Host({ checks: DevChecks })`) and DevTools formatters |
 | `tutuca/lint` | the linter |
 | `tutuca/classes` | `collectClasses`, `classNamesOf` and `ClassCompiler`, for CSS compilers that need class names listed |
-| `tutuca/pbt` | property-based testing and the headless driver (bring your own `fast-check`) |
+| `tutuca/testing` | the headless driver: `Driver` (send, answer, fire, drag), `testEnv` |
+| `tutuca/pbt` | property-based testing on the driver (bring your own `fast-check`) |
 | `tutuca/storybook` | the storybook |
 | `tutuca/playground` | the `<tutuca-playground>` element: edit a book of stories and run it live (bring your own CodeMirror) |
 | `tutuca/element` | the `<tutuca-app>` custom element |

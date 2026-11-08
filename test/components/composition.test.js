@@ -3,8 +3,8 @@ import test from "node:test";
 import fc from "fast-check";
 import { compositionComponents, notebook, Picker } from "../../components/composition/index.js";
 import { NOW } from "../../components/thing-tracker/fixtures.js";
-import { Driver } from "../../src/test/driver.js";
-import { arbitraries, eventCommands, runCommands } from "../../src/test/pbt.js";
+import { Driver } from "../../src/testing/driver.js";
+import { arbitraries, eventCommands, runCommands } from "../../src/testing/pbt.js";
 import { specOf } from "../../src/tutuca.js";
 import { document, scopeWith, testGenericProperties } from "../helpers.js";
 

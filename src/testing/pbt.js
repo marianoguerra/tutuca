@@ -1,5 +1,6 @@
 // Property based testing for tutuca components with fast-check, derived from field and
-// message schemas. fast-check is passed in, so tutuca itself doesn't depend on it.
+// message schemas. fast-check is passed in, so tutuca itself doesn't depend on it. The Driver
+// they run on is tutuca/testing's (driver.js).
 
 import { preHolds } from "../contract.js";
 import {
@@ -18,9 +19,7 @@ import {
 	unlessNoDefault,
 	unwrapOption,
 } from "../tutuca.js";
-import { componentPaths, Driver, describeProblems, PROBLEMS, snapshot, testEnv } from "./driver.js";
-
-export { componentPaths, Driver, describeProblems, PROBLEMS, snapshot, testEnv };
+import { componentPaths, Driver, describeProblems, snapshot } from "./driver.js";
 
 const mapValues = (record, fn) =>
 	Object.fromEntries(Object.entries(record).map(([k, v]) => [k, fn(v, k)]));
@@ -356,7 +355,6 @@ export const runCommands = (A, root, cmds, driverOptions = {}) => {
 	);
 };
 
-const FORM_FIELDS = new Set(["INPUT", "TEXTAREA", "SELECT"]);
 // The DOM under node as text, attributes sorted: patching may add them in another order.
 const domSignature = (node) => {
 	if (node.nodeType === 3) return node.data;
@@ -364,21 +362,6 @@ const domSignature = (node) => {
 	const attrs = [...node.attributes].map((a) => `${a.name}="${a.value}"`).sort();
 	const childs = [...node.childNodes].map(domSignature).join("");
 	return `<${node.tagName} ${attrs.join(" ")}>${childs}</${node.tagName}>`;
-};
-// Sets the value of a form field, when given, and dispatches a bubbling type event on el.
-export const dispatchOn = (el, type, value) => {
-	if (value !== undefined) {
-		if (el.type === "checkbox") el.checked = Boolean(value);
-		else if (el.tagName === "SELECT") {
-			// A select only takes one of its options: value if it's one, else one picked by it.
-			const options = [...el.options].map((o) => o.value);
-			const text = String(value);
-			if (options.includes(text)) el.value = text;
-			else if (options.length > 0) el.value = options[text.length % options.length];
-		} else if (FORM_FIELDS.has(el.tagName)) el.value = String(value);
-	}
-	const { Event } = el.ownerDocument.defaultView;
-	el.dispatchEvent(new Event(type, { bubbles: true }));
 };
 const elementText = (el) => `<${el.tagName.toLowerCase()} data-eid=${el.dataset.eid}>`;
 // Throws if cmd's run on driver broke something since the before-th report, or patched the DOM
@@ -393,12 +376,6 @@ const checkAfter = (cmd, model, driver, before) => {
 		throw new Error(`${cmd}: the patched DOM differs from a fresh render`);
 	}
 	model.state = driver.state;
-};
-// Fires the events of dragging from and dropping on to, as a browser does.
-export const dispatchDrag = (from, to) => {
-	dispatchOn(from, "dragstart");
-	for (const type of ["dragenter", "dragover", "drop"]) dispatchOn(to, type);
-	dispatchOn(from, "dragend");
 };
 // The elements with handlers in driver's DOM, and the handlers of one of them.
 const handlerElements = (driver) => [...driver.rootNode.querySelectorAll("[data-eid]")];
@@ -434,7 +411,7 @@ class EventCommand extends DomCommand {
 		if (handlers.length === 0) return;
 		const { name } = handlers[this.pick % handlers.length];
 		this.dispatchAndCheck(model, driver, `${name} on ${elementText(el)}`, () =>
-			dispatchOn(el, name, this.value),
+			driver.fire(name, el, { value: this.value }),
 		);
 	}
 	toString() {
@@ -461,7 +438,7 @@ class DragCommand extends DomCommand {
 		const from = sources[this.source % sources.length];
 		const to = targets[this.target % targets.length];
 		const description = `drag <${from.tagName.toLowerCase()}>#${this.source % sources.length} onto ${elementText(to)}`;
-		this.dispatchAndCheck(model, driver, description, () => dispatchDrag(from, to));
+		this.dispatchAndCheck(model, driver, description, () => driver.drag(from, to));
 	}
 	toString() {
 		return this.description ?? `drag#${this.source}→${this.target}`;

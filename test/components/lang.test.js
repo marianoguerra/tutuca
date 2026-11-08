@@ -1,7 +1,7 @@
 import assert from "node:assert/strict";
 import test from "node:test";
 import { LangError, langComponents, sample } from "../../components/lang/index.js";
-import { Driver } from "../../src/test/pbt.js";
+import { Driver } from "../../src/testing/driver.js";
 import { specOf } from "../../src/tutuca.js";
 import { document, scopeWith, testGenericProperties, testLintsClean, textOf } from "../helpers.js";
 

@@ -16,7 +16,7 @@ import {
 	summaryOf,
 	withSample,
 } from "../../src/meta/index.js";
-import { Driver } from "../../src/test/driver.js";
+import { Driver } from "../../src/testing/driver.js";
 import { component, query, Scope, Selector, scopeOf, t } from "../../src/tutuca.js";
 import { callTool, document, ranTool, scopeWith, tick } from "../helpers.js";
 

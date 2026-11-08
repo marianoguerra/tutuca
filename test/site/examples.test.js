@@ -5,7 +5,7 @@ import test from "node:test";
 import fc from "fast-check";
 import { lint } from "../../src/lint/index.js";
 import { checkStory, prepareStory } from "../../src/storybook/index.js";
-import { Driver, describeProblems } from "../../src/test/pbt.js";
+import { Driver, describeProblems } from "../../src/testing/driver.js";
 import { document, testLintsClean } from "../helpers.js";
 
 // Node can't import from a CDN: the web component example's picker loads as an empty module.

@@ -3,7 +3,7 @@ import { readdirSync, readFileSync } from "node:fs";
 import test from "node:test";
 import { treeSpecComponents } from "../../components/tree-spec/index.js";
 import { explorerOf, worldOf } from "../../components/tree-spec/model.js";
-import { Driver } from "../../src/test/driver.js";
+import { Driver } from "../../src/testing/driver.js";
 import { document, scopeWith, testLintsClean } from "../helpers.js";
 
 testLintsClean("tree spec", treeSpecComponents);

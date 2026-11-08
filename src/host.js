@@ -16,7 +16,7 @@ import { RenderContext, renderView } from "./view.js";
 
 // What handlers read from the world, through ctx.now(), ctx.random() and ctx.uuid(): the
 // clock in ms since the epoch, a number in [0, 1) and a new id. Each mirrors the global it
-// stands for, so a host can swap them for ones that repeat (testEnv in tutuca/pbt).
+// stands for, so a host can swap them for ones that repeat (testEnv in tutuca/testing).
 export const browserEnv = {
 	now: () => Date.now(),
 	random: () => Math.random(),

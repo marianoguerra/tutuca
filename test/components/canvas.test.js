@@ -1,7 +1,7 @@
 import assert from "node:assert/strict";
 import test from "node:test";
 import { canvas, canvasComponents } from "../../components/canvas/index.js";
-import { Driver } from "../../src/test/driver.js";
+import { Driver } from "../../src/testing/driver.js";
 import { idOf, Selector, scopeOf } from "../../src/tutuca.js";
 import { document, scopeWith, tick } from "../helpers.js";
 

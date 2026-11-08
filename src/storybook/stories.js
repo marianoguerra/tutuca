@@ -2,15 +2,8 @@
 // headless Driver. fast-check is passed in, as in pbt.js.
 
 import { argsLabel } from "../history/index.js";
-import { Driver, describeProblems } from "../test/driver.js";
-import {
-	arbitraries,
-	dispatchDrag,
-	dispatchOn,
-	eventCommands,
-	messageCommands,
-	runCommands,
-} from "../test/pbt.js";
+import { Driver, describeProblems } from "../testing/driver.js";
+import { arbitraries, eventCommands, messageCommands, runCommands } from "../testing/pbt.js";
 import { DispatchPath, errorMessage, Scope, selectorFrom, specOf } from "../tutuca.js";
 
 // Steps of a sequence, as plain data. at and from are selector functions relative to
@@ -114,8 +107,7 @@ export const runStep = (driver, s) => {
 				}
 				const el = driver.rootNode.querySelector(s.selector);
 				if (el === null) return done("skipped", `nothing matches ${s.selector}`);
-				dispatchOn(el, s.type, s.value);
-				driver.drain();
+				driver.fire(s.type, el, { value: s.value });
 				break;
 			}
 			case "drag": {
@@ -126,8 +118,7 @@ export const runStep = (driver, s) => {
 				if (from === null || to === null) {
 					return done("skipped", `nothing matches ${from === null ? s.from : s.to}`);
 				}
-				dispatchDrag(from, to);
-				driver.drain();
+				driver.drag(from, to);
 				break;
 			}
 			case "check":

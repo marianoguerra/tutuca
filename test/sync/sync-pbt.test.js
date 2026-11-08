@@ -22,7 +22,7 @@ import {
 	startSynced,
 } from "../../src/sync/index.js";
 import { relay, remoteEngine } from "../../src/sync/remote.js";
-import { arbitraries } from "../../src/test/pbt.js";
+import { arbitraries } from "../../src/testing/pbt.js";
 import { component, t } from "../../src/tutuca.js";
 import { scopeWith, setupHost, tick } from "../helpers.js";
 

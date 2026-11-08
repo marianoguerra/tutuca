@@ -12,7 +12,7 @@ import {
 	stories,
 	stressStory,
 } from "../../src/storybook/index.js";
-import { Driver, describeProblems } from "../../src/test/pbt.js";
+import { Driver, describeProblems } from "../../src/testing/driver.js";
 import { component, field, h, send, t } from "../../src/tutuca.js";
 import { books } from "../../storybook.books.js";
 import { document, dom, testLintsClean, tick } from "../helpers.js";

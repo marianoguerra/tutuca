@@ -2,7 +2,8 @@ import assert from "node:assert/strict";
 import test from "node:test";
 import fc from "fast-check";
 import { fromJson, jsonComponents, jsonRoot } from "../../components/json/index.js";
-import { arbitraries, Driver } from "../../src/test/pbt.js";
+import { Driver } from "../../src/testing/driver.js";
+import { arbitraries } from "../../src/testing/pbt.js";
 import { document, scopeWith, testGenericProperties, testLintsClean, textOf } from "../helpers.js";
 
 const setup = () => {

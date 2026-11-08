@@ -1,6 +1,6 @@
-// The Driver: runs a component tree through a dev-mode Host with no timers, headless or
-// rendered, and keeps what it reports. Tests, stress runs and the live storybook drive apps
-// through it.
+// The Driver (tutuca/testing): runs a component tree through a dev-mode Host with no timers,
+// headless or rendered, and keeps what it reports. Tests, stress runs and the live storybook
+// drive apps through it: it sends messages, answers asks and fires DOM events as a user would.
 import { DevChecks } from "../dev/checks.js";
 import {
 	Address,
@@ -125,9 +125,10 @@ export class Driver {
 	}
 	// Dispatches an event of type on target, an element or a selector in what it rendered, as a
 	// browser would (bubbling, cancelable, with init: { ctrlKey, key, ... }), and runs what it
-	// causes.
-	fire(type, target, init = {}) {
-		const el = typeof target === "string" ? this.rootNode.querySelector(target) : target;
+	// causes. With a value in init, target is a form field set to it first, as a user would.
+	fire(type, target, { value, ...init } = {}) {
+		const el = this.elementOf(target);
+		if (value !== undefined) setValue(el, value);
 		const view = this.rootNode.ownerDocument.defaultView;
 		const Event = /^(click|dblclick|mouse)/.test(type)
 			? view.MouseEvent
@@ -136,6 +137,16 @@ export class Driver {
 				: view.Event;
 		el.dispatchEvent(new Event(type, { bubbles: true, cancelable: true, ...init }));
 		this.drain();
+	}
+	// Drags from onto to (elements or selectors), firing the events a browser does.
+	drag(from, to) {
+		const [source, target] = [this.elementOf(from), this.elementOf(to)];
+		this.fire("dragstart", source);
+		for (const type of ["dragenter", "dragover", "drop"]) this.fire(type, target);
+		this.fire("dragend", source);
+	}
+	elementOf(target) {
+		return typeof target === "string" ? this.rootNode.querySelector(target) : target;
 	}
 	click(target, init = {}) {
 		this.fire("click", target, init);
@@ -182,3 +193,15 @@ export const describeProblems = (problems) =>
 		const issues = p.issues.map((i) => `${i.component} ${i.path.join(".")} ${i.reason}`);
 		return `stateInvalid: ${issues.join("; ")}`;
 	});
+const FORM_FIELDS = new Set(["INPUT", "TEXTAREA", "SELECT"]);
+// Sets a form field to value: a checkbox checked or not, a select to the option value names
+// (or, when none does, one picked by it, as a select only takes one of its options).
+const setValue = (el, value) => {
+	if (el.type === "checkbox") el.checked = Boolean(value);
+	else if (el.tagName === "SELECT") {
+		const options = [...el.options].map((o) => o.value);
+		const text = String(value);
+		if (options.includes(text)) el.value = text;
+		else if (options.length > 0) el.value = options[text.length % options.length];
+	} else if (FORM_FIELDS.has(el.tagName)) el.value = String(value);
+};

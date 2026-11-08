@@ -768,7 +768,7 @@ test("automerge peers merge concurrent edits", async () => {
 test("applying diff(a, b) to a gives b, for generated states", async () => {
 	const { default: fc } = await import("fast-check");
 	const { produce } = await import("../../deps/immer.js");
-	const { arbitraries } = await import("../../src/test/pbt.js");
+	const { arbitraries } = await import("../../src/testing/pbt.js");
 	const { host } = setup();
 	const A = arbitraries({ fc, scope: host.scope, maxLength: 5 });
 	// b mixes a's items, its own and repeats, so identity matching has something to match.

@@ -1,6 +1,6 @@
 import assert from "node:assert/strict";
 import test from "node:test";
-import { Driver, testEnv } from "../../src/test/pbt.js";
+import { Driver, testEnv } from "../../src/testing/driver.js";
 import { component, DispatchPath, t } from "../../src/tutuca.js";
 import { scopeWith } from "../helpers.js";
 

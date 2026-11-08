@@ -2,8 +2,7 @@ import assert from "node:assert/strict";
 import test from "node:test";
 import { kanbanComponents } from "../../components/kanban/index.js";
 import { sampleBoard } from "../../components/kanban/stories.js";
-import { Driver } from "../../src/test/driver.js";
-import { dispatchDrag } from "../../src/test/pbt.js";
+import { Driver } from "../../src/testing/driver.js";
 import { document, scopeWith, testGenericProperties } from "../helpers.js";
 
 testGenericProperties(kanbanComponents, { numRuns: 25 });
@@ -34,7 +33,6 @@ test("a drag that isn't a card changes nothing", () => {
 	const d = start();
 	const before = d.state;
 	const [, doing] = d.rootNode.querySelectorAll(".grid > div");
-	dispatchDrag(doing.querySelector("h2"), doing);
-	d.drain();
+	d.drag(doing.querySelector("h2"), doing);
 	assert.equal(d.state, before);
 });

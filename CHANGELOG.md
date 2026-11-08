@@ -162,6 +162,10 @@
   `metaShapeProblems`, `checkCall` and `checkInvariants`. The core bundle (`dist/tutuca.min.js`)
   drops from 105 KB to 91 KB. `src/meta.js`, the render comment markers, is `src/markers.js`.
 - **`tutuca/tree` no longer exports `call` or `isNode`**, which only the tree uses.
+- **The driver is `tutuca/testing`.** `Driver`, `testEnv`, `snapshot`, `describeProblems` and
+  the rest of `src/testing/driver.js` (was `src/test/`) are no longer re-exported by
+  `tutuca/pbt`. `dispatchOn(el, type, value)` and `dispatchDrag(from, to)` are gone: use
+  `driver.fire(type, el, { value })` and `driver.drag(from, to)`, which drain too.
 - **`tutuca/vdom`'s `render` is `morph`**, so `render` is only the view builder.
 - **A view's named binds are `withBinds`, not `scope`.** `scope(name, child)` is
   `withBinds(name, child)` (node `WithBinds`, was `XScope`), and the component option
