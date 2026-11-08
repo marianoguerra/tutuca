@@ -1,10 +1,12 @@
 import assert from "node:assert/strict";
 import { readdirSync, readFileSync } from "node:fs";
 import test from "node:test";
+import { COMPOSITION_KINDS, canvas } from "../../components/canvas/index.js";
 import { inferSchema, schemaDocument } from "../../components/json-schema/infer.js";
 import { quadraticLabel } from "../../components/math/workbench.js";
 import { addDays } from "../../components/todo/dates.js";
 import { TODAY } from "../../components/todo/fixtures.js";
+import { BUNDLES } from "../../demos/canvas/bundles.js";
 import { start as startCanvas } from "../../demos/canvas/main.js";
 import { start as startComposition } from "../../demos/composition/main.js";
 import { start as startDrawing } from "../../demos/drawing/main.js";
@@ -26,6 +28,23 @@ import { Host, specOf } from "../../src/tutuca.js";
 import { dom, settle } from "../helpers.js";
 
 // Boots a demo in jsdom, collecting what would go to console.error.
+// The notebook's bundle on a plain canvas, notes and a hole, for the canvas's own mechanics:
+// what the default bundle starts with is its showcase, which the tests after these check.
+const PLAIN = {
+	...BUNDLES.default,
+	id: "default",
+	make: (C) =>
+		canvas(
+			C,
+			[
+				[48, 48, "notes"],
+				[420, 120, C.Hole(), "Empty", 240],
+			],
+			{},
+			COMPOSITION_KINDS,
+		),
+};
+
 const mount = (start, ...args) => {
 	const window = dom('<div id="app"></div>');
 	const { document } = window;
@@ -108,7 +127,7 @@ test("composition demo: a picker becomes the cell picked, and adds pickers aroun
 });
 
 test("canvas demo: a click adds a hole, which becomes what's picked; items move, collapse and go", async () => {
-	const app = mount(startCanvas);
+	const app = mount(startCanvas, PLAIN);
 	const { MouseEvent } = app.rootNode.ownerDocument.defaultView;
 	const pointer = (type, el, x, y) =>
 		el.dispatchEvent(new MouseEvent(type, { bubbles: true, clientX: x, clientY: y, button: 0 }));
@@ -157,7 +176,7 @@ test("canvas demo: a click adds a hole, which becomes what's picked; items move,
 });
 
 test("canvas demo: Ctrl+click collapses every item, an item maximizes, the canvas zooms and grows", async () => {
-	const app = mount(startCanvas);
+	const app = mount(startCanvas, PLAIN);
 	const { MouseEvent, KeyboardEvent, WheelEvent } = app.rootNode.ownerDocument.defaultView;
 	const items = () => app.state().order.map((key) => app.state().items[key]);
 	const toggles = () => app.rootNode.querySelectorAll('svg [title^="Collapse or expand"]');
@@ -214,7 +233,7 @@ test("canvas demo: Ctrl+click collapses every item, an item maximizes, the canva
 });
 
 test("canvas demo: items resize by their corner; shapes are drawn, styled, moved and deleted", async () => {
-	const app = mount(startCanvas);
+	const app = mount(startCanvas, PLAIN);
 	const { MouseEvent, KeyboardEvent } = app.rootNode.ownerDocument.defaultView;
 	const pointer = (type, el, x, y, more = {}) =>
 		el.dispatchEvent(
@@ -285,7 +304,7 @@ test("canvas demo: items resize by their corner; shapes are drawn, styled, moved
 });
 
 test("canvas demo: a hole becomes a layout, edited from its item's toggle", async () => {
-	const app = mount(startCanvas);
+	const app = mount(startCanvas, PLAIN);
 	const item = () => app.state().items["item-2"];
 	const card = () => app.rootNode.querySelectorAll("foreignObject")[1];
 	const click = (selector, i = 0) => app.fire("click", card().querySelectorAll(selector)[i]);
@@ -319,7 +338,7 @@ test("canvas demo: a hole becomes a layout, edited from its item's toggle", asyn
 });
 
 test("canvas demo: tabs add, rename, select and remove; an item's title is edited", async () => {
-	const app = mount(startCanvas);
+	const app = mount(startCanvas, PLAIN);
 	const item = () => app.state().items["item-2"];
 	const tabs = () => item().content;
 	const card = () => app.rootNode.querySelectorAll("foreignObject")[1];
@@ -351,26 +370,55 @@ test("canvas demo: tabs add, rename, select and remove; an item's title is edite
 	await checkClean(app);
 });
 
-test("canvas demo, llm bundle: the parts of a request, and holes that become them", async () => {
+test("canvas demo, notebook bundle: a garden project, every kind the notebook has on one canvas", async () => {
+	const app = mount(startCanvas);
+	const items = () => app.state().order.map((key) => app.state().items[key]);
+	assert.deepEqual(
+		items().map((item) => specOf(item.content).name),
+		["Markdown", "Drawing", "Board", "TodoApp", "Tabs"],
+	);
+	const [plan, yard, seedlings, tasks, tabs] = items().map((item) => item.content);
+	assert.match(plan.text, /^# 🌱 Spring garden/);
+	assert.ok(yard.shapes.length > 4, "the yard is drawn");
+	assert.deepEqual(
+		seedlings.columns.map((c) => c.title),
+		["Seeds", "Sprouting", "Planted out"],
+	);
+	assert.equal(tasks.currentProject.name, "Garden", "the tasks open on the garden's project");
+	assert.deepEqual(
+		tabs.items.map((c) => specOf(c).name),
+		["TrackerCell", "Notes"],
+	);
+	assert.equal(tabs.items[0].things.find((t) => t.id === "thing:home/plants").total, 5);
+	assert.ok(app.state().shapes.some((shape) => specOf(shape).name === "Arrow"));
+	await checkClean(app);
+});
+
+test("canvas demo, llm bundle: a weather agent's turn, and holes that become its parts", async () => {
 	const app = mount(startCanvas, "llm");
 	const kinds = () => app.state().order.map((key) => specOf(app.state().items[key].content).name);
 	assert.deepEqual(kinds(), [
-		"SystemMessage",
-		"UserMessage",
-		"ToolCall",
+		"InferenceRequest",
+		"InferenceResponse",
 		"ToolResult",
-		"AssistantMessage",
-		"ToolDefinition",
+		"InferenceRequest",
+		"InferenceResponse",
+		"Transcript",
 		"StructuredOutput",
 	]);
-	assert.equal(app.state().items["item-1"].label, "⚙️ System message");
+	const content = (key) => app.state().items[key].content;
+	assert.equal(app.state().items["item-1"].label, "📤 1. Request: the question and a tool");
+	assert.equal(content("item-2").stopReason, "toolUse");
+	assert.equal(content("item-4").messages.length, 3, "the second request sends the result too");
+	assert.equal(content("item-5").stopReason, "stop");
+	assert.equal(content("item-5").cacheRead, 412, "reading the first call's prompt from the cache");
 	assert.ok(app.$(".llm-valid"), "the example's output matches its schema");
 	// A hole lists the bundle's kinds (and the canvas's), not the notebook's.
 	const bg = app.$(".canvas-bg");
 	const { MouseEvent } = app.rootNode.ownerDocument.defaultView;
 	for (const type of ["pointerdown", "pointerup"]) {
 		bg.dispatchEvent(
-			new MouseEvent(type, { bubbles: true, clientX: 600, clientY: 900, button: 0 }),
+			new MouseEvent(type, { bubbles: true, clientX: 1300, clientY: 1400, button: 0 }),
 		);
 	}
 	const hole = () => [...app.rootNode.querySelectorAll("foreignObject")].at(-1);
@@ -388,50 +436,83 @@ test("canvas demo, llm bundle: the parts of a request, and holes that become the
 	await checkClean(app);
 });
 
-test("canvas demo, http bundle: a request, its response, the operation and the exchange", async () => {
+test("canvas demo, http bundle: a GET that checks out, a POST that doesn't and the contract", async () => {
 	const app = mount(startCanvas, "http");
 	const kinds = () => app.state().order.map((key) => specOf(app.state().items[key].content).name);
-	assert.deepEqual(kinds(), ["HttpRequest", "HttpResponse", "ApiOperation", "HttpExchange"]);
-	assert.equal(app.state().items["item-4"].label, "🔁 HTTP exchange");
-	assert.equal(app.state().items["item-4"].content.failures, 0, "the example checks out");
+	assert.deepEqual(kinds(), [
+		"HttpRequest",
+		"HttpResponse",
+		"HttpExchange",
+		"ApiOperation",
+		"JsonSchemaEditor",
+		"HttpExchange",
+		"HttpExchange",
+	]);
+	const failures = (key) => app.state().items[key].content.failures;
+	assert.equal(app.state().items["item-3"].label, "✅ Reading a task: it checks out");
+	assert.equal(failures("item-3"), 0, "the GET checks out");
+	assert.ok(failures("item-6") >= 5, "the buggy POST doesn't");
+	assert.equal(failures("item-7"), 0, "the fixed one does");
 	assert.ok(app.$(".http-exchange .http-ok"));
-	assert.equal(app.$(".http-exchange .http-fail"), null);
+	assert.ok(app.$(".http-exchange .http-fail"));
 	await checkClean(app);
 });
 
-test("canvas demo, music bundle: the circle, the chords, the intervals and a piano", async () => {
+test("canvas demo, music bundle: a song in G, its key, scale, chords, solo and key change", async () => {
 	const app = mount(startCanvas, "music");
 	const kinds = () => app.state().order.map((key) => specOf(app.state().items[key].content).name);
 	assert.deepEqual(kinds(), [
 		"CircleOfFifths",
-		"ChordExplorer",
-		"IntervalPicker",
-		"Piano",
-		"OffsetExplorer",
-		"GuitarNeck",
 		"ScaleExplorer",
+		"ScaleExplorer",
+		"ChordExplorer",
+		"ChordExplorer",
+		"ChordExplorer",
+		"ChordExplorer",
+		"OffsetExplorer",
+		"Markdown",
 	]);
-	assert.equal(app.state().items["item-1"].label, "⭕ Circle of fifths");
-	const chords = () => app.state().items["item-2"].content;
-	assert.deepEqual(chords().piano.labels, ["E♭", "G", "B♭", "D"]);
-	app.fire("click", app.rootNode.querySelectorAll('.music-chords [aria-label="Root"] > button')[0]);
-	assert.deepEqual(chords().piano.labels, ["C", "E", "G", "B"]);
-	// The offset explorer marks its pick and where the offset moves it, on either instrument.
-	const offset = () => app.state().items["item-5"].content;
-	app.fire("click", app.rootNode.querySelectorAll('.music-offset [aria-label="Root"] > button')[0]);
-	assert.deepEqual(offset().piano.labels, ["C", "E", "G", "B", "D", "F♯"]);
-	app.fire("click", app.$('.music-offset [aria-label="Instrument"] > button:nth-of-type(2)'));
-	assert.ok(app.$(".music-offset .guitar-neck"));
-	// The scale explorer marks its scale on the piano and the guitar, the root in amber.
-	const scales = () => app.state().items["item-7"].content;
-	app.fire("click", app.rootNode.querySelectorAll('.music-scales [aria-label="Root"] > button')[9]);
-	app.fire("change", app.$('.music-scales [aria-label="Scale"]'), "minor");
-	assert.deepEqual(scales().piano.labels, ["A", "B", "C", "D", "E", "F", "G", "A"]);
-	assert.deepEqual(scales().guitar.marked, [9, 11, 0, 2, 4, 5, 7]);
-	assert.equal(app.$(".music-scales .guitar-neck"), null, "the piano first");
-	app.fire("click", app.$('.music-scales [aria-label="Instrument"] > button:nth-of-type(2)'));
-	assert.ok(app.$(".music-scales .guitar-neck"));
-	assert.equal(app.$(".music-scales .piano-keys"), null, "then the guitar alone");
+	const content = (key) => app.state().items[key].content;
+	const card = (key) =>
+		app.rootNode.querySelectorAll("foreignObject")[app.state().order.indexOf(key)];
+	assert.equal(app.state().items["item-1"].label, "⭕ The key: G major");
+	assert.equal(content("item-1").selected, 1, "G on the circle");
+	// The progression, I – V – vi – IV.
+	assert.deepEqual(
+		["item-4", "item-5", "item-6", "item-7"].map((key) => content(key).piano.labels),
+		[
+			["G", "B", "D"],
+			["D", "F♯", "A"],
+			["E", "G", "B"],
+			["C", "E", "G"],
+		],
+	);
+	app.fire(
+		"click",
+		card("item-4").querySelectorAll('.music-chords [aria-label="Root"] > button')[0],
+	);
+	assert.deepEqual(content("item-4").piano.labels, ["C", "E", "G"]);
+	// The key change marks G major and where a whole step moves it, on either instrument.
+	assert.deepEqual(content("item-8").piano.labels, ["G", "B", "D", "A", "C♯", "E"]);
+	app.fire("click", card("item-8").querySelectorAll('[aria-label="Root"] > button')[0]);
+	assert.deepEqual(content("item-8").piano.labels, ["C", "E", "G", "D", "F♯", "A"]);
+	app.fire(
+		"click",
+		card("item-8").querySelector('[aria-label="Instrument"] > button:nth-of-type(2)'),
+	);
+	assert.ok(card("item-8").querySelector(".guitar-neck"));
+	// The scale on the piano, the root in amber; the solo's pentatonic on the guitar.
+	assert.deepEqual(content("item-3").guitar.marked, [7, 9, 11, 2, 4]);
+	assert.ok(card("item-3").querySelector(".guitar-neck"), "the solo starts on the guitar");
+	const scale = () => card("item-2");
+	app.fire("click", scale().querySelectorAll('[aria-label="Root"] > button')[9]);
+	app.fire("change", scale().querySelector('[aria-label="Scale"]'), "minor");
+	assert.deepEqual(content("item-2").piano.labels, ["A", "B", "C", "D", "E", "F", "G", "A"]);
+	assert.deepEqual(content("item-2").guitar.marked, [9, 11, 0, 2, 4, 5, 7]);
+	assert.equal(scale().querySelector(".guitar-neck"), null, "the piano first");
+	app.fire("click", scale().querySelector('[aria-label="Instrument"] > button:nth-of-type(2)'));
+	assert.ok(scale().querySelector(".guitar-neck"));
+	assert.equal(scale().querySelector(".piano-keys"), null, "then the guitar alone");
 	await checkClean(app);
 });
 
@@ -734,7 +815,7 @@ test("canvas demo, agent bundle: with a model, a board's item wraps it in an age
 	assert.equal(specOf(item().content.target).name, "Board");
 	assert.ok(item().width > width, "wider, for the chat");
 	assert.equal(app.$('[title="Drive another component"]'), null, "the item ejects it instead");
-	// The notes beside it can still have one.
+	// The release notes beside it can still have one.
 	assert.equal(app.rootNode.querySelectorAll('[title="Wrap in an agent"]').length, 1);
 	// The echo model runs the tool a prompt names, on the board in the agent.
 	app.fire(
@@ -745,14 +826,14 @@ test("canvas demo, agent bundle: with a model, a board's item wraps it in an age
 	app.fire("submit", app.$(".canvas-card form.agent-prompt"));
 	assert.deepEqual(
 		item().content.target.columns[2].cards.map((c) => c.id),
-		["c00"],
+		["c00", "c20", "c21"],
 	);
 	// Ejected, the board is back in the item as the agent left it, as wide as it was.
 	app.fire("click", app.$('[title="Eject it from the agent"]'));
 	assert.equal(specOf(item().content).name, "Board");
 	assert.deepEqual(
 		item().content.columns[2].cards.map((c) => c.id),
-		["c00"],
+		["c00", "c20", "c21"],
 	);
 	assert.equal(item().width, width);
 	await checkClean(app);
@@ -795,12 +876,19 @@ test("a bare demo page boots without the time travel bar", async () => {
 test("canvas demo: an item whose chrome is pressed comes to the front", async () => {
 	const app = mount(startCanvas, "http");
 	const order = () => app.state().order;
-	assert.equal(order().at(-1), "item-4");
+	assert.equal(order().at(-1), "item-7");
 	const first = app.rootNode.querySelectorAll("foreignObject")[0];
 	// Its title, in its header: a press there doesn't pick it up, but brings it forward.
 	app.fire("pointerdown", first.querySelector('[aria-label="Title"]'));
 	assert.equal(order().at(-1), "item-1");
-	assert.deepEqual(order().slice(0, -1), ["item-2", "item-3", "item-4"]);
+	assert.deepEqual(order().slice(0, -1), [
+		"item-2",
+		"item-3",
+		"item-4",
+		"item-5",
+		"item-6",
+		"item-7",
+	]);
 	// The card around another one's content.
 	const second = [...app.rootNode.querySelectorAll("foreignObject")][0];
 	app.fire("pointerdown", second.querySelector(".canvas-card"));

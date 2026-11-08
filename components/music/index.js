@@ -859,11 +859,14 @@ export const intervalPicker = (C, { root = 3, octave = 4, intervals = ["m3", "P5
 	marked(C, C.IntervalPicker, { root, octave, intervals }, intervalNotes);
 export const chordExplorer = (C, { root = 3, kind = "maj7", octave = 4, inversion = 0 } = {}) =>
 	marked(C, C.ChordExplorer, { root, kind, octave, inversion }, chordOf);
-export const scaleExplorer = (C, { root = 3, kind = "major", octave = 4 } = {}) => {
+export const scaleExplorer = (
+	C,
+	{ root = 3, kind = "major", octave = 4, instrument = "piano" } = {},
+) => {
 	const fields = { root, kind, octave };
 	return C.ScaleExplorer({
 		...fields,
-		instrument: "piano",
+		instrument,
 		...onBoth(
 			{
 				piano: piano(C, { startOctave: octave, octaves: 2, locked: true }),

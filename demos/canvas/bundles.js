@@ -1,13 +1,14 @@
 // The bundles the canvas demo can load, by ?bundle= (and ?agent, any of them in an agent: see
-// withAgent): each is the components it registers, the
-// meta schemas it checks them against, the ask handlers that tell its holes what they can
-// become and make it, and the canvas it starts with. default is the notebook's components; llm
-// the parts of an LLM request and response; http an HTTP exchange and the OpenAPI operation it
-// follows; music the circle of fifths, intervals, chords, scales and a piano.
+// withAgent): each is the components it registers, the meta schemas it checks them against,
+// the ask handlers that tell its holes what they can become and make it, and the canvas it
+// starts with, a use case worked through with its components (scenes.js). default is the
+// notebook's components, planning a garden; llm the parts of an LLM request and response, a
+// weather agent's turn; http an HTTP exchange and the OpenAPI operation it follows, a tasks
+// API; music the circle of fifths, chords, scales, a piano and a guitar, a song in G; agent a
+// release board and its notes, with the canvas's agent beside them.
 
 import {
 	COMPOSITION_KINDS,
-	canvas,
 	canvasAskHandlers,
 	canvasComponents,
 	canvasKitComponents,
@@ -19,7 +20,8 @@ import { HTTP_KINDS, httpComponents } from "../../components/http/index.js";
 import { kanbanComponents } from "../../components/kanban/index.js";
 import { LLM_KINDS, llmComponents } from "../../components/llm/index.js";
 import { MUSIC_KINDS, musicComponents } from "../../components/music/index.js";
-import { agentMetaSchemas, withSample } from "../../src/tutuca.js";
+import { agentMetaSchemas } from "../../src/tutuca.js";
+import { gardenScene, httpScene, llmScene, musicScene, releaseScene } from "./scenes.js";
 
 // What the agent bundle's holes can become: the notebook's, and a board, which an agent can
 // drive as it can most of the notebook's.
@@ -33,89 +35,41 @@ export const BUNDLES = {
 		components: canvasComponents,
 		askHandlers: canvasAskHandlers,
 		metaSchemas: canvasMetaSchemas,
-		make: (C) =>
-			canvas(
-				C,
-				[
-					[48, 48, "notes"],
-					[420, 120, C.Hole(), "Empty", 240],
-				],
-				{},
-				COMPOSITION_KINDS,
-			),
+		make: (C) => gardenScene(C),
 	},
-	// A request with a tool, the call the model makes, its result and the answer, and the same
-	// answer as a structured output, to explain inference with.
+	// One turn of a weather agent: the two requests it takes and their responses, the tool run
+	// between them, the turn as a transcript and the answer as a structured output.
 	llm: {
 		title: "LLM inference",
 		components: { ...llmComponents, ...canvasKitComponents },
 		askHandlers: kindHandlers(LLM_KINDS),
 		metaSchemas: canvasMetaSchemas,
-		make: (C) =>
-			canvas(
-				C,
-				[
-					[48, 40, "system"],
-					[48, 240, "user"],
-					[48, 400, "toolCall"],
-					[48, 600, "toolResult"],
-					[48, 800, "assistant"],
-					[540, 40, "toolDefinition"],
-					[1060, 40, "structuredOutput"],
-				],
-				{ width: 1800, height: 1200 },
-				LLM_KINDS,
-			),
+		make: (C) => llmScene(C),
 	},
-	// A web page reading a task from an API: the request, its response and the operation they
-	// follow, apart, and the exchange that checks them against it, to explain HTTP with.
+	// A tasks API: a GET and its response, its exchange checked against the operation, a buggy
+	// POST the checks catch and the fixed one, and the contract they're checked against.
 	http: {
 		title: "HTTP & OpenAPI",
 		components: { ...httpComponents, ...canvasKitComponents },
 		askHandlers: kindHandlers(HTTP_KINDS),
 		metaSchemas: canvasMetaSchemas,
-		make: (C) =>
-			canvas(
-				C,
-				[
-					[48, 40, "request"],
-					[48, 560, "response"],
-					[580, 40, "operation"],
-					[1150, 40, "exchange"],
-				],
-				{ width: 1800, height: 1400 },
-				HTTP_KINDS,
-			),
+		make: (C) => httpScene(C),
 	},
-	// The circle of fifths, an interval picker, a chord explorer, a piano and a guitar's neck to
-	// mark notes on, an explorer of a note or chord moved by an interval offset and a scale
-	// explorer that shows a scale on both.
+	// A song in G major: the key on the circle of fifths, its scale, the I–V–vi–IV chords, the
+	// pentatonic to solo over on a guitar and the last chorus up a whole step.
 	music: {
 		title: "Music theory",
 		components: { ...musicComponents, ...canvasKitComponents },
 		askHandlers: kindHandlers(MUSIC_KINDS),
 		metaSchemas: canvasMetaSchemas,
-		make: (C) =>
-			canvas(
-				C,
-				[
-					[48, 40, "circle"],
-					[500, 40, "chords"],
-					[1080, 40, "intervals"],
-					[500, 620, "piano"],
-					[48, 900, "offsetExplorer"],
-					[700, 900, "guitar"],
-					[700, 1240, "scales"],
-				],
-				{ width: 1700, height: 2000 },
-				MUSIC_KINDS,
-			),
+		make: (C) => musicScene(C),
 	},
 };
 
-// A board and a markdown document for notes, which say agent meta: with a model to ask, an
-// item's 🤖 wraps it in an agent that drives it, and ⏏ ejects it again. Beside the canvas, its
-// own agent adds components, gives them agents, prompts those and ejects them.
+// A release run with agents: a board and its release notes in markdown, which say agent meta:
+// with a model to ask, an item's 🤖 wraps it in an agent that drives it, and ⏏ ejects it
+// again. Beside the canvas, its own agent adds components, gives them agents, prompts those and
+// ejects them.
 BUNDLES.agent = {
 	title: "Agent",
 	components: { ...llmComponents, ...kanbanComponents, ...canvasComponents },
@@ -123,16 +77,7 @@ BUNDLES.agent = {
 	metaSchemas: { ...canvasMetaSchemas, ...agentMetaSchemas },
 	// With the canvas's own agent beside it, as ?agent gives any bundle.
 	agent: true,
-	make: (C) =>
-		canvas(
-			C,
-			[
-				[48, 40, withSample(C.Board({}), "week"), "🗂️ Kanban board", 720],
-				[800, 40, withSample(C.Markdown({}), "notes"), "📄 Notes", 420],
-			],
-			{ width: 1600, height: 1000 },
-			AGENT_KINDS,
-		),
+	make: (C) => releaseScene(C),
 };
 
 // bundle with its canvas in an agent of its own, beside it, which adds components, gives them

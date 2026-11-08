@@ -7,15 +7,21 @@ import { specOf } from "../../src/tutuca.js";
 import { boot, browserHandlers } from "../boot.js";
 import { BUNDLES, bundleFrom, bundleOf } from "./bundles.js";
 
-// id, the bundle as ?bundle= names it, handlers, ask handlers over the page's, and agent, as
-// ?agent is, are for tests: a model or none, without a server.
+// id, the bundle as ?bundle= names it (or a bundle, with the id of the one it stands for),
+// handlers, ask handlers over the page's, and agent, as ?agent is, are for tests: a model or
+// none, without a server.
 export const start = (
 	document = globalThis.document,
 	id = undefined,
 	handlers = {},
 	agent = false,
 ) => {
-	const bundle = id === undefined ? bundleOf(document.defaultView) : bundleFrom(id, agent);
+	const bundle =
+		typeof id === "object"
+			? id
+			: id === undefined
+				? bundleOf(document.defaultView)
+				: bundleFrom(id, agent);
 	addBundleSwitcher(document, bundle);
 	const host = boot({
 		document,
