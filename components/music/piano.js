@@ -13,6 +13,7 @@ import {
 	tag,
 } from "../../src/tutuca.js";
 import { labeled, metaFor, numberInput, setNumber } from "../common/card.js";
+import { NOTE } from "../common/util.js";
 import { isBlack, midiName, midiOf, SHARP_NAMES } from "./theory.js";
 import {
 	agentMarkMessages,
@@ -21,7 +22,6 @@ import {
 	COLORS,
 	markFields,
 	markMessage,
-	NOTE,
 	paintFields,
 	paintMessages,
 	paintQueries,

@@ -3,13 +3,13 @@
 // canvas handles them all alike.
 
 import { component, field, t, tag } from "../../src/tutuca.js";
+import { mix } from "../common/util.js";
 import {
 	coord,
 	cornerFields,
 	cornerMethods,
 	cornerOn,
 	cornerQueries,
-	mix,
 	paint,
 	pointer,
 	pointerEvents,

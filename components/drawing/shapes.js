@@ -2,6 +2,7 @@
 // and how a pointer draws them.
 
 import { component, field, send, t, tag } from "../../src/tutuca.js";
+import { clamp, mix } from "../common/util.js";
 
 const { ellipse, line, polyline, rect } = tag;
 
@@ -33,7 +34,6 @@ export const paintType = (fallback) =>
 		.arb((fc) => fc.constantFrom("none", ...PALETTE));
 export const COORD_MAX = 10000;
 export const coord = () => t.number().min(-COORD_MAX).max(COORD_MAX);
-const clamp = (v, lo, hi) => Math.min(Math.max(v, lo), hi);
 const fit = (v) => clamp(v, -COORD_MAX, COORD_MAX);
 // The part of a move that keeps the whole shape within range, so it stops at the edge unchanged.
 const moveInRange = (shape, dx, dy) => [
@@ -168,12 +168,6 @@ export const cornerOn = {
 		},
 	},
 };
-// Objects merged by descriptor, so getters stay getters: spreading would read them once.
-export const mix = (...objects) =>
-	Object.defineProperties(
-		{},
-		Object.assign({}, ...objects.map((o) => Object.getOwnPropertyDescriptors(o))),
-	);
 export const cornerFields = () => ({ x0: coord(), y0: coord(), x1: coord(), y1: coord() });
 
 export const Rect = component({

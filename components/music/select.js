@@ -13,7 +13,8 @@ import {
 	targetValue,
 } from "../../src/tutuca.js";
 import { cardClass, cardHeader, metaFor } from "../common/card.js";
-import { GuitarNeck, guitarNeck } from "./guitar.js";
+import { NOTE } from "../common/util.js";
+import { guitarNeck } from "./guitar.js";
 import { piano } from "./piano.js";
 import {
 	CHORDS,
@@ -31,7 +32,6 @@ import {
 	instrumentQueries,
 	instrumentToggle,
 	instrumentView,
-	NOTE,
 	pair,
 	rootPicker,
 	rootQueries,
@@ -320,8 +320,6 @@ function explorerView() {
 		p({ class: NOTE }, "Edit it to set the piano's octaves or the neck's frets."),
 	);
 }
-
-export const selectComponents = { NoteChordSelector, OffsetSelector, OffsetExplorer, GuitarNeck };
 
 // Each card, made with C: the examples pick an E♭ major seventh, moved a fifth up.
 export const noteChordSelector = (C, { root = 3, kind = "maj7" } = {}) =>

@@ -30,7 +30,7 @@ import {
 import { document } from "../helpers.js";
 
 const start = (specs, make) => {
-	const scope = new Scope(() => {});
+	const scope = new Scope();
 	scope.register(specs);
 	return new Driver({ root: make(scope.components), document });
 };
@@ -195,7 +195,7 @@ test("Drag.sourceKeyIn is the child of the receiver the drag came from, null fro
 });
 
 test("generated drags keep the state valid and the patched DOM equal to a fresh render", () => {
-	const scope = new Scope(() => {});
+	const scope = new Scope();
 	scope.register({ Planets });
 	const A = arbitraries({ fc, scope });
 	const root = scope.components.Planets({ items: ["a", "b", "c", "d"] });

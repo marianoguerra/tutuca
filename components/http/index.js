@@ -42,6 +42,7 @@ import {
 	titled,
 } from "../common/card.js";
 import { schemaChecked } from "../common/data.js";
+import { NOTE } from "../common/util.js";
 import { jsonRoot } from "../json/index.js";
 import { schemaEditor, schemaEditorComponents } from "../json-schema/editor.js";
 import {
@@ -61,7 +62,6 @@ const { button, div, input, label, li, option, p, pre, select, span, textarea, u
 
 const METHOD_NAMES = Object.keys(METHODS);
 const RAW = "overflow-auto whitespace-pre rounded bg-base-200 p-2 font-mono text-xs";
-const NOTE = "text-xs opacity-80";
 const methodBadge = (name) => span({ class: `${BADGE} badge-primary font-mono` }, field(name));
 const methodSelect = () =>
 	select(

@@ -30,6 +30,7 @@ import {
 	targetValue,
 } from "../../src/tutuca.js";
 import { isoDay } from "../common/calendar.js";
+import { isModKey } from "../common/util.js";
 import { drawingComponents } from "../drawing/index.js";
 import { kanbanComponents } from "../kanban/index.js";
 import { trackerComponents } from "../thing-tracker/index.js";
@@ -335,7 +336,7 @@ export const Cell = component({
 			emits: { notify: ["collapseAll"] },
 			run(next, _args, ctx) {
 				const collapsed = !this.collapsed;
-				if (ctx.event?.ctrlKey || ctx.event?.metaKey) ctx.notify("collapseAll", [collapsed]);
+				if (isModKey(ctx.event)) ctx.notify("collapseAll", [collapsed]);
 				else next.collapsed = collapsed;
 			},
 		},

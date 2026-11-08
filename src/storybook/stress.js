@@ -1,4 +1,5 @@
 // Executes stress batches; the caller owns the timeline and any saved counterexample.
+import { errorMessage } from "../tree/text.js";
 import { stressProperty } from "./stories.js";
 
 // A stress panel before any run, and the shape of a run's progress.
@@ -28,7 +29,7 @@ export async function runStress({
 			return;
 		}
 		runs += 1;
-		const message = String(error?.message ?? error).replace(/\s*\n\s*/g, " ");
+		const message = errorMessage(error).replace(/\s*\n\s*/g, " ");
 		const outcome = error === null ? "ok" : `failed: ${message}`;
 		log.push(`run ${runs}, ${ops.length} ops, ${outcome}`);
 		for (const [i, op] of ops.entries()) log.push(`  ${i + 1}. ${op}`);

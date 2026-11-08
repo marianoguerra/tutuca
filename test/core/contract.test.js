@@ -104,7 +104,7 @@ const List = component({
 	},
 });
 const setup = () => {
-	const scope = new Scope(() => {});
+	const scope = new Scope();
 	scope.registerInterfaces({ TodoItem });
 	const { Card: makeCard, List: makeList } = scope.register({ Card, List });
 	return { scope, makeCard, makeList };
@@ -218,7 +218,7 @@ test("views read get queries as fields and call queries with args", () => {
 });
 
 test("interfaces are resolved in the scope a component is registered in", () => {
-	const bare = new Scope(() => {});
+	const bare = new Scope();
 	assert.throws(() => bare.register({ Card }), /TodoItem, which isn't an interface here/);
 	const { scope, makeCard } = setup();
 	const inner = scope.enter("inner");
@@ -238,7 +238,7 @@ test("an Interface instance in implements needs no registration", () => {
 		implements: [Counter],
 		fields: { count: t.number(0).public() },
 	});
-	const scope = new Scope(() => {});
+	const scope = new Scope();
 	const { C: makeC } = scope.register({ C });
 	assert.equal(implementsIface(makeC(), Counter), true);
 	assert.equal(t.component(Counter).isValid(makeC(), scope), true);
@@ -247,14 +247,14 @@ test("an Interface instance in implements needs no registration", () => {
 });
 
 test("a component registered under an interface's name must implement it", () => {
-	const scope = new Scope(() => {});
+	const scope = new Scope();
 	scope.registerInterfaces({ TodoItem });
 	const Plain = component({ name: "Plain", fields: {} });
 	assert.throws(() => scope.register({ TodoItem: Plain }), /can't be registered as TodoItem/);
 });
 
 test("an interface registered after a component is checked as it is made", () => {
-	const scope = new Scope(() => {});
+	const scope = new Scope();
 	const Plain = component({ name: "Plain", implements: ["Later"], fields: {} });
 	assert.throws(() => scope.register({ Plain }));
 	const Loose = component({ name: "Loose", fields: {} });

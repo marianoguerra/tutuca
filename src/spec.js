@@ -5,8 +5,6 @@
 
 export const specSym = Symbol("TutucaSpec");
 export const scopeSym = Symbol("TutucaScope");
-// An instance's identity is the tree's (tree/identity.js).
-export { idOf, idSym } from "./tree/identity.js";
 export const specOf = (v) => v?.[specSym];
 // Whether fn returns truthy without throwing.
 export function holds(fn) {
@@ -199,14 +197,14 @@ export const implementsIface = (value, iface) => {
 // which the components registered there are checked and from which metaOf fills defaults.
 const emptyMeta = Object.freeze(Object.create(null));
 const noMeta = Object.freeze({});
-const isPlainRecord = (v) => typeof v === "object" && v !== null && !Array.isArray(v);
+export const isRecord = (v) => typeof v === "object" && v !== null && !Array.isArray(v);
 export const toMeta = (name, meta) => {
 	if (meta === undefined) return emptyMeta;
-	if (!isPlainRecord(meta)) throw new Error(`Component ${name}: meta must be an object`);
+	if (!isRecord(meta)) throw new Error(`Component ${name}: meta must be an object`);
 	const out = Object.create(null);
 	for (const uri of Object.keys(meta)) {
 		if (!URL.canParse(uri)) throw new Error(`Component ${name}: meta key ${uri} isn't a URI`);
-		if (!isPlainRecord(meta[uri])) {
+		if (!isRecord(meta[uri])) {
 			throw new Error(`Component ${name}: meta ${uri} must be an object`);
 		}
 		out[uri] = Object.freeze({ ...meta[uri] });

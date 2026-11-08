@@ -10,6 +10,7 @@
 import { apply } from "./contract.js";
 import { t } from "./schema.js";
 import { ContractError, HandlerSpec, metaOf, metaProblems, QuerySpec, specOf } from "./spec.js";
+import { errorMessage } from "./tree/text.js";
 
 export const DATA_META = "https://tutuca.dev/meta/data";
 export const dataMetaSchemas = {
@@ -163,7 +164,7 @@ const typeWords = (type) => {
 // Why calling operation name on c failed, in words a person or a model reads; params name its
 // args, in order.
 export const contractErrorText = (c, error, params = []) => {
-	if (!(error instanceof ContractError)) return String(error?.message ?? error);
+	if (!(error instanceof ContractError)) return errorMessage(error);
 	const op = error.operation;
 	const spec = specOf(c);
 	const words = error.issues.map((issue) => {

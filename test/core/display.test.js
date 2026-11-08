@@ -19,7 +19,7 @@ const Bare = component({ name: "Bare" });
 const Titled = component({ name: "Titled", meta: { [DISPLAY_META]: { title: "Titled" } } });
 
 test("displayOf reads what a component declares, filled with nulls where the schema is", () => {
-	const scope = new Scope(() => {});
+	const scope = new Scope();
 	scope.registerMetaSchemas(displayMetaSchemas);
 	scope.register({ Notes, Bare, Titled });
 	assert.deepEqual(
@@ -49,7 +49,7 @@ test("displayLabel is the icon and the title, or null without a title", () => {
 });
 
 test("a scope with the schema rejects display meta of the wrong shape", () => {
-	const scope = new Scope(() => {});
+	const scope = new Scope();
 	scope.registerMetaSchemas(displayMetaSchemas);
 	const Wrong = component({ name: "Wrong", meta: { [DISPLAY_META]: { icon: 5 } } });
 	assert.throws(() => scope.register({ Wrong }), /icon/);

@@ -33,6 +33,7 @@ const RENDER_KINDS = new Set([
 ]);
 const LOOP_HOOKS = ["prepare", "filter", "iter", "key", "enrich"];
 const EMIT_KINDS = new Set(["notify", "ask", "sendAt"]);
+const isTypeList = (a) => Array.isArray(a) && a.every((t) => t instanceof Type);
 // Per event arg: the prefix of its lint codes and where it can be used beyond send args.
 const EVENT_ARG_RULES = {
 	targetValue: { code: "target" },
@@ -237,9 +238,7 @@ export class Lint extends Walker {
 		if (!(message instanceof HandlerSpec)) return bad(" must be a function or a handler spec");
 		const { run, args, sourceKey, pre, post, emits } = message;
 		if (typeof run !== "function") bad(".run must be a function");
-		if (args !== undefined && !(Array.isArray(args) && args.every((a) => a instanceof Type))) {
-			bad(".args must be an array of types");
-		}
+		if (args !== undefined && !isTypeList(args)) bad(".args must be an array of types");
 		if (sourceKey !== undefined && !(sourceKey instanceof Type)) bad(".sourceKey must be a type");
 		for (const [hook, fn] of [
 			["pre", pre],
@@ -274,10 +273,8 @@ export class Lint extends Walker {
 				bad(" must be a getter, a function, { get, returns } or { run, args, returns }");
 				continue;
 			}
-			if (q.kind === "call" && q.args !== undefined) {
-				if (!(Array.isArray(q.args) && q.args.every((a) => a instanceof Type))) {
-					bad(".args must be an array of types");
-				}
+			if (q.kind === "call" && q.args !== undefined && !isTypeList(q.args)) {
+				bad(".args must be an array of types");
 			}
 			if (q.returns !== undefined && !(q.returns instanceof Type)) bad(".returns must be a type");
 			if (q.fn === null) continue;

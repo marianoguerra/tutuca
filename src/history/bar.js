@@ -145,7 +145,7 @@ export const mountTimeTravel = ({ document, rootNode, host, max = 1000 }) => {
 	const show = (timeline) => bar.send("show", showArgs(timeline));
 	const engine = historyEngine({ max, onChange: show });
 	bar.scope.registerAskHandlers({
-		history: ([_target, op, arg]) => (op === "goto" ? engine.travel(arg) : engine[op]()),
+		history: ([_target, op, arg]) => engine[op](arg),
 	});
 	bar.start(bar.scope.components.TimeTravel());
 	host.attachSync(engine);

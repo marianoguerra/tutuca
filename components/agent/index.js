@@ -43,6 +43,7 @@ import {
 	toolsFor,
 } from "../../src/tutuca.js";
 import { BECOME_ARGS, CANVAS_META } from "../canvas/layout.js";
+import { isModKey } from "../common/util.js";
 
 const { button, div, form, header, label, option, p, select, span, textarea } = tag;
 
@@ -479,7 +480,7 @@ export const Agent = component({
 			args: [],
 			run(next, _args, ctx) {
 				const e = ctx.event;
-				if (e?.key !== "Enter" || !(e.ctrlKey || e.metaKey)) return;
+				if (e?.key !== "Enter" || !isModKey(e)) return;
 				e.preventDefault();
 				sendDraft(this, next, ctx);
 			},

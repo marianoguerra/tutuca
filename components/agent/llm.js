@@ -2,8 +2,8 @@
 // in pi-ai's shapes, a request one inference step with everything it needs: { model:
 // "provider/id", systemPrompt, tools, transcript }; the answer is the message to append.
 // httpClient asks the studio server's stateless POST /api/infer (tutuca-wax/scripts/
-// studio-server.mjs); scriptedClient replays turns, for tests; echoStep is a model without a
-// model, for a demo without keys: it runs the tool the user names, synchronously.
+// studio-server.mjs); echoStep is a model without a model, for a demo without keys: it runs
+// the tool the user names, synchronously.
 
 const post = async (url, body, signal) => {
 	const res = await fetch(url, {
@@ -51,21 +51,6 @@ export const assistantMessage = (blocks, model = "scripted/script") => {
 		provider,
 		model: id,
 		stopReason: content.some((b) => b.type === "toolCall") ? "toolUse" : "stop",
-	};
-};
-
-// Replays turns, each an assistant message, its blocks, or a function of the request giving
-// either; then says the script is over.
-export const scriptedClient = (turns) => {
-	let i = 0;
-	return {
-		requests: [],
-		complete(request) {
-			this.requests.push(request);
-			let turn = turns[i++] ?? ["(the script is over)"];
-			if (typeof turn === "function") turn = turn(request);
-			return Promise.resolve(Array.isArray(turn) ? assistantMessage(turn) : turn);
-		},
 	};
 };
 

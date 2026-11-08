@@ -25,6 +25,7 @@ import {
 	tag,
 	targetValue,
 } from "../../src/tutuca.js";
+import { isModKey } from "../common/util.js";
 
 const { div, input, option, pre, select, span } = tag;
 
@@ -263,7 +264,7 @@ export const Hole = component({
 				if (ctx.drag?.type !== "node") return;
 				const from = ctx.drag.path.toComponentPath().toKeyPath().keys;
 				const to = ctx.path.toKeyPath().keys;
-				const copy = Boolean(ctx.event?.ctrlKey || ctx.event?.metaKey);
+				const copy = isModKey(ctx.event);
 				ctx.notify("placeNode", [from, to, copy]);
 			},
 		},
@@ -831,7 +832,7 @@ export const Program = component({
 			args: [t.index("statements")],
 			post: (prev, next) => next.statements.length === prev.statements.length + 1,
 			run(next, [key], ctx) {
-				const before = ctx.event?.ctrlKey || ctx.event?.metaKey;
+				const before = isModKey(ctx.event);
 				next.statements.splice(before ? key : key + 1, 0, this.newStatement(ctx.scope));
 			},
 		},

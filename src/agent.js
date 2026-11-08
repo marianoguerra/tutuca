@@ -40,8 +40,6 @@ import {
 } from "./spec.js";
 import { SCOPE_OUTCOMES } from "./tree/index.js";
 
-export { typeSchema };
-
 export const AGENT_META = "https://tutuca.dev/meta/agent";
 const toolType = t.record({
 	name: t.string(), // The tool's name, as the model calls it.

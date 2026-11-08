@@ -22,7 +22,6 @@ export {
 	toolCallsOf,
 	toolResultMessage,
 	toolsFor,
-	typeSchema,
 } from "./agent.js";
 export { ComponentSpec, component } from "./component.js";
 export { apply, canApply, canQuery, contractOf, query, supports } from "./contract.js";
@@ -38,6 +37,7 @@ export {
 	JSON_FILE,
 	loadData,
 	sampleChoices,
+	typeSchema,
 	withSample,
 } from "./data.js";
 export { DISPLAY_META, displayLabel, displayMetaSchemas, displayOf } from "./display.js";
@@ -52,8 +52,6 @@ export {
 	findInvalidFields,
 	HandlerSpec,
 	Interface,
-	idOf,
-	idSym,
 	iface,
 	implementsIface,
 	interfaceProblems,
@@ -80,8 +78,11 @@ export {
 	AskTask,
 	copy,
 	DispatchPath,
+	errorMessage,
 	Frame,
 	HOST,
+	idOf,
+	idSym,
 	KeyPath,
 	MessageContext,
 	NotifyTask,

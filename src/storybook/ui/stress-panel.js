@@ -4,6 +4,7 @@ import {
 	$if,
 	component,
 	each,
+	errorMessage,
 	field,
 	lookupBind,
 	send,
@@ -216,7 +217,7 @@ export const StressPanel = component({
 			},
 			error(next, [error]) {
 				Object.assign(next, { ...STRESS_IDLE, status: "unavailable" });
-				next.error = String(error?.message ?? error);
+				next.error = errorMessage(error);
 			},
 			unhandled(next) {
 				next.status = "unavailable";

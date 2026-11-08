@@ -47,7 +47,7 @@ for (const [id, bundle] of Object.entries(BUNDLES)) {
 		for (const spec of specs) assert.deepEqual(agentProblems(spec), [], spec.name);
 		const issues = lint(specs).filter((i) => i.code === "agent-meta");
 		assert.deepEqual(issues, []);
-		const scope = new Scope(() => {});
+		const scope = new Scope();
 		scope.registerMetaSchemas({ ...bundle.metaSchemas, ...agentMetaSchemas });
 		scope.register(bundle.components);
 		let uuids = 0;

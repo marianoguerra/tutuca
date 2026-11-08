@@ -11,7 +11,7 @@ import {
 	messageCommands,
 	runCommands,
 } from "../test/pbt.js";
-import { DispatchPath, Scope, selectorFrom, specOf } from "../tutuca.js";
+import { DispatchPath, errorMessage, Scope, selectorFrom, specOf } from "../tutuca.js";
 
 // Steps of a sequence, as plain data. at and from are selector functions relative to
 // the story root, as in ctx.sendAt; from is the child the message comes through.
@@ -76,7 +76,7 @@ export const stories = ({ title, components, askHandlers = {}, overrides = {}, s
 // A story's scope, arbitraries and initial state; seed picks the state of arbitrary stories.
 export const prepareStory = (story, { fc, seed = 0 }) => {
 	const { components, askHandlers, overrides } = story.book;
-	const scope = new Scope(() => {});
+	const scope = new Scope();
 	scope.register(components);
 	scope.registerAskHandlers(askHandlers);
 	const A = arbitraries({ fc, scope, overrides });
@@ -143,7 +143,7 @@ export const runStep = (driver, s) => {
 				return done("failed", `unknown step kind ${s.kind}`);
 		}
 	} catch (error) {
-		return done("failed", String(error?.message ?? error));
+		return done("failed", errorMessage(error));
 	}
 	return done("ok");
 };

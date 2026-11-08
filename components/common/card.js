@@ -15,6 +15,7 @@ import {
 	targetValue,
 } from "../../src/tutuca.js";
 import { CANVAS_META } from "../canvas/layout.js";
+import { isModKey } from "../common/util.js";
 
 const { button, div, h3, header, input, label, section, span } = tag;
 
@@ -149,7 +150,7 @@ export const sectionMessages = (names, below = []) => ({
 		run(next, [name], ctx) {
 			const e = ctx.event;
 			const open = this.closed.includes(name);
-			if (e?.ctrlKey || e?.metaKey) {
+			if (isModKey(e)) {
 				next.closed = open ? [] : [...names];
 				if (e.altKey) openBelow(next, below, open);
 			} else next.closed = open ? this.closed.filter((n) => n !== name) : [...this.closed, name];

@@ -99,7 +99,7 @@ test("the engine records labelled entries and travels by applying a past state",
 			["user", "click → inc()", 2],
 		],
 	);
-	engine.travel(0);
+	engine.goto(0);
 	assert.equal(host.root.count, 0);
 	assert.equal(rootNode.querySelector("button").textContent, "0");
 	assert.equal(timeline.cursor, 0);

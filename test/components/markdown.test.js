@@ -154,7 +154,7 @@ test("a drop carries the first file of the format, or says none is of it", () =>
 
 test("every bundle's holes can become markdown, a builtin like the layouts", () => {
 	for (const [id, bundle] of Object.entries(BUNDLES)) {
-		const scope = new Scope(() => {});
+		const scope = new Scope();
 		scope.registerMetaSchemas(bundle.metaSchemas);
 		scope.register(bundle.components);
 		const read = { scope, now: () => 0, uuid: () => "u" };

@@ -6,7 +6,7 @@ import { fromJson, jsonComponents } from "../json/index.js";
 import { todoComponents } from "../todo/index.js";
 
 // Values to inspect, made in a scope of their own like an app's.
-const app = new Scope(() => {});
+const app = new Scope();
 app.register(jsonComponents);
 const doc = fromJson(app.components, [[1, true], "two"]);
 const path = new DispatchPath([new Frame(["items"], 1, null, true)]);

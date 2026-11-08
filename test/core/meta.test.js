@@ -32,14 +32,14 @@ test("meta keys must be URIs and their values objects", () => {
 });
 
 test("without a schema metaOf gives what the component says", () => {
-	const scope = new Scope(() => {});
+	const scope = new Scope();
 	const { Card: make } = scope.register({ Card });
 	assert.deepEqual(metaOf(make(), CANVAS), { title: "Card", width: 320 });
 	assert.deepEqual(metaOf(Card, "urn:example:none"), {});
 });
 
 test("with a schema metaOf fills its defaults, for components that say nothing too", () => {
-	const scope = new Scope(() => {});
+	const scope = new Scope();
 	scope.registerMetaSchemas({ [CANVAS]: shape });
 	const { Card: make, Bare } = scope.register({ Card, Bare: component({ name: "Bare" }) });
 	assert.deepEqual(metaOf(make(), CANVAS), { title: "Card", width: 320, transparent: false });
@@ -49,20 +49,20 @@ test("with a schema metaOf fills its defaults, for components that say nothing t
 });
 
 test("a component whose meta breaks a schema can't be registered", () => {
-	const scope = new Scope(() => {});
+	const scope = new Scope();
 	scope.registerMetaSchemas({ [CANVAS]: shape });
 	const Bad = component({ name: "Bad", meta: { [CANVAS]: { width: -1, color: "red" } } });
 	assert.throws(
 		() => scope.register({ Bad }),
 		/meta https:\/\/example.com\/meta\/canvas has no key color.*width isn't/,
 	);
-	const required = new Scope(() => {});
+	const required = new Scope();
 	required.registerMetaSchemas({ [OTHER]: { needed: t.string().len(1) } });
 	assert.throws(() => required.register({ Card }), /lacks needed, which has no default/);
 });
 
 test("schemas are resolved in the component's scope, and checked as it's made when later", () => {
-	const root = new Scope(() => {});
+	const root = new Scope();
 	const inner = root.enter("inner");
 	const Wide = component({ name: "Wide", meta: { [CANVAS]: { width: 9000 } } });
 	const { Wide: make } = inner.register({ Wide });

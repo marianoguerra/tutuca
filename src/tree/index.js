@@ -2,12 +2,11 @@
 // and the scheduler. It imports nothing from outside this directory; see README.md.
 export { Address, HOST } from "./address.js";
 export { MessageContext } from "./context.js";
-export { copy, idOf, idSym, isNode, mint } from "./identity.js";
+export { copy, idOf, idSym, mint } from "./identity.js";
 export {
 	ANSWER_OUTCOMES,
 	AnswerTask,
 	AskTask,
-	call,
 	hidden,
 	NotifyTask,
 	Task,
@@ -15,4 +14,4 @@ export {
 export { DispatchPath, Frame, KeyPath, Selector, selectorFrom, Target } from "./path.js";
 export { Scheduler } from "./scheduler.js";
 export { SCOPE_OUTCOMES, SettleScope } from "./scope.js";
-export { jsonText, keyText } from "./text.js";
+export { errorMessage, jsonText, keyText } from "./text.js";

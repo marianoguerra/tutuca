@@ -55,7 +55,7 @@ export const startHost = (Comp, args, options) => {
 };
 
 export const scopeWith = (components) => {
-	const scope = new Scope(() => {});
+	const scope = new Scope();
 	scope.register(components);
 	return scope;
 };

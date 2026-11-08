@@ -106,10 +106,6 @@ export class Element extends AstNode {
 		}
 		return new VNode(shape, values, vchilds, keyExpr?.eval(ctx));
 	}
-	childNodes() {
-		const attrs = this.attrs.map(([, v]) => v);
-		return [...attrs, ...this.childs, ...this.handlers.map((h) => h.action)];
-	}
 }
 // Arrays of children splice into the element when the view is built, nested ones too.
 export const h = (tagName, attrs, ...childs) => {

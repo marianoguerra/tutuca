@@ -7,7 +7,7 @@ import { Interface, interfaceProblems, metaProblems, resolveImplements } from ".
 const refSep = "/";
 export class Scope {
 	/** @param {Scope | null} parent */
-	constructor(onRegister, parent = null, name = null) {
+	constructor(onRegister = () => {}, parent = null, name = null) {
 		this.onRegister = onRegister;
 		this.parent = parent;
 		this.name = name;

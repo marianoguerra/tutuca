@@ -19,6 +19,7 @@ import {
 	tag,
 	targetValue,
 } from "../../src/tutuca.js";
+import { isModKey, mix } from "../common/util.js";
 import { indent, nodes, parse } from "./json.js";
 import { columnsOf, previewRows } from "./table.js";
 
@@ -206,7 +207,7 @@ export const JsonView = component({
 				const row = this.treeRows[i];
 				if (row === undefined || row.toggle === " ") return;
 				const folding = !this.collapsed.includes(row.pointer);
-				const all = Boolean(ctx.event?.ctrlKey || ctx.event?.metaKey);
+				const all = isModKey(ctx.event);
 				const parent = row.pointer.slice(0, row.pointer.lastIndexOf("/"));
 				const targets = all
 					? nodes(this.parsed.value, { rootKey: "$" })
@@ -268,13 +269,6 @@ export const jsonViewArgs = (
 });
 
 // --- pagination ------------------------------------------------------------------------------------
-
-// Objects merged into one by descriptor, so getters stay getters (spreading would read them once).
-export const mix = (...objects) =>
-	Object.defineProperties(
-		{},
-		Object.assign({}, ...objects.map((o) => Object.getOwnPropertyDescriptors(o))),
-	);
 
 export const PAGE_SIZES = [5, 10, 25, 50, 100];
 // A pager's names: its fields and getters are prefixed in camelCase ("" → page, "texts" →

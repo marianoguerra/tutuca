@@ -13,11 +13,11 @@ import {
 	tag,
 } from "../../src/tutuca.js";
 import { SMALL_BUTTON } from "../common/card.js";
+import { NOTE } from "../common/util.js";
 import { isNoteName, octaveOf, parseNoteName, ROOTS } from "./theory.js";
 
 const { div, span } = tag;
 
-export const NOTE = "text-xs opacity-80";
 export const between = (lo, hi) => (n) => Number.isInteger(n) && n >= lo && n <= hi;
 
 // The colors marks take: a root, the other notes, the notes an offset moves to, its root, and

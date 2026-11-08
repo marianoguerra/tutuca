@@ -95,7 +95,7 @@ const Counter = component({
 	},
 });
 const scoped = (...specs) => {
-	const scope = new Scope(() => {});
+	const scope = new Scope();
 	scope.registerMetaSchemas({ ...agentMetaSchemas, ...dataMetaSchemas });
 	scope.register(Object.fromEntries(specs.map((s) => [s.name, s])));
 	return scope;

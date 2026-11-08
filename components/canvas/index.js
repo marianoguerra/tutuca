@@ -27,6 +27,7 @@ import {
 	DISPLAY_META,
 	dataOf,
 	each,
+	errorMessage,
 	field,
 	fileFormatOf,
 	hasAgentMeta,
@@ -47,6 +48,7 @@ import {
 } from "../../src/tutuca.js";
 import { agent, agentComponents } from "../agent/index.js";
 import { DROP_TARGET, droppedFile } from "../common/files.js";
+import { clamp, isModKey } from "../common/util.js";
 import { compositionComponents, GROUPS, KINDS, makeContent } from "../composition/index.js";
 import { capture, coord, paintType, svgPoint } from "../drawing/shapes.js";
 import { transcriptComponents } from "../llm/transcript.js";
@@ -420,7 +422,7 @@ export const Item = component({
 			emits: { notify: ["collapseAll"] },
 			run(next, _args, ctx) {
 				const collapsed = !this.collapsed;
-				if (ctx.event?.ctrlKey || ctx.event?.metaKey) ctx.notify("collapseAll", [collapsed]);
+				if (isModKey(ctx.event)) ctx.notify("collapseAll", [collapsed]);
 				else next.collapsed = collapsed;
 			},
 		},
@@ -661,7 +663,6 @@ const pressPoint = (event) => {
 	return point;
 };
 
-const clamp = (v, lo, hi) => Math.min(Math.max(v, lo), hi);
 // How far the pointer may go between press and release for it to be a click.
 const SLOP = 4;
 
@@ -1214,7 +1215,7 @@ export const Canvas = component({
 			},
 			error(next, [error]) {
 				next.placing = null;
-				next.problem = String(error?.message ?? error);
+				next.problem = errorMessage(error);
 			},
 			unhandled(next) {
 				next.placing = null;
@@ -1393,7 +1394,7 @@ export const Canvas = component({
 		// Ctrl+wheel (a pinch on a trackpad) zooms around the pointer; the wheel alone scrolls.
 		wheel(next, _args, ctx) {
 			const e = ctx.event;
-			if (!e || !(e.ctrlKey || e.metaKey)) return;
+			if (!isModKey(e)) return;
 			e.preventDefault();
 			zoomAround(this, next, this.zoom * Math.exp(-e.deltaY * 0.002), e, [e.clientX, e.clientY]);
 		},
@@ -1493,8 +1494,7 @@ export const Canvas = component({
 		},
 		key(next, _args, ctx) {
 			const e = ctx.event;
-			if (!e || e.defaultPrevented || typing(e.target) || e.ctrlKey || e.metaKey || e.altKey)
-				return;
+			if (!e || e.defaultPrevented || typing(e.target) || isModKey(e) || e.altKey) return;
 			const key = e.key?.toLowerCase();
 			if (key === "delete" || key === "backspace") Canvas.on.removeShape.run.call(this, next);
 			else if (key === "escape") {

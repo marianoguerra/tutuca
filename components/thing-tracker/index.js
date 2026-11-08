@@ -9,6 +9,7 @@ import {
 	button,
 	component,
 	each,
+	errorMessage,
 	field,
 	render,
 	scopeOf,
@@ -17,6 +18,7 @@ import {
 	tag,
 	targetValue,
 } from "../../src/tutuca.js";
+import { plural } from "../common/util.js";
 import {
 	eventRecord,
 	ICON_TOGGLE,
@@ -47,7 +49,6 @@ import {
 	measurementHistory,
 	parseEnvelope,
 	planImport,
-	plural,
 	rankThings,
 	slugify,
 	UNGROUPED,
@@ -1237,7 +1238,7 @@ export const TrackerApp = component({
 				toast(next, ctx, "Backup ready", "");
 			},
 			error(next, [error], ctx) {
-				toast(next, ctx, "Export failed", String(error?.message ?? error), { kind: "error" });
+				toast(next, ctx, "Export failed", errorMessage(error), { kind: "error" });
 			},
 			unhandled(next, _args, ctx) {
 				toast(next, ctx, "Export failed", "This page can't save files.", { kind: "error" });
@@ -1248,7 +1249,7 @@ export const TrackerApp = component({
 				openImport(next, ctx, "", String(text));
 			},
 			error(next, [error], ctx) {
-				toast(next, ctx, "Couldn't read that file", String(error?.message ?? error), {
+				toast(next, ctx, "Couldn't read that file", errorMessage(error), {
 					kind: "error",
 				});
 			},

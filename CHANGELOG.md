@@ -151,6 +151,11 @@
     `tutuca-wax/.env`.
   - `--no-inference` serves a demo without it, as does a missing tutuca-wax install.
 
+### Breaking
+
+- **`tutuca/tree` no longer exports `call` or `isNode`**, which only the tree uses.
+- `historyEngine`'s `travel(i)` is `goto(i)`, as on `Timeline` and the bar's ops.
+
 ## 1.0.0-beta.3
 
 Components have a public interface (pure messages, queries and interfaces), the routing core

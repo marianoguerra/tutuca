@@ -24,6 +24,7 @@ import {
 	targetValue,
 } from "../../src/tutuca.js";
 import { dataDrop, jsonDropFields, jsonDropTarget } from "../common/drop.js";
+import { plural } from "../common/util.js";
 
 export const VALUE_NAMES = [
 	"JsonNull",
@@ -369,7 +370,6 @@ const openable = (key) => ({
 		},
 	},
 });
-const count = (n, one, many) => `${n} ${n === 1 ? one : many}`;
 
 export const JsonArray = component({
 	name: "JsonArray",
@@ -384,7 +384,7 @@ export const JsonArray = component({
 			return this.items.length === 0;
 		},
 		get summary() {
-			return count(this.items.length, "item", "items");
+			return plural(this.items.length, "item");
 		},
 	},
 	loops: { items: commas },
@@ -476,7 +476,7 @@ export const JsonObject = component({
 			return this.entries.length === 0;
 		},
 		get summary() {
-			return count(this.entries.length, "key", "keys");
+			return plural(this.entries.length, "key");
 		},
 	},
 	loops: { items: commas },

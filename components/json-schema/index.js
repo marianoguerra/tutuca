@@ -27,6 +27,7 @@ import {
 	tag,
 } from "../../src/tutuca.js";
 import { dataDrop, jsonDropFields, jsonDropTarget } from "../common/drop.js";
+import { isModKey } from "../common/util.js";
 import { VALUE_NAMES } from "../json/index.js";
 import { DEFAULT_PER_PAGE, fromSchema, isSchema } from "./read.js";
 
@@ -129,7 +130,7 @@ const openableMessages = {
 		emits: { notify: ["openSiblings"] },
 		run(next, _args, ctx) {
 			const e = ctx.event;
-			const ctrl = Boolean(e?.ctrlKey || e?.metaKey);
+			const ctrl = isModKey(e);
 			const open = !this.open;
 			if (ctrl && e.altKey) openDeep(next, open);
 			else if (ctrl) ctx.notify("openSiblings", [open]);

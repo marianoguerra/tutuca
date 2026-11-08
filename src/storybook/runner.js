@@ -371,7 +371,7 @@ export const storyAskHandlers = (registryOf) => {
 		story: ([key, op, ...args]) => call(key, op, args),
 		delay: ([ms]) => new Promise((resolve) => setTimeout(resolve, ms)),
 		// The TimeTravel bar's ops, on the timeline of the StoryRunner of app key.
-		history: ([key, op, arg]) => call(key, op, op === "goto" ? [arg] : []),
+		history: ([key, op, arg]) => call(key, op, [arg]),
 	};
 };
 

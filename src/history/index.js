@@ -114,19 +114,20 @@ export class Timeline {
 
 // Records the timeline of the Host it's attached to (host.attachSync(engine)): one entry per
 // user action, its async replies folded in, and one per change from another engine. The
-// first entry is the state before the first change. travel(i) clears the queued tasks and
+// first entry is the state before the first change. goto(i) clears the queued tasks and
 // applies entry i as a change from this engine, so it isn't recorded and every other engine
 // sees it; an async reply that lands after it starts a new branch from there. onChange gets
-// the timeline after each change and travel.
+// the timeline after each change and move.
 export const historyEngine = ({ max = 1000, now = Date.now, onChange = () => {} } = {}) => {
 	const timeline = new Timeline({ max, now });
 	let link = null;
 	const seed = (state) => {
 		if (timeline.size === 0) timeline.begin({ state, label: "initial", origin: "initial" });
 	};
-	const travel = (move) => {
+	// Each of the Timeline's moves, applied to the host.
+	const move = (op) => (arg) => {
 		if (link === null || timeline.size === 0) return;
-		const { state } = move();
+		const { state } = timeline[op](arg);
 		link.host.clearTasks();
 		link.apply(() => state);
 		onChange(timeline);
@@ -146,10 +147,10 @@ export const historyEngine = ({ max = 1000, now = Date.now, onChange = () => {} 
 			} else timeline.recordTask(task, next);
 			onChange(timeline);
 		},
-		travel: (i) => travel(() => timeline.goto(i)),
-		back: () => travel(() => timeline.back()),
-		forward: () => travel(() => timeline.forward()),
-		toStart: () => travel(() => timeline.toStart()),
-		toEnd: () => travel(() => timeline.toEnd()),
+		goto: move("goto"),
+		back: move("back"),
+		forward: move("forward"),
+		toStart: move("toStart"),
+		toEnd: move("toEnd"),
 	};
 };

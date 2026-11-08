@@ -1,5 +1,7 @@
 // The domain logic of thing-tracker (src/domain, src/transfer) as pure functions over plain
 // records: things, groups (tags), events and measurements.
+
+import { plural } from "../common/util.js";
 import { BUNDLE_DEFS } from "./bundle-defs.js";
 import {
 	bucketEnd,
@@ -249,7 +251,6 @@ export const parseEnvelope = (text) => {
 	return { envelope: data };
 };
 
-export const plural = (n, one, many = `${one}s`) => `${n} ${n === 1 ? one : many}`;
 // What importing envelope into current ({ things, groups, events }) changes: the lists to
 // apply, summary lines and warnings, as the import preview shows them.
 export const planImport = (envelope, current, { mode = "merge", overwrite = false } = {}) => {

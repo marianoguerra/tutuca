@@ -8,6 +8,7 @@ import {
 	$if,
 	component,
 	each,
+	errorMessage,
 	field,
 	render,
 	scopeOf,
@@ -251,7 +252,7 @@ export const Playground = component({
 			ok() {},
 			error(next, [error]) {
 				next.status = "failed";
-				next.error = String(error?.message ?? error);
+				next.error = errorMessage(error);
 			},
 			unhandled() {},
 		},

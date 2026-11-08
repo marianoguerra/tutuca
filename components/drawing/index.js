@@ -22,6 +22,7 @@ import {
 	tag,
 	targetValue,
 } from "../../src/tutuca.js";
+import { isModKey } from "../common/util.js";
 import {
 	COORD_MAX,
 	capture,
@@ -769,7 +770,7 @@ export const Drawing = component({
 			const key = e?.key?.toLowerCase();
 			if (key === undefined) return;
 			const run = (name) => Drawing.on[name].run.call(this, next, [], ctx);
-			if (e.ctrlKey || e.metaKey) {
+			if (isModKey(e)) {
 				if (key === "z" && !e.shiftKey) run("undo");
 				else if (key === "y" || key === "z") run("redo");
 				else if (key === "d") run("duplicate");

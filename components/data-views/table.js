@@ -1,57 +1,7 @@
-// Tables as rows of plain objects: CSV text parsed into them and written back, each column's
-// name and type, a description of each column and rows ready to show.
+// Tables as rows of plain objects: each column's name and type, a description of each column and rows ready to show.
 
 export const PREVIEW_ROWS = 8;
 
-// A CSV cell's text as a value: numbers, booleans, null for empty, text otherwise.
-export const autoType = (s) => {
-	const v = s.trim();
-	if (v === "") return null;
-	if (/^-?(\d+\.?\d*|\.\d+)([eE][-+]?\d+)?$/.test(v)) return Number(v);
-	if (v === "true" || v === "false") return v === "true";
-	return s;
-};
-// CSV text as row objects; without a header the columns are c1, c2, …
-export const parseCsv = (text, delimiter = ",", header = true) => {
-	const records = [];
-	let row = [];
-	let cell = "";
-	let quoted = false;
-	for (let i = 0; i < text.length; i++) {
-		const c = text[i];
-		if (quoted) {
-			if (c !== '"') cell += c;
-			else if (text[i + 1] === '"') cell += text[i++];
-			else quoted = false;
-		} else if (c === '"' && cell === "") quoted = true;
-		else if (c === delimiter) {
-			row.push(cell);
-			cell = "";
-		} else if (c === "\n" || c === "\r") {
-			if (c === "\r" && text[i + 1] === "\n") i++;
-			records.push([...row, cell]);
-			row = [];
-			cell = "";
-		} else cell += c;
-	}
-	if (cell !== "" || row.length > 0) records.push([...row, cell]);
-	const lines = records.filter((r) => !(r.length === 1 && r[0].trim() === ""));
-	const names = header ? (lines[0] ?? []) : (lines[0] ?? []).map((_, j) => `c${j + 1}`);
-	return (header ? lines.slice(1) : lines).map((r) =>
-		Object.fromEntries(names.map((n, j) => [n, autoType(r[j] ?? "")])),
-	);
-};
-// Row objects as CSV text, with a header of every column in the order they first appear.
-export const formatCsv = (rows, delimiter = ",") => {
-	const names = [...new Set(rows.flatMap((r) => Object.keys(r)))];
-	const cell = (v) => {
-		const s = v === null || v === undefined ? "" : String(v);
-		return /["\n\r]/.test(s) || s.includes(delimiter) ? `"${s.replaceAll('"', '""')}"` : s;
-	};
-	return [names, ...rows.map((r) => names.map((n) => r[n]))]
-		.map((r) => r.map(cell).join(delimiter))
-		.join("\n");
-};
 // A value's column type: integer, number, date (ISO-looking text), string, boolean, object.
 export const cellType = (v) => {
 	if (v === null || v === undefined) return null;

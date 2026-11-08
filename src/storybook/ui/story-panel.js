@@ -5,6 +5,7 @@ import {
 	$if,
 	component,
 	each,
+	errorMessage,
 	field,
 	lookupBind,
 	send,
@@ -416,7 +417,7 @@ export const StoryPanel = component({
 				if (result === false) next.isPlaying = false;
 			},
 			error(next, [error]) {
-				next.error = String(error?.message ?? error);
+				next.error = errorMessage(error);
 				next.problems = [next.error];
 				next.isPlaying = false;
 			},

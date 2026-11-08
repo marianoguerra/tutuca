@@ -21,6 +21,7 @@ import {
 	targetValue,
 } from "../../src/tutuca.js";
 import { BADGE, cardClass, cardHeader, metaFor } from "../common/card.js";
+import { NOTE } from "../common/util.js";
 import { GuitarNeck, guitarNeck } from "./guitar.js";
 import { Piano, piano } from "./piano.js";
 import {
@@ -61,7 +62,6 @@ import {
 	instrumentView,
 	markNeckOn,
 	markOn,
-	NOTE,
 	noteChips,
 	octaveStepper,
 	outsideText,
