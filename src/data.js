@@ -9,7 +9,15 @@
 // can't: that load and data name a message and a query the component has, of the right kind.
 import { apply } from "./contract.js";
 import { t } from "./schema.js";
-import { ContractError, HandlerSpec, metaOf, metaProblems, QuerySpec, specOf } from "./spec.js";
+import {
+	ContractError,
+	filledMeta,
+	HandlerSpec,
+	hasMeta,
+	metaShapeProblems,
+	QuerySpec,
+	specOf,
+} from "./spec.js";
 import { errorMessage } from "./tree/text.js";
 
 export const DATA_META = "https://tutuca.dev/meta/data";
@@ -35,26 +43,16 @@ export const JSON_FILE = Object.freeze({
 	json: true,
 });
 
-export const deepFreeze = (v) => {
-	if (typeof v === "object" && v !== null && !Object.isFrozen(v)) {
-		Object.freeze(v);
-		for (const k of Object.keys(v)) deepFreeze(v[k]);
-	}
-	return v;
-};
-const DEFAULTS = { load: "load", data: null, schema: null, file: null };
 // What c (a component or, with scope, its spec) says about its data, with every key filled.
-export const dataOf = (c, scope = undefined) => {
-	const meta = metaOf(c, DATA_META, scope);
-	return deepFreeze({ ...DEFAULTS, samples: {}, ...structuredClone({ ...meta }) });
-};
+export const dataOf = (c, scope = undefined) =>
+	filledMeta(c, DATA_META, dataMetaSchemas[DATA_META], scope);
 // The file c's data reads and saves as: { type, extensions, json }, json when it's JSON's.
 export const fileFormatOf = (c, scope = undefined) => {
 	const { file } = dataOf(c, scope);
 	return file === null ? JSON_FILE : { ...file, json: false };
 };
 // Whether c (a component or its spec) says what its data is.
-export const hasDataMeta = (c) => Object.hasOwn((specOf(c) ?? c)?.meta ?? {}, DATA_META);
+export const hasDataMeta = (c) => hasMeta(c, DATA_META);
 
 // t.any() lists every JSON type rather than leaving type out: some providers' tool-call parsers
 // (GLM's, through OpenRouter) JSON-decode an argument only when its schema's type isn't string,
@@ -137,17 +135,16 @@ export const dataSchema = (c, scope = undefined) => {
 export const dataProblems = (c, scope = undefined) => {
 	const spec = specOf(c) ?? c;
 	if (!hasDataMeta(spec)) return [];
-	const shape = metaProblems(DATA_META, spec.meta[DATA_META], dataMetaSchemas[DATA_META]);
+	const shape = metaShapeProblems(spec, DATA_META, dataMetaSchemas[DATA_META]);
 	if (shape.length > 0) return shape;
 	const meta = dataOf(c, scope);
 	const problems = [];
-	if (loadMessage(spec, meta.load) === null) {
-		problems.push(`its data load ${meta.load} isn't a pure message of one arg`);
-	}
+	const load = loadMessage(spec, meta.load);
+	if (load === null) problems.push(`its data load ${meta.load} isn't a pure message of one arg`);
 	if (meta.data !== null && !isZeroArgQuery(spec, meta.data)) {
 		problems.push(`its data ${meta.data} isn't a zero-arg query`);
 	}
-	const arg = loadMessage(spec, meta.load)?.args[0];
+	const arg = load?.args[0];
 	if (meta.file !== null && arg !== undefined && arg.constructor?.kind !== "string") {
 		problems.push(
 			`its data is a ${meta.file.extensions[0]} file, but ${meta.load} doesn't take a string`,

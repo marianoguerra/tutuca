@@ -514,7 +514,21 @@ export class Lint extends Walker {
 	}
 }
 
-// The issues of a set of registrations, such as host.registrations; [] when clean.
-// Pass the registered names, such as host.componentNames, to check t.component() names.
+// The issues of a set of registrations; [] when clean. Pass the registered names to check
+// t.component() names.
 export const lint = (registrations, componentNames = null) =>
 	new Lint(registrations, componentNames).run();
+// The specs registered in scope and the scopes below it, and the names they're registered
+// under, aliases included: { specs, names }.
+export const registeredIn = (scope) => {
+	const entries = [...scope.descendants()].flatMap((s) => Object.entries(s.byName));
+	return {
+		specs: new Set(entries.map(([, spec]) => spec)),
+		names: new Set(entries.map(([name]) => name)),
+	};
+};
+// The issues of everything registered in scope and below (a host's: host.scope); [] when clean.
+export const lintScope = (scope) => {
+	const { specs, names } = registeredIn(scope);
+	return lint(specs, names);
+};

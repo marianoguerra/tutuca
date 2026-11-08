@@ -155,6 +155,13 @@
 
 - **`tutuca/tree` no longer exports `call` or `isNode`**, which only the tree uses.
 - `historyEngine`'s `travel(i)` is `goto(i)`, as on `Timeline` and the bar's ops.
+- **`host.listen(fn)` replaces `host.onNotify`.** Assigning `onNotify` kept one listener, so
+  whoever set it last (a `ClassCompiler`, `mountTutucaApp`'s `onNotify` option, a demo) had
+  to remember to call the one before. `listen` adds one and returns a function that removes
+  it; `ClassCompiler.attach` returns that too.
+- **Host's `registrations`, `componentNames` and `registeredEntries()` are gone**: they were
+  there for lint. `lintScope(host.scope)` (`tutuca/lint`) lints what a host registered, and
+  `registeredIn(scope)` gives `{ specs, names }` for `lint(specs, names)`.
 
 ## 1.0.0-beta.3
 

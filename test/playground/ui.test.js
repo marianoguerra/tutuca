@@ -2,12 +2,11 @@ import assert from "node:assert/strict";
 import test from "node:test";
 import fc from "fast-check";
 import mathBook, { workbenchBook } from "../../components/math/stories.js";
-import { defineTutucaApp, REQUEST } from "../../src/embed/element.js";
+import { defineTutucaApp } from "../../src/embed/element.js";
 import { playgroundComponents } from "../../src/playground/element.js";
 import { makePlayground, storyChoices } from "../../src/playground/ui/playground.js";
+import { startPanelHost } from "../../src/storybook/host.js";
 import { StoryRegistry } from "../../src/storybook/index.js";
-import { storyAskHandlers } from "../../src/storybook/runner.js";
-import { Host } from "../../src/tutuca.js";
 import { dom, settle, testGenericProperties, testLintsClean } from "../helpers.js";
 
 testLintsClean("playground", playgroundComponents);
@@ -21,20 +20,22 @@ const start = () => {
 	const rootNode = window.document.createElement("div");
 	window.document.body.append(rootNode);
 	const state = { registry: null, runs: 0, picks: [] };
-	rootNode.addEventListener(REQUEST, (e) => state.registry?.mount(e.detail));
-	const host = new Host({ document: window.document, rootNode });
-	host.scope.register(playgroundComponents);
-	host.scope.registerAskHandlers({
-		...storyAskHandlers(() => state.registry),
-		delay: () => Promise.resolve(),
-		playground: (pick) => {
-			state.picks.push(pick);
+	const host = startPanelHost({
+		document: window.document,
+		rootNode,
+		components: playgroundComponents,
+		registryOf: () => state.registry,
+		askHandlers: {
+			delay: () => Promise.resolve(),
+			playground: (pick) => {
+				state.picks.push(pick);
+			},
 		},
 	});
 	const failures = [];
-	host.onNotify = (type, info) => {
+	host.listen((type, info) => {
 		if (type === "taskFailed" || type === "stateInvalid") failures.push({ type, ...info });
-	};
+	});
 	host.start(makePlayground(host.scope.components));
 	const send = (name, args) => host.send(name, args);
 	const run = (books, wanted = "") => {

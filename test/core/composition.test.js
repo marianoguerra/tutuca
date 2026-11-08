@@ -1,5 +1,6 @@
 import assert from "node:assert/strict";
 import test from "node:test";
+import { registeredIn } from "../../src/lint/index.js";
 import {
 	component,
 	each,
@@ -258,7 +259,7 @@ test("register returns factories bound to its scope, and child scopes fall back 
 	assert.equal(scopeOf(host.scope.components.Item()), host.scope);
 	assert.throws(() => host.scope.components.Root(), /Component Root is not registered/);
 	assert.throws(() => host.scope.components.toString(), /toString is not registered/);
-	assert.equal(host.registrations.size, 2);
+	assert.equal(registeredIn(host.scope).specs.size, 2);
 });
 
 test("a required component field without a default fails with its path", () => {

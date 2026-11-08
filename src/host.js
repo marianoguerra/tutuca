@@ -3,12 +3,12 @@
 // whatever drives the app (an agent, a test, a bar). Without a document it is headless: it
 // renders nothing and listens to no events, and the tree runs the same.
 import { current, isDraft, produce } from "../deps/immer.js";
-import { apply, query } from "./contract.js";
+import { apply, checkInvariants, query } from "./contract.js";
 import { DROP_EVENTS, DragTracker } from "./drag.js";
 import { SyncEngines } from "./engines.js";
 import { getEventInfoFor } from "./events.js";
 import { Scope } from "./scope.js";
-import { brokenInvariants, ContractError, scopeOf, specOf } from "./spec.js";
+import { scopeOf, specOf } from "./spec.js";
 import { componentKinds, HostTask, TutucaContext } from "./tasks.js";
 import { Address, DispatchPath, Scheduler, Selector, selectorFrom, Target } from "./tree/index.js";
 import { render as $render, toVChilds } from "./vdom.js";
@@ -71,7 +71,7 @@ export class Host {
 			},
 		});
 		this.scope = new Scope((spec) => this.addEventListeners(spec.eventNames));
-		this.onNotify = (_type, _info) => {};
+		this._listeners = new Set();
 		this.pushTask = this.pushTask.bind(this);
 		this.handleTasks = this.handleTasks.bind(this);
 		this._curVDom = null;
@@ -82,17 +82,6 @@ export class Host {
 		this._scopeTimers = new Map();
 		this.drags = new DragTracker(rootNode);
 		this.engines = new SyncEngines((type, info) => this.notify(type, info));
-	}
-	// The specs registered in any scope, and the names they are registered under, aliases
-	// included: what lint checks.
-	get registrations() {
-		return new Set(this.registeredEntries().map(([, spec]) => spec));
-	}
-	get componentNames() {
-		return new Set(this.registeredEntries().map(([name]) => name));
-	}
-	registeredEntries() {
-		return [...this.scope.descendants()].flatMap((s) => Object.entries(s.byName));
 	}
 	// The element being dragged, from dragstart to dragend.
 	get drag() {
@@ -157,18 +146,14 @@ export class Host {
 	// if the component there doesn't support it.
 	// Nothing changes if it breaks the component's invariants.
 	apply(name, args = [], { to = new DispatchPath() } = {}) {
-		const at = this.keyPathOf(to);
+		const at = this.addressOf(to).keyPath;
 		const produceWith =
 			this.checks === null ? produce : (root, fn) => this.checks.applied(name, root, at, fn);
 		this.applyExternal(
 			(root) => {
 				const target = at.getIn(root);
 				const next = apply(target, name, ...args);
-				const broken = brokenInvariants(isDraft(next) ? current(next) : next);
-				if (broken.length > 0) {
-					const issues = broken.map((inv) => `invariant:${inv}`);
-					throw new ContractError(specOf(target).name, name, issues);
-				}
+				checkInvariants(specOf(target), name, isDraft(next) ? current(next) : next);
 				return at.setIn(root, next);
 			},
 			null,
@@ -178,11 +163,12 @@ export class Host {
 	}
 	// What the query name(...args) of the component at to returns, read from the current root.
 	query(name, args = [], { to = new DispatchPath() } = {}) {
-		return query(this.keyPathOf(to).getIn(this.root), name, ...args);
+		return query(this.addressOf(to).keyPath.getIn(this.root), name, ...args);
 	}
-	keyPathOf(to) {
+	// The Address to (as send takes it) reaches in the current root.
+	addressOf(to) {
 		const where = targetOf(to);
-		return (where instanceof Address ? where : Address.of(where, this.root)).keyPath;
+		return where instanceof Address ? where : Address.of(where, this.root);
 	}
 	// Resolves once nothing is left to run: no task queued and no ask waiting for its answer.
 	whenIdle() {
@@ -294,8 +280,18 @@ export class Host {
 			}
 		}
 	}
+	// fn(type, info) hears what the host reports (render, taskHandled, taskFailed, stateInvalid,
+	// …), each after the task that caused it, in the order they were added. Returns a function
+	// that stops it.
+	listen(fn) {
+		this._listeners.add(fn);
+		return () => this._listeners.delete(fn);
+	}
 	notify(type, info) {
-		setTimeout(() => this.onNotify(type, info), 0);
+		if (this._listeners.size === 0) return;
+		setTimeout(() => {
+			for (const fn of this._listeners) fn(type, info);
+		}, 0);
 	}
 }
 // Where a message from the host goes: to as it is, if it is an Address; otherwise a Target from

@@ -21,7 +21,7 @@ import { start as startTracker } from "../../demos/thing-tracker/main.js";
 import { start as startTodo } from "../../demos/todo/main.js";
 import { start as startTreeSpec } from "../../demos/tree-spec/main.js";
 import { bareShell } from "../../scripts/app.js";
-import { lint } from "../../src/lint/index.js";
+import { lintScope } from "../../src/lint/index.js";
 import { startSynced } from "../../src/sync/index.js";
 import { relay } from "../../src/sync/remote.js";
 import { Host, specOf } from "../../src/tutuca.js";
@@ -50,11 +50,9 @@ const mount = (start, ...args) => {
 	const { document } = window;
 	const host = start(document, ...args);
 	const problems = [];
-	const notify = host.onNotify;
-	host.onNotify = (type, info) => {
+	host.listen((type, info) => {
 		if (type === "taskFailed" || type === "stateInvalid") problems.push({ type, ...info });
-		else notify(type, info);
-	};
+	});
 	const rootNode = document.getElementById("app");
 	const $ = (selector) => rootNode.querySelector(selector);
 	const fire = (type, el, value) => {
@@ -72,9 +70,7 @@ const checkClean = async ({ host, rootNode, problems }) => {
 	await settle();
 	assert.ok(rootNode.childNodes.length > 0, "renders");
 	assert.deepEqual(problems, []);
-	const errors = lint([...host.registrations], [...host.componentNames]).filter(
-		(i) => i.level === "error",
-	);
+	const errors = lintScope(host.scope).filter((i) => i.level === "error");
 	assert.deepEqual(
 		errors.map((i) => `${i.code} ${i.path}: ${i.message}`),
 		[],

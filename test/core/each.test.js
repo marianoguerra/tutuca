@@ -1,6 +1,6 @@
 import assert from "node:assert/strict";
 import test from "node:test";
-import { lint } from "../../src/lint/index.js";
+import { lint, registeredIn } from "../../src/lint/index.js";
 import {
 	$if,
 	component,
@@ -211,7 +211,7 @@ test("lint rejects loop and scope names the component does not declare", () => {
 	const host = new Host({ document: null, rootNode: { addEventListener() {} } });
 	host.scope.register({ MissingLoop, MissingScope, InheritedName });
 	assert.deepEqual(
-		lint(host.registrations).map(({ code, path }) => `${code} ${path}`),
+		lint(registeredIn(host.scope).specs).map(({ code, path }) => `${code} ${path}`),
 		[
 			"unknown-loop MissingLoop.main > each(nope)",
 			"unknown-scope MissingScope.main > scope(nope)",

@@ -1,7 +1,10 @@
 // Property based testing for tutuca components with fast-check, derived from field and
 // message schemas. fast-check is passed in, so tutuca itself doesn't depend on it.
+
+import { preHolds } from "../spec.js";
 import {
 	AnyType,
+	brokenInvariants,
 	ComponentType,
 	component,
 	EventArg,
@@ -9,7 +12,6 @@ import {
 	field,
 	findInvalidFields,
 	IndexType,
-	messageIssues,
 	render,
 	specOf,
 	t,
@@ -185,9 +187,7 @@ export const arbitraries = ({
 			});
 		});
 		const made = withKeys.map((a) => tryMake(spec, a, scope)).filter((v) => v !== undefined);
-		const { invariants } = spec;
-		if (Object.keys(invariants).length === 0) return made;
-		return made.filter((v) => Object.values(invariants).every((inv) => inv.call(v)));
+		return made.filter((v) => brokenInvariants(v).length === 0);
 	};
 	// Component instances that pass their schema and invariants.
 	const instance = (specOrName, depth = 0) => {
@@ -290,10 +290,7 @@ export class MessageCommand {
 	check({ state }) {
 		const r = this.resolve(state);
 		if (r === null) return false;
-		const { message } = this;
-		if (message.pre === undefined) return true;
-		const info = { sourceKey: r.sourceKey, emitted: [] };
-		return !messageIssues({ pre: message.pre }, r.instance, r.instance, r.args, info).length;
+		return preHolds(this.message, r.instance, r.args, { sourceKey: r.sourceKey, emitted: [] });
 	}
 	run(model, driver) {
 		const prev = driver.state;

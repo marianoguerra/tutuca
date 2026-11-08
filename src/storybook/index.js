@@ -4,23 +4,21 @@
 // single messages and stress tests it with generated message or event sequences.
 // fast-check is passed in, as in pbt.js.
 
-import { ClassCompiler, classNamesOf } from "../css/classes.js";
 import { DevChecks } from "../dev/checks.js";
-import { Host } from "../tutuca.js";
 
 export { StoryRegistry } from "./runner.js";
 export { checkStory, prepareStory, step, stories, stressStory } from "./stories.js";
 
-import { defineTutucaApp, REQUEST } from "../embed/element.js";
-import { StoryRegistry, storyAskHandlers } from "./runner.js";
+import { defineTutucaApp } from "../embed/element.js";
+import { bookClasses, startPanelHost, uiClasses, watchPanelHost } from "./host.js";
+import { StoryRegistry } from "./runner.js";
 import { StoryLink } from "./ui/link.js";
-import { makePanels, panelClassNames, panelComponents } from "./ui/panels.js";
+import { makePanels, panelComponents } from "./ui/panels.js";
 import { Storybook } from "./ui/storybook.js";
 
 export const storybookComponents = { Storybook, StoryLink, ...panelComponents };
 
-export const storybookClasses = () =>
-	classNamesOf(Object.values(storybookComponents), panelClassNames);
+export const storybookClasses = () => uiClasses(storybookComponents);
 
 // The storybook root for books, with initialId selected when it names a story.
 const makeStorybook = (C, books, initialId = "") => {
@@ -61,21 +59,27 @@ export const startStorybook = ({
 }) => {
 	defineTutucaApp(document.defaultView);
 	const registry = new StoryRegistry({ fc, books, css, links, compile, known });
-	rootNode.addEventListener(REQUEST, (e) => registry.mount(e.detail));
-	const host = new Host({ document, rootNode, checks: dev ? DevChecks : null });
-	host.scope.register(storybookComponents);
-	host.scope.registerAskHandlers({
-		...storyAskHandlers(() => registry),
-		scrollToTop: () => {
-			for (const node of [rootNode.querySelector("[data-story-main]"), document.scrollingElement]) {
-				if (node) node.scrollTop = 0;
-			}
-		},
-		// The story's id as the URL's hash, which initialId reads on a reload; replaced, so
-		// picking stories doesn't fill the history.
-		rememberStory: ([id]) => {
-			const history = document.defaultView?.history;
-			history?.replaceState(history.state, "", `#${encodeURI(id)}`);
+	const host = startPanelHost({
+		document,
+		rootNode,
+		components: storybookComponents,
+		registryOf: () => registry,
+		checks: dev ? DevChecks : null,
+		askHandlers: {
+			scrollToTop: () => {
+				for (const node of [
+					rootNode.querySelector("[data-story-main]"),
+					document.scrollingElement,
+				]) {
+					if (node) node.scrollTop = 0;
+				}
+			},
+			// The story's id as the URL's hash, which initialId reads on a reload; replaced, so
+			// picking stories doesn't fill the history.
+			rememberStory: ([id]) => {
+				const history = document.defaultView?.history;
+				history?.replaceState(history.state, "", `#${encodeURI(id)}`);
+			},
 		},
 	});
 	host.start(makeStorybook(host.scope.components, books, initialId));
@@ -94,14 +98,15 @@ export const openStorybook = async ({
 	compile,
 	initialId = "",
 }) => {
-	const known = classNamesOf(new Set(books.flatMap((book) => Object.values(book.components))));
+	const known = bookClasses(books);
 	const [uiCss, css] = await Promise.all([compile(storybookClasses()), compile(known)]);
 	uiStyle.textContent = uiCss;
 	const started = startStorybook({ document, rootNode, fc, books, css, compile, known, initialId });
-	started.host.onNotify = (type, info) => {
-		if (type === "taskFailed" || type === "stateInvalid") console.error(type, info);
-	};
-	const extraStyle = document.head.appendChild(document.createElement("style"));
-	new ClassCompiler(compile, storybookClasses()).attach(started.host, rootNode, extraStyle);
+	watchPanelHost(started.host, {
+		rootNode,
+		compile,
+		classes: storybookClasses(),
+		style: document.head.appendChild(document.createElement("style")),
+	});
 	return started;
 };

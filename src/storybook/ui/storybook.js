@@ -13,10 +13,9 @@ import {
 	targetValue,
 } from "../../tutuca.js";
 import { smallButton, tabButton } from "./common.js";
-import { applyAppReport, panelFields, resetPanels } from "./panels.js";
+import { panelFields, panelHandlers, resetPanels, storyApp, withPanelQueries } from "./panels.js";
 
 const { aside, div, h1, h2, input, main, p, section, span, ul } = tag;
-const tutucaApp = tag["tutuca-app"];
 
 export const Storybook = component({
 	name: "Storybook",
@@ -30,23 +29,14 @@ export const Storybook = component({
 		panel: t.enum("steps", "stress", "dev"),
 		...panelFields,
 	},
-	queries: {
+	queries: withPanelQueries("panel", {
 		get appKey() {
 			return `${this.selectedId}@${this.seed}`;
 		},
 		get hasStory() {
 			return this.selectedId !== "";
 		},
-		get isSteps() {
-			return this.panel === "steps";
-		},
-		get isStress() {
-			return this.panel === "stress";
-		},
-		get isDev() {
-			return this.panel === "dev";
-		},
-	},
+	}),
 	loops: {
 		// Collapsed groups keep their header, on their first link.
 		links: {
@@ -92,14 +82,7 @@ export const Storybook = component({
 							"",
 						),
 					),
-					section(
-						{ class: "card border border-base-300 bg-base-100 p-4 shadow-sm" },
-						tutucaApp({
-							class: "block",
-							"app-key": field("appKey"),
-							"on:tutucareport": send("appReport"),
-						}),
-					),
+					section({ class: "card border border-base-300 bg-base-100 p-4 shadow-sm" }, storyApp()),
 					div(
 						{ role: "tablist", class: "tabs tabs-box self-start" },
 						tabButton("setPanel", "steps", "Steps"),
@@ -154,17 +137,10 @@ export const Storybook = component({
 				next.panel = panel;
 			},
 		},
-		showSteps(next, _args, ctx) {
-			next.panel = "steps";
-			ctx.stopNext();
-		},
+		...panelHandlers("panel"),
 		reroll(next) {
 			next.seed = this.seed + 1;
 			resetPanels(this, next);
-		},
-		// Reports from the story's <tutuca-app>; only events carry them.
-		appReport(next, _args, ctx) {
-			applyAppReport(this, next, ctx.event?.detail);
 		},
 	},
 	answers: {

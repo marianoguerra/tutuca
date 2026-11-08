@@ -42,6 +42,21 @@ const specOrThrow = (c, name) => {
 const failIf = (spec, name, issues, detail) => {
 	if (issues.length > 0) throw new ContractError(spec.name, name, issues, detail);
 };
+// Throws a ContractError when args don't fit message name of spec, or its pre doesn't hold on
+// prev, saying why when the message has a why.
+export const checkCall = (spec, name, message, prev, args, scope = scopeOf(prev)) => {
+	failIf(spec, name, argIssues(message.args, args, scope, prev));
+	if (!preHolds(message, prev, args, {})) {
+		failIf(spec, name, ["pre"], message.why?.call(prev, prev, args) ?? "");
+	}
+};
+// Throws a ContractError naming the invariants of instance that don't hold, after name.
+export const checkInvariants = (spec, name, instance) =>
+	failIf(
+		spec,
+		name,
+		brokenInvariants(instance).map((inv) => `invariant:${inv}`),
+	);
 // The component c is after its pure message name(...args). On a draft (in a handler, or in a
 // pure message applying another) it changes the draft, in the caller's transaction, and
 // returns it, or what the handler returned to replace it. On a committed component it returns
@@ -51,13 +66,8 @@ export const apply = (c, name, ...args) => {
 	const message = spec.on[name];
 	if (!(message instanceof HandlerSpec)) throw new ContractError(spec.name, name, ["unknown"]);
 	if (!message.pure) throw new ContractError(spec.name, name, ["not-pure"]);
-	const scope = scopeOf(c);
 	const prev = isDraft(c) ? current(c) : c;
-	failIf(spec, name, argIssues(message.args, args, scope, prev));
-	if (!preHolds(message, prev, args, {})) {
-		const why = message.why?.call(prev, prev, args) ?? "";
-		throw new ContractError(spec.name, name, ["pre"], why);
-	}
+	checkCall(spec, name, message, prev, args, scopeOf(c));
 	applied?.add(idOf(c));
 	let next;
 	if (isDraft(c)) {
@@ -67,13 +77,7 @@ export const apply = (c, name, ...args) => {
 		next = produce(c, (draft) => message.run.call(prev, draft, args));
 	}
 	if (!postHolds(message, prev, next, args, {})) throw new ContractError(spec.name, name, ["post"]);
-	if (!isDraft(next) && next !== c) {
-		failIf(
-			spec,
-			name,
-			brokenInvariants(next).map((inv) => `invariant:${inv}`),
-		);
-	}
+	if (!isDraft(next) && next !== c) checkInvariants(spec, name, next);
 	return next;
 };
 // c as a query reads it, frozen, so a query that writes throws instead of changing c: a draft

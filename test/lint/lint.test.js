@@ -1,6 +1,6 @@
 import assert from "node:assert/strict";
 import test from "node:test";
-import { lint } from "../../src/lint/index.js";
+import { lint, lintScope, registeredIn } from "../../src/lint/index.js";
 import {
 	$if,
 	component,
@@ -27,9 +27,7 @@ import {
 const lintOf = (specs) => {
 	const host = new Host({ document: null, rootNode: { addEventListener() {} } });
 	host.scope.register(specs);
-	return lint(host.registrations, host.componentNames).map(
-		({ level, code, path }) => `${level} ${code} ${path}`,
-	);
+	return lintScope(host.scope).map(({ level, code, path }) => `${level} ${code} ${path}`);
 };
 
 test("a component using every helper correctly is clean", () => {
@@ -342,7 +340,7 @@ test("lint reports t.component names no scope registers", () => {
 	]);
 	const host = new Host({ document: null, rootNode: { addEventListener() {} } });
 	host.scope.register({ Page });
-	assert.deepEqual(lint(host.registrations), [], "without names the check is skipped");
+	assert.deepEqual(lint(registeredIn(host.scope).specs), [], "without names the check is skipped");
 });
 
 test("lint reports defaults of the wrong kind, bad index targets and every unknown candidate", () => {

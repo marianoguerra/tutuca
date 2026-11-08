@@ -25,9 +25,9 @@ const start = (initialId = "") => {
 		books: [jsonBook, mathBook],
 		initialId,
 	});
-	host.onNotify = (type, info) => {
+	host.listen((type, info) => {
 		if (type === "taskFailed" || type === "stateInvalid") failures.push({ type, ...info });
-	};
+	});
 	const click = (node) =>
 		node.dispatchEvent(new window.MouseEvent("click", { bubbles: true, composed: true }));
 	const byText = (selector, text) =>

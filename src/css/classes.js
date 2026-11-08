@@ -51,14 +51,13 @@ export class ClassCompiler {
 		style.textContent = this.css;
 		this.scan(rootNode);
 	}
-	// Watches rootNode, and scans it again after each render of host (before its onNotify).
+	// Watches rootNode, and scans it again after each render of host. Returns a function that
+	// stops listening to host.
 	attach(host, rootNode, style) {
 		this.watch(rootNode, style);
-		const notify = host.onNotify;
-		host.onNotify = (type, info) => {
+		return host.listen((type) => {
 			if (type === "render") this.scan(rootNode);
-			notify(type, info);
-		};
+		});
 	}
 	scan(rootNode) {
 		let added = false;

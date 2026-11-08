@@ -6,7 +6,7 @@ import test from "node:test";
 import { assistantMessage } from "../../components/agent/llm.js";
 import { bundleOf } from "../../demos/canvas/bundles.js";
 import { start as startCanvas } from "../../demos/canvas/main.js";
-import { lint } from "../../src/lint/index.js";
+import { lintScope } from "../../src/lint/index.js";
 import { specOf } from "../../src/tutuca.js";
 import { dom } from "../helpers.js";
 
@@ -19,9 +19,9 @@ const mount = (handlers, bundle = "agent", agent = false) => {
 		agent,
 	);
 	const problems = [];
-	host.onNotify = (type, info) => {
+	host.listen((type, info) => {
 		if (type === "taskFailed" || type === "stateInvalid") problems.push({ type, ...info });
-	};
+	});
 	const rootNode = window.document.getElementById("app");
 	const fire = (type, el, value) => {
 		if (value !== undefined) el.value = value;
@@ -123,9 +123,7 @@ test("the canvas's agent adds a board, prompts its agent, waits for it and eject
 	assert.match(told[3][2], /Its agent said: Moved c00 to Doing\./);
 	assert.equal(app.state().status, "idle");
 	assert.deepEqual(app.problems, []);
-	const errors = lint([...app.host.registrations], [...app.host.componentNames]).filter(
-		(i) => i.level === "error",
-	);
+	const errors = lintScope(app.host.scope).filter((i) => i.level === "error");
 	assert.deepEqual(
 		errors.map((i) => `${i.code} ${i.path}: ${i.message}`),
 		[],

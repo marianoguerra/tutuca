@@ -116,8 +116,7 @@ export class Driver {
 	// The answer to an ask, as if the scope's handler gave it: for path's answers[ask][outcome]
 	// (ok and error take the value or error as args[0]), with the request id ctx.request reads.
 	answer(path, ask, outcome, args = [], request = null) {
-		const base = path instanceof Selector ? new DispatchPath(path.freeze(this.state)) : path;
-		const task = new AnswerTask(ask, outcome, args, request, Address.at(base, this.state), null);
+		const task = new AnswerTask(ask, outcome, args, request, this.host.addressOf(path), null);
 		this.host.pushTask(task);
 		this.drain();
 	}

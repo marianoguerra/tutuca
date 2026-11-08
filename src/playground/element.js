@@ -7,17 +7,16 @@
 // CodeMirror (EditorView, EditorState, Compartment, keymap, basicSetup, javascript, oneDark),
 // fast-check and a margaui-style compile(classes) → css are passed in, as in the storybook.
 
-import { ClassCompiler, classNamesOf } from "../css/classes.js";
-import { defineTutucaApp, REQUEST } from "../embed/element.js";
+import { defineTutucaApp } from "../embed/element.js";
 import { TimeTravel } from "../history/bar.js";
-import { StoryRegistry, storyAskHandlers } from "../storybook/runner.js";
-import { panelClassNames, panelComponents } from "../storybook/ui/panels.js";
-import { Host } from "../tutuca.js";
+import { bookClasses, startPanelHost, uiClasses, watchPanelHost } from "../storybook/host.js";
+import { StoryRegistry } from "../storybook/runner.js";
+import { panelComponents } from "../storybook/ui/panels.js";
 import { booksOf, linkSources, loadSources } from "./sources.js";
 import { makePlayground, Playground, storyChoices } from "./ui/playground.js";
 
 export const playgroundComponents = { Playground, TimeTravel, ...panelComponents };
-const playgroundClasses = () => classNamesOf(Object.values(playgroundComponents), panelClassNames);
+const playgroundClasses = () => uiClasses(playgroundComponents);
 
 // Files under src/ are tutuca itself: imported as they are, never edited, so every run
 // shares the page's copy.
@@ -169,19 +168,20 @@ export const definePlayground = (
 			this.setCollapsed(this.hasAttribute("collapsed"));
 
 			const rootNode = root.querySelector(".pg-panel");
-			rootNode.addEventListener(REQUEST, (e) => this.registry?.mount(e.detail));
-			const host = new Host({ document, rootNode });
-			this.host = host;
-			host.scope.register(playgroundComponents);
-			host.scope.registerAskHandlers({
-				...storyAskHandlers(() => this.registry),
-				playground: ([op, id]) => this.onPick(op, id),
+			const host = startPanelHost({
+				document,
+				rootNode,
+				components: playgroundComponents,
+				registryOf: () => this.registry,
+				askHandlers: { playground: ([op, id]) => this.onPick(op, id) },
 			});
-			host.onNotify = (type, info) => {
-				if (type === "taskFailed" || type === "stateInvalid") console.error(type, info);
-			};
-			const uiClasses = new ClassCompiler(compile, playgroundClasses());
-			uiClasses.attach(host, rootNode, root.querySelector("style[data-ui-extra]"));
+			this.host = host;
+			watchPanelHost(host, {
+				rootNode,
+				compile,
+				classes: playgroundClasses(),
+				style: root.querySelector("style[data-ui-extra]"),
+			});
 			host.start(makePlayground(host.scope.components));
 			const src = this.getAttribute("src");
 			if (src !== null) void this.load(src, { story: this.getAttribute("story") ?? "" });
@@ -306,8 +306,7 @@ export const definePlayground = (
 						"the module exports no books: export default stories({ title, components, stories })",
 					);
 				}
-				const specs = books.flatMap((book) => Object.values(book.components));
-				const known = classNamesOf(specs);
+				const known = bookClasses(books);
 				const css = await compile(known);
 				this.runs += 1;
 				// Unless reset, each mounted story carries its state over to the new components.

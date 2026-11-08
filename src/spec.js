@@ -236,18 +236,37 @@ export const metaProblems = (uri, values, shape, scope = null) => {
 // What c (a component or its spec) says under uri, over the defaults of the schema scope (c's
 // own by default) has for uri: every key of a registered schema, else what c gives ({} for none).
 export const metaOf = (c, uri, scope = scopeOf(c)) => {
-	const spec = specOf(c) ?? c;
-	const given = spec?.meta?.[uri] ?? noMeta;
+	const given = (specOf(c) ?? c)?.meta?.[uri] ?? noMeta;
 	const shape = scope?.lookupMetaSchema(uri) ?? null;
-	if (shape === null) return given;
+	return shape === null ? given : Object.freeze(Object.assign(defaultsOf(shape, scope), given));
+};
+// The default of each key of shape that has one.
+const defaultsOf = (shape, scope) => {
 	const out = {};
 	for (const key in shape) {
 		try {
 			out[key] = shape[key].make(undefined, scope);
 		} catch {} // No default: only what c gives.
 	}
-	return Object.freeze(Object.assign(out, given));
+	return out;
 };
+export const deepFreeze = (v) => {
+	if (typeof v === "object" && v !== null && !Object.isFrozen(v)) {
+		Object.freeze(v);
+		for (const k of Object.keys(v)) deepFreeze(v[k]);
+	}
+	return v;
+};
+// metaOf over shape's defaults, so every key is there even where no scope registered shape: a
+// copy, deep frozen.
+export const filledMeta = (c, uri, shape, scope = undefined) =>
+	deepFreeze(structuredClone({ ...defaultsOf(shape, scope), ...metaOf(c, uri, scope) }));
+// Whether c (a component or its spec) says anything under uri.
+export const hasMeta = (c, uri) => Object.hasOwn((specOf(c) ?? c)?.meta ?? {}, uri);
+// What's wrong with the shape of what c's spec says under uri, checked against shape; none
+// when it says nothing there.
+export const metaShapeProblems = (spec, uri, shape) =>
+	hasMeta(spec, uri) ? metaProblems(uri, spec.meta[uri], shape) : [];
 // Calling an interface operation a component doesn't support, or with what breaks its contract.
 // code is the first of issues: "unknown", "not-pure", "args", "arg:<i>", "pre", "post", "returns",
 // "invariant:<name>", or "not-component".

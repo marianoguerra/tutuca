@@ -3,7 +3,15 @@
 // stories of each run here; a new run gives the app a new key, so it mounts again.
 import { showArgs } from "../../history/bar.js";
 import { tabButton } from "../../storybook/ui/common.js";
-import { applyAppReport, makePanels, panelFields, resetPanels } from "../../storybook/ui/panels.js";
+import {
+	applyAppReport,
+	makePanels,
+	panelFields,
+	panelHandlers,
+	resetPanels,
+	storyApp,
+	withPanelQueries,
+} from "../../storybook/ui/panels.js";
 import {
 	$if,
 	component,
@@ -19,7 +27,6 @@ import {
 } from "../../tutuca.js";
 
 const { div, option, p, pre, section, select, span } = tag;
-const tutucaApp = tag["tutuca-app"];
 
 const TABS = ["preview", "steps", "stress", "dev"];
 const TAB_LABELS = { preview: "Preview", steps: "Steps", stress: "Stress test", dev: "Dev" };
@@ -48,21 +55,12 @@ export const Playground = component({
 		...panelFields,
 		travel: t.component("TimeTravel"), // Under the preview, over the story's timeline.
 	},
-	queries: {
+	queries: withPanelQueries("tab", {
 		get appKey() {
 			return `r${this.run}/${this.selectedId}@${this.seed}`;
 		},
 		get isPreview() {
 			return this.tab === "preview";
-		},
-		get isSteps() {
-			return this.tab === "steps";
-		},
-		get isStress() {
-			return this.tab === "stress";
-		},
-		get isDev() {
-			return this.tab === "dev";
 		},
 		get hasExamples() {
 			return this.examples.length > 1;
@@ -82,7 +80,7 @@ export const Playground = component({
 		get hasIssues() {
 			return this.issueCount > 0;
 		},
-	},
+	}),
 	view: div(
 		{ class: "flex h-full min-h-0 flex-col bg-base-200 text-base-content" },
 		// One strip, like the editor's file tabs: the panels on the left, the pickers fill the rest.
@@ -147,11 +145,7 @@ export const Playground = component({
 									"hidden",
 								),
 							},
-							tutucaApp({
-								class: "block",
-								"app-key": field("appKey"),
-								"on:tutucareport": send("appReport"),
-							}),
+							storyApp(),
 							div({ class: "mt-3 empty:hidden" }, render(field("travel"))),
 						),
 						$if(field("isSteps"), render(field("story")), ""),
@@ -229,10 +223,8 @@ export const Playground = component({
 				next.tab = tab;
 			},
 		},
-		showSteps(next, _args, ctx) {
-			next.tab = "steps";
-			ctx.stopNext();
-		},
+		...panelHandlers("tab"),
+		// The panels' appReport, and the run's lint issues and timeline.
 		appReport(next, _args, ctx) {
 			const detail = ctx.event?.detail;
 			if (detail?.key === this.appKey && detail.type === "state") {

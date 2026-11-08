@@ -150,11 +150,11 @@ const setup = ({ components, askHandlers, metaSchemas = {}, document }) => {
 	host.scope.register(components);
 	host.scope.registerAskHandlers(askHandlers);
 	const styleNode = document.getElementById("margaui");
-	host.onNotify = (type, info) => {
+	host.listen((type, info) => {
 		if (type === "taskFailed" || type === "stateInvalid" || type === "syncFailed") {
 			console.error(type, info);
 		}
-	};
+	});
 	// Classes computed in methods escape classNamesOf; the compiler adds them as they render.
 	const watch = () => {
 		if (styleNode === null) return;

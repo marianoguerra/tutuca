@@ -13,31 +13,20 @@
 // description, parameters }, JSON Schema derived from the args' types), the system prompt, the
 // next step of the loop, and running a tool call against a component. Running a message that
 // needs a context is the host's: planToolCall says what to send and what answers it.
-import { apply, query } from "./contract.js";
+import { apply, checkCall, query } from "./contract.js";
 import {
 	contractErrorText,
 	dataOf,
 	dataSchema,
-	deepFreeze,
 	hasDataMeta,
 	isZeroArgQuery,
 	loadData,
 	typeSchema,
 	withSample,
 } from "./data.js";
-import { DISPLAY_META } from "./display.js";
+import { displayOf } from "./display.js";
 import { t } from "./schema.js";
-import {
-	argIssues,
-	ContractError,
-	HandlerSpec,
-	metaOf,
-	metaProblems,
-	preHolds,
-	QuerySpec,
-	scopeOf,
-	specOf,
-} from "./spec.js";
+import { filledMeta, HandlerSpec, hasMeta, metaShapeProblems, QuerySpec, specOf } from "./spec.js";
 import { SCOPE_OUTCOMES } from "./tree/index.js";
 
 export const AGENT_META = "https://tutuca.dev/meta/agent";
@@ -62,7 +51,6 @@ export const agentMetaSchemas = {
 		maxSteps: t.option(t.number().int().min(1).max(200)),
 	},
 };
-const DEFAULTS = { prompt: null, summary: "summary", tools: [], maxSteps: null };
 // A tool for an agent meta's tools: name runs the message or query of that name (or target),
 // with params naming its args in order; a message answers with its result query (summary when
 // null).
@@ -81,12 +69,10 @@ export const agentTool = (
 	result,
 });
 // What c (a component or, with scope, its spec) says to an agent, with every key filled.
-export const agentOf = (c, scope = undefined) => {
-	const meta = metaOf(c, AGENT_META, scope);
-	return deepFreeze({ ...DEFAULTS, skills: {}, ...structuredClone({ ...meta }) });
-};
+export const agentOf = (c, scope = undefined) =>
+	filledMeta(c, AGENT_META, agentMetaSchemas[AGENT_META], scope);
 // Whether c (a component or its spec) says anything to an agent.
-export const hasAgentMeta = (c) => Object.hasOwn((specOf(c) ?? c)?.meta ?? {}, AGENT_META);
+export const hasAgentMeta = (c) => hasMeta(c, AGENT_META);
 
 // The handler or query a tool of spec runs, or undefined.
 const operationOf = (spec, tool) => {
@@ -104,7 +90,7 @@ export const agentProblems = (c, scope = undefined) => {
 	const spec = specOf(c) ?? c;
 	if (!hasAgentMeta(spec)) return [];
 	// Its shape first, as a scope with agentMetaSchemas checks it: the rest reads it.
-	const shape = metaProblems(AGENT_META, spec.meta[AGENT_META], agentMetaSchemas[AGENT_META]);
+	const shape = metaShapeProblems(spec, AGENT_META, agentMetaSchemas[AGENT_META]);
 	if (shape.length > 0) return shape;
 	const meta = agentOf(c, scope);
 	const problems = [];
@@ -221,7 +207,7 @@ Keep your answers short.`;
 // its domain prompt and its summary now.
 export const systemPrompt = (c) => {
 	const meta = agentOf(c);
-	const display = metaOf(c, DISPLAY_META);
+	const display = displayOf(c);
 	const what = [display.title, display.description].filter(Boolean).join(": ");
 	const parts = [PREAMBLE];
 	if (what) parts.push(`The component: ${what}`);
@@ -301,12 +287,7 @@ export const planToolCall = (c, call) => {
 			const next = apply(c, target, ...args);
 			return done(resultText(next, tool.result ?? meta.summary), false, next);
 		}
-		const scope = scopeOf(c);
-		const issues = argIssues(message.args, args, scope, c);
-		if (issues.length > 0) throw new ContractError(spec.name, target, issues);
-		if (!preHolds(message, c, args, {})) {
-			throw new ContractError(spec.name, target, ["pre"], message.why?.call(c, c, args) ?? "");
-		}
+		checkCall(spec, target, message, c, args);
 		return { send: { name: target, args }, result: tool.result ?? meta.summary };
 	} catch (error) {
 		return done(errorText(c, tool, error), true);

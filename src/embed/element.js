@@ -103,7 +103,7 @@ export const mountTutucaApp = (detail, { register, make, dev = false, onNotify }
 		checks: dev ? DevChecks : null,
 	});
 	register(host.scope);
-	if (onNotify !== undefined) host.onNotify = onNotify;
+	if (onNotify !== undefined) host.listen(onNotify);
 	host.start(make(host.scope.components));
 	const controller = {
 		host,
