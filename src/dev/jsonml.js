@@ -5,7 +5,6 @@
 const LIST_STYLE = "list-style:none;margin:0;padding-left:14px";
 export const span = (style, ...kids) => ["span", { style }, ...kids];
 export const objectRef = (v) => ["object", { object: v }];
-export const truncate = (s, max) => (s.length > max ? `${s.slice(0, max)}…` : s);
 // The parts of each item, an array of parts, with sep between them.
 export const join = (items, sep = ", ") =>
 	items.flatMap((item, i) => (i === 0 ? item : [sep, ...item]));

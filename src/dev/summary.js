@@ -1,5 +1,7 @@
 // Plain language for tutuca values: what a node shows in its readable view, as
 // { title, detail }. The code view shows them as src/dev/formatters.js prints them.
+
+import { truncate } from "../text.js";
 import {
 	ArrayType,
 	AskTask,
@@ -29,7 +31,6 @@ import {
 	Task,
 	Type,
 } from "../tutuca.js";
-import { truncate } from "./jsonml.js";
 
 const MAX = 40;
 const plural = (n, one, many = `${one}s`) => `${n} ${n === 1 ? one : many}`;

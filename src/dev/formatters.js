@@ -1,6 +1,7 @@
 // DevTools custom formatters for tutuca values (Chrome/Firefox).
 
 import { isMarkerOpen, MARKER_CLOSE, parseMarker } from "../markers.js";
+import { truncate } from "../text.js";
 import {
 	AstNode,
 	ComponentSpec,
@@ -20,7 +21,7 @@ import {
 	typeText,
 	Walker,
 } from "../tutuca.js";
-import { install, join, makeFormatter, objectRef, span, truncate } from "./jsonml.js";
+import { install, join, makeFormatter, objectRef, span } from "./jsonml.js";
 import { isTutucaComponent, taskVerb } from "./summary.js";
 import { installVdomFormatters } from "./vdom-formatters.js";
 

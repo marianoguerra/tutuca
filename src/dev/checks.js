@@ -5,8 +5,8 @@
 import { produce } from "../../deps/immer.js";
 import { messageIssues, trackApplies } from "../contract.js";
 import { isComponent, specOf } from "../spec.js";
+import { keyText } from "../text.js";
 import { idOf } from "../tree/identity.js";
-import { keyText } from "../tree/text.js";
 import { findInvalidFields } from "../validate.js";
 
 // The writes from prev to next, the component a task (or host.apply) handled before and after,

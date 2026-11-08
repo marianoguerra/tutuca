@@ -3,6 +3,7 @@
 // and render contexts, each node expanding into its rows. The main views say it in plain
 // words (summary.js); the code views print it as formatters.js does.
 
+import { truncate } from "../text.js";
 import {
 	$if,
 	apply,
@@ -20,7 +21,6 @@ import {
 	tag,
 } from "../tutuca.js";
 import { describe, isObject, S } from "./formatters.js";
-import { truncate } from "./jsonml.js";
 import { summarize } from "./summary.js";
 
 const { button, div, h3, li, p, section, span, ul } = tag;

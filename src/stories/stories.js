@@ -1,9 +1,9 @@
 // Stories without a UI: books of stories, their sequences of steps and stress tests, run on a
 // headless Driver. fast-check is passed in, as in pbt.js.
 
-import { argsLabel } from "../history/index.js";
 import { Driver, describeProblems } from "../testing/driver.js";
 import { arbitraries, eventCommands, messageCommands, runCommands } from "../testing/pbt.js";
+import { argsLabel } from "../text.js";
 import { DispatchPath, errorMessage, Scope, selectorFrom, specOf } from "../tutuca.js";
 
 // Steps of a sequence, as plain data. at and from are selector functions relative to

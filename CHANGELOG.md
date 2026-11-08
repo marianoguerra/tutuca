@@ -166,6 +166,7 @@
   the rest of `src/testing/driver.js` (was `src/test/`) are no longer re-exported by
   `tutuca/pbt`. `dispatchOn(el, type, value)` and `dispatchDrag(from, to)` are gone: use
   `driver.fire(type, el, { value })` and `driver.drag(from, to)`, which drain too.
+- `tutuca/history` no longer exports `argsLabel`; it's in `src/text.js` with `truncate`.
 - **`tutuca/vdom`'s `render` is `morph`**, so `render` is only the view builder.
 - **A view's named binds are `withBinds`, not `scope`.** `scope(name, child)` is
   `withBinds(name, child)` (node `WithBinds`, was `XScope`), and the component option

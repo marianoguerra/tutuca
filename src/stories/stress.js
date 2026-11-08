@@ -1,5 +1,5 @@
 // Executes stress batches; the caller owns the timeline and any saved counterexample.
-import { errorMessage } from "../tree/text.js";
+import { errorMessage } from "../text.js";
 import { stressProperty } from "./stories.js";
 
 // A stress panel before any run, and the shape of a run's progress.

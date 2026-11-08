@@ -2,7 +2,7 @@
 // of states, and the StoryRegistry that answers the UI's "story" asks.
 
 import { ClassCompiler } from "../css/classes.js";
-import { argsLabel, Timeline } from "../history/index.js";
+import { Timeline } from "../history/index.js";
 import { lint } from "../lint/index.js";
 import { prepareStory, runStep, step, stepText } from "../stories/stories.js";
 import { runStress } from "../stories/stress.js";
@@ -11,7 +11,7 @@ import { carry, specChanges } from "../sync/migrate.js";
 import { opText } from "../sync/ops.js";
 import { componentPaths, Driver, describeProblems, PROBLEMS, snapshot } from "../testing/driver.js";
 import { drivableMessages, messageCommand, resolveRefs, sourceFrames } from "../testing/pbt.js";
-import { jsonText } from "../tree/text.js";
+import { argsLabel, jsonText } from "../text.js";
 import { specOf } from "../tutuca.js";
 
 // Runs a story live in a <tutuca-app>: the controller passed to mount. Keeps a timeline of
