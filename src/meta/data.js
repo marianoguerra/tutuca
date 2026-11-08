@@ -9,8 +9,6 @@
 // can't: that load and data name a message and a query the component has, of the right kind.
 import {
 	apply,
-	ContractError,
-	errorMessage,
 	filledMeta,
 	HandlerSpec,
 	hasMeta,
@@ -19,6 +17,8 @@ import {
 	specOf,
 	t,
 } from "../tutuca.js";
+import { contractErrorText } from "./errors.js";
+import { typeSchema } from "./json-schema.js";
 
 export const DATA_META = "https://tutuca.dev/meta/data";
 export const dataMetaSchemas = {
@@ -53,66 +53,6 @@ export const fileFormatOf = (c, scope = undefined) => {
 };
 // Whether c (a component or its spec) says what its data is.
 export const hasDataMeta = (c) => hasMeta(c, DATA_META);
-
-// t.any() lists every JSON type rather than leaving type out: some providers' tool-call parsers
-// (GLM's, through OpenRouter) JSON-decode an argument only when its schema's type isn't string,
-// and with no type they hand an object over as its JSON text.
-const ANY_TYPES = ["object", "array", "string", "number", "boolean", "null"];
-const ANY_DESCRIPTION =
-	"Any JSON value as itself: an object, array, string, number, boolean or null. Don't encode it as a JSON string.";
-const withWhere = (schema, type) => {
-	const where = type.constraints.where ?? [];
-	if (where.length === 0) return schema;
-	const names = where.map((w) => w.name || "a check").join(", ");
-	return { ...schema, description: `Must pass: ${names}.` };
-};
-// A field type as JSON Schema. A where check is opaque: its name goes in the description. A
-// component type has no JSON form, so it's {}.
-export const typeSchema = (type) => {
-	const c = type?.constraints ?? {};
-	switch (type?.constructor?.kind) {
-		case "string": {
-			const s = { type: "string" };
-			if (c.minLength > 0) s.minLength = c.minLength;
-			if (c.maxLength !== undefined && c.maxLength !== Infinity) s.maxLength = c.maxLength;
-			if (c.pattern instanceof RegExp) s.pattern = c.pattern.source;
-			return withWhere(s, type);
-		}
-		case "boolean":
-			return { type: "boolean" };
-		case "number": {
-			const s = { type: c.int ? "integer" : "number" };
-			if (c.min !== undefined) s.minimum = c.min;
-			if (c.max !== undefined) s.maximum = c.max;
-			return withWhere(s, type);
-		}
-		case "enum":
-			return { enum: [...type.members] };
-		case "option":
-			return { anyOf: [typeSchema(type.valueType), { type: "null" }] };
-		case "array":
-			return withWhere({ type: "array", items: typeSchema(type.valueType) }, type);
-		case "map":
-			return { type: "object", additionalProperties: typeSchema(type.valueType) };
-		case "record":
-			return {
-				type: "object",
-				properties: Object.fromEntries(
-					Object.entries(type.shape).map(([k, v]) => [k, typeSchema(v)]),
-				),
-				required: Object.keys(type.shape),
-				additionalProperties: false,
-			};
-		case "oneOf":
-			return { anyOf: type.types.map(typeSchema) };
-		case "index":
-			return { type: ["integer", "string"], description: "An index or key into a collection." };
-		case "any":
-			return withWhere({ type: ANY_TYPES, description: ANY_DESCRIPTION }, type);
-		default:
-			return {};
-	}
-};
 
 export const isZeroArgQuery = (spec, name) => {
 	const q = spec?.queries?.[name];
@@ -151,37 +91,6 @@ export const dataProblems = (c, scope = undefined) => {
 		);
 	}
 	return problems;
-};
-
-// A type in words: an any with where checks is what its checks are named.
-const typeWords = (type) => {
-	const where = type.constructor?.kind === "any" ? (type.constraints.where ?? []) : [];
-	return where.length > 0 ? where.map((w) => w.name || "valid").join(" and ") : type.text();
-};
-// Why calling operation name on c failed, in words a person or a model reads; params name its
-// args, in order.
-export const contractErrorText = (c, error, params = []) => {
-	if (!(error instanceof ContractError)) return errorMessage(error);
-	const op = error.operation;
-	const spec = specOf(c);
-	const words = error.issues.map((issue) => {
-		if (issue === "unknown") return `there's no ${op}`;
-		if (issue === "not-pure") return `${op} can't run as a pure message`;
-		if (issue === "args") return `${op} takes ${params.length} arguments`;
-		if (issue.startsWith("arg:")) {
-			const i = Number(issue.slice(4));
-			const type = (spec?.on[op] ?? spec?.queries?.[op])?.args?.[i];
-			return `${params[i] ?? `argument ${i + 1}`} isn't ${type ? typeWords(type) : "valid"}`;
-		}
-		if (issue === "pre")
-			return `it can't run with these arguments now${error.detail ? `: ${error.detail}` : ""}`;
-		if (issue === "post") return `${op} didn't do what it promises, so nothing changed`;
-		if (issue.startsWith("invariant:"))
-			return `it would break ${issue.slice(10)}, so nothing changed`;
-		if (issue === "returns") return `${op} gave back something it shouldn't`;
-		return issue;
-	});
-	return words.join("; ");
 };
 
 // c with its content replaced by value, through its load: { next }, or { error } saying why

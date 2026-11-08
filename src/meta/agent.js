@@ -26,17 +26,10 @@ import {
 	specOf,
 	t,
 } from "../tutuca.js";
-import {
-	contractErrorText,
-	dataOf,
-	dataSchema,
-	hasDataMeta,
-	isZeroArgQuery,
-	loadData,
-	typeSchema,
-	withSample,
-} from "./data.js";
+import { dataOf, dataSchema, hasDataMeta, isZeroArgQuery, loadData, withSample } from "./data.js";
 import { displayOf } from "./display.js";
+import { contractErrorText } from "./errors.js";
+import { typeSchema } from "./json-schema.js";
 
 export const AGENT_META = "https://tutuca.dev/meta/agent";
 const toolType = t.record({
