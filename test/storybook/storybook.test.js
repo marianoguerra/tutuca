@@ -4,20 +4,24 @@ import fc from "fast-check";
 import jsonBook from "../../components/json/stories.js";
 import mathBook from "../../components/math/stories.js";
 import { startStorybook, storybookComponents } from "../../src/storybook/index.js";
-import { dom, settle, testGenericProperties, testLintsClean } from "../helpers.js";
+import {
+	collectProblems,
+	dom,
+	settle,
+	testGenericProperties,
+	testLintsClean,
+	tick,
+} from "../helpers.js";
 
 testLintsClean("storybook", storybookComponents);
 
 testGenericProperties(storybookComponents);
-
-const tick = (ms = 0) => new Promise((resolve) => setTimeout(resolve, ms));
 
 const start = (initialId = "") => {
 	// A page's URL, as the storybook's: on about:blank, the hash can't be set.
 	const window = dom("<body></body>", { url: "http://localhost/storybook.html" });
 	const rootNode = window.document.createElement("div");
 	window.document.body.append(rootNode);
-	const failures = [];
 	const { host, registry } = startStorybook({
 		document: window.document,
 		rootNode,
@@ -25,9 +29,7 @@ const start = (initialId = "") => {
 		books: [jsonBook, mathBook],
 		initialId,
 	});
-	host.listen((type, info) => {
-		if (type === "taskFailed" || type === "stateInvalid") failures.push({ type, ...info });
-	});
+	const failures = collectProblems(host);
 	const click = (node) =>
 		node.dispatchEvent(new window.MouseEvent("click", { bubbles: true, composed: true }));
 	const byText = (selector, text) =>

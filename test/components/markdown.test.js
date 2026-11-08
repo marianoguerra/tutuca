@@ -15,7 +15,6 @@ import {
 	fileFormatOf,
 	JSON_FILE,
 	loadData,
-	planToolCall,
 	query,
 	Scope,
 	Selector,
@@ -24,19 +23,9 @@ import {
 	t,
 	withSample,
 } from "../../src/tutuca.js";
-import { document, scopeWith } from "../helpers.js";
+import { callTool, document, ranTool, scopeWith, tick } from "../helpers.js";
 
 const C = () => scopeWith(markdownComponents).components;
-
-let calls = 0;
-const call = (c, name, args = {}) =>
-	planToolCall(c, { id: `call-${++calls}`, name, arguments: args });
-const ran = (c, name, args) => {
-	const plan = call(c, name, args);
-	assert.ok(plan.done, `${name} runs here`);
-	assert.equal(plan.done.isError, false, plan.done.text);
-	return plan.next;
-};
 
 test("markdown: its meta is sound and its data is its text, a .md file", () => {
 	const md = C().Markdown({});
@@ -87,16 +76,16 @@ test("markdown: the outline says its size, headings outside code, and how it sta
 
 test("markdown: an agent sets, appends to and replaces in its text", () => {
 	let md = C().Markdown({});
-	md = ran(md, "append_text", { text: "# Plan" });
+	md = ranTool(md, "append_text", { text: "# Plan" });
 	assert.equal(md.text, "# Plan");
-	md = ran(md, "append_text", { text: "- one" });
+	md = ranTool(md, "append_text", { text: "- one" });
 	assert.equal(md.text, "# Plan\n\n- one");
-	md = ran(md, "replace_text", { find: "one", replacement: "two" });
+	md = ranTool(md, "replace_text", { find: "one", replacement: "two" });
 	assert.equal(md.text, "# Plan\n\n- two");
-	const missing = call(md, "replace_text", { find: "three", replacement: "x" });
+	const missing = callTool(md, "replace_text", { find: "three", replacement: "x" });
 	assert.equal(missing.done.isError, true);
 	assert.match(missing.done.text, /no "three"/);
-	md = ran(md, "set_text", { text: "Done." });
+	md = ranTool(md, "set_text", { text: "Done." });
 	assert.equal(md.text, "Done.");
 });
 
@@ -132,7 +121,7 @@ test("markdown on a canvas: ⤓ downloads it as a .md file, and a dropped one lo
 	scopeOf(d.state).registerAskHandlers({ saveFile: (args) => saved.push(args) });
 	card(d).querySelector('[aria-label="Download as .md"]').click();
 	d.drain();
-	await new Promise((resolve) => setTimeout(resolve, 0));
+	await tick();
 	assert.deepEqual(saved, [["notes.md", "# Notes\n\n- one\n", "text/markdown"]]);
 	d.answer(itemAt("item-1"), "readText", "ok", ["# Dropped\n"]);
 	assert.equal(d.state.items["item-1"].content.text, "# Dropped\n");

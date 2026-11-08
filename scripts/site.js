@@ -2,7 +2,7 @@
 // PDF, with their pages pointing at pinned CDN copies of their dependencies instead of node_modules.
 import { cpSync, existsSync, globSync, readFileSync, rmSync, writeFileSync } from "node:fs";
 import { siteList } from "../demos/demos.js";
-import { vendor } from "./vendor.js";
+import { vendorIfMissing } from "./vendor.js";
 
 const out = "_site";
 const lock = JSON.parse(readFileSync("package-lock.json", "utf8"));
@@ -11,13 +11,19 @@ const cdn = (name, path) => `https://cdn.jsdelivr.net/npm/${name}@${version(name
 
 // The playground and the Automerge demo load bundles too big to keep in git; build them when
 // they're missing.
-if (!existsSync("site/deps/codemirror.js")) await vendor("codemirror");
-if (!existsSync("demos/deps/automerge.js")) await vendor("automerge");
-// tutuca-wax's micro-agents copy these engines into their dist/ (its build makes them when
-// they're missing too).
-for (const name of ["ajv", "jq", "jsonpath", "picomatch", "vega", "echarts"]) {
-	if (!existsSync(`demos/deps/${name}.js`)) await vendor(name);
-}
+// tutuca-wax's micro-agents copy the engines (ajv to echarts) into their dist/ (its build makes
+// them when they're missing too).
+const BUNDLES = [
+	"codemirror",
+	"automerge",
+	"ajv",
+	"jq",
+	"jsonpath",
+	"picomatch",
+	"vega",
+	"echarts",
+];
+for (const name of BUNDLES) await vendorIfMissing(name);
 rmSync(out, { recursive: true, force: true });
 cpSync("site", out, { recursive: true });
 // What the storybook and demo pages load; storybook.html is written below, pointed at the CDN.

@@ -163,17 +163,9 @@ const nested = {
 		d: { type: "string" },
 	},
 };
-const click = (driver, selector, init) => {
-	const el = driver.rootNode.querySelectorAll(selector)[init.index ?? 0];
-	el.dispatchEvent(
-		new document.defaultView.MouseEvent("click", {
-			bubbles: true,
-			ctrlKey: init.ctrl,
-			altKey: init.alt,
-		}),
-	);
-	driver.drain();
-};
+// The index-th of selector, clicked, with ctrl and alt held when they're true.
+const click = (driver, selector, { index = 0, ctrl = false, alt = false } = {}) =>
+	driver.click(driver.rootNode.querySelectorAll(selector)[index], { ctrlKey: ctrl, altKey: alt });
 
 test("a click toggles one node", () => {
 	const { C } = setup();
@@ -211,9 +203,9 @@ test("a ctrl+alt click toggles a node and everything below it", () => {
 test("expand all and collapse all reach every node", () => {
 	const { C } = setup();
 	const driver = new Driver({ root: schemaTree(C, nested), document });
-	click(driver, ".collapse-all", {});
+	driver.click(".collapse-all");
 	assert.ok(allOpen(driver.state.node).every((o) => !o));
-	click(driver, ".expand-all", {});
+	driver.click(".expand-all");
 	assert.ok(allOpen(driver.state.node).every((o) => o));
 });
 
@@ -235,7 +227,7 @@ test("a long list shows one page at a time", () => {
 	const shown = () =>
 		[...driver.rootNode.querySelectorAll(".schema-enum .text-success")].map((n) => n.textContent);
 	assert.deepEqual(shown(), ['"v0"', '"v1"', '"v2"', '"v3"', '"v4"']);
-	click(driver, ".pager .last", {});
+	driver.click(".pager .last");
 	assert.deepEqual(shown(), ['"v10"', '"v11"']);
 	assert.match(driver.rootNode.querySelector(".pager .range").textContent, /11\s*–\s*12\s*of\s*12/);
 });

@@ -6,9 +6,10 @@ import fc from "fast-check";
 // biome-ignore lint/correctness/noUnresolvedImports: jsdom uses conditional exports that Node resolves.
 import { JSDOM } from "jsdom";
 import { DevChecks } from "../src/dev/checks.js";
-import { lint } from "../src/lint/index.js";
+import { lint, lintScope } from "../src/lint/index.js";
 import { arbitraries, Driver, specProperties, testEnv } from "../src/test/pbt.js";
-import { Host, Scope } from "../src/tutuca.js";
+import { MessageContext, Scheduler } from "../src/tree/index.js";
+import { component, Host, planToolCall, Scope, t } from "../src/tutuca.js";
 import { Shape, toVChilds, VComment, VFragment, VNode } from "../src/vdom.js";
 
 // --- documents, hosts and scopes ---------------------------------------------------------
@@ -54,14 +55,55 @@ export const startHost = (Comp, args, options) => {
 	return setup;
 };
 
+// A Host without a page, in dev mode, with specs registered (C, their factories) and its
+// reports collected in reports as they're made.
+export const devHost = (specs) => {
+	const host = new Host({ checks: DevChecks });
+	const reports = [];
+	host.notify = (type, info) => reports.push({ type, ...info });
+	return { host, reports, C: host.scope.register(specs) };
+};
+// A leaf component with a pure bump, for tests of trees of components.
+export const Leaf = component({
+	name: "Leaf",
+	fields: { n: t.number(), tags: t.array(t.string()) },
+	on: {
+		bump: {
+			pure: true,
+			run(next) {
+				next.n += 1;
+			},
+		},
+	},
+});
+// src/tree's Scheduler over a store holding root, without components: handler(node, task) and
+// askHandler(node, name) find what runs, transactions write in place and observe(type, info)
+// hears what it reports. run() steps it until nothing is queued.
+export const treeHarness = ({ root, handler, askHandler = () => null, observe = () => {} }) => {
+	const store = { root, get: () => store.root, set: (r) => (store.root = r) };
+	const scheduler = new Scheduler({
+		kinds: { handler, askHandler },
+		store,
+		transact: (r, path, fn) => path.setIn(r, fn(path.getIn(r))),
+		hooks: {
+			context: (task, _node, nextRequest) => new MessageContext(task, nextRequest),
+			observe,
+		},
+	});
+	const run = () => {
+		while (!scheduler.isEmpty) scheduler.step();
+	};
+	return { store, scheduler, run };
+};
+
 export const scopeWith = (components) => {
 	const scope = new Scope();
 	scope.register(components);
 	return scope;
 };
 
-// One turn of the event loop.
-export const tick = () => new Promise((resolve) => setTimeout(resolve, 0));
+// One turn of the event loop, or ms of them.
+export const tick = (ms = 0) => new Promise((resolve) => setTimeout(resolve, ms));
 // Lets tasks, notifications and the renders they cause settle.
 export const settle = async () => {
 	for (let i = 0; i < 5; i++) await tick();
@@ -84,7 +126,46 @@ export const textOf = (root) => {
 	return driver.rootNode.textContent.replace(/\s+/g, "");
 };
 
+// The taskFailed and stateInvalid reports host makes from now on, as { type, ...info }.
+export const collectProblems = (host) => {
+	const problems = [];
+	host.listen((type, info) => {
+		if (type === "taskFailed" || type === "stateInvalid") problems.push({ type, ...info });
+	});
+	return problems;
+};
+// A demo started by start(document, ...args) on a page with an #app, as a browser would run
+// it: fire(type, el, value) sets el's value (when given), dispatches the event and runs every
+// task it causes, so what it started (an ask's answer, a notify) lands before the next line.
+export const mountDemo = (start, ...args) => {
+	const window = dom('<div id="app"></div>');
+	const host = start(window.document, ...args);
+	const problems = collectProblems(host);
+	const rootNode = window.document.getElementById("app");
+	const $ = (selector) => rootNode.querySelector(selector);
+	const fire = (type, el, value) => {
+		if (value !== undefined) el.value = value;
+		const Event = type === "click" ? window.MouseEvent : window.Event;
+		el.dispatchEvent(new Event(type, { bubbles: true, cancelable: true }));
+		while (host.tasks.length > 0) host.handleTasks();
+	};
+	return { window, host, rootNode, $, fire, problems, state: () => host.root };
+};
+
 // --- the checks component libraries run --------------------------------------------------
+
+// Lint issues as lines to compare with [], only the errors with errorsOnly.
+export const issueLines = (issues, { errorsOnly = false } = {}) =>
+	(errorsOnly ? issues.filter((i) => i.level === "error") : issues).map(
+		(i) => `${i.code} ${i.path}: ${i.message}`,
+	);
+// That a host's demo renders, made no problems and what it registered lints without errors.
+export const assertClean = async ({ host, rootNode, problems }) => {
+	await settle();
+	assert.ok(rootNode.childNodes.length > 0, "renders");
+	assert.deepEqual(problems, []);
+	assert.deepEqual(issueLines(lintScope(host.scope), { errorsOnly: true }), []);
+};
 
 // A test that components lint clean, with names the components registered beside them.
 export const testLintsClean = (
@@ -93,12 +174,7 @@ export const testLintsClean = (
 	{ names = Object.keys(components), errorsOnly = false } = {},
 ) =>
 	test(`the ${title} components lint clean`, () => {
-		const issues = lint(Object.values(components), names);
-		const shown = errorsOnly ? issues.filter((i) => i.level === "error") : issues;
-		assert.deepEqual(
-			shown.map((i) => `${i.code} ${i.path}: ${i.message}`),
-			[],
-		);
+		assert.deepEqual(issueLines(lint(Object.values(components), names), { errorsOnly }), []);
 	});
 
 // A test per component that it has pbt.js's generic properties, with arbitraries over a scope
@@ -120,6 +196,20 @@ export const testGenericProperties = (
 			}
 		});
 	}
+};
+
+// --- agent tools ---------------------------------------------------------------------------
+
+let calls = 0;
+// Runs the tool name with args on c: { done: { text, isError }, next } or { send, result }.
+export const callTool = (c, name, args = {}) =>
+	planToolCall(c, { id: `call-${++calls}`, name, arguments: args });
+// c after the tool, which must run here and succeed.
+export const ranTool = (c, name, args) => {
+	const plan = callTool(c, name, args);
+	assert.ok(plan.done, `${name} runs here`);
+	assert.equal(plan.done.isError, false, plan.done.text);
+	return plan.next;
 };
 
 // --- raw vnodes ----------------------------------------------------------------------------

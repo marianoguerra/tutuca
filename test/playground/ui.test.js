@@ -7,7 +7,7 @@ import { playgroundComponents } from "../../src/playground/element.js";
 import { makePlayground, storyChoices } from "../../src/playground/ui/playground.js";
 import { startPanelHost } from "../../src/storybook/host.js";
 import { StoryRegistry } from "../../src/storybook/index.js";
-import { dom, settle, testGenericProperties, testLintsClean } from "../helpers.js";
+import { collectProblems, dom, settle, testGenericProperties, testLintsClean } from "../helpers.js";
 
 testLintsClean("playground", playgroundComponents);
 
@@ -32,10 +32,7 @@ const start = () => {
 			},
 		},
 	});
-	const failures = [];
-	host.listen((type, info) => {
-		if (type === "taskFailed" || type === "stateInvalid") failures.push({ type, ...info });
-	});
+	const failures = collectProblems(host);
 	host.start(makePlayground(host.scope.components));
 	const send = (name, args) => host.send(name, args);
 	const run = (books, wanted = "") => {

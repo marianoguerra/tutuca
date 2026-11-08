@@ -204,7 +204,7 @@ test("stress finds a counterexample that replays in the stepper", async () => {
 test("stress can be cancelled and reports progress", async () => {
 	const { runner, reports } = mountStory(byName(mathBook, "Quadratic/Two roots"));
 	const running = runner.stress({ numRuns: 1000, maxCommands: 4, seed: 1 });
-	await new Promise((resolve) => setTimeout(resolve, 5));
+	await tick(5);
 	runner.cancelStress();
 	const result = await running;
 	assert.equal(result.status, "cancelled");

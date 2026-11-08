@@ -8,27 +8,16 @@ import { bundleOf } from "../../demos/canvas/bundles.js";
 import { start as startCanvas } from "../../demos/canvas/main.js";
 import { lintScope } from "../../src/lint/index.js";
 import { specOf } from "../../src/tutuca.js";
-import { dom } from "../helpers.js";
+import { issueLines, mountDemo } from "../helpers.js";
 
 const mount = (handlers, bundle = "agent", agent = false) => {
-	const window = dom('<div id="app"></div>');
-	const host = startCanvas(
-		window.document,
+	const demo = mountDemo(
+		startCanvas,
 		bundle,
 		{ inferenceAvailable: () => true, models: () => [], ...handlers },
 		agent,
 	);
-	const problems = [];
-	host.listen((type, info) => {
-		if (type === "taskFailed" || type === "stateInvalid") problems.push({ type, ...info });
-	});
-	const rootNode = window.document.getElementById("app");
-	const fire = (type, el, value) => {
-		if (value !== undefined) el.value = value;
-		const Event = type === "click" ? window.MouseEvent : window.Event;
-		el.dispatchEvent(new Event(type, { bubbles: true, cancelable: true }));
-		while (host.tasks.length > 0) host.handleTasks();
-	};
+	const { host, rootNode, fire } = demo;
 	// The canvas agent's own prompt, not one of its items' agents'.
 	const own = (selector) =>
 		[...rootNode.querySelectorAll(selector)].find((el) => el.closest(".canvas-card") === null);
@@ -42,7 +31,7 @@ const mount = (handlers, bundle = "agent", agent = false) => {
 			while (host.tasks.length > 0) host.handleTasks();
 		}
 	};
-	return { host, rootNode, fire, own, prompt, idle, problems, state: () => host.root };
+	return { ...demo, own, prompt, idle };
 };
 const later = (message) => new Promise((r) => setTimeout(() => r(message), 2));
 // The text of the last tool result in a request's transcript.
@@ -123,11 +112,7 @@ test("the canvas's agent adds a board, prompts its agent, waits for it and eject
 	assert.match(told[3][2], /Its agent said: Moved c00 to Doing\./);
 	assert.equal(app.state().status, "idle");
 	assert.deepEqual(app.problems, []);
-	const errors = lintScope(app.host.scope).filter((i) => i.level === "error");
-	assert.deepEqual(
-		errors.map((i) => `${i.code} ${i.path}: ${i.message}`),
-		[],
-	);
+	assert.deepEqual(issueLines(lintScope(app.host.scope), { errorsOnly: true }), []);
 });
 
 test("stopping the canvas's agent mid-delegate stops its item's agent, aborting its model", async () => {

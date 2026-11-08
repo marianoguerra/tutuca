@@ -123,6 +123,23 @@ export class Driver {
 	drain() {
 		while (this.host.tasks.length > 0) this.host.handleTasks();
 	}
+	// Dispatches an event of type on target, an element or a selector in what it rendered, as a
+	// browser would (bubbling, cancelable, with init: { ctrlKey, key, ... }), and runs what it
+	// causes.
+	fire(type, target, init = {}) {
+		const el = typeof target === "string" ? this.rootNode.querySelector(target) : target;
+		const view = this.rootNode.ownerDocument.defaultView;
+		const Event = /^(click|dblclick|mouse)/.test(type)
+			? view.MouseEvent
+			: type.startsWith("key")
+				? view.KeyboardEvent
+				: view.Event;
+		el.dispatchEvent(new Event(type, { bubbles: true, cancelable: true, ...init }));
+		this.drain();
+	}
+	click(target, init = {}) {
+		this.fire("click", target, init);
+	}
 	// Continue from root instead, dropping queued tasks: rewinds a timeline. An async ask
 	// reply already in flight still arrives, against the new root.
 	restart(root) {

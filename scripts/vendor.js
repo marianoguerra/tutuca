@@ -198,14 +198,19 @@ export const vendor = async (name) => {
 	console.log(`${target.out}: ${title}`);
 };
 
+// Builds the bundle name unless it's there already.
+export const vendorIfMissing = async (name) => {
+	if (!existsSync(TARGETS[name]?.out ?? "")) await vendor(name);
+};
+
 if (import.meta.url === `file://${process.argv[1]}`) {
-	// --if-missing builds only the bundles that aren't there yet (npm test's pretest).
+	// --if-missing builds only the bundles that aren't there yet (npm run lint's prelint,
+	// tutuca-wax's build).
 	const ifMissing = process.argv.includes("--if-missing");
 	const names = process.argv.slice(2).filter((a) => a !== "--if-missing");
 	if (!names.length)
 		throw new Error(
 			`usage: node scripts/vendor.js [--if-missing] ${Object.keys(TARGETS).join("|")}...`,
 		);
-	for (const name of names)
-		if (!ifMissing || !existsSync(TARGETS[name]?.out ?? "")) await vendor(name);
+	for (const name of names) await (ifMissing ? vendorIfMissing(name) : vendor(name));
 }

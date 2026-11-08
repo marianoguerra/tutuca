@@ -15,12 +15,9 @@ jobs:
           node-version-file: .nvmrc
           cache: npm
       - run: npm ci
-      # site/playground/boot.js imports the codemirror bundle, which is built on demand.
-      - run: node scripts/vendor.js codemirror
-      - run: npm run lint
-      - run: npm test
-      - run: npm run dist
-      - run: npm run smoke
+      # Lint (whose prelint builds the codemirror bundle site/playground/boot.js imports), test,
+      # build dist/ and smoke test it.
+      - run: npm run verify
       - uses: Bogdanp/setup-racket@v1.16
         with:
           version: stable

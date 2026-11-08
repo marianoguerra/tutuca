@@ -15,10 +15,6 @@ const names = readdirSync(DIR)
 	.map((f) => f.slice(0, -5));
 const C = scopeWith(treeSpecComponents).components;
 const start = (name) => new Driver({ root: explorerOf(C, scenario(name)), document });
-const click = (d, el) => {
-	el.dispatchEvent(new document.defaultView.MouseEvent("click", { bubbles: true }));
-	d.drain();
-};
 const choices = (d) => [...d.rootNode.querySelectorAll("section button.btn-outline")];
 
 test("every exported scenario renders, and every state can be reached by its choices", () => {
@@ -33,13 +29,13 @@ test("every exported scenario renders, and every state can be reached by its cho
 			const here = d.state.current;
 			for (let i = 0; i < choices(d).length; i++) {
 				const before = d.state.current;
-				click(d, choices(d)[i]);
+				d.click(choices(d)[i]);
 				assert.notEqual(d.state.current, before, `${name}: a choice moves`);
 				if (!seen.has(d.state.current)) {
 					seen.add(d.state.current);
 					visit();
 				}
-				click(d, d.rootNode.querySelector("section button"));
+				d.click(d.rootNode.querySelector("section button"));
 				assert.equal(d.state.current, here, `${name}: back returns`);
 			}
 		};
@@ -73,7 +69,7 @@ test("clicking an instance selects it and shows its card", () => {
 	const d = start("hops");
 	const nodes = d.rootNode.querySelectorAll(".ts-instance > g.cursor-pointer");
 	assert.equal(nodes.length, 3);
-	click(d, nodes[2]);
+	d.click(nodes[2]);
 	const world = d.state.states[d.state.current];
 	assert.notEqual(world.selected, -1);
 	assert.match(d.rootNode.textContent, /Counter #\d/);
@@ -82,7 +78,7 @@ test("clicking an instance selects it and shows its card", () => {
 
 test("the observations new in a step are marked fresh", () => {
 	const d = start("requests");
-	click(d, choices(d)[0]);
+	d.click(choices(d)[0]);
 	assert.ok(d.rootNode.querySelector("li.font-bold"), "the new observations are bold");
 	assert.deepEqual(d.problems, []);
 });

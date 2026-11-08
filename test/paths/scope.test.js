@@ -2,34 +2,20 @@
 // everything it caused ran, across asks answered later, inside other scopes, cancelled or not.
 import assert from "node:assert/strict";
 import test from "node:test";
-import { HOST, MessageContext, mint, Scheduler, Target, Task } from "../../src/tree/index.js";
+import { HOST, mint, Target, Task } from "../../src/tree/index.js";
 import { DispatchPath } from "../../src/tree/path.js";
+import { tick, treeHarness } from "../helpers.js";
 
 // root holds a worker; root's handlers start work on it, the worker's do it.
 const setup = (handlers, askHandlers = {}) => {
-	const store = {
+	const { store, scheduler, run } = treeHarness({
 		root: mint({ kind: "root", log: [], worker: mint({ kind: "worker", n: 0 }) }),
-		get: () => store.root,
-		set: (r) => (store.root = r),
-	};
-	const scheduler = new Scheduler({
-		kinds: {
-			handler: (node, { mode, name, outcome }) => {
-				const run = handlers[node.kind]?.[mode === "answer" ? `${name}.${outcome}` : name];
-				return run && { run };
-			},
-			askHandler: (_node, name) => askHandlers[name] ?? null,
+		handler: (node, { mode, name, outcome }) => {
+			const run = handlers[node.kind]?.[mode === "answer" ? `${name}.${outcome}` : name];
+			return run && { run };
 		},
-		store,
-		transact: (r, path, fn) => path.setIn(r, fn(path.getIn(r))),
-		hooks: {
-			context: (task, _node, nextRequest) => new MessageContext(task, nextRequest),
-			observe: () => {},
-		},
+		askHandler: (_node, name) => askHandlers[name] ?? null,
 	});
-	const run = () => {
-		while (!scheduler.isEmpty) scheduler.step();
-	};
 	const send = (name, args = []) => {
 		const task = new Task(name, args, HOST, new Target(new DispatchPath()), null);
 		task.prepare(store.get());
@@ -38,7 +24,7 @@ const setup = (handlers, askHandlers = {}) => {
 	};
 	const settle = async () => {
 		for (let i = 0; i < 20 && !scheduler.isIdle; i++) {
-			await new Promise((r) => setTimeout(r, 0));
+			await tick();
 			run();
 		}
 	};

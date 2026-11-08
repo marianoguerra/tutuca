@@ -21,11 +21,10 @@ import { start as startTracker } from "../../demos/thing-tracker/main.js";
 import { start as startTodo } from "../../demos/todo/main.js";
 import { start as startTreeSpec } from "../../demos/tree-spec/main.js";
 import { bareShell } from "../../scripts/app.js";
-import { lintScope } from "../../src/lint/index.js";
 import { startSynced } from "../../src/sync/index.js";
 import { relay } from "../../src/sync/remote.js";
 import { Host, specOf } from "../../src/tutuca.js";
-import { dom, settle } from "../helpers.js";
+import { assertClean, dom, mountDemo, settle } from "../helpers.js";
 
 // Boots a demo in jsdom, collecting what would go to console.error.
 // The notebook's bundle on a plain canvas, notes and a hole, for the canvas's own mechanics:
@@ -45,58 +44,26 @@ const PLAIN = {
 		),
 };
 
-const mount = (start, ...args) => {
-	const window = dom('<div id="app"></div>');
-	const { document } = window;
-	const host = start(document, ...args);
-	const problems = [];
-	host.listen((type, info) => {
-		if (type === "taskFailed" || type === "stateInvalid") problems.push({ type, ...info });
-	});
-	const rootNode = document.getElementById("app");
-	const $ = (selector) => rootNode.querySelector(selector);
-	const fire = (type, el, value) => {
-		if (value !== undefined) el.value = value;
-		const Event = type === "click" ? window.MouseEvent : window.Event;
-		el.dispatchEvent(new Event(type, { bubbles: true, cancelable: true }));
-		// A tick stops after 16ms and leaves the rest for a timer: on a busy machine what an event
-		// started (an ask's answer, a notify) would land after the assertion. Run it all now.
-		while (host.tasks.length > 0) host.handleTasks();
-	};
-	return { host, rootNode, $, fire, problems, state: () => host.root };
-};
-
-const checkClean = async ({ host, rootNode, problems }) => {
-	await settle();
-	assert.ok(rootNode.childNodes.length > 0, "renders");
-	assert.deepEqual(problems, []);
-	const errors = lintScope(host.scope).filter((i) => i.level === "error");
-	assert.deepEqual(
-		errors.map((i) => `${i.code} ${i.path}: ${i.message}`),
-		[],
-	);
-};
-
 test("drawing demo: picks a tool", async () => {
-	const app = mount(startDrawing);
+	const app = mountDemo(startDrawing);
 	assert.equal(app.state().shapes.length, 5);
 	app.fire("click", app.$('button[title="Rectangle (R)"]'));
 	assert.equal(app.state().tool, "rect");
-	await checkClean(app);
+	await assertClean(app);
 });
 
 test("tree spec demo: steps through an exported scenario", async () => {
 	const scenario = JSON.parse(
 		readFileSync(new URL("../../demos/tree-spec/scenarios/requests.json", import.meta.url), "utf8"),
 	);
-	const app = mount(startTreeSpec, scenario);
+	const app = mountDemo(startTreeSpec, scenario);
 	app.fire("click", app.$("section button.btn-outline"));
 	assert.equal(app.state().trail.length, 1);
-	await checkClean(app);
+	await assertClean(app);
 });
 
 test("kanban demo: moves a dragged card to the column it's dropped on", async () => {
-	const app = mount(startKanban);
+	const app = mountDemo(startKanban);
 	const [todo, , done] = app.rootNode.querySelectorAll(".grid > div");
 	const card = todo.querySelector('[data-dragtype="card"]');
 	app.fire("dragstart", card);
@@ -107,11 +74,11 @@ test("kanban demo: moves a dragged card to the column it's dropped on", async ()
 		app.state().columns.map((column) => column.cards.length),
 		[2, 1, 1],
 	);
-	await checkClean(app);
+	await assertClean(app);
 });
 
 test("composition demo: a picker becomes the cell picked, and adds pickers around it", async () => {
-	const app = mount(startComposition);
+	const app = mountDemo(startComposition);
 	const kinds = () => app.state().order.map((key) => specOf(app.state().entries[key].content).name);
 	app.fire("click", app.$('[data-choice="tracker"]'));
 	app.fire("click", app.$('[data-choice="group:pets/care"]'));
@@ -119,11 +86,11 @@ test("composition demo: a picker becomes the cell picked, and adds pickers aroun
 	app.fire("click", app.$('[title="Add a cell at the end"]'));
 	app.fire("click", app.$('[data-choice="kanban"]'));
 	assert.deepEqual(kinds(), ["TrackerCell", "Board"]);
-	await checkClean(app);
+	await assertClean(app);
 });
 
 test("canvas demo: a click adds a hole, which becomes what's picked; items move, collapse and go", async () => {
-	const app = mount(startCanvas, PLAIN);
+	const app = mountDemo(startCanvas, PLAIN);
 	const { MouseEvent } = app.rootNode.ownerDocument.defaultView;
 	const pointer = (type, el, x, y) =>
 		el.dispatchEvent(new MouseEvent(type, { bubbles: true, clientX: x, clientY: y, button: 0 }));
@@ -168,11 +135,11 @@ test("canvas demo: a click adds a hole, which becomes what's picked; items move,
 	pointer("pointerdown", app.$("foreignObject header"), 58, 58);
 	pointer("pointerup", bg, 58, 58);
 	assert.equal(captures, 1, "pressing the header itself does");
-	await checkClean(app);
+	await assertClean(app);
 });
 
 test("canvas demo: Ctrl+click collapses every item, an item maximizes, the canvas zooms and grows", async () => {
-	const app = mount(startCanvas, PLAIN);
+	const app = mountDemo(startCanvas, PLAIN);
 	const { MouseEvent, KeyboardEvent, WheelEvent } = app.rootNode.ownerDocument.defaultView;
 	const items = () => app.state().order.map((key) => app.state().items[key]);
 	const toggles = () => app.rootNode.querySelectorAll('svg [title^="Collapse or expand"]');
@@ -225,11 +192,11 @@ test("canvas demo: Ctrl+click collapses every item, an item maximizes, the canva
 	pointer("pointerdown", width - 10, 100);
 	pointer("pointerup", width - 10, 100);
 	assert.ok(app.state().width > width, "the canvas grows");
-	await checkClean(app);
+	await assertClean(app);
 });
 
 test("canvas demo: items resize by their corner; shapes are drawn, styled, moved and deleted", async () => {
-	const app = mount(startCanvas, PLAIN);
+	const app = mountDemo(startCanvas, PLAIN);
 	const { MouseEvent, KeyboardEvent } = app.rootNode.ownerDocument.defaultView;
 	const pointer = (type, el, x, y, more = {}) =>
 		el.dispatchEvent(
@@ -296,11 +263,11 @@ test("canvas demo: items resize by their corner; shapes are drawn, styled, moved
 		shapes().map((s) => specOf(s).name),
 		["Rect", "Text"],
 	);
-	await checkClean(app);
+	await assertClean(app);
 });
 
 test("canvas demo: a hole becomes a layout, edited from its item's toggle", async () => {
-	const app = mount(startCanvas, PLAIN);
+	const app = mountDemo(startCanvas, PLAIN);
 	const item = () => app.state().items["item-2"];
 	const card = () => app.rootNode.querySelectorAll("foreignObject")[1];
 	const click = (selector, i = 0) => app.fire("click", card().querySelectorAll(selector)[i]);
@@ -330,11 +297,11 @@ test("canvas demo: a hole becomes a layout, edited from its item's toggle", asyn
 	assert.equal(card().querySelector('[title="More columns"]'), null);
 	click('[title="Edit it"]');
 	assert.ok(card().querySelector('[title="More columns"]'));
-	await checkClean(app);
+	await assertClean(app);
 });
 
 test("canvas demo: tabs add, rename, select and remove; an item's title is edited", async () => {
-	const app = mount(startCanvas, PLAIN);
+	const app = mountDemo(startCanvas, PLAIN);
 	const item = () => app.state().items["item-2"];
 	const tabs = () => item().content;
 	const card = () => app.rootNode.querySelectorAll("foreignObject")[1];
@@ -363,11 +330,11 @@ test("canvas demo: tabs add, rename, select and remove; an item's title is edite
 	assert.equal(title().placeholder, "🗂 Tabs");
 	app.fire("input", title(), "My tabs");
 	assert.equal(item().title, "My tabs");
-	await checkClean(app);
+	await assertClean(app);
 });
 
 test("canvas demo, notebook bundle: a garden project, every kind the notebook has on one canvas", async () => {
-	const app = mount(startCanvas);
+	const app = mountDemo(startCanvas);
 	const items = () => app.state().order.map((key) => app.state().items[key]);
 	assert.deepEqual(
 		items().map((item) => specOf(item.content).name),
@@ -387,11 +354,11 @@ test("canvas demo, notebook bundle: a garden project, every kind the notebook ha
 	);
 	assert.equal(tabs.items[0].things.find((t) => t.id === "thing:home/plants").total, 5);
 	assert.ok(app.state().shapes.some((shape) => specOf(shape).name === "Arrow"));
-	await checkClean(app);
+	await assertClean(app);
 });
 
 test("canvas demo, llm bundle: a weather agent's turn, and holes that become its parts", async () => {
-	const app = mount(startCanvas, "llm");
+	const app = mountDemo(startCanvas, "llm");
 	const kinds = () => app.state().order.map((key) => specOf(app.state().items[key].content).name);
 	assert.deepEqual(kinds(), [
 		"InferenceRequest",
@@ -429,11 +396,11 @@ test("canvas demo, llm bundle: a weather agent's turn, and holes that become its
 	assert.equal(kinds().at(-1), "ToolResult");
 	const made = app.state().items[app.state().order.at(-1)];
 	assert.deepEqual([made.label, made.width, made.editing], ["📦 Tool result", 420, true]);
-	await checkClean(app);
+	await assertClean(app);
 });
 
 test("canvas demo, http bundle: a GET that checks out, a POST that doesn't and the contract", async () => {
-	const app = mount(startCanvas, "http");
+	const app = mountDemo(startCanvas, "http");
 	const kinds = () => app.state().order.map((key) => specOf(app.state().items[key].content).name);
 	assert.deepEqual(kinds(), [
 		"HttpRequest",
@@ -451,11 +418,11 @@ test("canvas demo, http bundle: a GET that checks out, a POST that doesn't and t
 	assert.equal(failures("item-7"), 0, "the fixed one does");
 	assert.ok(app.$(".http-exchange .http-ok"));
 	assert.ok(app.$(".http-exchange .http-fail"));
-	await checkClean(app);
+	await assertClean(app);
 });
 
 test("canvas demo, music bundle: a song in G, its key, scale, chords, solo and key change", async () => {
-	const app = mount(startCanvas, "music");
+	const app = mountDemo(startCanvas, "music");
 	const kinds = () => app.state().order.map((key) => specOf(app.state().items[key].content).name);
 	assert.deepEqual(kinds(), [
 		"CircleOfFifths",
@@ -509,11 +476,11 @@ test("canvas demo, music bundle: a song in G, its key, scale, chords, solo and k
 	app.fire("click", scale().querySelector('[aria-label="Instrument"] > button:nth-of-type(2)'));
 	assert.ok(scale().querySelector(".guitar-neck"));
 	assert.equal(scale().querySelector(".piano-keys"), null, "then the guitar alone");
-	await checkClean(app);
+	await assertClean(app);
 });
 
 test("lang demo: switches notation and edits the program", async () => {
-	const app = mount(startLang);
+	const app = mountDemo(startLang);
 	const output = () => app.$('[aria-label="Result"]').textContent;
 	assert.equal(output(), '⇒ "ADA!"');
 	app.fire("click", app.$('[data-notation="forth"]'));
@@ -522,11 +489,11 @@ test("lang demo: switches notation and edits the program", async () => {
 	assert.equal(app.state().viewName, "editForth");
 	app.fire("input", app.$('[aria-label="number"]'), "2");
 	assert.equal(output(), '⇒ s" 3"');
-	await checkClean(app);
+	await assertClean(app);
 });
 
 test("a demo's time travel bar steps back to an earlier state", async () => {
-	const app = mount(startLang);
+	const app = mountDemo(startLang);
 	const bar = app.rootNode.previousElementSibling;
 	assert.equal(bar.className, "time-travel");
 	app.fire("click", app.$('[data-notation="forth"]'));
@@ -540,11 +507,11 @@ test("a demo's time travel bar steps back to an earlier state", async () => {
 	await settle();
 	assert.equal(app.state().viewName, "viewLisp");
 	assert.match(bar.textContent, /state 1 of 3 · ◆ initial/);
-	await checkClean(app);
+	await assertClean(app);
 });
 
 test("math demo: saves, reopens and removes problems", async () => {
-	const app = mount(startMath);
+	const app = mountDemo(startMath);
 	const save = () =>
 		app.fire(
 			"click",
@@ -562,12 +529,12 @@ test("math demo: saves, reopens and removes problems", async () => {
 	assert.equal(app.state().matrix.det, 0);
 	app.fire("click", app.$('[aria-label="Remove problem"]'));
 	assert.equal(app.state().history.length, 2);
-	await checkClean(app);
+	await assertClean(app);
 });
 
 test("todo demo: quick adds a task in plain words", async () => {
 	const today = TODAY;
-	const app = mount(startTodo, today);
+	const app = mountDemo(startTodo, today);
 	app.fire("input", app.$('[aria-label="Quick add"]'), "Call mom tomorrow p1 #Errands");
 	app.fire("submit", app.$('[aria-label="Quick add task"]'));
 	const task = app.state().tasks.at(-1);
@@ -575,11 +542,11 @@ test("todo demo: quick adds a task in plain words", async () => {
 	assert.equal(task.due, addDays(today, 1));
 	assert.equal(task.priority, 1);
 	assert.equal(app.state().projects.find((p) => p.id === task.projectId).name, "Errands");
-	await checkClean(app);
+	await assertClean(app);
 });
 
 test("json studio demo: the schema follows the payload", async () => {
-	const app = mount(startStudio);
+	const app = mountDemo(startStudio);
 	const properties = () => app.state().schema.toSchema().properties;
 	assert.deepEqual(Object.keys(properties()).slice(0, 3), ["orderId", "createdAt", "status"]);
 	assert.equal(properties().createdAt.format, "date-time");
@@ -606,7 +573,7 @@ test("json studio demo: the schema follows the payload", async () => {
 		n: { type: "integer" },
 		xs: { type: "array", items: { type: "number" } },
 	});
-	await checkClean(app);
+	await assertClean(app);
 });
 
 test("inferSchema: types, formats, required keys and merged items", () => {
@@ -646,14 +613,14 @@ test("inferSchema: types, formats, required keys and merged items", () => {
 });
 
 test("thing tracker demo: logs a thing with a tap", async () => {
-	const app = mount(startTracker, Date.UTC(2026, 9, 16, 10, 30));
+	const app = mountDemo(startTracker, Date.UTC(2026, 9, 16, 10, 30));
 	const before = app.state().events.length;
 	assert.ok(before > 50);
 	app.fire("click", app.$('[aria-label^="Log Coffee"]'));
 	await settle();
 	assert.equal(app.state().events.length, before + 1);
 	assert.equal(app.state().events.at(-1).thingId, "thing:hydration/coffee");
-	await checkClean(app);
+	await assertClean(app);
 });
 
 // A port to an in-process backend, answering like demos/sync/backend.js does.
@@ -801,7 +768,10 @@ test("?sync=automerge: tabs on the same document merge", async () => {
 
 test("canvas demo, agent bundle: with a model, a board's item wraps it in an agent and ejects it", async () => {
 	const models = [{ provider: "echo", id: "echo", name: "Echo" }];
-	const app = mount(startCanvas, "agent", { inferenceAvailable: () => true, models: () => models });
+	const app = mountDemo(startCanvas, "agent", {
+		inferenceAvailable: () => true,
+		models: () => models,
+	});
 	const item = () => app.state().target.items["item-1"];
 	assert.equal(app.state().target.agentsAvailable, true);
 	assert.equal(specOf(item().content).name, "Board");
@@ -832,14 +802,14 @@ test("canvas demo, agent bundle: with a model, a board's item wraps it in an age
 		["c00", "c20", "c21"],
 	);
 	assert.equal(item().width, width);
-	await checkClean(app);
+	await assertClean(app);
 });
 
 test("canvas demo, agent bundle: without a model, nothing to wrap in an agent", async () => {
-	const app = mount(startCanvas, "agent", { inferenceAvailable: () => false });
+	const app = mountDemo(startCanvas, "agent", { inferenceAvailable: () => false });
 	assert.equal(app.state().target.agentsAvailable, false);
 	assert.equal(app.$('[title="Wrap in an agent"]'), null);
-	await checkClean(app);
+	await assertClean(app);
 });
 
 test("a demo served as an app (scripts/app.js): every demo's page without the demo bar", () => {
@@ -870,7 +840,7 @@ test("a bare demo page boots without the time travel bar", async () => {
 });
 
 test("canvas demo: an item whose chrome is pressed comes to the front", async () => {
-	const app = mount(startCanvas, "http");
+	const app = mountDemo(startCanvas, "http");
 	const order = () => app.state().order;
 	assert.equal(order().at(-1), "item-7");
 	const first = app.rootNode.querySelectorAll("foreignObject")[0];
@@ -894,5 +864,5 @@ test("canvas demo: an item whose chrome is pressed comes to the front", async ()
 	const front = [...app.rootNode.querySelectorAll("foreignObject")].at(-1);
 	app.fire("pointerdown", front.querySelector(".canvas-card"));
 	assert.equal(app.state(), before);
-	await checkClean(app);
+	await assertClean(app);
 });

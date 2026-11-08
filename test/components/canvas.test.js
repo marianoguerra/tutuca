@@ -3,7 +3,7 @@ import test from "node:test";
 import { canvas, canvasComponents } from "../../components/canvas/index.js";
 import { Driver } from "../../src/test/driver.js";
 import { idOf, Selector, scopeOf } from "../../src/tutuca.js";
-import { document, scopeWith } from "../helpers.js";
+import { document, scopeWith, tick } from "../helpers.js";
 
 const start = () => {
 	const C = scopeWith(canvasComponents).components;
@@ -115,7 +115,7 @@ test("an item whose content says its data downloads it as JSON", async () => {
 	scopeOf(d.state).registerAskHandlers({ saveFile: (args) => saved.push(args) });
 	itemCard(d, "item-1").querySelector('[aria-label="Download as JSON"]').click();
 	d.drain();
-	await new Promise((resolve) => setTimeout(resolve, 0));
+	await tick();
 	assert.equal(saved.length, 1);
 	const [name, text] = saved[0];
 	assert.equal(name, "board.json");

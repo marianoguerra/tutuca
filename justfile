@@ -36,6 +36,10 @@ fmt:
 # Lint, then test: what to run before a commit.
 check: lint test
 
+# Lint, test, build dist/ and smoke test it: what CI and a publish run.
+verify:
+    npm run verify
+
 # Serve the repo for the browser pages, printing the URL of path.
 serve path="":
     @echo "http://127.0.0.1:{{port}}/{{path}}"

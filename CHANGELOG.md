@@ -163,6 +163,12 @@
   there for lint. `lintScope(host.scope)` (`tutuca/lint`) lints what a host registered, and
   `registeredIn(scope)` gives `{ specs, names }` for `lint(specs, names)`.
 
+### Added
+
+- **`driver.fire(type, target, init)` and `driver.click(target, init)`** (`tutuca/pbt`'s
+  `Driver`) dispatch an event on an element, or the first match of a selector in what it
+  rendered, as a browser would, and run what it causes.
+
 ## 1.0.0-beta.3
 
 Components have a public interface (pure messages, queries and interfaces), the routing core

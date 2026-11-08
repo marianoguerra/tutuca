@@ -2,17 +2,8 @@
 // table of handlers per kind, and a transaction that writes in place.
 import assert from "node:assert/strict";
 import test from "node:test";
-import {
-	Address,
-	DispatchPath,
-	Frame,
-	HOST,
-	MessageContext,
-	mint,
-	Scheduler,
-	Target,
-	Task,
-} from "../../src/tree/index.js";
+import { Address, DispatchPath, Frame, HOST, mint, Target, Task } from "../../src/tree/index.js";
+import { treeHarness } from "../helpers.js";
 
 const kinds = {
 	parent: { on: { changed: (n) => ({ ...n, seen: n.seen + 1 }) } },
@@ -27,26 +18,15 @@ const kinds = {
 };
 const setup = (root) => {
 	const observed = [];
-	const store = { root, get: () => store.root, set: (r) => (store.root = r) };
-	const scheduler = new Scheduler({
-		kinds: {
-			handler: (node, { name }) => {
-				const run = kinds[node.kind].on[name];
-				return run && { run };
-			},
-			askHandler: () => null,
+	const harness = treeHarness({
+		root,
+		handler: (node, { name }) => {
+			const run = kinds[node.kind].on[name];
+			return run && { run };
 		},
-		store,
-		transact: (r, path, fn) => path.setIn(r, fn(path.getIn(r))),
-		hooks: {
-			context: (task, _node, nextRequest) => new MessageContext(task, nextRequest),
-			observe: (type) => observed.push(type),
-		},
+		observe: (type) => observed.push(type),
 	});
-	const run = () => {
-		while (!scheduler.isEmpty) scheduler.step();
-	};
-	return { store, scheduler, observed, run };
+	return { ...harness, observed };
 };
 const childPath = new DispatchPath([new Frame(["child"], null, null, true)]);
 

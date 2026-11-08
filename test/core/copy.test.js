@@ -3,7 +3,6 @@
 // instances with one identity in the tree.
 import assert from "node:assert/strict";
 import test from "node:test";
-import { DevChecks } from "../../src/dev/checks.js";
 import {
 	Address,
 	apply,
@@ -11,24 +10,12 @@ import {
 	copy,
 	DispatchPath,
 	Frame,
-	Host,
 	idOf,
 	scopeOf,
 	t,
 } from "../../src/tutuca.js";
+import { devHost, Leaf } from "../helpers.js";
 
-const Leaf = component({
-	name: "Leaf",
-	fields: { n: t.number(), tags: t.array(t.string()) },
-	on: {
-		bump: {
-			pure: true,
-			run(next) {
-				next.n += 1;
-			},
-		},
-	},
-});
 const Mid = component({
 	name: "Mid",
 	fields: {
@@ -51,10 +38,11 @@ const Root = component({
 	},
 });
 const setup = () => {
-	const host = new Host({ checks: DevChecks });
-	const reports = [];
-	host.notify = (type, info) => reports.push({ type, ...info });
-	const { Root: R, Mid: M, Leaf: L } = host.scope.register({ Root, Mid, Leaf });
+	const {
+		host,
+		reports,
+		C: { Root: R, Mid: M, Leaf: L },
+	} = devHost({ Root, Mid, Leaf });
 	const mid = M({
 		leaf: L({ n: 1, tags: ["a"] }),
 		more: [L({ n: 2 })],

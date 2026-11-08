@@ -42,11 +42,13 @@
 	],
 	"scripts": {
 		"test": "node --test test/*/*.test.js",
+		"prelint": "node scripts/vendor.js --if-missing codemirror",
 		"lint": "biome check .",
 		"fmt": "biome check --write .",
 		"dist": "node scripts/dist.js",
 		"smoke": "node scripts/smoke.js",
-		"prepublishOnly": "npm run lint && npm test && npm run dist && npm run smoke"
+		"verify": "npm run lint && npm test && npm run dist && npm run smoke",
+		"prepublishOnly": "npm run verify"
 	},
 	"peerDependencies": {
 		"@automerge/automerge": "^3",
