@@ -4,10 +4,10 @@
 // as it reads in a conversation, and has an edit view, pushed from above (as the canvas's item
 // toggle does), that edits it in place: the text in a textarea, the JSON values inline (the
 // json components' edit views) and the schemas as JSON text (JsonSchemaEditor).
+
+import { AGENT_META, agentTool } from "../../src/meta/index.js";
 import {
 	$if,
-	AGENT_META,
-	agentTool,
 	component,
 	each,
 	field,

@@ -5,24 +5,19 @@ import { droppedFile } from "../../components/common/files.js";
 import { headingsOf, markdownComponents } from "../../components/markdown/index.js";
 import { BUNDLES } from "../../demos/canvas/bundles.js";
 import { lint } from "../../src/lint/index.js";
-import { Driver } from "../../src/test/driver.js";
 import {
 	agentProblems,
-	component,
 	DATA_META,
 	dataOf,
 	dataProblems,
 	fileFormatOf,
 	JSON_FILE,
 	loadData,
-	query,
-	Scope,
-	Selector,
-	scopeOf,
 	summaryOf,
-	t,
 	withSample,
-} from "../../src/tutuca.js";
+} from "../../src/meta/index.js";
+import { Driver } from "../../src/test/driver.js";
+import { component, query, Scope, Selector, scopeOf, t } from "../../src/tutuca.js";
 import { callTool, document, ranTool, scopeWith, tick } from "../helpers.js";
 
 const C = () => scopeWith(markdownComponents).components;

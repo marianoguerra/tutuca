@@ -2,10 +2,9 @@
 // subtasks; inbox, today, upcoming, project, label and search views; quick add that parses
 // "Buy milk tomorrow p1 #Errands @shop".
 
+import { AGENT_META, agentTool } from "../../src/meta/index.js";
 import {
 	$if,
-	AGENT_META,
-	agentTool,
 	apply,
 	button,
 	component,

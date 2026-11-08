@@ -6,8 +6,7 @@
 // A component declares it with component({ meta: { [DISPLAY_META]: { title, icon, description } } }),
 // every key optional; a scope that registers displayMetaSchemas checks it, and fills the missing
 // keys with null.
-import { t } from "./schema.js";
-import { metaOf } from "./spec.js";
+import { metaOf, t } from "../tutuca.js";
 
 export const DISPLAY_META = "https://tutuca.dev/meta/display";
 export const displayMetaSchemas = {

@@ -2,15 +2,12 @@
 // the pointer is over it: a header to drag it by, collapse it, toggle editing it, clone it or
 // remove it, and a corner to resize it by. A content that says what its data is (DATA_META) can
 // be downloaded from the header, and a file of its format dropped on it is loaded into it.
+
+import { dataOf, fileFormatOf, hasAgentMeta, hasDataMeta, loadData } from "../../src/meta/index.js";
 import {
 	$if,
 	component,
-	dataOf,
 	field,
-	fileFormatOf,
-	hasAgentMeta,
-	hasDataMeta,
-	loadData,
 	provided,
 	pushView,
 	query,

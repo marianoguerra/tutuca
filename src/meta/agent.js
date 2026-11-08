@@ -13,7 +13,19 @@
 // description, parameters }, JSON Schema derived from the args' types), the system prompt, the
 // next step of the loop, and running a tool call against a component. Running a message that
 // needs a context is the host's: planToolCall says what to send and what answers it.
-import { apply, checkCall, query } from "./contract.js";
+import {
+	apply,
+	checkCall,
+	filledMeta,
+	HandlerSpec,
+	hasMeta,
+	metaShapeProblems,
+	QuerySpec,
+	query,
+	SCOPE_OUTCOMES,
+	specOf,
+	t,
+} from "../tutuca.js";
 import {
 	contractErrorText,
 	dataOf,
@@ -25,9 +37,6 @@ import {
 	withSample,
 } from "./data.js";
 import { displayOf } from "./display.js";
-import { t } from "./schema.js";
-import { filledMeta, HandlerSpec, hasMeta, metaShapeProblems, QuerySpec, specOf } from "./spec.js";
-import { SCOPE_OUTCOMES } from "./tree/index.js";
 
 export const AGENT_META = "https://tutuca.dev/meta/agent";
 const toolType = t.record({

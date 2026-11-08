@@ -1,5 +1,5 @@
+import { withSample } from "../../src/meta/index.js";
 import { step, stories } from "../../src/storybook/index.js";
-import { withSample } from "../../src/tutuca.js";
 import { canvas, canvasKitComponents } from "../canvas/index.js";
 import { kindHandlers, layoutComponents } from "../canvas/layout.js";
 import { kanbanComponents } from "../kanban/index.js";

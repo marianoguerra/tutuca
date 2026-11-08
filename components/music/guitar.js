@@ -1,16 +1,8 @@
 // A guitar's neck in standard tuning, from a start fret and as many frets as its edit view says,
 // that marks notes, each in its color, everywhere they are on the frets it shows.
-import {
-	$if,
-	AGENT_META,
-	component,
-	each,
-	field,
-	send,
-	sourceKey,
-	t,
-	tag,
-} from "../../src/tutuca.js";
+
+import { AGENT_META } from "../../src/meta/index.js";
+import { $if, component, each, field, send, sourceKey, t, tag } from "../../src/tutuca.js";
 import { labeled, numberInput, setNumber } from "../common/card.js";
 import { metaFor } from "../common/meta.js";
 import { NOTE } from "../common/util.js";

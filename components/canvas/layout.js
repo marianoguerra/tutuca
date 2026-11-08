@@ -21,25 +21,28 @@
 // A component's title, icon and description are its display meta (DISPLAY_META, any host's);
 // what it says to the canvas alone, its size and whether it's see-through, is its meta under
 // CANVAS_META (see canvasMetaSchemas).
+
 import {
-	$if,
 	AGENT_META,
-	component,
 	dataMetaSchemas,
 	displayLabel,
 	displayMetaSchemas,
 	displayOf,
+	sampleChoices,
+	withSample,
+} from "../../src/meta/index.js";
+import {
+	$if,
+	component,
 	each,
 	field,
 	metaOf,
 	renderIt,
-	sampleChoices,
 	send,
 	sourceKey,
 	t,
 	tag,
 	targetValue,
-	withSample,
 } from "../../src/tutuca.js";
 import { setField } from "../common/card.js";
 import { CANVAS_META, metaFor } from "../common/meta.js";

@@ -1,17 +1,8 @@
 // A piano, as many octaves as its edit view says from the octave it says, that marks keys,
 // each in its color and with its note's name.
-import {
-	$if,
-	AGENT_META,
-	agentTool,
-	component,
-	each,
-	field,
-	send,
-	sourceKey,
-	t,
-	tag,
-} from "../../src/tutuca.js";
+
+import { AGENT_META, agentTool } from "../../src/meta/index.js";
+import { $if, component, each, field, send, sourceKey, t, tag } from "../../src/tutuca.js";
 import { labeled, numberInput, setNumber } from "../common/card.js";
 import { metaFor } from "../common/meta.js";
 import { NOTE } from "../common/util.js";

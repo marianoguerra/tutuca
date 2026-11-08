@@ -7,18 +7,9 @@
 // The piano is in piano.js, the guitar's neck in guitar.js, the note or chord and offset
 // selectors and the explorer that shows them on either in select.js, and the theory in
 // theory.js, on plain numbers and names.
-import {
-	$if,
-	AGENT_META,
-	agentTool,
-	component,
-	each,
-	field,
-	send,
-	sourceKey,
-	t,
-	tag,
-} from "../../src/tutuca.js";
+
+import { AGENT_META, agentTool } from "../../src/meta/index.js";
+import { $if, component, each, field, send, sourceKey, t, tag } from "../../src/tutuca.js";
 import { BADGE, cardClass, cardHeader, setField } from "../common/card.js";
 import { kind, metaFor } from "../common/meta.js";
 import { pickerRow } from "../common/ui.js";

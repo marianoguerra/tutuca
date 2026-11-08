@@ -1,6 +1,8 @@
 // Dropping a JSON file on a component to replace what it shows, when its allowDrop is on: the
 // file's JSON goes through the component's data load (DATA_META, src/data.js).
-import { $if, errorMessage, field, JSON_FILE, loadData, send, t, tag } from "../../src/tutuca.js";
+
+import { JSON_FILE, loadData } from "../../src/meta/index.js";
+import { $if, errorMessage, field, send, t, tag } from "../../src/tutuca.js";
 import { DROP_TARGET, droppedFile } from "./files.js";
 
 const { div, p } = tag;

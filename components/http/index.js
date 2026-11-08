@@ -4,10 +4,10 @@
 // parameters and bodies' schemas, the documented statuses, the Content-Type and CORS). Each
 // shows in its main view as it reads, and has an edit view, pushed from above (as the canvas's
 // item toggle does), that edits it in place. The checking is in check.js, on plain JSON.
+
+import { AGENT_META, agentTool } from "../../src/meta/index.js";
 import {
 	$if,
-	AGENT_META,
-	agentTool,
 	apply,
 	component,
 	each,

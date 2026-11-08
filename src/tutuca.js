@@ -1,46 +1,17 @@
 // The core: components, views, schemas, specs, paths, tasks and the host. Each lives in its own module;
 // this one is the public surface npm consumers and dist/ bundle.
 
-export {
-	AGENT_META,
-	agentMetaSchemas,
-	agentOf,
-	agentProblems,
-	agentTool,
-	callArgs,
-	hasAgentMeta,
-	MAX_STEPS,
-	maxStepsOf,
-	nextAction,
-	pendingResults,
-	planToolCall,
-	reportType,
-	resultText,
-	settledText,
-	summaryOf,
-	systemPrompt,
-	toolCallsOf,
-	toolResultMessage,
-	toolsFor,
-} from "./agent.js";
 export { ComponentSpec, component } from "./component.js";
-export { apply, canApply, canQuery, contractOf, query, supports } from "./contract.js";
 export {
-	contractErrorText,
-	DATA_META,
-	dataMetaSchemas,
-	dataOf,
-	dataProblems,
-	dataSchema,
-	fileFormatOf,
-	hasDataMeta,
-	JSON_FILE,
-	loadData,
-	sampleChoices,
-	typeSchema,
-	withSample,
-} from "./data.js";
-export { DISPLAY_META, displayLabel, displayMetaSchemas, displayOf } from "./display.js";
+	apply,
+	canApply,
+	canQuery,
+	checkCall,
+	checkInvariants,
+	contractOf,
+	query,
+	supports,
+} from "./contract.js";
 export { DRAG_EVENTS, DROP_EVENTS, Drag } from "./drag.js";
 export { browserEnv, Host } from "./host.js";
 export * from "./schema.js";
@@ -49,8 +20,10 @@ export {
 	argIssues,
 	brokenInvariants,
 	ContractError,
+	filledMeta,
 	findInvalidFields,
 	HandlerSpec,
+	hasMeta,
 	Interface,
 	iface,
 	implementsIface,
@@ -59,6 +32,7 @@ export {
 	messageIssues,
 	metaOf,
 	metaProblems,
+	metaShapeProblems,
 	QuerySpec,
 	resolveImplements,
 	scopeOf,

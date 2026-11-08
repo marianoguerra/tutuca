@@ -7,14 +7,11 @@
 // The other libraries' components are registered next to these, so cells are made in the
 // notebook's scope.
 
+import { AGENT_META, agentTool, displayLabel, displayOf } from "../../src/meta/index.js";
 import {
 	$if,
-	AGENT_META,
-	agentTool,
 	apply,
 	component,
-	displayLabel,
-	displayOf,
 	dragKey,
 	each,
 	field,

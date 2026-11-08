@@ -4,12 +4,11 @@
 // the board's wrapper around it. Either way the board moves the card by the id of the value
 // dragged. The host marks the target under the drag with data-draggingover, which the styles
 // highlight.
+
+import { AGENT_META, agentTool, DATA_META } from "../../src/meta/index.js";
 import {
-	AGENT_META,
-	agentTool,
 	apply,
 	component,
-	DATA_META,
 	each,
 	field,
 	renderEach,

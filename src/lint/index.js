@@ -1,11 +1,10 @@
+import { agentProblems, dataProblems } from "../meta/index.js";
 import {
 	ANSWER_OUTCOMES,
 	ArrayType,
 	AstNode,
-	agentProblems,
 	ComponentType,
 	DRAG_EVENTS,
-	dataProblems,
 	HandlerSpec,
 	IndexType,
 	Interface,

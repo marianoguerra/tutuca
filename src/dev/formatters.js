@@ -1,6 +1,6 @@
 // DevTools custom formatters for tutuca values (Chrome/Firefox).
 
-import { isMetaOpen, META_CLOSE, parseMeta } from "../meta.js";
+import { isMetaOpen, META_CLOSE, parseMeta } from "../markers.js";
 import {
 	AstNode,
 	ComponentSpec,

@@ -16,11 +16,11 @@ import {
 	agentMetaSchemas,
 	agentProblems,
 	hasAgentMeta,
-	Scope,
 	summaryOf,
 	systemPrompt,
 	toolsFor,
-} from "../../src/tutuca.js";
+} from "../../src/meta/index.js";
+import { Scope } from "../../src/tutuca.js";
 import { callTool, ranTool, scopeWith } from "../helpers.js";
 
 const failsWith = (c, name, args, pattern) => {

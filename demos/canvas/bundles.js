@@ -20,7 +20,7 @@ import { HTTP_KINDS, httpComponents } from "../../components/http/index.js";
 import { kanbanComponents } from "../../components/kanban/index.js";
 import { LLM_KINDS, llmComponents } from "../../components/llm/index.js";
 import { MUSIC_KINDS, musicComponents } from "../../components/music/index.js";
-import { agentMetaSchemas } from "../../src/tutuca.js";
+import { agentMetaSchemas } from "../../src/meta/index.js";
 import { gardenScene, httpScene, llmScene, musicScene, releaseScene } from "./scenes.js";
 
 // What the agent bundle's holes can become: the notebook's, and a board, which an agent can

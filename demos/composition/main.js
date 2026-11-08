@@ -1,5 +1,5 @@
 import { compositionComponents, notebook } from "../../components/composition/index.js";
-import { displayMetaSchemas } from "../../src/tutuca.js";
+import { displayMetaSchemas } from "../../src/meta/index.js";
 import { boot } from "../boot.js";
 
 export const start = (document = globalThis.document, now = Date.now()) =>

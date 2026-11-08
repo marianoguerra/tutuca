@@ -7,18 +7,18 @@
 // A component declares it with component({ meta: { [DATA_META]: { load, data, ... } } }); a
 // scope that registers dataMetaSchemas checks its shape, and dataProblems checks what the shape
 // can't: that load and data name a message and a query the component has, of the right kind.
-import { apply } from "./contract.js";
-import { t } from "./schema.js";
 import {
+	apply,
 	ContractError,
+	errorMessage,
 	filledMeta,
 	HandlerSpec,
 	hasMeta,
 	metaShapeProblems,
 	QuerySpec,
 	specOf,
-} from "./spec.js";
-import { errorMessage } from "./tree/text.js";
+	t,
+} from "../tutuca.js";
 
 export const DATA_META = "https://tutuca.dev/meta/data";
 export const dataMetaSchemas = {

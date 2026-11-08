@@ -2,14 +2,8 @@
 // components to people.
 import assert from "node:assert/strict";
 import test from "node:test";
-import {
-	component,
-	DISPLAY_META,
-	displayLabel,
-	displayMetaSchemas,
-	displayOf,
-	Scope,
-} from "../../src/tutuca.js";
+import { DISPLAY_META, displayLabel, displayMetaSchemas, displayOf } from "../../src/meta/index.js";
+import { component, Scope } from "../../src/tutuca.js";
 
 const Notes = component({
 	name: "Notes",

@@ -2,18 +2,9 @@
 // and edited as JSON: its edit view, pushed from above, edits the JSON in place (the json
 // components' edit views). The tree follows the JSON as long as it reads as a schema; the
 // schema is the last JSON that did.
-import {
-	$if,
-	AGENT_META,
-	agentTool,
-	component,
-	DATA_META,
-	field,
-	render,
-	scopeOf,
-	t,
-	tag,
-} from "../../src/tutuca.js";
+
+import { AGENT_META, agentTool, DATA_META } from "../../src/meta/index.js";
+import { $if, component, field, render, scopeOf, t, tag } from "../../src/tutuca.js";
 import { setField } from "../common/card.js";
 import { kind, metaFor } from "../common/meta.js";
 import { applyBelow, openAllButtons } from "../common/open.js";

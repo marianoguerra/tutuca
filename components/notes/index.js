@@ -1,13 +1,12 @@
 // A notes list for the sync demos. Each field shows a sync level: the title and notes are
 // shared (replicated and persisted), the filter is local (kept on this device only) and the
 // draft is none (lost on reload).
+
+import { AGENT_META, agentTool, DISPLAY_META } from "../../src/meta/index.js";
 import {
 	$if,
-	AGENT_META,
-	agentTool,
 	apply,
 	component,
-	DISPLAY_META,
 	each,
 	field,
 	renderIt,

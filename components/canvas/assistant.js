@@ -1,6 +1,8 @@
 // The canvas's agent (index.js): what it's told, what its tools are, and the queries it reads
 // the canvas with, by item key.
-import { agentOf, agentTool, hasAgentMeta, specOf, summaryOf, t } from "../../src/tutuca.js";
+
+import { agentOf, agentTool, hasAgentMeta, summaryOf } from "../../src/meta/index.js";
+import { specOf, t } from "../../src/tutuca.js";
 
 // What the canvas's agent is told, and can do: by item key.
 export const ASSISTANT = {

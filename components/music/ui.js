@@ -1,8 +1,9 @@
 // What the music cards share: their colors, the palette an instrument paints its marks with,
 // the root picker, the octave stepper and marking notes on an instrument.
+
+import { agentTool } from "../../src/meta/index.js";
 import {
 	$if,
-	agentTool,
 	apply,
 	each,
 	field,

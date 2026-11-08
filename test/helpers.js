@@ -7,9 +7,10 @@ import fc from "fast-check";
 import { JSDOM } from "jsdom";
 import { DevChecks } from "../src/dev/checks.js";
 import { lint, lintScope } from "../src/lint/index.js";
+import { planToolCall } from "../src/meta/index.js";
 import { arbitraries, Driver, specProperties, testEnv } from "../src/test/pbt.js";
 import { MessageContext, Scheduler } from "../src/tree/index.js";
-import { component, Host, planToolCall, Scope, t } from "../src/tutuca.js";
+import { component, Host, Scope, t } from "../src/tutuca.js";
 import { Shape, toVChilds, VComment, VFragment, VNode } from "../src/vdom.js";
 
 // --- documents, hosts and scopes ---------------------------------------------------------

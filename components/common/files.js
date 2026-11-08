@@ -1,5 +1,5 @@
 // Ask handlers for files, backed by the browser; without a DOM saving does nothing.
-import { JSON_FILE } from "../../src/tutuca.js";
+import { JSON_FILE } from "../../src/meta/index.js";
 
 // saveFile([filename, text, type, kind]) downloads text as filename and replies kind, which
 // tells the asker which of its saves finished; type is the mime type, json by default.

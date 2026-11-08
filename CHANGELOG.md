@@ -153,6 +153,14 @@
 
 ### Breaking
 
+- **The meta conventions are `tutuca/meta`, not the core.** What a component says to whoever
+  displays it (`DISPLAY_META`, `displayOf`, …), its content as JSON (`DATA_META`, `dataOf`,
+  `loadData`, `typeSchema`, …) and what it says to an LLM agent (`AGENT_META`, `agentTool`,
+  `planToolCall`, `summaryOf`, …) moved from `src/agent.js`, `src/data.js` and `src/display.js`
+  to `src/meta/`, and `tutuca` no longer exports them: import them from `tutuca/meta`. They use
+  only the core's public surface, which now exports what they build on: `filledMeta`, `hasMeta`,
+  `metaShapeProblems`, `checkCall` and `checkInvariants`. The core bundle (`dist/tutuca.min.js`)
+  drops from 105 KB to 91 KB. `src/meta.js`, the render comment markers, is `src/markers.js`.
 - **`tutuca/tree` no longer exports `call` or `isNode`**, which only the tree uses.
 - `historyEngine`'s `travel(i)` is `goto(i)`, as on `Timeline` and the bar's ops.
 - **`host.listen(fn)` replaces `host.onNotify`.** Assigning `onNotify` kept one listener, so

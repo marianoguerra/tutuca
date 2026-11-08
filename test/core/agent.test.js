@@ -7,7 +7,6 @@ import {
 	AGENT_META,
 	agentMetaSchemas,
 	agentProblems,
-	component,
 	DATA_META,
 	dataMetaSchemas,
 	dataOf,
@@ -19,15 +18,14 @@ import {
 	pendingResults,
 	planToolCall,
 	resultText,
-	Scope,
 	sampleChoices,
 	settledText,
 	systemPrompt,
-	t,
 	toolsFor,
 	typeSchema,
 	withSample,
-} from "../../src/tutuca.js";
+} from "../../src/meta/index.js";
+import { component, Scope, t } from "../../src/tutuca.js";
 
 const tool = (name, kind, params, extra = {}) => ({
 	name,

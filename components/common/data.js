@@ -1,6 +1,8 @@
 // Helpers for a component's data meta (DATA_META, src/data.js) when what its load takes is
 // described by a JSON Schema rather than an arg type.
-import { DATA_META, scopeOf, t } from "../../src/tutuca.js";
+
+import { DATA_META } from "../../src/meta/index.js";
+import { scopeOf, t } from "../../src/tutuca.js";
 import { validate } from "../llm/validate.js";
 
 // What a load message whose arg must match schema spreads in: an any arg, and a pre that

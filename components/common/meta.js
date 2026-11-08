@@ -1,5 +1,5 @@
 // The meta the components say about themselves, to whoever shows them.
-import { DISPLAY_META } from "../../src/tutuca.js";
+import { DISPLAY_META } from "../../src/meta/index.js";
 
 // How a component sits on a canvas: see canvasMetaSchemas (canvas/layout.js).
 export const CANVAS_META = "https://tutuca.dev/meta/canvas";

@@ -5,12 +5,12 @@
 //
 // enum and const carry arbitrary JSON, which has no schema shape, so they hold JSON components.
 
+import { DATA_META } from "../../src/meta/index.js";
 import {
 	$if,
 	apply,
 	button,
 	component,
-	DATA_META,
 	each,
 	field,
 	isComponent,

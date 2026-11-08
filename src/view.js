@@ -1,5 +1,5 @@
 // Views: the AST nodes view builders make, how they evaluate to vnodes, and the render context.
-import { wrapMeta } from "./meta.js";
+import { wrapMeta } from "./markers.js";
 import { planElement } from "./optimize.js";
 import { isComponent, specOf } from "./spec.js";
 import { DispatchPath, Frame, selectorFrom } from "./tree/path.js";

@@ -7,7 +7,8 @@ import { jsonComponents } from "../../components/json/index.js";
 import { kanbanComponents } from "../../components/kanban/index.js";
 import { LLM_KINDS, llmComponents } from "../../components/llm/index.js";
 import { lint } from "../../src/lint/index.js";
-import { dataOf, dataSchema, hasDataMeta, loadData, query, withSample } from "../../src/tutuca.js";
+import { dataOf, dataSchema, hasDataMeta, loadData, withSample } from "../../src/meta/index.js";
+import { query } from "../../src/tutuca.js";
 import { scopeWith } from "../helpers.js";
 
 const BUNDLES = [

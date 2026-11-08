@@ -18,6 +18,7 @@
 		".": "./src/tutuca.js",
 		"./vdom": "./src/vdom.js",
 		"./tree": "./src/tree/index.js",
+		"./meta": "./src/meta/index.js",
 		"./dev": "./src/tutuca.dev.js",
 		"./lint": "./src/lint/index.js",
 		"./classes": "./src/css/classes.js",

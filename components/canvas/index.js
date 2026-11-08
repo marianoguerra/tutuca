@@ -16,9 +16,10 @@
 // the card takes it back. A drag (moving or resizing an item, moving a shape, drawing one)
 // captures the pointer on the canvas's svg, so the moves and the release reach the canvas
 // wherever the pointer goes, and the components inside never see them.
+
+import { AGENT_META } from "../../src/meta/index.js";
 import {
 	$if,
-	AGENT_META,
 	apply,
 	component,
 	copy,

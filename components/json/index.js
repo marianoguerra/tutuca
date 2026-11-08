@@ -2,12 +2,12 @@
 // an edit view, styled like main, that edits them in place. pushView("edit", ...) above a
 // tree, as JsonEditor does, switches the whole tree; values without an edit view keep main.
 
+import { DATA_META } from "../../src/meta/index.js";
 import {
 	$if,
 	button,
 	canApply,
 	component,
-	DATA_META,
 	each,
 	field,
 	lookupBind,

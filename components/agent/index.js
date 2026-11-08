@@ -15,31 +15,34 @@
 //
 // Stop cancels the tool running (its scope, and every agent it prompted with it), and tells a
 // target that holds agents of its own to stop them (stopAgents, when it has it).
+
 import {
-	$if,
 	AGENT_META,
 	agentOf,
-	apply,
-	component,
 	displayLabel,
-	each,
-	field,
 	hasAgentMeta,
 	maxStepsOf,
 	nextAction,
 	pendingResults,
 	planToolCall,
-	render,
 	reportType,
-	send,
 	settledText,
-	specOf,
 	systemPrompt,
+	toolResultMessage,
+	toolsFor,
+} from "../../src/meta/index.js";
+import {
+	$if,
+	apply,
+	component,
+	each,
+	field,
+	render,
+	send,
+	specOf,
 	t,
 	tag,
 	targetValue,
-	toolResultMessage,
-	toolsFor,
 } from "../../src/tutuca.js";
 import { BECOME_ARGS } from "../canvas/layout.js";
 import { setField } from "../common/card.js";

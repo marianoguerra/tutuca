@@ -4,10 +4,9 @@
 // for stroke), stroke widths, undo and redo, and export as an .svg file. Pointer events turn
 // into messages with coordinates (startAt, moveTo, end), so drawing can be scripted and tested.
 
+import { AGENT_META, agentTool } from "../../src/meta/index.js";
 import {
 	$if,
-	AGENT_META,
-	agentTool,
 	apply,
 	button,
 	component,

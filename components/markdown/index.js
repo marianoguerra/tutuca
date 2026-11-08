@@ -2,18 +2,9 @@
 // code, links), and written in its edit view, a textarea beside what it renders to. On a canvas
 // it's a builtin kind, for rich text and notes anywhere: a .md file dropped on it loads, ⤓
 // downloads it as one, and an agent writes it.
-import {
-	$if,
-	AGENT_META,
-	agentTool,
-	component,
-	DATA_META,
-	field,
-	send,
-	t,
-	tag,
-	targetValue,
-} from "../../src/tutuca.js";
+
+import { AGENT_META, agentTool, DATA_META } from "../../src/meta/index.js";
+import { $if, component, field, send, t, tag, targetValue } from "../../src/tutuca.js";
 import { setField } from "../common/card.js";
 import { metaFor } from "../common/meta.js";
 import { MD_VIEW } from "./element.js";
