@@ -41,7 +41,6 @@ export {
 	toQueries,
 } from "./spec.js";
 export * from "./tag.js";
-export { componentKinds, HostTask, TutucaContext } from "./tasks.js";
 export {
 	Address,
 	ANSWER_OUTCOMES,
@@ -65,6 +64,7 @@ export {
 	Target,
 	Task,
 } from "./tree/index.js";
+export { componentKinds, HostTask, TutucaContext } from "./tree-binding.js";
 export { findInvalidFields } from "./validate.js";
 export {
 	$if,

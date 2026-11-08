@@ -15,7 +15,7 @@ has the design. Implemented so far:
 - the component runtime: components, their specs and vtables, scopes, paths,
   the handler context and its effects, the host's tasks and transactions,
   asks, rendering components, and routing DOM events back to their handlers,
-  from NOTES.md, tutuca's `src/host.js`, `src/tasks.js`, `src/tree/`,
+  from NOTES.md, tutuca's `src/host.js`, `src/tree-binding.js`, `src/tree/`,
   `src/scope.js` and `src/events.js`, and the spec's `component/paths.rkt`,
   `bind/decode.rkt` and `system/host.rkt`;
 - component modules: a component type is a `.wasm` of its own, loaded at run

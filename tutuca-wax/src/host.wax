@@ -1,4 +1,4 @@
-// The host (NOTES.md; tutuca's src/host.js and src/tasks.js; the spec's
+// The host (NOTES.md; tutuca's src/host.js and src/tree-binding.js; the spec's
 // system/host.rkt): the root state and a queue of tasks, run one at a time,
 // each as one transaction. The handler runs on the component the task's route
 // reaches, its effects become child tasks, the new root is set, and every

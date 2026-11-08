@@ -3,8 +3,8 @@
 // elsewhere, so the other engines (storage, peers) follow.
 
 import { truncate } from "../dev/jsonml.js";
-import { HostTask } from "../tasks.js";
 import { jsonText } from "../tree/text.js";
+import { HostTask } from "../tree-binding.js";
 
 // The icon of each origin of a timeline entry.
 export const ORIGINS = { initial: "◆", reload: "↻", step: "▸", user: "☝", external: "⇅" };

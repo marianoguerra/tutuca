@@ -1,8 +1,9 @@
-// What tutuca adds to the tree's messages: the context its handlers get (the world, the scope and
-// the DOM event), messages from the host (DOM events among them), and how a component's spec
-// gives the tree its handlers.
+// How tutuca binds src/tree: how a component's spec gives the tree its handlers, the context
+// they get (the world, the scope and the DOM event), messages from the host (DOM events among
+// them), and the Scheduler a Host runs its tasks with.
+import { produce } from "../deps/immer.js";
 import { scopeOf, specOf } from "./spec.js";
-import { HOST, hidden, MessageContext, Task } from "./tree/index.js";
+import { HOST, hidden, MessageContext, Scheduler, Task } from "./tree/index.js";
 
 // The handlers of a component: its spec's on (sends and notifications) and answers, and its
 // scope's ask handlers.
@@ -67,3 +68,25 @@ export class HostTask extends Task {
 		return this.now;
 	}
 }
+// The Scheduler that delivers host's tasks against its root: the tree's store is the host's
+// root, a transaction is immer's produce (dev mode's checks also record who wrote what), and the
+// host hears what happens through its hooks.
+export const schedulerFor = (host) =>
+	new Scheduler({
+		kinds: componentKinds,
+		store: { get: () => host.root, set: (root) => (host.root = root) },
+		transact: (root, path, fn) =>
+			host.checks !== null
+				? host.checks.transact(root, path, fn)
+				: produce(root, (rootDraft) => path.setIn(rootDraft, fn(path.getIn(rootDraft)))),
+		hooks: {
+			context: (task, instance, nextRequest) =>
+				new TutucaContext(task, nextRequest, host.env, scopeOf(instance)),
+			beforeCommit: (prev, next, task) => host.engines.prepare(prev, next, task),
+			committed: (task, ctx, info) => host.taskCommitted(task, ctx, info),
+			observe: (type, info) => host.notify(type, info),
+			wake: () => host.wake(),
+			scopeOpened: (scope) => host.startScopeTimer(scope),
+			scopeSettled: (scope) => host.stopScopeTimer(scope),
+		},
+	});

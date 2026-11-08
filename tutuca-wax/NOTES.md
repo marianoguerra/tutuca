@@ -655,7 +655,7 @@ the handling component's path, and a send or forward the handling component's
 path with the selector below it. JS's `node` (the DOM element of an event
 handler) has no counterpart: the wasm side sees the event as a `Value`.
 
-Tasks and the host, following `src/tasks.js` and `src/host.js` in tutuca js and
+Tasks and the host, following `src/tree-binding.js` and `src/host.js` in tutuca js and
 `spec/system/host.rkt` in the PLT Redex spec. The host keeps the root state and
 a queue of tasks and runs one task at a time, each as one transaction: the
 handler runs on the component the task's route reaches, its effects become

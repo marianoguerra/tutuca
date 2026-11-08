@@ -8,9 +8,9 @@ import { DROP_EVENTS, DragTracker } from "./drag.js";
 import { SyncEngines } from "./engines.js";
 import { getEventInfoFor } from "./events.js";
 import { Scope } from "./scope.js";
-import { scopeOf, specOf } from "./spec.js";
-import { componentKinds, HostTask, TutucaContext } from "./tasks.js";
-import { Address, DispatchPath, Scheduler, Selector, selectorFrom, Target } from "./tree/index.js";
+import { specOf } from "./spec.js";
+import { Address, DispatchPath, Selector, selectorFrom, Target } from "./tree/index.js";
+import { HostTask, schedulerFor } from "./tree-binding.js";
 import { render as $render, toVChilds } from "./vdom.js";
 import { RenderContext, renderView } from "./view.js";
 
@@ -34,42 +34,7 @@ export class Host {
 		this.env = env; // What handlers read from the world, through ctx.
 		this.root = null;
 		// Delivers the tasks against the root (src/tree): this host renders, listens and syncs.
-		this.scheduler = new Scheduler({
-			kinds: componentKinds,
-			store: { get: () => this.root, set: (root) => (this.root = root) },
-			// Dev mode's also records who wrote what, for the checks.
-			transact: (root, path, fn) =>
-				this.checks !== null
-					? this.checks.transact(root, path, fn)
-					: produce(root, (rootDraft) => path.setIn(rootDraft, fn(path.getIn(rootDraft)))),
-			hooks: {
-				context: (task, instance, nextRequest) =>
-					new TutucaContext(task, nextRequest, this.env, scopeOf(instance)),
-				beforeCommit: (prev, next, task) => this.engines.prepare(prev, next, task),
-				committed: (task, ctx, info) => {
-					this.checks?.state(task, info.curRoot, this.root);
-					this.checks?.message(task, ctx, info.instance, info.path.getIn(info.newRoot));
-					this.notify("taskHandled", { task, ...info });
-				},
-				observe: (type, info) => this.notify(type, info),
-				wake: () => {
-					if (!this._handlingTasks) this.scheduleNextTaskTick();
-				},
-				// A settle scope with a timeout is cancelled with timeout once it's up.
-				scopeOpened: (scope) => {
-					if (scope.timeout === null) return;
-					const timer = setTimeout(() => {
-						this._scopeTimers.delete(scope.id);
-						if (this.scheduler.cancelScope(scope.id, "timeout")) this.scheduleNextTaskTick();
-					}, scope.timeout);
-					this._scopeTimers.set(scope.id, timer);
-				},
-				scopeSettled: (scope) => {
-					clearTimeout(this._scopeTimers.get(scope.id));
-					this._scopeTimers.delete(scope.id);
-				},
-			},
-		});
+		this.scheduler = schedulerFor(this);
 		this.scope = new Scope((spec) => this.addEventListeners(spec.eventNames));
 		this._listeners = new Set();
 		this.pushTask = this.pushTask.bind(this);
@@ -82,6 +47,29 @@ export class Host {
 		this._scopeTimers = new Map();
 		this.drags = new DragTracker(rootNode);
 		this.engines = new SyncEngines((type, info) => this.notify(type, info));
+	}
+	// What the scheduler tells the host (tree-binding.js's schedulerFor): a task committed, there
+	// are tasks to run, and a settle scope opened or settled.
+	taskCommitted(task, ctx, info) {
+		this.checks?.state(task, info.curRoot, this.root);
+		this.checks?.message(task, ctx, info.instance, info.path.getIn(info.newRoot));
+		this.notify("taskHandled", { task, ...info });
+	}
+	wake() {
+		if (!this._handlingTasks) this.scheduleNextTaskTick();
+	}
+	// A settle scope with a timeout is cancelled with timeout once it's up.
+	startScopeTimer(scope) {
+		if (scope.timeout === null) return;
+		const timer = setTimeout(() => {
+			this._scopeTimers.delete(scope.id);
+			if (this.scheduler.cancelScope(scope.id, "timeout")) this.scheduleNextTaskTick();
+		}, scope.timeout);
+		this._scopeTimers.set(scope.id, timer);
+	}
+	stopScopeTimer(scope) {
+		clearTimeout(this._scopeTimers.get(scope.id));
+		this._scopeTimers.delete(scope.id);
 	}
 	// The element being dragged, from dragstart to dragend.
 	get drag() {

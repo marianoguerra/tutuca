@@ -1,5 +1,5 @@
 // What a handler does through its context (MessageContext in tutuca's
-// src/tasks.js): records effects, which the host turns into tasks once the
+// src/tree-binding.js): records effects, which the host turns into tasks once the
 // handler returns; reads the world through the host, so a run can be
 // repeated; and makes components in the handling component's scope.
 

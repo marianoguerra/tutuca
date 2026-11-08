@@ -43,7 +43,7 @@ Each directory requires only the ones above it in this table, plus `data.rkt`.
 | | `expr.rkt` | the expression language user functions are written in | the functions passed to `component()` |
 | | `types.rkt` | field types, `valid`, defaults, `make` | `t.*`, `Type` and its subclasses in `schema.js` |
 | | `class.rkt` | classes: fields, invariants, handlers with contracts and actions | `fields`, `invariants`, `on`, `HandlerSpec` |
-| | `action.rkt` | `act` (one message on one instance), `message-issues`, `invalid-in` | `call`/`run` in `tasks.js`, `messageIssues`, `findInvalidFields` |
+| | `action.rkt` | `act` (one message on one instance), `message-issues`, `invalid-in` | `call`/`run` in `tree/messages.js`, `messageIssues`, `findInvalidFields` |
 | `view/` | `sem.rkt` | the semantic tree | (what `renderView` means) |
 | | `normalize.rkt` | `addChild`/`toVChilds`, keys | `view.js` |
 | | `view.rkt` | view definitions, expressions, registration, `RenderContext`, `eval`, `renderView` | the `AstNode` subclasses, `ComponentSpec`, `RenderContext` |
