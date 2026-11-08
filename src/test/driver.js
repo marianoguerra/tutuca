@@ -104,9 +104,9 @@ export class Driver {
 			this.host.send(name, args, { to: path });
 			return this.drain();
 		}
-		const base = path instanceof Selector ? new DispatchPath(path.freeze(this.state)) : path;
+		const base = path instanceof Selector ? new DispatchPath(path.fix(this.state)) : path;
 		const fromFrames =
-			from instanceof Selector ? from.freeze(base.toKeyPath().getIn(this.state)) : from;
+			from instanceof Selector ? from.fix(base.toKeyPath().getIn(this.state)) : from;
 		const sender = Address.at(base.concat(fromFrames), this.state);
 		const task = new Task(name, args, sender, new Target(base), null);
 		task.prepare(this.state);

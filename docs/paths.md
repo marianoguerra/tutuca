@@ -189,31 +189,31 @@ ctx.sendAt("inc", [], (b) => b.seqItem("items", "selected"));
 provides: { tab: (b) => b.seqItem("tabs", "selected") }
 ```
 
-A `Selector` is just the list of calls. It reads nothing until it is **frozen**:
-`selector.freeze(value)` walks the calls from `value` and returns one component frame per
+A `Selector` is just the list of calls. It reads nothing until it is **fixed**:
+`selector.fix(value)` walks the calls from `value` and returns one component frame per
 call:
 
 | Call | Frame |
 |---|---|
 | `b.field(f)` | `keys: [f]` |
 | `b.item(f, k)` | `keys: [f], item: k` |
-| `b.seqItem(f, kf)` | `keys: [f], item: value[kf]`, reading `kf` when it freezes |
+| `b.seqItem(f, kf)` | `keys: [f], item: value[kf]`, reading `kf` when it is fixed |
 
-Providers freeze their selector against the providing instance at render time. The
+Providers fix their selector against the providing instance at render time. The
 resolved keys are the provider's `keys`, and the value they reach is what `provided(name)`
 reads.
 
 ## Targets: where a task goes
 
 A task is built with a `Target(base, selector)`. `base` is a dispatch path and `selector` is
-the part still to be frozen. When the host prepares the task, it calls `target.freeze(root)`:
+the part still to be fixed. When the host prepares the task, it calls `target.fix(root)`:
 1. Resolve the base and read the value it reaches.
 2. Freeze the selector against that value.
 3. Append the resulting frames to the base.
 
 The result is the task's dispatch path, and `target.address(root)` its address, `to`.
 
-Selector frames never contain provider jumps. So resolving the frozen path gives the same
+Selector frames never contain provider jumps. So resolving the fixed path gives the same
 keys as resolving the base and appending the selector's keys. The spec checks this
 equivalence.
 
@@ -234,10 +234,10 @@ Two timing rules decide which state a path reads:
   selected item goes to the item that was selected when the user clicked. It runs before the
   tasks already queued, after the events before it and the rest of a notify under way, as
   spec/tree's environment events do.
-- **Programmatic targets freeze at their producer's commit.** A `sendAt` with
+- **Programmatic targets are fixed at their producer's commit.** A `sendAt` with
   `seqItem("items", "selected")` reads `selected` from the state the producer committed,
   including the producer's own changes. Tasks queued after it can't change where it goes. If
-  freezing fails (for example, a selector below a missing field), the whole producer
+  fixing fails (for example, a selector below a missing field), the whole producer
   transaction is rolled back with its children.
 
 ## Asks and their answers

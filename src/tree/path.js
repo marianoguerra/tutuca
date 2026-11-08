@@ -119,7 +119,7 @@ export class DispatchPath {
 const opText = (op) =>
 	`.${op.name}${op.t === "item" ? `[${jsonText(op.key)}]` : op.t === "seqItem" ? `[${op.keyName}]` : ""}`;
 // A written path, relative to a node: field (field f), item (index f i) or (key f κ), and
-// seqItem (sel f g), the item of f at the key in the node's g. freeze fixes it into frames
+// seqItem (sel f g), the item of f at the key in the node's g. fix(value) turns it into frames
 // against the value it starts from. item, field and seqItem add an op and return the selector,
 // so a selector fn writes one as sel.field("items").item("items", 3).
 export class Selector {
@@ -142,7 +142,7 @@ export class Selector {
 	toString() {
 		return this.ops.map(opText).join("") || "·";
 	}
-	freeze(value) {
+	fix(value) {
 		const frames = [];
 		for (const op of this.ops) {
 			const item = op.t === "item" ? op.key : op.t === "seqItem" ? value[op.keyName] : null;
@@ -160,8 +160,8 @@ export class Target {
 		this.base = base;
 		this.selector = selector;
 	}
-	freeze(root) {
-		return this.base.concat(this.selector.freeze(this.base.toKeyPath().getIn(root)));
+	fix(root) {
+		return this.base.concat(this.selector.fix(this.base.toKeyPath().getIn(root)));
 	}
 }
 // The selector fn writes, called with self as this.

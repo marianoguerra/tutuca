@@ -25,7 +25,7 @@ the four interfaces in `scheduler.js`. It ships as `tutuca/tree`.
 | identity `ι` | `idOf(node)`, given once by `mint`; updates keep it |
 | `(copy pp)`, `(share pp)` | `copy(node)` (fresh identities); putting the same value in a second place (shared ones) |
 | path step `(field f)`, `(index f i)`, `(key f κ)` | a `Frame`: `keys` `[f]`, `item` `i` or `κ` |
-| written path `(sel f g)` | the selector op `seqItem(f, g)`, which `Selector.freeze` turns into an `item` |
+| written path `(sel f g)` | the selector op `seqItem(f, g)`, which `Selector.fix` turns into an `item` |
 | address `(at π ι)` | `Address`: `path` (a `DispatchPath`) and `id` |
 | `host` | `HOST`: the `from` of env events and of ask answers |
 | envelope `(msg mode m from to)` | `Task`: `name`, `args`, `from`, `to`; `mode` is the class |

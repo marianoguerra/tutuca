@@ -357,7 +357,7 @@ export class RenderContext {
 		const { provides } = specOf(it);
 		const newDynBinds = { ...this.dynBinds };
 		for (const key in provides) {
-			const suffix = new DispatchPath(selectorFrom(provides[key], it).freeze(it)).toKeyPath();
+			const suffix = new DispatchPath(selectorFrom(provides[key], it).fix(it)).toKeyPath();
 			newDynBinds[key] = { value: suffix.getIn(it), depth, keys: suffix.keys };
 		}
 		return newDynBinds;

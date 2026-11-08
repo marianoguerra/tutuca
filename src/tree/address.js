@@ -18,7 +18,7 @@ export class Address {
 	}
 	// The address target reaches in root.
 	static of(target, root) {
-		return Address.at(target.freeze(root), root);
+		return Address.at(target.fix(root), root);
 	}
 	// { instance } when the node it recorded is at its path, { stale } with the identity of the
 	// one there instead, or { orphaned } when none is.
