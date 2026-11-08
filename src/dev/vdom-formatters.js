@@ -4,7 +4,7 @@ import { truncate } from "../text.js";
 import { HTML_NS, VBase, VComment, VFragment, VNode, VText } from "../vdom.js";
 import { install, makeFormatter, objectRef as ref, span } from "./jsonml.js";
 
-const S = {
+const STYLES = {
 	tag: "color:#9333ea",
 	attr: "color:#d97706",
 	str: "color:#16a34a",
@@ -14,7 +14,7 @@ const S = {
 const MAX_STR = 40;
 const MAX_INLINE_ATTRS = 4;
 
-const quoted = (s) => span(S.str, JSON.stringify(truncate(s, MAX_STR)));
+const quoted = (s) => span(STYLES.str, JSON.stringify(truncate(s, MAX_STR)));
 
 // every stops at the first non vnode, so big arrays of other things bail out on item 0.
 const isVdomArray = (v) => Array.isArray(v) && v.length > 0 && v.every((c) => c instanceof VBase);
@@ -26,27 +26,27 @@ const tagName = (node) => {
 };
 
 const attrParts = (name, value) => {
-	if (value === true) return [" ", span(S.attr, name)];
-	if (value === false || value == null) return [" ", span(S.removed, `${name}=${value}`)];
-	if (typeof value === "function") return [" ", span(S.muted, `${name}=ƒ`)];
-	if (typeof value === "object") return [" ", span(S.attr, name), "=", ref(value)];
-	return [" ", span(S.attr, name), "=", quoted(String(value))];
+	if (value === true) return [" ", span(STYLES.attr, name)];
+	if (value === false || value == null) return [" ", span(STYLES.removed, `${name}=${value}`)];
+	if (typeof value === "function") return [" ", span(STYLES.muted, `${name}=ƒ`)];
+	if (typeof value === "object") return [" ", span(STYLES.attr, name), "=", ref(value)];
+	return [" ", span(STYLES.attr, name), "=", quoted(String(value))];
 };
-const keyParts = (key) => (key === undefined ? [] : [" ", span(S.muted, `key="${key}"`)]);
+const keyParts = (key) => (key === undefined ? [] : [" ", span(STYLES.muted, `key="${key}"`)]);
 
 const openTag = (node) => {
 	const names = Object.keys(node.attrs);
-	const parts = [span(S.tag, `<${tagName(node)}`), ...keyParts(node.key)];
+	const parts = [span(STYLES.tag, `<${tagName(node)}`), ...keyParts(node.key)];
 	for (const name of names.slice(0, MAX_INLINE_ATTRS)) {
 		parts.push(...attrParts(name, node.attrs[name]));
 	}
 	if (names.length > MAX_INLINE_ATTRS) {
-		parts.push(" ", span(S.muted, `…+${names.length - MAX_INLINE_ATTRS}`));
+		parts.push(" ", span(STYLES.muted, `…+${names.length - MAX_INLINE_ATTRS}`));
 	}
-	parts.push(span(S.tag, ">"));
+	parts.push(span(STYLES.tag, ">"));
 	return parts;
 };
-const closeTag = (node) => span(S.tag, `</${tagName(node)}>`);
+const closeTag = (node) => span(STYLES.tag, `</${tagName(node)}>`);
 // A lone short text child renders inline, like the Elements panel does.
 const inlineText = (node) => {
 	const [child] = node.childs;
@@ -58,7 +58,8 @@ const inlineText = (node) => {
 // How a comment vnode's text prints, when installFormatters gives it one (meta comments).
 let commentHook = null;
 const vdomFormatter = () => {
-	const commentParts = (node) => commentHook?.(node.text) ?? [span(S.muted, `<!--${node.text}-->`)];
+	const commentParts = (node) =>
+		commentHook?.(node.text) ?? [span(STYLES.muted, `<!--${node.text}-->`)];
 	const describe = (v) => {
 		if (v instanceof VNode) {
 			const text = inlineText(v);
@@ -67,7 +68,7 @@ const vdomFormatter = () => {
 				return { header: [...openTag(v), ...inner, closeTag(v)], childs: [] };
 			}
 			return {
-				header: [...openTag(v), span(S.muted, "…"), closeTag(v)],
+				header: [...openTag(v), span(STYLES.muted, "…"), closeTag(v)],
 				childs: v.childs,
 				close: closeTag(v),
 			};
@@ -76,14 +77,18 @@ const vdomFormatter = () => {
 		if (v instanceof VComment) return { header: commentParts(v), childs: [] };
 		if (v instanceof VFragment) {
 			return {
-				header: [span(S.tag, "<>"), ...keyParts(v.key), span(S.muted, ` (${v.childs.length})`)],
+				header: [
+					span(STYLES.tag, "<>"),
+					...keyParts(v.key),
+					span(STYLES.muted, ` (${v.childs.length})`),
+				],
 				childs: v.childs,
-				close: span(S.tag, "</>"),
+				close: span(STYLES.tag, "</>"),
 			};
 		}
 		if (isVdomArray(v)) {
 			const noun = v.length === 1 ? "vnode" : "vnodes";
-			return { header: [span(S.muted, `[${v.length} ${noun}]`)], childs: v };
+			return { header: [span(STYLES.muted, `[${v.length} ${noun}]`)], childs: v };
 		}
 		return null;
 	};

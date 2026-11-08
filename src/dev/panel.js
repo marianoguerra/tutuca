@@ -20,7 +20,7 @@ import {
 	t,
 	tag,
 } from "../tutuca.js";
-import { describe, isObject, S } from "./formatters.js";
+import { describe, isObject, STYLES } from "./formatters.js";
 import { summarize } from "./summary.js";
 
 const { button, div, h3, li, p, section, span, ul } = tag;
@@ -52,7 +52,7 @@ const TONES = {
 	fn: "text-accent",
 	muted: "opacity-60",
 };
-const TONE_OF_STYLE = new Map(Object.entries(S).map(([tone, style]) => [style, tone]));
+const TONE_OF_STYLE = new Map(Object.entries(STYLES).map(([tone, style]) => [style, tone]));
 const MAX_TEXT = 60;
 
 // JsonML parts as { text, tone } tokens; adjacent tokens of one tone merge.

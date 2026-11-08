@@ -50,7 +50,7 @@ export class Query extends AstNode {
 		return this.args;
 	}
 }
-export const $query = (name, ...args) => new Query(name, args.map(toExpr));
+export const $query = (name, ...args) => new Query(name, args.map(toNode));
 export class SeqItem extends AstNode {
 	static kind = "seqItem";
 	constructor(seqName, keyName) {
@@ -76,10 +76,10 @@ export class Provided extends AstNode {
 	// No ancestor providing the name is a lint warning (lint can't see ancestry): as a value it
 	// reads undefined, as a render or each source it fails.
 	eval(ctx) {
-		return ctx.dynBinds[this.name]?.value;
+		return ctx.provided[this.name]?.value;
 	}
 	toFrame(ctx) {
-		const { depth, keys } = ctx.dynBinds[this.name];
+		const { depth, keys } = ctx.provided[this.name];
 		return new Frame([], null, { name: this.name, depth, keys }, true);
 	}
 }
@@ -115,9 +115,9 @@ export const h = (tagName, attrs, ...childs) => {
 	for (const key in attrs) {
 		const value = attrs[key];
 		if (key.startsWith("on:")) handlers.push({ name: key.slice(3), action: value });
-		else props.push([key, toExpr(value)]);
+		else props.push([key, toNode(value)]);
 	}
-	return new Element(tagName, props, childs.flat(Infinity).map(toExpr), handlers);
+	return new Element(tagName, props, childs.flat(Infinity).map(toNode), handlers);
 };
 export class Cond extends AstNode {
 	static kind = "cond";
@@ -135,7 +135,7 @@ export class Cond extends AstNode {
 	}
 }
 export const $if = (source, thenVal, elseVal) =>
-	new Cond(toExpr(source), toExpr(thenVal), toExpr(elseVal));
+	new Cond(toNode(source), toNode(thenVal), toNode(elseVal));
 export class Constant extends AstNode {
 	static kind = "constant";
 	constructor(value) {
@@ -146,7 +146,7 @@ export class Constant extends AstNode {
 		return this.value;
 	}
 }
-export const toExpr = (v) => (v instanceof AstNode ? v : new Constant(v));
+export const toNode = (v) => (v instanceof AstNode ? v : new Constant(v));
 export class Render extends AstNode {
 	static kind = "render";
 	constructor(source, viewName) {
@@ -163,7 +163,7 @@ export class Render extends AstNode {
 		return [this.source];
 	}
 }
-export const render = (source, viewName) => new Render(toExpr(source), viewName);
+export const render = (source, viewName) => new Render(toNode(source), viewName);
 const entriesOf = (items) => (Array.isArray(items) ? items.entries() : Object.entries(items));
 function* filteredEntries(self, filter, items, state) {
 	for (const entry of entriesOf(items)) {
@@ -208,7 +208,7 @@ export class Each extends AstNode {
 		return [this.source, this.child];
 	}
 }
-export const each = (source, child, loopName) => new Each(toExpr(source), toExpr(child), loopName);
+export const each = (source, child, loopName) => new Each(toNode(source), toNode(child), loopName);
 const renderEachItem = (itemCtx, loop) =>
 	renderView(itemCtx.it, itemCtx.forItemView(itemCtx.it), loop.view);
 // A loop that renders each item, a component, with the loop's view.
@@ -226,7 +226,7 @@ export class RenderEach extends AstNode {
 		return [this.source];
 	}
 }
-export const renderEach = (source, loopName) => new RenderEach(toExpr(source), loopName);
+export const renderEach = (source, loopName) => new RenderEach(toNode(source), loopName);
 export class RenderIt extends AstNode {
 	static kind = "renderIt";
 	constructor(viewName) {
@@ -255,7 +255,7 @@ export class WithBinds extends AstNode {
 		return [this.child];
 	}
 }
-export const withBinds = (bindsName, child) => new WithBinds(bindsName, toExpr(child));
+export const withBinds = (bindsName, child) => new WithBinds(bindsName, toNode(child));
 export class PushView extends AstNode {
 	static kind = "pushView";
 	constructor(viewNameVal, child) {
@@ -271,7 +271,7 @@ export class PushView extends AstNode {
 		return [this.viewNameVal, this.child];
 	}
 }
-export const pushView = (source, child) => new PushView(toExpr(source), toExpr(child));
+export const pushView = (source, child) => new PushView(toNode(source), toNode(child));
 export class Send extends AstNode {
 	static kind = "send";
 	constructor(name, args) {
@@ -283,7 +283,7 @@ export class Send extends AstNode {
 		return this.args;
 	}
 }
-export const send = (name, ...args) => new Send(name, args.map(toExpr));
+export const send = (name, ...args) => new Send(name, args.map(toNode));
 // A send arg that reads the event, not the state: one of EVENT_ARGS, by name.
 export class EventArg extends AstNode {
 	static kind = "eventArg";
@@ -310,11 +310,11 @@ export class LookupBind extends AstNode {
 }
 export const lookupBind = (name) => new LookupBind(name);
 export class RenderContext {
-	constructor({ it, binds, dynBinds, viewStack, depth, component }) {
+	constructor({ it, binds, provided, viewStack, depth, component }) {
 		this.it = it;
 		this.component = component; // component != it inside loops
 		this.binds = binds;
-		this.dynBinds = dynBinds;
+		this.provided = provided; // name -> { value, depth, keys }: what ancestors provide.
 		this.viewStack = viewStack;
 		this.depth = depth;
 	}
@@ -322,7 +322,7 @@ export class RenderContext {
 		return specOf(this.component);
 	}
 	static root(component) {
-		const empty = { it: null, binds: {}, dynBinds: {}, viewStack: [], depth: -1 };
+		const empty = { it: null, binds: {}, provided: {}, viewStack: [], depth: -1 };
 		return new RenderContext({ ...empty, component }).enterFrame(component);
 	}
 	with(changes) {
@@ -330,7 +330,7 @@ export class RenderContext {
 	}
 	enterFrame(it, binds = {}) {
 		const depth = this.depth + 1;
-		return this.with({ it, binds, dynBinds: this.mergeDynBinds(it, depth), depth });
+		return this.with({ it, binds, provided: this.mergeProvided(it, depth), depth });
 	}
 	forItemView(it) {
 		return this.with({ it, binds: {} });
@@ -341,15 +341,15 @@ export class RenderContext {
 	pushView(viewName) {
 		return this.with({ viewStack: [viewName, ...this.viewStack] });
 	}
-	mergeDynBinds(it, depth) {
-		if (!isComponent(it)) return this.dynBinds;
+	mergeProvided(it, depth) {
+		if (!isComponent(it)) return this.provided;
 		const { provides } = specOf(it);
-		const newDynBinds = { ...this.dynBinds };
+		const newProvided = { ...this.provided };
 		for (const key in provides) {
 			const suffix = new DispatchPath(selectorFrom(provides[key], it).fix(it)).toKeyPath();
-			newDynBinds[key] = { value: suffix.getIn(it), depth, keys: suffix.keys };
+			newProvided[key] = { value: suffix.getIn(it), depth, keys: suffix.keys };
 		}
-		return newDynBinds;
+		return newProvided;
 	}
 	lookupBind(name) {
 		return this.binds[name] ?? null;

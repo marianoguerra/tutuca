@@ -96,14 +96,14 @@ export const defineTutucaApp = (window, tagName = "tutuca-app") => {
 
 // Mounts a plain Host for a request: register(scope) registers its components, make(C)
 // makes the root from them. Returns the controller, already passed to detail.mount.
-export const mountTutucaApp = (detail, { register, make, dev = false, onNotify }) => {
+export const mountTutucaApp = (detail, { register, make, dev = false, listen }) => {
 	const host = new Host({
 		document: detail.document,
 		rootNode: detail.rootNode,
 		checks: dev ? DevChecks : null,
 	});
 	register(host.scope);
-	if (onNotify !== undefined) host.listen(onNotify);
+	if (listen !== undefined) host.listen(listen);
 	host.start(make(host.scope.components));
 	const controller = {
 		host,

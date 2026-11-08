@@ -5,8 +5,8 @@ import { DRAG_EVENTS } from "./drag.js";
 import { prefixed } from "./schema.js";
 import { QuerySpec, scopeSym, specSym, toAnswers, toMessages, toQueries } from "./spec.js";
 import { mint } from "./tree/identity.js";
-import { toExpr } from "./view.js";
-import { Collect } from "./walk.js";
+import { toNode } from "./view.js";
+import { eventHandlersOf } from "./walk.js";
 
 export class ComponentSpec {
 	constructor({
@@ -52,9 +52,7 @@ export class ComponentSpec {
 		this.binds = binds; // name -> fn returning the names withBinds(name, ...) puts in scope.
 		this.provides = provides;
 		this.invariants = invariants; // name → predicate on the instance, checked in dev and tests.
-		const collect = new Collect();
-		for (const key in views) collect.visit(views[key]);
-		this.eventHandlers = collect.eventHandlers;
+		this.eventHandlers = eventHandlersOf(views);
 		this.eventNames = new Set([...this.eventHandlers.values()].flat().map((h) => h.name));
 		// A drop target needs the drag from its start: the host tracks it.
 		if (this.eventNames.has("drop")) for (const name of DRAG_EVENTS) this.eventNames.add(name);
@@ -90,10 +88,10 @@ export const component = (opts) => {
 	const { name, fields = {}, methods = {}, view, views = {} } = opts;
 	const sources = view === undefined ? views : { ...views, main: view };
 	const exprs = ownEntries({});
-	for (const key in sources) exprs[key] = toExpr(sources[key]);
+	for (const key in sources) exprs[key] = toNode(sources[key]);
 	// A component with no views at all only handles messages (headless) and renders nothing;
 	// one with views needs a main one.
-	if (view === undefined && Object.keys(views).length === 0) exprs.main = toExpr("");
+	if (view === undefined && Object.keys(views).length === 0) exprs.main = toNode("");
 	if (!("main" in exprs)) throw new Error(`Component ${name} has no main view`);
 	const queries = toQueries(opts.queries, fields);
 	collisions(name, fields, queries, methods);

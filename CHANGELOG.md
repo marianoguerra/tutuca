@@ -167,6 +167,9 @@
   `tutuca/pbt`. `dispatchOn(el, type, value)` and `dispatchDrag(from, to)` are gone: use
   `driver.fire(type, el, { value })` and `driver.drag(from, to)`, which drain too.
 - `tutuca/history` no longer exports `argsLabel`; it's in `src/text.js` with `truncate`.
+- The core exports `eventHandlersOf(views)` instead of the `Collect` walker, and
+  `RenderContext.dynBinds` is `provided`. `mountTutucaApp`'s `onNotify` option is `listen`,
+  as `host.listen` is.
 - **`tutuca/vdom`'s `render` is `morph`**, so `render` is only the view builder.
 - **A view's named binds are `withBinds`, not `scope`.** `scope(name, child)` is
   `withBinds(name, child)` (node `WithBinds`, was `XScope`), and the component option

@@ -5,10 +5,10 @@
 import { current, isDraft, produce } from "../deps/immer.js";
 import { apply, checkInvariants, query } from "./contract.js";
 import { DROP_EVENTS, DragTracker } from "./drag.js";
-import { SyncEngines } from "./engines.js";
 import { eventSend } from "./events.js";
 import { Scope } from "./scope.js";
 import { specOf } from "./spec.js";
+import { SyncEngines } from "./sync-engines.js";
 import { Address, DispatchPath, Selector, selectorFrom, Target } from "./tree/index.js";
 import { HostTask, schedulerFor } from "./tree-binding.js";
 import { morph, toVChilds } from "./vdom.js";
@@ -205,7 +205,7 @@ export class Host {
 		this.root = null;
 		this.resolveIdle(true);
 	}
-	// Engines see every committed change and can apply changes from elsewhere (see engines.js).
+	// Engines see every committed change and can apply changes from elsewhere (see sync-engines.js).
 	attachSync(...engines) {
 		for (const engine of engines) {
 			this.engines.attach(engine, {

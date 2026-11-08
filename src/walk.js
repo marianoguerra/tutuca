@@ -31,7 +31,8 @@ export class Walker {
 		this.visit(handler.action);
 	}
 }
-export class Collect extends Walker {
+// The handlers of every element in views that has any, by the element's eid.
+class HandlerCollector extends Walker {
 	eventHandlers = new Map();
 	element(node) {
 		if (node.eid !== null) this.eventHandlers.set(node.eid, node.handlers);
@@ -39,3 +40,8 @@ export class Collect extends Walker {
 	}
 	handler(_node, _handler) {}
 }
+export const eventHandlersOf = (views) => {
+	const collector = new HandlerCollector();
+	for (const key in views) collector.visit(views[key]);
+	return collector.eventHandlers;
+};

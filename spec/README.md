@@ -172,7 +172,7 @@ Other points:
   `Shape`, which `isSameKind` compares, and lowering uses it as the `data-eid` of an element
   with handlers. Ids are opaque, so only uniqueness per template matters.
 - **Registration:** `register` follows `component()`. A class needs `"main"`, and `collect` is
-  the `Collect` walker: an element's entry, then its attribute expressions, then its children.
+  `eventHandlersOf`'s walker: an element's entry, then its attribute expressions, then its children.
 - **Wrappers:** a wrapper holds its children normalized. The runtime keeps `wrapMarkers`'s triple
   unnormalized until `addChild`. The two differ only for a render used as a prop value whose
   view evaluates to a component instance, which would throw in text position.

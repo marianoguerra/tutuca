@@ -25,7 +25,7 @@ import { install, join, makeFormatter, objectRef, span } from "./jsonml.js";
 import { isTutucaComponent, taskVerb } from "./summary.js";
 import { installVdomFormatters } from "./vdom-formatters.js";
 
-export const S = {
+export const STYLES = {
 	name: "color:#d97706;font-weight:bold",
 	key: "color:#8b5cf6",
 	str: "color:#16a34a",
@@ -42,16 +42,16 @@ export const isObject = (v) => (v !== null && typeof v === "object") || typeof v
 const ref = (v) => (isObject(v) ? objectRef(v) : prim(v));
 
 const prim = (v) => {
-	if (typeof v === "string") return span(S.str, JSON.stringify(truncate(v, MAX_STR)));
+	if (typeof v === "string") return span(STYLES.str, JSON.stringify(truncate(v, MAX_STR)));
 	if (typeof v === "number" || typeof v === "boolean" || typeof v === "bigint") {
-		return span(S.num, String(v));
+		return span(STYLES.num, String(v));
 	}
-	if (v === null || v === undefined) return span(S.muted, String(v));
-	if (typeof v === "function") return span(S.fn, `ƒ ${v.name}`);
-	if (typeof v === "symbol") return span(S.fn, v.toString());
-	if (isTutucaComponent(v)) return span(S.name, `‹${specOf(v).name}›`);
-	if (Array.isArray(v)) return span(S.muted, `[${v.length}]`);
-	return span(S.muted, "{…}");
+	if (v === null || v === undefined) return span(STYLES.muted, String(v));
+	if (typeof v === "function") return span(STYLES.fn, `ƒ ${v.name}`);
+	if (typeof v === "symbol") return span(STYLES.fn, v.toString());
+	if (isTutucaComponent(v)) return span(STYLES.name, `‹${specOf(v).name}›`);
+	if (Array.isArray(v)) return span(STYLES.muted, `[${v.length}]`);
+	return span(STYLES.muted, "{…}");
 };
 
 // Prints an AST node like the code that builds it: h("p", {title: field("name")}, …).
@@ -63,14 +63,14 @@ class Printer extends Walker {
 	}
 	arg(v) {
 		if (!(v instanceof AstNode)) return this.emit(prim(v));
-		if (this.depth >= MAX_AST_DEPTH) return this.emit(span(S.muted, "…"));
+		if (this.depth >= MAX_AST_DEPTH) return this.emit(span(STYLES.muted, "…"));
 		this.depth++;
 		this.visit(v);
 		this.depth--;
 	}
 	call(name, args) {
 		while (args.length > 0 && args.at(-1) === undefined) args.pop(); // optional view/loop names
-		this.emit(span(S.fn, name), "(");
+		this.emit(span(STYLES.fn, name), "(");
 		args.forEach((a, i) => {
 			if (i > 0) this.emit(", ");
 			this.arg(a);
@@ -78,7 +78,7 @@ class Printer extends Walker {
 		this.emit(")");
 	}
 	node(node) {
-		this.emit(span(S.muted, node.constructor.name));
+		this.emit(span(STYLES.muted, node.constructor.name));
 	}
 	field(node) {
 		this.call("field", [node.name]);
@@ -123,12 +123,12 @@ class Printer extends Walker {
 		this.call("send", [node.name, ...node.args]);
 	}
 	element(node) {
-		this.emit(span(S.fn, "h"), "(", prim(node.tagName));
+		this.emit(span(STYLES.fn, "h"), "(", prim(node.tagName));
 		const attrs = [...node.attrs, ...node.handlers.map((h) => [`on:${h.name}`, h.action])];
 		if (attrs.length > 0) {
 			this.emit(", {");
 			attrs.forEach(([name, value], i) => {
-				this.emit(i > 0 ? ", " : "", span(S.key, name), ": ");
+				this.emit(i > 0 ? ", " : "", span(STYLES.key, name), ": ");
 				this.arg(value);
 			});
 			this.emit("}");
@@ -138,7 +138,7 @@ class Printer extends Walker {
 			this.arg(c);
 		});
 		const rest = node.childs.length - MAX_AST_CHILDS;
-		if (rest > 0) this.emit(", ", span(S.muted, `…+${rest}`));
+		if (rest > 0) this.emit(", ", span(STYLES.muted, `…+${rest}`));
 		this.emit(")");
 	}
 }
@@ -148,12 +148,12 @@ const astHeader = (node) => {
 	return printer.out;
 };
 
-const typeHeader = (t) => [span(S.fn, typeText(t))];
+const typeHeader = (t) => [span(STYLES.fn, typeText(t))];
 
 const keyParts = (key) =>
-	typeof key === "string" ? [".", span(S.key, key)] : ["[", prim(key), "]"];
+	typeof key === "string" ? [".", span(STYLES.key, key)] : ["[", prim(key), "]"];
 const providerParts = (p) =>
-	p === null ? [] : [span(S.key, `@${p.name}^${p.depth}`), ...p.keys.flatMap(keyParts)];
+	p === null ? [] : [span(STYLES.key, `@${p.name}^${p.depth}`), ...p.keys.flatMap(keyParts)];
 const frameParts = (frame) => [
 	...providerParts(frame.provider),
 	...frame.keys.flatMap(keyParts),
@@ -161,14 +161,14 @@ const frameParts = (frame) => [
 ];
 const opParts = (op) => [
 	".",
-	span(S.key, op.name),
+	span(STYLES.key, op.name),
 	...(op.t === "item"
 		? ["[", prim(op.key), "]"]
 		: op.t === "seqItem"
 			? ["[", op.keyName, "]"]
 			: []),
 ];
-const orRoot = (parts) => (parts.length === 0 ? [span(S.muted, "·")] : parts);
+const orRoot = (parts) => (parts.length === 0 ? [span(STYLES.muted, "·")] : parts);
 const pathParts = (path) => orRoot(path.frames.flatMap(frameParts));
 const keyPathParts = (path) => orRoot(path.keys.flatMap(keyParts));
 const targetParts = (target) =>
@@ -178,18 +178,18 @@ const targetParts = (target) =>
 const markerParts = (marker) => {
 	switch (marker.t) {
 		case "component":
-			return [span(S.name, "component")];
+			return [span(STYLES.name, "component")];
 		case "frame":
 			return frameParts(Frame.fromMarker(marker));
 		default:
-			return [span(S.muted, JSON.stringify(marker))];
+			return [span(STYLES.muted, JSON.stringify(marker))];
 	}
 };
 const markerComment = (text) => {
-	if (text === MARKER_CLOSE) return [span(S.muted, "⟨/⟩")];
+	if (text === MARKER_CLOSE) return [span(STYLES.muted, "⟨/⟩")];
 	if (!isMarkerOpen(text)) return null;
 	try {
-		return [span(S.muted, "⟨"), ...markerParts(parseMarker(text)), span(S.muted, "⟩")];
+		return [span(STYLES.muted, "⟨"), ...markerParts(parseMarker(text)), span(STYLES.muted, "⟩")];
 	} catch {
 		return null;
 	}
@@ -206,9 +206,9 @@ const KINDS = [
 			const keys = Object.keys(spec.fields);
 			const parts = keys
 				.slice(0, MAX_INLINE_FIELDS)
-				.flatMap((k) => [" ", span(S.key, k), "=", prim(v[k])]);
-			if (keys.length > MAX_INLINE_FIELDS) parts.push(span(S.muted, " …"));
-			return [span(S.name, `‹${spec.name}`), ...parts, span(S.name, "›")];
+				.flatMap((k) => [" ", span(STYLES.key, k), "=", prim(v[k])]);
+			if (keys.length > MAX_INLINE_FIELDS) parts.push(span(STYLES.muted, " …"));
+			return [span(STYLES.name, `‹${spec.name}`), ...parts, span(STYLES.name, "›")];
 		},
 		rows(v) {
 			const rows = Object.keys(specOf(v).fields).map((k) => [k, ref(v[k])]);
@@ -220,13 +220,13 @@ const KINDS = [
 	},
 	{
 		test: (v) => v instanceof ComponentSpec,
-		header: (spec) => [span(S.muted, "ComponentSpec "), span(S.name, spec.name)],
+		header: (spec) => [span(STYLES.muted, "ComponentSpec "), span(STYLES.name, spec.name)],
 		rows(spec) {
 			const rows = [];
 			for (const k in spec.fields) rows.push([k, span("", ...typeHeader(spec.fields[k]))]);
 			for (const k in spec.views) rows.push([`view ${k}`, ref(spec.views[k])]);
 			const methods = Object.keys(spec.methods);
-			if (methods.length > 0) rows.push(["methods", span(S.fn, methods.join(", "))]);
+			if (methods.length > 0) rows.push(["methods", span(STYLES.fn, methods.join(", "))]);
 			for (const k of ["on", "loops", "binds", "provides"]) {
 				if (Object.keys(spec[k]).length > 0) rows.push([k, ref(spec[k])]);
 			}
@@ -253,30 +253,30 @@ const KINDS = [
 	},
 	{
 		test: (v) => v instanceof DispatchPath,
-		header: (path) => [span(S.muted, "DispatchPath "), ...pathParts(path)],
+		header: (path) => [span(STYLES.muted, "DispatchPath "), ...pathParts(path)],
 		rows: (path) => path.frames.map((f) => [null, ref(f)]),
 	},
 	{
 		test: (v) => v instanceof KeyPath,
-		header: (path) => [span(S.muted, "KeyPath "), ...keyPathParts(path)],
+		header: (path) => [span(STYLES.muted, "KeyPath "), ...keyPathParts(path)],
 		rows: () => [],
 	},
 	{
 		test: (v) => v instanceof Frame,
 		header: (frame) => [
-			span(S.muted, frame.isComponent ? "Frame (component) " : "Frame "),
+			span(STYLES.muted, frame.isComponent ? "Frame (component) " : "Frame "),
 			...orRoot(frameParts(frame)),
 		],
 		rows: () => [],
 	},
 	{
 		test: (v) => v instanceof Selector,
-		header: (sel) => [span(S.muted, "Selector "), ...orRoot(sel.ops.flatMap(opParts))],
+		header: (sel) => [span(STYLES.muted, "Selector "), ...orRoot(sel.ops.flatMap(opParts))],
 		rows: () => [],
 	},
 	{
 		test: (v) => v instanceof Target,
-		header: (target) => [span(S.muted, "Target "), ...targetParts(target)],
+		header: (target) => [span(STYLES.muted, "Target "), ...targetParts(target)],
 		rows: (target) => [
 			["base", ref(target.base)],
 			["selector", ref(target.selector)],
@@ -285,18 +285,18 @@ const KINDS = [
 	{
 		test: (v) => v instanceof Task,
 		header: (task) => [
-			span(S.muted, `${taskVerb(task)} `),
-			span(S.name, task.name),
+			span(STYLES.muted, `${taskVerb(task)} `),
+			span(STYLES.name, task.name),
 			"(",
 			...join(task.args.map((a) => [prim(a)])),
 			") ",
-			...(task.from.isHost ? [span(S.muted, "host")] : pathParts(task.from.path)),
-			span(S.muted, " → "),
+			...(task.from.isHost ? [span(STYLES.muted, "host")] : pathParts(task.from.path)),
+			span(STYLES.muted, " → "),
 			...(task.to !== null
 				? pathParts(task.to.path)
 				: task.target !== null
 					? targetParts(task.target)
-					: [span(S.muted, "the ancestors")]),
+					: [span(STYLES.muted, "the ancestors")]),
 		],
 		rows(task) {
 			const rows = [
@@ -313,9 +313,9 @@ const KINDS = [
 	{
 		test: (v) => v instanceof MessageContext,
 		header(ctx) {
-			const parts = [span(S.muted, "ctx "), ...pathParts(ctx.path)];
+			const parts = [span(STYLES.muted, "ctx "), ...pathParts(ctx.path)];
 			if (ctx.sourceKey !== null)
-				parts.push(" ", span(S.key, "sourceKey"), "=", prim(ctx.sourceKey));
+				parts.push(" ", span(STYLES.key, "sourceKey"), "=", prim(ctx.sourceKey));
 			return parts;
 		},
 		rows: (ctx) => [
@@ -329,11 +329,11 @@ const KINDS = [
 	{
 		test: (v) => v instanceof Scope,
 		header: (scope) => [
-			span(S.muted, "Scope "),
+			span(STYLES.muted, "Scope "),
 			"[",
-			...join(Object.keys(scope.byName).map((name) => [span(S.name, name)])),
+			...join(Object.keys(scope.byName).map((name) => [span(STYLES.name, name)])),
 			"]",
-			scope.parent === null ? "" : span(S.muted, " ↑"),
+			scope.parent === null ? "" : span(STYLES.muted, " ↑"),
 		],
 		rows: (scope) => [
 			...objectRows(scope.byName),
@@ -344,20 +344,20 @@ const KINDS = [
 	{
 		test: (v) => v instanceof RenderContext,
 		header: (ctx) => [
-			span(S.muted, "RenderContext "),
+			span(STYLES.muted, "RenderContext "),
 			prim(ctx.component),
 			" ",
-			span(S.key, "depth"),
+			span(STYLES.key, "depth"),
 			"=",
 			prim(ctx.depth),
-			...(ctx.viewStack.length > 0 ? [" ", span(S.key, "views"), `=[${ctx.viewStack}]`] : []),
+			...(ctx.viewStack.length > 0 ? [" ", span(STYLES.key, "views"), `=[${ctx.viewStack}]`] : []),
 		],
 		rows: (ctx) => [
 			["it", ref(ctx.it)],
 			["component", ref(ctx.component)],
 			["spec", ref(ctx.spec)],
 			["binds", ref(ctx.binds)],
-			["dynBinds", ref(ctx.dynBinds)],
+			["provided", ref(ctx.provided)],
 			["viewStack", ref(ctx.viewStack)],
 		],
 	},
@@ -378,7 +378,7 @@ export const describe = (v) => {
 	return kind === null ? null : { header: kind.header(v), rows: kind.rows(v) };
 };
 const rowItem = ([label, value]) =>
-	label === null ? ["li", {}, value] : ["li", {}, span(S.key, label), ": ", value];
+	label === null ? ["li", {}, value] : ["li", {}, span(STYLES.key, label), ": ", value];
 
 const formatter = makeFormatter({
 	header: (v) => kindOf(v)?.header(v) ?? null,
