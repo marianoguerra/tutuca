@@ -238,23 +238,23 @@ export class RenderIt extends AstNode {
 	}
 }
 export const renderIt = (viewName) => new RenderIt(viewName);
-export class XScope extends AstNode {
-	static kind = "scope";
-	constructor(scopeName, child) {
+// child with the names one of the component's binds returns, all but value, in scope.
+export class WithBinds extends AstNode {
+	static kind = "withBinds";
+	constructor(bindsName, child) {
 		super();
-		this.scopeName = scopeName;
+		this.bindsName = bindsName;
 		this.child = child;
 	}
 	eval(ctx) {
-		const { bind } = ctx.spec.scopes[this.scopeName];
-		const { value: _value, ...binds } = bind.call(ctx.component);
-		return this.child.eval(ctx.enterScope(binds));
+		const { value: _value, ...binds } = ctx.spec.binds[this.bindsName].call(ctx.component);
+		return this.child.eval(ctx.addBinds(binds));
 	}
 	childNodes() {
 		return [this.child];
 	}
 }
-export const scope = (scopeName, child) => new XScope(scopeName, toExpr(child));
+export const withBinds = (bindsName, child) => new WithBinds(bindsName, toExpr(child));
 export class PushView extends AstNode {
 	static kind = "pushView";
 	constructor(viewNameVal, child) {
@@ -346,8 +346,8 @@ export class RenderContext {
 	forItemView(it) {
 		return this.with({ it, binds: {} });
 	}
-	enterScope(scopeBinds) {
-		return this.with({ binds: { ...this.binds, ...scopeBinds } });
+	addBinds(binds) {
+		return this.with({ binds: { ...this.binds, ...binds } });
 	}
 	pushView(viewName) {
 		return this.with({ viewStack: [viewName, ...this.viewStack] });

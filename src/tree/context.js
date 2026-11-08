@@ -3,7 +3,7 @@
 import { Address } from "./address.js";
 import { AskTask, NotifyTask, Task } from "./messages.js";
 import { selectorFrom, Target } from "./path.js";
-import { SettleScope } from "./scope.js";
+import { SettleScope } from "./settle.js";
 
 export class MessageContext {
 	// nextRequest gives the id of an ask made from here; the scheduler's counts per scheduler, so
@@ -60,7 +60,7 @@ export class MessageContext {
 		this.isStopNextSet = true;
 	}
 	// A message down the path the selector fn writes, relative to here (spec/tree's send-at).
-	// With a watch it opens a settle scope (scope.js) and returns its id: settled, a name or
+	// With a watch it opens a settle scope (settle.js) and returns its id: settled, a name or
 	// [name, args], is sent back here, with args and the scope's report after them, once the
 	// message and everything it caused ran; progress, likewise, after what runs in it, at most
 	// one queued at a time; timeout (ms) cancels it if it hasn't settled by then. Detached, it's
@@ -82,7 +82,7 @@ export class MessageContext {
 		task.scope = new SettleScope(id, this.address, watch, outer);
 		return id;
 	}
-	// Cancels the settle scope id opened (sendAt's), once this handler commits: see scope.js.
+	// Cancels the settle scope id opened (sendAt's), once this handler commits: see settle.js.
 	cancel(id) {
 		this.cancels.push(id);
 	}

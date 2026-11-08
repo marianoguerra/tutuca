@@ -16,7 +16,7 @@
   that format as is, and ⤓ downloads it with its extension, such as `notes.md`.
   `droppedJsonFile(event)` is now `droppedFile(event, format)`, JSON by default.
 - **Settle scopes (structured concurrency).** `ctx.sendAt(name, args, selector, watch)` with
-  a watch opens a settle scope (`src/tree/scope.js`). The message and everything it causes are
+  a watch opens a settle scope (`src/tree/settle.js`). The message and everything it causes are
   in it: what it sends, the notifications it bubbles, its asks and their answers (later ones
   too), recursively. Once none of it is left, the sender gets `settled`, a name or
   `[name, args]`, with a report `{ id, outcome, tasks, failed }` after the args. The outcome is
@@ -162,6 +162,11 @@
   `metaShapeProblems`, `checkCall` and `checkInvariants`. The core bundle (`dist/tutuca.min.js`)
   drops from 105 KB to 91 KB. `src/meta.js`, the render comment markers, is `src/markers.js`.
 - **`tutuca/tree` no longer exports `call` or `isNode`**, which only the tree uses.
+- **A view's named binds are `withBinds`, not `scope`.** `scope(name, child)` is
+  `withBinds(name, child)` (node `WithBinds`, was `XScope`), and the component option
+  `scopes: { name: { bind() {} } }` is `binds: { name() {} }`, a function per name as
+  `provides` is. Lint's `unknown-scope` is `unknown-binds`. A scope is now only what components
+  are registered in; the tree's settle scopes are in `src/tree/settle.js`.
 - `historyEngine`'s `travel(i)` is `goto(i)`, as on `Timeline` and the bar's ops.
 - **`host.listen(fn)` replaces `host.onNotify`.** Assigning `onNotify` kept one listener, so
   whoever set it last (a `ClassCompiler`, `mountTutucaApp`'s `onNotify` option, a demo) had

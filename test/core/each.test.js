@@ -9,10 +9,10 @@ import {
 	Host,
 	h,
 	lookupBind,
-	scope,
 	send,
 	sourceKey,
 	t,
+	withBinds,
 } from "../../src/tutuca.js";
 import { startHost, vh as vdomH } from "../helpers.js";
 
@@ -192,30 +192,30 @@ test("Each supports object sources, text, conditional empty output and multiple 
 	);
 });
 
-test("lint rejects loop and scope names the component does not declare", () => {
+test("lint rejects loop and binds names the component does not declare", () => {
 	const MissingLoop = component({
 		...listOptions,
 		name: "MissingLoop",
 		view: each(field("items"), "x", "nope"),
 	});
-	const MissingScope = component({
+	const MissingBinds = component({
 		...listOptions,
-		name: "MissingScope",
-		view: scope("nope", "x"),
+		name: "MissingBinds",
+		view: withBinds("nope", "x"),
 	});
 	const InheritedName = component({
 		...listOptions,
 		name: "InheritedName",
-		view: scope("toString", "x"),
+		view: withBinds("toString", "x"),
 	});
 	const host = new Host({ document: null, rootNode: { addEventListener() {} } });
-	host.scope.register({ MissingLoop, MissingScope, InheritedName });
+	host.scope.register({ MissingLoop, MissingBinds, InheritedName });
 	assert.deepEqual(
 		lint(registeredIn(host.scope).specs).map(({ code, path }) => `${code} ${path}`),
 		[
 			"unknown-loop MissingLoop.main > each(nope)",
-			"unknown-scope MissingScope.main > scope(nope)",
-			"unknown-scope InheritedName.main > scope(toString)",
+			"unknown-binds MissingBinds.main > withBinds(nope)",
+			"unknown-binds InheritedName.main > withBinds(toString)",
 		],
 	);
 });

@@ -1,4 +1,4 @@
-// Settle scopes (src/tree/scope.js): a message sent with a watch tells its sender once it and
+// Settle scopes (src/tree/settle.js): a message sent with a watch tells its sender once it and
 // everything it caused ran, across asks answered later, inside other scopes, cancelled or not.
 import assert from "node:assert/strict";
 import test from "node:test";

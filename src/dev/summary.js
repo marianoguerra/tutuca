@@ -138,8 +138,8 @@ const astTitle = (node) => {
 			return `if ${sourceWords(node.source)}`;
 		case "pushView":
 			return `uses the view ${sourceWords(node.viewNameVal)} inside`;
-		case "scope":
-			return `with the bindings of ${quote(node.scopeName)}`;
+		case "withBinds":
+			return `with the bindings of ${quote(node.bindsName)}`;
 		case "send":
 			return `sends ${quote(node.name)}`;
 		case "eventArg":

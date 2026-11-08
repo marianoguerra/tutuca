@@ -17,7 +17,7 @@ export class ComponentSpec {
 		on,
 		answers,
 		loops,
-		scopes,
+		binds,
 		provides,
 		invariants,
 		queries = Object.create(null),
@@ -49,7 +49,7 @@ export class ComponentSpec {
 		this.on = on;
 		this.answers = answers; // ask name -> outcome (ok, error, unhandled) -> its handler.
 		this.loops = loops;
-		this.scopes = scopes;
+		this.binds = binds; // name -> fn returning the names withBinds(name, ...) puts in scope.
 		this.provides = provides;
 		this.invariants = invariants; // name → predicate on the instance, checked in dev and tests.
 		const collect = new Collect();
@@ -105,7 +105,7 @@ export const component = (opts) => {
 		on: toMessages(opts.on),
 		answers: toAnswers(opts.answers),
 		loops: ownEntries(opts.loops),
-		scopes: ownEntries(opts.scopes),
+		binds: ownEntries(opts.binds),
 		provides: ownEntries(opts.provides),
 		invariants: ownEntries(opts.invariants),
 		queries,

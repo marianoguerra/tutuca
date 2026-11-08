@@ -13,6 +13,7 @@ the four interfaces in `scheduler.js`. It ships as `tutuca/tree`.
 | `path.js` | `KeyPath` (keys into the state), `Frame` and `DispatchPath` (π, the frames a message went through), `Selector`/`selectorFrom` and `Target` (a written path, before it is fixed) |
 | `address.js` | `Address` (`(at π ι)`), `HOST` (`host`) |
 | `messages.js` | the envelope: `Task`, `NotifyTask`, `AskTask`, `AnswerTask` |
+| `settle.js` | `SettleScope`: what a watched `sendAt` caused, counted until it settles |
 | `context.js` | `MessageContext`: what a handler sends with |
 | `scheduler.js` | `Scheduler`: the queue and `tree->` |
 | `text.js` | how keys and values print |

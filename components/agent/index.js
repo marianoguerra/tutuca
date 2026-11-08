@@ -7,7 +7,7 @@
 // A prompt asks the host to infer (one model step, the ask's answer the model's message). The
 // tools it calls run here: a query or a pure message at once, through query and apply, its
 // ContractError told to the model in words; a message that needs a context is checked, then
-// sent to the target in a settle scope (src/tree/scope.js), and toolSettled, once that message
+// sent to the target in a settle scope (src/tree/settle.js), and toolSettled, once that message
 // and everything it caused ran (the asks it made answered, the messages it sent handled, other
 // agents it prompted done), answers the call with what the target looks like after, and with
 // how many of its steps failed if any did. Once every call has its result it infers again,

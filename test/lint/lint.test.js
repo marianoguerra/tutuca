@@ -15,12 +15,12 @@ import {
 	render,
 	renderEach,
 	renderIt,
-	scope,
 	send,
 	seqItem,
 	sourceKey,
 	t,
 	targetValue,
+	withBinds,
 } from "../../src/tutuca.js";
 
 // Registration only needs a root node to add delegated listeners to.
@@ -42,7 +42,7 @@ test("a component using every helper correctly is clean", () => {
 		loops: {
 			rows: { enrich: ({ value }) => ({ label: value.label }), view: "row" },
 		},
-		scopes: { stats: { bind: () => ({ count: 1 }) } },
+		binds: { stats: () => ({ count: 1 }) },
 		provides: {
 			list(pb) {
 				pb.field("items");
@@ -60,7 +60,7 @@ test("a component using every helper correctly is clean", () => {
 			each(field("items"), renderIt("row")),
 			renderEach(field("items"), "rows"),
 			render(seqItem("items", "selected")),
-			scope("stats", lookupBind("count")),
+			withBinds("stats", lookupBind("count")),
 			pushView("row", renderEach(provided("list"))),
 		),
 		on: { setQuery() {}, pick() {} },
@@ -86,7 +86,7 @@ const cases = [
 			view: "x",
 			on: { a: 1 },
 			loops: { l: { filter: true, view: 3 } },
-			scopes: { s: {} },
+			binds: { s: {} },
 			provides: { p: 1 },
 		},
 		[
@@ -128,15 +128,15 @@ const cases = [
 		[],
 	],
 	[
-		"unknown and inherited loop and scope names",
+		"unknown and inherited loop and binds names",
 		{
 			name: "Names",
 			fields: { items: t.array() },
-			view: h("div", {}, each(field("items"), "x", "nope"), scope("toString", "x")),
+			view: h("div", {}, each(field("items"), "x", "nope"), withBinds("toString", "x")),
 		},
 		[
 			"error unknown-loop Names.main > div > each(nope)",
-			"error unknown-scope Names.main > div > scope(toString)",
+			"error unknown-binds Names.main > div > withBinds(toString)",
 		],
 	],
 	[
@@ -231,7 +231,7 @@ const cases = [
 		],
 	],
 	[
-		"a named bind with no scope or enriching loop",
+		"a named bind with no withBinds or enriching loop",
 		{
 			name: "Binds",
 			fields: { items: t.array() },
@@ -244,14 +244,14 @@ const cases = [
 		],
 	],
 	[
-		"a scope does not reach into a loop body",
+		"a withBinds does not reach into a loop body",
 		{
-			name: "ScopeLoop",
+			name: "BindsLoop",
 			fields: { items: t.array() },
-			scopes: { s: { bind: () => ({ count: 1 }) } },
-			view: scope("s", each(field("items"), lookupBind("count"))),
+			binds: { s: () => ({ count: 1 }) },
+			view: withBinds("s", each(field("items"), lookupBind("count"))),
 		},
-		["warning unknown-bind ScopeLoop.main > scope(s) > each() > lookupBind"],
+		["warning unknown-bind BindsLoop.main > withBinds(s) > each() > lookupBind"],
 	],
 	[
 		"view names no registration declares",

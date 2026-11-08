@@ -13,13 +13,13 @@ import {
 	lookupBind,
 	render,
 	renderIt,
-	scope,
 	send,
 	seqItem,
 	sourceKey,
 	t,
 	tag,
 	targetValue,
+	withBinds,
 } from "../../src/tutuca.js";
 import { setField } from "../common/card.js";
 import { metaFor } from "../common/meta.js";
@@ -325,11 +325,9 @@ export const TodoApp = component({
 			return this.view === "today" || this.view === "upcoming";
 		},
 	},
-	scopes: {
-		page: {
-			bind() {
-				return this.pageBinds();
-			},
+	binds: {
+		page() {
+			return this.pageBinds();
 		},
 	},
 	loops: {
@@ -375,7 +373,7 @@ export const TodoApp = component({
 			},
 		},
 	},
-	view: scope(
+	view: withBinds(
 		"page",
 		div(
 			{

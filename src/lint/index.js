@@ -26,7 +26,7 @@ const RENDER_KINDS = new Set([
 	"renderIt",
 	"each",
 	"renderEach",
-	"scope",
+	"withBinds",
 	"element",
 	"query",
 ]);
@@ -64,8 +64,8 @@ const labelOf = (node, kind) => {
 		case "each":
 		case "renderEach":
 			return `${kind}(${node.loopName ?? ""})`;
-		case "scope":
-			return `scope(${node.scopeName})`;
+		case "withBinds":
+			return `withBinds(${node.bindsName})`;
 		case "send":
 		case "query":
 			return `${kind}(${node.name})`;
@@ -76,7 +76,7 @@ const labelOf = (node, kind) => {
 	}
 };
 // Bindings visible where an expression evaluates: inside a loop body (value and
-// key), and whether a scope or an enriching loop adds names only known at runtime.
+// key), and whether a withBinds or an enriching loop adds names only known at runtime.
 const viewEnv = Object.freeze({ loop: false, open: false });
 // Calls whose results differ between runs, and the ctx method to use instead.
 const WORLD_READS = [
@@ -157,9 +157,9 @@ export class Lint extends Walker {
 			const text = `methods.${name} is a getter: move it to queries, where computed properties go`;
 			this.report("warning", "getter-in-methods", null, text);
 		}
-		for (const [name, scope] of Object.entries(spec.scopes)) {
-			if (typeof scope?.bind !== "function") {
-				this.report("error", "section-shape", null, `scopes.${name}.bind must be a function`);
+		for (const [name, fn] of Object.entries(spec.binds)) {
+			if (typeof fn !== "function") {
+				this.report("error", "section-shape", null, `binds.${name} must be a function`);
 			}
 		}
 		for (const [name, loop] of Object.entries(spec.loops)) {
@@ -312,7 +312,7 @@ export class Lint extends Walker {
 			this.report("warning", "filter-ignored", null, `loops.${name}.iter replaces its filter`);
 		}
 	}
-	// The own loop or scope the view names; inherited names like "toString" are not.
+	// The own loop or binds the view names; inherited names like "toString" are not.
 	lookupSection(section, name) {
 		const record = this.spec[section];
 		return Object.hasOwn(record, name) ? record[name] : undefined;
@@ -467,7 +467,7 @@ export class Lint extends Walker {
 				"warning",
 				"unknown-bind",
 				node,
-				`no enclosing scope or enriching loop binds "${name}"`,
+				`no enclosing withBinds or enriching loop binds "${name}"`,
 			);
 		}
 		super.node(node);
@@ -505,9 +505,9 @@ export class Lint extends Walker {
 		const body = { loop: true, open: loop?.enrich !== undefined };
 		if (kindOf(node) === "each") this.withEnv(body, () => this.visit(node.child));
 	}
-	scope(node) {
-		if (this.lookupSection("scopes", node.scopeName) === undefined) {
-			this.report("error", "unknown-scope", node, `no own scopes.${node.scopeName}`);
+	withBinds(node) {
+		if (this.lookupSection("binds", node.bindsName) === undefined) {
+			this.report("error", "unknown-binds", node, `no own binds.${node.bindsName}`);
 		}
 		this.withEnv({ ...this.env, open: true }, () => this.visit(node.child));
 	}

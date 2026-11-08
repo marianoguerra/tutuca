@@ -16,7 +16,6 @@ import {
 	render,
 	renderEach,
 	renderIt,
-	scope,
 	send,
 	seqItem,
 	Target,
@@ -24,6 +23,7 @@ import {
 	t,
 	targetValue,
 	Walker,
+	withBinds,
 } from "../../src/tutuca.js";
 import { dom, setupHost } from "../helpers.js";
 
@@ -55,7 +55,7 @@ test("the default walker walks parents first, attributes before children and han
 	const v = h(
 		"div",
 		{ class: $if(field("on"), "a", "b"), "on:click": send("go", field("x")) },
-		each(field("items"), scope("binds", pushView("compact", h("i", {}, field("t"))))),
+		each(field("items"), withBinds("binds", pushView("compact", h("i", {}, field("t"))))),
 	);
 	const seen = [];
 	recordVisits(seen).visit(v);
@@ -67,7 +67,7 @@ test("the default walker walks parents first, attributes before children and han
 		"Constant",
 		"Each",
 		"Field",
-		"XScope",
+		"WithBinds",
 		"PushView",
 		"Constant",
 		"Element",

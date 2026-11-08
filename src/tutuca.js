@@ -96,11 +96,11 @@ export {
 	renderIt,
 	Send,
 	SeqItem,
-	scope,
 	send,
 	seqItem,
 	sourceKey,
 	targetValue,
-	XScope,
+	WithBinds,
+	withBinds,
 } from "./view.js";
 export * from "./walk.js";

@@ -329,7 +329,7 @@ const runShared = (c, meta, data, call, done) => {
 	}
 	return done(`There's no tool ${name}.`, true);
 };
-// What a settle scope (src/tree/scope.js) tells its watcher: a tool's message and everything it
+// What a settle scope (src/tree/settle.js) tells its watcher: a tool's message and everything it
 // caused ran (ok), some of it threw (failed), or it was stopped (cancelled, timeout).
 export const reportType = t.record({
 	id: t.number(),

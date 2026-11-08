@@ -29,7 +29,7 @@ import { AskTask, hidden, NotifyTask, Task } from "./messages.js";
  * - committed: after a task's change is the root and what it sent is queued
  * - observe: what happened (stale, orphaned, lost, unhandled, taskFailed, taskHandled)
  * - wake: something was queued by arrive or push
- * - scopeOpened, scopeSettled: a settle scope (scope.js) started counting, and settled; the host
+ * - scopeOpened, scopeSettled: a settle scope (settle.js) started counting, and settled; the host
  *   arms and clears its timeout
  * @typedef {{
  *   context(task: object, instance: object, nextRequest: () => number): import("./context.js").MessageContext,

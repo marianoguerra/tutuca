@@ -11,11 +11,11 @@ import {
 	render,
 	renderEach,
 	renderIt,
-	scope,
 	scopeOf,
 	seqItem,
 	specOf,
 	t,
+	withBinds,
 } from "../../src/tutuca.js";
 import { setupHost } from "../helpers.js";
 
@@ -40,16 +40,16 @@ const Item = component({
 });
 
 for (const value of ["hello", 42, false, null]) {
-	test(`literal ${String(value)} works in scope and each bodies`, () => {
+	test(`literal ${String(value)} works in withBinds and each bodies`, () => {
 		const expected = value == null ? "" : String(value);
 		for (const [body, repetitions] of [
-			[scope("bindings", value), 1],
+			[withBinds("bindings", value), 1],
 			[each(field("items"), value), 2],
 		]) {
 			const Root = component({
 				name: "Root",
 				fields: { items: t.array().default([{}, {}]) },
-				scopes: { bindings: { bind: () => ({}) } },
+				binds: { bindings: () => ({}) },
 				views: { main: body },
 			});
 			const { host, rootNode, C } = setup({ Root });
@@ -201,10 +201,10 @@ test("renderIt clears local binds while the outer scope keeps them", () => {
 	const Root = component({
 		name: "Root",
 		fields: { items: t.array() },
-		scopes: { bindings: { bind: () => ({ local: "outer", value: "ignored" }) } },
+		binds: { bindings: () => ({ local: "outer", value: "ignored" }) },
 		view: each(
 			field("items"),
-			scope("bindings", h("section", { title: lookupBind("local") }, renderIt(), renderIt())),
+			withBinds("bindings", h("section", { title: lookupBind("local") }, renderIt(), renderIt())),
 		),
 	});
 	const { host, rootNode, C } = setup({ Root, Leaf });

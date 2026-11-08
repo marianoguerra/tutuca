@@ -115,8 +115,8 @@ class Printer extends Walker {
 	renderEach(node) {
 		this.call("renderEach", [node.source, node.loopName]);
 	}
-	scope(node) {
-		this.call("scope", [node.scopeName, node.child]);
+	withBinds(node) {
+		this.call("withBinds", [node.bindsName, node.child]);
 	}
 	send(node) {
 		this.call("send", [node.name, ...node.args]);
@@ -226,7 +226,7 @@ const KINDS = [
 			for (const k in spec.views) rows.push([`view ${k}`, ref(spec.views[k])]);
 			const methods = Object.keys(spec.methods);
 			if (methods.length > 0) rows.push(["methods", span(S.fn, methods.join(", "))]);
-			for (const k of ["on", "loops", "scopes", "provides"]) {
+			for (const k of ["on", "loops", "binds", "provides"]) {
 				if (Object.keys(spec[k]).length > 0) rows.push([k, ref(spec[k])]);
 			}
 			if (spec.eventNames.size > 0) rows.push(["eventNames", ref(spec.eventNames)]);

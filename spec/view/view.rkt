@@ -49,7 +49,7 @@
          (each src e loop-name?)           ; each(source, body, loopName)
          (render-each src loop-name?)      ; renderEach(source, loopName)
          (render-it view-name?)            ; renderIt(viewName)
-         (scope fname e)                   ; scope(scopeName, body)
+         (scope fname e)                   ; withBinds(bindsName, body) in JS
          (push-view e e))                  ; pushView(viewName, body)
   ;; Sources a frame can be taken from (toFrame).
   (src ::= (field fname) (seq-item fname fname) (provided fname))
