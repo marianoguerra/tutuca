@@ -1,7 +1,7 @@
 // A story in the sidebar list.
 
+import { title } from "../../panels/ui/common.js";
 import { $if, component, field, send, t, tag } from "../../tutuca.js";
-import { title } from "./common.js";
 
 const { button, li, span } = tag;
 

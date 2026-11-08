@@ -1,4 +1,4 @@
-// What the storybook UI components share: card styles, step badges, buttons and the "story" ask.
+// What the panel UI components (and the storybook's) share: card styles, step badges, buttons and the "story" ask.
 import { $if, button, field, send } from "../../tutuca.js";
 
 export const card = "card border border-base-300 bg-base-100 p-4 shadow-sm flex flex-col gap-3";

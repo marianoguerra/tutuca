@@ -3,9 +3,9 @@ import test from "node:test";
 import fc from "fast-check";
 import mathBook, { workbenchBook } from "../../components/math/stories.js";
 import { defineTutucaApp } from "../../src/embed/element.js";
+import { startPanelHost } from "../../src/panels/host.js";
 import { playgroundComponents } from "../../src/playground/element.js";
 import { makePlayground, storyChoices } from "../../src/playground/ui/playground.js";
-import { startPanelHost } from "../../src/storybook/host.js";
 import { StoryRegistry } from "../../src/storybook/index.js";
 import { collectProblems, dom, settle, testGenericProperties, testLintsClean } from "../helpers.js";
 

@@ -1,8 +1,8 @@
 // The playground's side of a run: pick an example and a story, see it live in a <tutuca-app>
-// and look into it with the storybook's panels. The element runs the code and sends the
+// and look into it with the story panels (src/panels). The element runs the code and sends the
 // stories of each run here; a new run gives the app a new key, so it mounts again.
 import { showArgs } from "../../history/bar.js";
-import { tabButton } from "../../storybook/ui/common.js";
+import { tabButton } from "../../panels/ui/common.js";
 import {
 	applyAppReport,
 	makePanels,
@@ -11,7 +11,7 @@ import {
 	resetPanels,
 	storyApp,
 	withPanelQueries,
-} from "../../storybook/ui/panels.js";
+} from "../../panels/ui/panels.js";
 import {
 	$if,
 	component,

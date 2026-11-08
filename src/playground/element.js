@@ -1,6 +1,6 @@
 // <tutuca-playground>: edit a book of stories and run it. The left pane edits the entry
 // module and the files it reaches through relative imports, the right pane is the Playground
-// component, showing the book's stories live with the storybook's panels. A run links the
+// component, showing the book's stories live with the story panels (src/panels). A run links the
 // edited files as blob modules (sources.js) and imports them; their imports of tutuca resolve
 // to the page's copy, the one the panels run on.
 //
@@ -9,9 +9,9 @@
 
 import { defineTutucaApp } from "../embed/element.js";
 import { TimeTravel } from "../history/bar.js";
-import { bookClasses, startPanelHost, uiClasses, watchPanelHost } from "../storybook/host.js";
-import { StoryRegistry } from "../storybook/runner.js";
-import { panelComponents } from "../storybook/ui/panels.js";
+import { bookClasses, startPanelHost, uiClasses, watchPanelHost } from "../panels/host.js";
+import { StoryRegistry } from "../panels/runner.js";
+import { panelComponents } from "../panels/ui/panels.js";
 import { booksOf, linkSources, loadSources } from "./sources.js";
 import { makePlayground, Playground, storyChoices } from "./ui/playground.js";
 

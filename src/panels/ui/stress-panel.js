@@ -1,5 +1,6 @@
 // Stress tests of the selected story, and loading their counterexample as a sequence.
 
+import { STRESS_IDLE } from "../../stories/stress.js";
 import {
 	$if,
 	component,
@@ -12,7 +13,6 @@ import {
 	tag,
 	targetValue,
 } from "../../tutuca.js";
-import { STRESS_IDLE } from "../stress.js";
 import { askStory, card, smallButton, title } from "./common.js";
 
 const { div, h3, input, label, li, ol, option, pre, section, select, span } = tag;

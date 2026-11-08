@@ -1,5 +1,13 @@
 // The storybook root: the sidebar of stories and the panels of the selected one.
 
+import { smallButton, tabButton } from "../../panels/ui/common.js";
+import {
+	panelFields,
+	panelHandlers,
+	resetPanels,
+	storyApp,
+	withPanelQueries,
+} from "../../panels/ui/panels.js";
 import {
 	$if,
 	apply,
@@ -12,8 +20,6 @@ import {
 	tag,
 	targetValue,
 } from "../../tutuca.js";
-import { smallButton, tabButton } from "./common.js";
-import { panelFields, panelHandlers, resetPanels, storyApp, withPanelQueries } from "./panels.js";
 
 const { aside, div, h1, h2, input, main, p, section, span, ul } = tag;
 

@@ -4,6 +4,8 @@
 import { ClassCompiler } from "../css/classes.js";
 import { argsLabel, Timeline } from "../history/index.js";
 import { lint } from "../lint/index.js";
+import { prepareStory, runStep, step, stepText } from "../stories/stories.js";
+import { runStress } from "../stories/stress.js";
 import { diff } from "../sync/diff.js";
 import { carry, specChanges } from "../sync/migrate.js";
 import { opText } from "../sync/ops.js";
@@ -11,8 +13,6 @@ import { componentPaths, Driver, describeProblems, PROBLEMS, snapshot } from "..
 import { drivableMessages, messageCommand, resolveRefs, sourceFrames } from "../testing/pbt.js";
 import { jsonText } from "../tree/text.js";
 import { specOf } from "../tutuca.js";
-import { prepareStory, runStep, step, stepText } from "./stories.js";
-import { runStress } from "./stress.js";
 
 // Runs a story live in a <tutuca-app>: the controller passed to mount. Keeps a timeline of
 // states, one entry per step and per user interaction, to go back and forth through.
@@ -134,7 +134,7 @@ class StoryRunner {
 		this.publish();
 		return result;
 	}
-	// Operations, called by the storybook's "story" ask handler.
+	// Operations, called by the panels' "story" ask handler.
 	load(name) {
 		if (name === "counterexample") return this.loadCounterexample();
 		this.sequence = name;
