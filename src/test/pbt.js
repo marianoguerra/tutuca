@@ -1,7 +1,7 @@
 // Property based testing for tutuca components with fast-check, derived from field and
 // message schemas. fast-check is passed in, so tutuca itself doesn't depend on it.
 
-import { preHolds } from "../spec.js";
+import { preHolds } from "../contract.js";
 import {
 	AnyType,
 	brokenInvariants,

@@ -2,39 +2,36 @@
 // this one is the public surface npm consumers and dist/ bundle.
 
 export { ComponentSpec, component } from "./component.js";
+export { filledMeta, hasMeta, metaOf, metaProblems, metaShapeProblems } from "./component-meta.js";
 export {
 	apply,
+	argIssues,
+	brokenInvariants,
+	ContractError,
 	canApply,
 	canQuery,
 	checkCall,
 	checkInvariants,
 	contractOf,
+	messageIssues,
 	query,
 	supports,
 } from "./contract.js";
 export { DRAG_EVENTS, DROP_EVENTS, Drag } from "./drag.js";
 export { browserEnv, Host } from "./host.js";
-export * from "./schema.js";
-export { Scope } from "./scope.js";
 export {
-	argIssues,
-	brokenInvariants,
-	ContractError,
-	filledMeta,
-	findInvalidFields,
-	HandlerSpec,
-	hasMeta,
 	Interface,
 	iface,
 	implementsIface,
 	interfaceProblems,
-	isComponent,
-	messageIssues,
-	metaOf,
-	metaProblems,
-	metaShapeProblems,
-	QuerySpec,
 	resolveImplements,
+} from "./interface.js";
+export * from "./schema.js";
+export { Scope } from "./scope.js";
+export {
+	HandlerSpec,
+	isComponent,
+	QuerySpec,
 	scopeOf,
 	scopeSym,
 	specOf,
@@ -68,6 +65,7 @@ export {
 	Target,
 	Task,
 } from "./tree/index.js";
+export { findInvalidFields } from "./validate.js";
 export {
 	$if,
 	$query,

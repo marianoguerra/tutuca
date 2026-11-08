@@ -1,25 +1,77 @@
 // A component's contract: what it offers other components and tools, by name, without them
 // knowing its state. apply runs one of its pure messages, query one of its queries, both
 // synchronously; contractOf describes them. What it doesn't support, or a call that breaks
-// the operation's contract, throws a ContractError.
+// the operation's contract, throws a ContractError. The checks of a handled message against its
+// spec (messageIssues, for dev mode) and of an instance against its invariants are here too.
 import { current, freeze, isDraft, produce } from "../deps/immer.js";
 import { ComponentSpec } from "./component.js";
-import {
-	argIssues,
-	brokenInvariants,
-	ContractError,
-	HandlerSpec,
-	Interface,
-	interfaceProblems,
-	postHolds,
-	preHolds,
-	QuerySpec,
-	resolveImplements,
-	scopeOf,
-	specOf,
-} from "./spec.js";
+import { Interface, interfaceProblems, resolveImplements } from "./interface.js";
+import { HandlerSpec, QuerySpec, scopeOf, specOf } from "./spec.js";
 import { idOf } from "./tree/identity.js";
 
+// Whether fn returns truthy without throwing.
+export function holds(fn) {
+	try {
+		return Boolean(fn());
+	} catch {
+		return false;
+	}
+}
+// The names of the invariants instance breaks; a throwing invariant counts as broken.
+export const brokenInvariants = (instance) => {
+	const { invariants } = specOf(instance);
+	return Object.keys(invariants).filter((name) => !holds(() => invariants[name].call(instance)));
+};
+// Calling an interface operation a component doesn't support, or with what breaks its contract.
+// code is the first of issues: "unknown", "not-pure", "args", "arg:<i>", "pre", "post", "returns",
+// "invariant:<name>", or "not-component".
+export class ContractError extends Error {
+	constructor(component, name, issues, detail = "") {
+		const what = component === null ? "not a component" : `${component}.${name}`;
+		super(`${what}: ${issues.join(", ")}${detail === "" ? "" : ` (${detail})`}`);
+		this.name = "ContractError";
+		this.component = component;
+		this.operation = name;
+		this.issues = issues;
+		this.code = issues[0];
+		this.detail = detail; // In words, as a failed pre's why says it.
+	}
+}
+// The ways args don't match types: "args" for their count, "arg:<i>" for one's type.
+export const argIssues = (types, args, scope, owner) => {
+	if (types === undefined) return [];
+	if (args.length !== types.length) return ["args"];
+	const issues = [];
+	types.forEach((type, i) => {
+		if (!type.isValid(args[i], scope, owner)) issues.push(`arg:${i}`);
+	});
+	return issues;
+};
+// Whether a message's pre and post conditions hold; one it doesn't have holds. A throwing one
+// doesn't. info is what the handler's ctx says about the message ({} outside a handler).
+export const preHolds = (message, prev, args, info) =>
+	message.pre === undefined || holds(() => message.pre.call(prev, prev, args, info));
+export const postHolds = (message, prev, next, args, info) =>
+	message.post === undefined || holds(() => message.post.call(prev, prev, next, args, info));
+// The ways a handled message broke its spec: "args", "arg:<i>", "sourceKey", "pre", "post"
+// and "emits:<kind>:<name>". prev and next are the component before and after the handler,
+// info is { sourceKey, emitted } from the MessageContext it ran in.
+export const messageIssues = (message, prev, next, args, info) => {
+	const scope = scopeOf(prev);
+	const issues = argIssues(message.args, args, scope, prev);
+	const { sourceKey, emitted } = info;
+	if (message.sourceKey !== undefined && !message.sourceKey.isValid(sourceKey, scope, prev)) {
+		issues.push("sourceKey");
+	}
+	if (!preHolds(message, prev, args, info)) issues.push("pre");
+	if (!postHolds(message, prev, next, args, info)) issues.push("post");
+	if (message.emits !== undefined) {
+		for (const { kind, name } of emitted) {
+			if (!message.emits[kind]?.includes(name)) issues.push(`emits:${kind}:${name}`);
+		}
+	}
+	return issues;
+};
 // The ids of the components pure messages were applied to while fn ran, for the dev check that
 // a component's fields are only written by it (dev/checks.js): [what fn returns, ids].
 let applied = null;

@@ -3,10 +3,11 @@
 // handlers and pure messages, not by its ancestors'. What breaks is reported through notify as
 // stateInvalid or messageInvalid.
 import { produce } from "../../deps/immer.js";
-import { trackApplies } from "../contract.js";
-import { findInvalidFields, isComponent, messageIssues, specOf } from "../spec.js";
+import { messageIssues, trackApplies } from "../contract.js";
+import { isComponent, specOf } from "../spec.js";
 import { idOf } from "../tree/identity.js";
 import { keyText } from "../tree/text.js";
+import { findInvalidFields } from "../validate.js";
 
 // The writes from prev to next, the component a task (or host.apply) handled before and after,
 // that changed another component's own data, as { path, owner, field }: a component under it

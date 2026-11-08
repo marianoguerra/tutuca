@@ -1,8 +1,9 @@
 // Field types of components: t's builders, the checks their constraints run, and how they
-// make and validate values. Component specs and their checks are in spec.js.
-import { Interface, implementsIface, isComponent, isRecord, specOf } from "./spec.js";
+// make and validate values. Component specs are in spec.js, their contracts in contract.js.
+import { Interface, implementsIface } from "./interface.js";
+import { isComponent, specOf } from "./spec.js";
 
-export { isRecord };
+export const isRecord = (v) => typeof v === "object" && v !== null && !Array.isArray(v);
 
 const lengthOf = (v) =>
 	typeof v === "object" && !Array.isArray(v) ? Object.keys(v).length : v.length;
