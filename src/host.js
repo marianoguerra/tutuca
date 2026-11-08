@@ -6,7 +6,7 @@ import { current, isDraft, produce } from "../deps/immer.js";
 import { apply, checkInvariants, query } from "./contract.js";
 import { DROP_EVENTS, DragTracker } from "./drag.js";
 import { SyncEngines } from "./engines.js";
-import { getEventInfoFor } from "./events.js";
+import { eventSend } from "./events.js";
 import { Scope } from "./scope.js";
 import { specOf } from "./spec.js";
 import { Address, DispatchPath, Selector, selectorFrom, Target } from "./tree/index.js";
@@ -94,19 +94,17 @@ export class Host {
 		const { type } = e;
 		const bubbles = DROP_EVENTS.has(type);
 		this.drags.beforeEvent(e, this.root);
-		let info = null;
-		let args = null;
+		let sent = null;
 		try {
-			info = getEventInfoFor(e.target, type, this.rootNode, this.root, bubbles);
-			if (info !== null) args = eventArgs(info, e, this.drag);
+			sent = eventSend(e, this.rootNode, this.root, this.drag, bubbles);
 		} catch (error) {
 			// The DOM doesn't match the root it routes against (a render that failed), or an event
 			// arg failed: reported, as a failed task is, instead of escaping the listener.
 			this.notify("eventFailed", { event: e, error });
 		}
-		if (args !== null) {
-			const { handler, to, node } = info;
-			this.send(handler.action.name, args, { to, now: true, event: e, node, drag: this.drag });
+		if (sent !== null) {
+			const { name, args, to, node } = sent;
+			this.send(name, args, { to, now: true, event: e, node, drag: this.drag });
 		}
 		this.drags.afterEvent(e);
 	}
@@ -292,12 +290,4 @@ const targetOf = (to) => {
 	throw new Error(
 		`send needs an Address, DispatchPath, Selector or selector fn, got ${String(to)}`,
 	);
-};
-// The args of the send an event's handler names, as values, worked out when the event arrives:
-// its exprs read the event, the element with the handler, the drag and the key of the item the
-// event reached (targetValue, sourceKey, dragKey), as a handler's context would.
-const eventArgs = ({ handler, to, node }, event, drag) => {
-	const path = to.path.toComponentPath();
-	const ctx = { event, node, drag, path, sourceKey: to.path.sourceKeyIn(path) };
-	return handler.action.args.map((arg) => arg.eval(ctx));
 };

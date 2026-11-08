@@ -688,7 +688,7 @@ source's that `filter(key, value, state)` keeps; an item is keyed by
 arguments the Wax one, as the other hooks take them).
 
 **Events** (`decode.wax`): the host routes a DOM event the way
-`getEventInfoFor` does: from the target up to the container, the `data-eid`s
+`handlerFor` does: from the target up to the container, the `data-eid`s
 met before the first component boundary, and the metadata comments of every
 ancestor's previous siblings, read back by a JSON reader for what `meta.wax`
 writes; the frames give the route, the route's component's spec the template

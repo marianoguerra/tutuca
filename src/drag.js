@@ -1,5 +1,5 @@
 // Drag and drop: the drag the host keeps from dragstart to dragend, read by handlers as ctx.drag.
-import { getEventInfoFor, pathOf } from "./events.js";
+import { handlerFor, pathOf } from "./events.js";
 
 // The events over a drop target. They reach the nearest enclosing component that handles them,
 // so a drop on a child's elements gets to the parent's on:drop.
@@ -64,7 +64,7 @@ export class DragTracker {
 		} else if (e.type === "dragleave") {
 			if (!this.rootNode.contains(e.relatedTarget ?? null)) this.mark(null);
 		} else {
-			const info = getEventInfoFor(e.target, "drop", this.rootNode, root, true);
+			const info = handlerFor(e.target, "drop", this.rootNode, root, true);
 			// The browser shows a move cursor over a drop target, a not-allowed one elsewhere. A
 			// drag from outside the page (a file) is copied: the browser forbids moving most.
 			if (info !== null) {

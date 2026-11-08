@@ -1,6 +1,6 @@
 #lang racket
 ;; Decoding: from the DOM node an event hit back to a handler and the path of
-;; the component that owns it (getEventInfoFor in events.js).
+;; the component that owns it (handlerFor in events.js).
 ;;
 ;; The rendered DOM carries no component references. Each element with
 ;; handlers has data-eid, and metadata comments mark where the semantic tree's

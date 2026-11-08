@@ -1,4 +1,4 @@
-// Routing an event (getEventInfoFor in tutuca's src/events.js; the spec's
+// Routing an event (handlerFor in tutuca's src/events.js; the spec's
 // bind/decode.rkt): from the DOM node an event hit back to a handler and the
 // path of the component that owns it. The rendered DOM carries no component
 // references: elements with handlers have data-eid, and metadata comments

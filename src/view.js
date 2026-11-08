@@ -1,4 +1,5 @@
 // Views: the AST nodes view builders make, how they evaluate to vnodes, and the render context.
+import { EVENT_ARGS } from "./events.js";
 import { wrapMarkers } from "./markers.js";
 import { planElement } from "./optimize.js";
 import { isComponent, specOf } from "./spec.js";
@@ -283,18 +284,6 @@ export class Send extends AstNode {
 	}
 }
 export const send = (name, ...args) => new Send(name, args.map(toExpr));
-// What each event arg reads from the ctx eventArgs (host.js) makes when the event arrives.
-const EVENT_ARGS = {
-	// The element with the handler: the click may land on a child of it, like an icon.
-	targetValue(ctx) {
-		const target = ctx.node ?? ctx.event.target;
-		return target.type === "checkbox" ? target.checked : target.value;
-	},
-	sourceKey: (ctx) => ctx.sourceKey,
-	// The key of the child the dragged element is in, as sourceKey is for the event's element;
-	// null when nothing, or something from outside the component, is dragged.
-	dragKey: (ctx) => ctx.drag?.sourceKeyIn(ctx.path) ?? null,
-};
 // A send arg that reads the event, not the state: one of EVENT_ARGS, by name.
 export class EventArg extends AstNode {
 	static kind = "eventArg";

@@ -47,11 +47,11 @@ Each directory requires only the ones above it in this table, plus `data.rkt`.
 | `view/` | `sem.rkt` | the semantic tree | (what `renderView` means) |
 | | `normalize.rkt` | `addChild`/`toVChilds`, keys | `view.js` |
 | | `view.rkt` | view definitions, expressions, registration, `RenderContext`, `eval`, `renderView` | the `AstNode` subclasses, `ComponentSpec`, `RenderContext` |
-| | `route.rkt` | routing on the semantic tree | (what `getEventInfoFor` means) |
+| | `route.rkt` | routing on the semantic tree | (what `handlerFor` means) |
 | | `wf.rkt` | well-formed views | lint's `unknown-handler`, `send-arity`, `send-arg-type` |
 | `bind/` | `meta.rkt` | metadata comment text | `wrapMarkers`'s objects, `parseMarker` |
 | | `lower.rkt` | semantic tree → vnodes | `wrapMarkers`, `planElement`'s `data-eid`, loop fragments |
-| | `decode.rkt` | `enclosingMarkers`, `getEventInfoFor` | `events.js` |
+| | `decode.rkt` | `enclosingMarkers`, `handlerFor` | `events.js` |
 | `system/` | `host.rkt` | `handleTask`, the task kinds, `MessageContext`, `Host` scheduling, dev checks | `Task`, `NotifyTask`, `AskTask`, `HostTask`, `Host` |
 | | `tutuca.rkt` | end-to-end scenarios, routing soundness, the binding theorem | |
 | | `render.rkt` | `semantics.pdf` | |
@@ -221,7 +221,7 @@ Metadata comments are `{"t":"component"}` or one frame:
 loop becomes an unkeyed group of keyed item groups, and an element with handlers gets
 `data-eid`.
 
-`event-info` decodes the way `getEventInfoFor` does:
+`event-info` decodes the way `handlerFor` does:
 - It collects eids from the target up to the first component boundary, or for a drop event,
   the eids of each enclosing component in turn, nearest first.
 - It reads enclosing metadata by scanning previous siblings. Each closing comment hides one

@@ -355,7 +355,7 @@
     (sect
      "Decoding events"
      (string-append
-      "getEventInfoFor. The DOM holds no component references, only data-eid attributes "
+      "handlerFor. The DOM holds no component references, only data-eid attributes "
       "and metadata comments. Decoding walks from the target up, collects eids until the "
       "first component boundary, and reads the metadata enclosing each ancestor to rebuild "
       "the dispatch path; closing comments hide openings and look-alikes are skipped. The "

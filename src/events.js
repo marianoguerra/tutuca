@@ -1,4 +1,5 @@
-// DOM events: finds the component, path and handlers an event belongs to from the marker comments.
+// DOM events: finds the component, path and handler an event belongs to from the marker comments,
+// and the send it makes, its args read from the event.
 import { isMarkerOpen, MARKER_CLOSE, parseMarker } from "./markers.js";
 import { specOf } from "./spec.js";
 import { Address, DispatchPath, Frame } from "./tree/index.js";
@@ -64,7 +65,7 @@ export const pathOf = (node, rootNode) => {
 // The handler for a type event on target, with the address of its component and its element.
 // Only the component target is in handles it, unless bubbles: then the nearest enclosing
 // component with a handler for it does.
-export const getEventInfoFor = (target, type, rootNode, root, bubbles = false) => {
+export const handlerFor = (target, type, rootNode, root, bubbles = false) => {
 	const walk = walkUp(target, rootNode);
 	if (walk === null) return null;
 	const levels = bubbles ? walk.components.length : Math.min(1, walk.components.length);
@@ -82,4 +83,29 @@ export const getEventInfoFor = (target, type, rootNode, root, bubbles = false) =
 		}
 	}
 	return null;
+};
+// What each event arg (view.js's EventArg) reads from the ctx eventSend makes when the event
+// arrives.
+export const EVENT_ARGS = {
+	// The element with the handler: the click may land on a child of it, like an icon.
+	targetValue(ctx) {
+		const target = ctx.node ?? ctx.event.target;
+		return target.type === "checkbox" ? target.checked : target.value;
+	},
+	sourceKey: (ctx) => ctx.sourceKey,
+	// The key of the child the dragged element is in, as sourceKey is for the event's element;
+	// null when nothing, or something from outside the component, is dragged.
+	dragKey: (ctx) => ctx.drag?.sourceKeyIn(ctx.path) ?? null,
+};
+// The send event's handler makes: { name, args, to, node }, args as values worked out as the
+// event arrives, as a handler's context would (EVENT_ARGS read the event, the element with the
+// handler, the drag and the key of the item the event reached); null when no handler takes it.
+export const eventSend = (event, rootNode, root, drag, bubbles = false) => {
+	const found = handlerFor(event.target, event.type, rootNode, root, bubbles);
+	if (found === null) return null;
+	const { handler, to, node } = found;
+	const path = to.path.toComponentPath();
+	const ctx = { event, node, drag, path, sourceKey: to.path.sourceKeyIn(path) };
+	const args = handler.action.args.map((arg) => arg.eval(ctx));
+	return { name: handler.action.name, args, to, node };
 };
