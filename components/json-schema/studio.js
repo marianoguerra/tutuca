@@ -12,7 +12,8 @@ import {
 	tag,
 	targetValue,
 } from "../../src/tutuca.js";
-import { DROP_TARGET, droppedFile } from "../common/files.js";
+import { fileDrop } from "../common/drop.js";
+import { DROP_TARGET } from "../common/files.js";
 import { fromJson, jsonComponents } from "../json/index.js";
 import { schemaComponents } from "./index.js";
 import { inferSchema, schemaDocument } from "./infer.js";
@@ -84,6 +85,13 @@ const cardTitle = (text) =>
 	h2({ class: "text-sm font-semibold uppercase tracking-wider opacity-60" }, text);
 
 // An example payload in a JSON editor and the schema inferred from it, kept in step.
+// A JSON file dropped from outside the page: the payload it holds, titled by its name.
+const studioDrop = fileDrop({
+	errorField: "pasteError",
+	load(self, next, value, name, ctx) {
+		self.loadJson(next, ctx.scope.components, value, name.replace(/(\.schema)?\.json$/i, ""));
+	},
+});
 export const Studio = component({
 	name: "Studio",
 	fields: {
@@ -258,23 +266,7 @@ export const Studio = component({
 				this.loadJson(next, ctx.scope.components, value, "");
 			},
 		},
-		// A file dropped from outside the page: the first JSON one is read, and loaded when the
-		// answer comes.
-		dropFile: {
-			args: [],
-			emits: { ask: ["readText"] },
-			run(next, _args, ctx) {
-				const dropped = droppedFile(ctx.event);
-				if (dropped === null) return;
-				if (dropped.error !== undefined) {
-					next.pasteError = dropped.error;
-					return;
-				}
-				next.dropName = dropped.file.name;
-				next.pasteError = "";
-				ctx.ask("readText", [dropped.file]);
-			},
-		},
+		...studioDrop.on,
 		downloadSchema: {
 			args: [],
 			emits: { ask: ["saveFile"] },
@@ -289,28 +281,7 @@ export const Studio = component({
 		},
 	},
 	answers: {
-		// The dropped file's text: loaded when it's JSON, the error shown otherwise.
-		readText: {
-			ok(next, [text], ctx) {
-				const name = this.dropName;
-				next.dropName = "";
-				let value;
-				try {
-					value = JSON.parse(text);
-				} catch (error) {
-					next.pasteError = `${name || "The file"} is not JSON: ${error.message}`;
-					return;
-				}
-				this.loadJson(next, ctx.scope.components, value, name.replace(/(\.schema)?\.json$/i, ""));
-			},
-			error(next, [error]) {
-				next.pasteError = `Reading ${this.dropName || "the file"} failed: ${error?.message ?? error}`;
-				next.dropName = "";
-			},
-			unhandled(next) {
-				next.dropName = "";
-			},
-		},
+		...studioDrop.answers,
 		saveFile: {
 			ok() {},
 			error(_next, [error]) {

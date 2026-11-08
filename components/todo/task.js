@@ -15,6 +15,7 @@ import {
 	tag,
 	targetValue,
 } from "../../src/tutuca.js";
+import { setField } from "../common/card.js";
 import {
 	applyEach,
 	CHECKS,
@@ -240,20 +241,8 @@ export const TodoTask = component({
 				applyEach(next.subtasks, "setToday", today);
 			},
 		},
-		setTitle: {
-			pure: true,
-			args: [t.string()],
-			run(next, [title]) {
-				next.title = title;
-			},
-		},
-		setDescription: {
-			pure: true,
-			args: [t.string()],
-			run(next, [description]) {
-				next.description = description;
-			},
-		},
+		setTitle: setField("title", t.string(), { pure: true }),
+		setDescription: setField("description", t.string(), { pure: true }),
 		setDue: {
 			pure: true,
 			args: [dueType()],
@@ -277,20 +266,8 @@ export const TodoTask = component({
 			},
 		},
 		// What an agent sets: a priority as a number, the labels as a list, and reopening.
-		setPriorityLevel: {
-			pure: true,
-			args: [t.enum(1, 2, 3, 4)],
-			run(next, [priority]) {
-				next.priority = priority;
-			},
-		},
-		setLabels: {
-			pure: true,
-			args: [t.array(t.string())],
-			run(next, [labels]) {
-				next.labels = labels;
-			},
-		},
+		setPriorityLevel: setField("priority", t.enum(1, 2, 3, 4), { pure: true }),
+		setLabels: setField("labels", t.array(t.string()), { pure: true }),
 		reopen: {
 			pure: true,
 			args: [],
@@ -353,12 +330,7 @@ export const TodoTask = component({
 				next.isExpanded = !this.isExpanded;
 			},
 		},
-		setNewSubtask: {
-			args: [t.string()],
-			run(next, [text]) {
-				next.newSubtask = text;
-			},
-		},
+		setNewSubtask: setField("newSubtask"),
 		addSubtask: {
 			args: [],
 			post: (prev, next) =>

@@ -25,7 +25,6 @@ import {
 	$if,
 	AGENT_META,
 	component,
-	DISPLAY_META,
 	dataMetaSchemas,
 	displayLabel,
 	displayMetaSchemas,
@@ -42,13 +41,16 @@ import {
 	targetValue,
 	withSample,
 } from "../../src/tutuca.js";
+import { setField } from "../common/card.js";
+import { CANVAS_META, metaFor } from "../common/meta.js";
+
+export { CANVAS_META };
 
 const { button, div, input, li, p, span, ul } = tag;
 
 // The meta namespace of what a component says to a canvas holding it: its width and height,
 // how big the item starts (null: the canvas's), and whether the item is see-through, without a
 // background. Its title and icon, the item's label, are its display meta.
-export const CANVAS_META = "https://tutuca.dev/meta/canvas";
 export const canvasMetaSchemas = {
 	...displayMetaSchemas,
 	...dataMetaSchemas,
@@ -63,10 +65,8 @@ export const canvasMetaOf = (c, scope = undefined) => metaOf(c, CANVAS_META, sco
 // The label an item holding c starts with: its icon and title, or null when it has no title.
 export const metaLabel = (c) => displayLabel(c);
 // What a layout says of itself, and to the canvas: see-through, the canvas between its slots.
-const layoutMeta = (title, icon, description, width) => ({
-	[DISPLAY_META]: { title, icon, description },
-	[CANVAS_META]: { width, transparent: true },
-});
+const layoutMeta = (title, icon, description, width) =>
+	metaFor(title, icon, description, null, { [CANVAS_META]: { width, transparent: true } });
 
 // The layouts, as kinds a hole can become: what they say of themselves is their meta.
 export const LAYOUT_KINDS = {
@@ -631,12 +631,7 @@ export const Tabs = component({
 			next.labels = [...this.items.map((_, i) => this.labels[i] ?? ""), ""];
 			next.active = this.items.length;
 		},
-		select: {
-			args: [t.index("items")],
-			run(next, [at]) {
-				next.active = at;
-			},
-		},
+		select: setField("active", t.index("items")),
 		rename: {
 			args: [t.index("items"), t.string()],
 			run(next, [at, name]) {

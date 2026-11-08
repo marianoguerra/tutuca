@@ -11,8 +11,10 @@ import {
 	sourceKey,
 	t,
 	tag,
+	targetValue,
 } from "../../src/tutuca.js";
-import { SMALL_BUTTON } from "../common/card.js";
+import { SMALL_BUTTON, setField } from "../common/card.js";
+import { pickerRow } from "../common/ui.js";
 import { NOTE } from "../common/util.js";
 import { isNoteName, octaveOf, parseNoteName, ROOTS } from "./theory.js";
 
@@ -180,22 +182,7 @@ export const rootQueries = {
 	},
 };
 export const rootPicker = () =>
-	div(
-		{ class: "join flex w-full", role: "group", "aria-label": "Root" },
-		each(
-			field("roots"),
-			tag.button(
-				{
-					type: "button",
-					class: field("cls"),
-					"aria-pressed": field("pressed"),
-					title: "Root",
-					"on:click": send("setRoot", sourceKey()),
-				},
-				field("name"),
-			),
-		),
-	);
+	pickerRow("Root", "roots", "setRoot", { label: "name", attrs: { title: "Root" } });
 export const octaveStepper = () =>
 	div(
 		{ class: "ml-auto flex items-center gap-1", role: "group", "aria-label": "Octave" },
@@ -254,14 +241,12 @@ export const instrumentMessages = {
 			next.instrument = INSTRUMENTS[at];
 		},
 	},
-	set_instrument: {
-		pure: true,
-		args: [t.enum(...INSTRUMENTS)],
-		run(next, [instrument]) {
-			next.instrument = instrument;
-		},
-	},
+	set_instrument: setField("instrument", t.enum(...INSTRUMENTS), { pure: true }),
 };
+export const octaveTool = () =>
+	agentTool("shift_octave", "message", ["by"], "Move it up or down by octaves.", {
+		target: "shiftOctave",
+	});
 export const instrumentTool = () =>
 	agentTool(
 		"set_instrument",
@@ -270,21 +255,7 @@ export const instrumentTool = () =>
 		"Show it on the piano or the guitar's neck.",
 	);
 export const instrumentToggle = () =>
-	div(
-		{ class: "join flex w-full", role: "group", "aria-label": "Instrument" },
-		each(
-			field("instrumentToggles"),
-			tag.button(
-				{
-					type: "button",
-					class: field("cls"),
-					"aria-pressed": field("pressed"),
-					"on:click": send("setInstrument", sourceKey()),
-				},
-				field("text"),
-			),
-		),
-	);
+	pickerRow("Instrument", "instrumentToggles", "setInstrument", { attrs: {} });
 // The piano or the guitar's neck, as the toggle says.
 export const instrumentView = () =>
 	$if(field("onPiano"), render(field("piano")), render(field("guitar")));
@@ -312,11 +283,13 @@ export const SELECT = "select select-bordered select-xs w-full";
 
 // A row of notes, each its name and interval on one line, and a warning after them; with end
 // (an instrument toggle), the notes in one half and end in the other.
-export const noteChips = (warning, end = null) => {
-	const chips = noteChipsOnly(warning);
+// The notes, each its name and, smaller, its field detail (interval by default), with the
+// query warning after them; beside end when there's one.
+export const noteChips = (warning, end = null, detail = "interval") => {
+	const chips = noteChipsOnly(warning, detail);
 	return end === null ? chips : pair(chips, end);
 };
-const noteChipsOnly = (warning) =>
+const noteChipsOnly = (warning, detail) =>
 	div(
 		{ class: "music-notes flex flex-wrap items-center gap-1" },
 		each(
@@ -327,10 +300,22 @@ const noteChipsOnly = (warning) =>
 					title: field("about"),
 				},
 				span({ class: "font-bold" }, field("name")),
-				span({ class: "font-mono text-xs opacity-60" }, field("interval")),
+				span({ class: "font-mono text-xs opacity-60" }, field(detail)),
 			),
 		),
 		span({ class: "text-xs text-warning" }, field(warning)),
+	);
+
+// A select of the kinds (the query kinds, each { key, text }) that sends setKind.
+export const kindSelect = (ariaLabel) =>
+	tag.select(
+		{
+			class: SELECT,
+			"aria-label": ariaLabel,
+			value: field("kind"),
+			"on:change": send("setKind", targetValue()),
+		},
+		each(field("kinds"), tag.option({ value: field("key") }, field("text"))),
 	);
 
 // The palette by name, for an agent: amber, sky, pink, green, violet.
@@ -338,6 +323,8 @@ export const PAINT_NAMES = Object.fromEntries(
 	PALETTE.map(([name, color]) => [name.toLowerCase(), color]),
 );
 const paintOf = (name) => PAINT_NAMES[name] ?? COLORS.note;
+// The colors an agent can mark with, for its prompt.
+export const COLOR_NAMES = Object.keys(PAINT_NAMES).join(", ");
 // What an agent marks an instrument with, by note names: markedOf(parsed) is what's marked
 // (a MIDI number on a piano, a pitch class on a guitar's neck).
 export const agentMarkMessages = (markedOf) => {

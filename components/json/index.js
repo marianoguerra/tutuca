@@ -4,12 +4,10 @@
 
 import {
 	$if,
-	apply,
 	button,
 	canApply,
 	component,
 	DATA_META,
-	DISPLAY_META,
 	each,
 	field,
 	lookupBind,
@@ -23,7 +21,11 @@ import {
 	tag,
 	targetValue,
 } from "../../src/tutuca.js";
+import { setField } from "../common/card.js";
 import { dataDrop, jsonDropFields, jsonDropTarget } from "../common/drop.js";
+import { metaFor } from "../common/meta.js";
+import { applyBelow, openAllButtons } from "../common/open.js";
+import { segmented } from "../common/ui.js";
 import { plural } from "../common/util.js";
 
 export const VALUE_NAMES = [
@@ -329,20 +331,12 @@ const moveUp = (items, key) => {
 };
 
 // Opening and closing: setOpenDeep reaches every collection below, through entries.
-const openBelow = (next, key, open) => {
-	const v = next[key];
-	if (Array.isArray(v)) {
-		v.forEach((k, i) => {
-			if (canApply(k, "setOpenDeep")) v[i] = apply(k, "setOpenDeep", open);
-		});
-	} else if (canApply(v, "setOpenDeep")) next[key] = apply(v, "setOpenDeep", open);
-};
 const passOpenDeep = (key) => ({
 	setOpenDeep: {
 		pure: true,
 		args: [t.boolean()],
 		run(next, [open]) {
-			openBelow(next, key, open);
+			applyBelow(next, [key], "setOpenDeep", open);
 		},
 	},
 });
@@ -366,7 +360,7 @@ const openable = (key) => ({
 		args: [t.boolean()],
 		run(next, [open]) {
 			next.open = open;
-			openBelow(next, key, open);
+			applyBelow(next, [key], "setOpenDeep", open);
 		},
 	},
 });
@@ -516,19 +510,6 @@ export const JsonObject = component({
 	),
 });
 
-// Expand all and collapse all, right aligned, for the value below.
-const OPEN_ALL = "btn btn-xs btn-ghost font-mono";
-const openAllButtons = () => [
-	button(
-		{ class: `${OPEN_ALL} ml-auto expand-all`, "on:click": send("setOpenDeep", true) },
-		"expand all",
-	),
-	button(
-		{ class: `${OPEN_ALL} collapse-all`, "on:click": send("setOpenDeep", false) },
-		"collapse all",
-	),
-];
-
 // A JSON value with expand all and collapse all above it. It renders its value in the view
 // pushed from above, so an edit view above edits the value.
 // With allowDrop on, a JSON file dropped on it replaces its value.
@@ -593,13 +574,7 @@ export const JsonRoot = component({
 // A JSON document, shown read only or edited in place, with its JSON text.
 export const JsonEditor = component({
 	name: "JsonEditor",
-	meta: {
-		[DISPLAY_META]: {
-			title: "JSON",
-			icon: "{}",
-			description: "A JSON value, viewed or edited in place, with its text.",
-		},
-	},
+	meta: metaFor("JSON", "{}", "A JSON value, viewed or edited in place, with its text."),
 	fields: {
 		value: t.component(VALUE_NAMES),
 		mode: t.enum("view", "edit"),
@@ -617,28 +592,18 @@ export const JsonEditor = component({
 		get isEdit() {
 			return this.mode === "edit";
 		},
+		get isView() {
+			return this.mode === "view";
+		},
 	},
 	view: div(
 		{ class: "flex flex-col gap-3" },
 		div(
 			{ class: "flex flex-wrap items-center gap-2" },
-			div(
-				{ class: "join", role: "group", "aria-label": "Mode" },
-				button(
-					{
-						class: $if(field("isEdit"), "btn btn-xs join-item", "btn btn-xs btn-primary join-item"),
-						"on:click": send("setMode", "view"),
-					},
-					"View",
-				),
-				button(
-					{
-						class: $if(field("isEdit"), "btn btn-xs btn-primary join-item", "btn btn-xs join-item"),
-						"on:click": send("setMode", "edit"),
-					},
-					"Edit",
-				),
-			),
+			segmented("Mode", "setMode", [
+				["view", "View", "isView"],
+				["edit", "Edit", "isEdit"],
+			]),
 			label(
 				{ class: "flex items-center gap-1 text-xs" },
 				input({
@@ -667,18 +632,8 @@ export const JsonEditor = component({
 				ctx.stopNext();
 			},
 		},
-		setMode: {
-			args: [t.enum("view", "edit")],
-			run(next, [mode]) {
-				next.mode = mode;
-			},
-		},
-		setShowText: {
-			args: [t.boolean()],
-			run(next, [showText]) {
-				next.showText = showText;
-			},
-		},
+		setMode: setField("mode", t.enum("view", "edit")),
+		setShowText: setField("showText", t.boolean()),
 	},
 });
 
@@ -709,3 +664,5 @@ export const fromJson = (C, v) => {
 // A JsonRoot for a JSON value, made with C; allowDrop lets a dropped JSON file replace it.
 export const jsonRoot = (C, v, { allowDrop = false } = {}) =>
 	C.JsonRoot({ value: fromJson(C, v), allowDrop });
+// A JsonRoot of v that takes dropped JSON files.
+export const droppableJson = (C, v) => jsonRoot(C, v, { allowDrop: true });

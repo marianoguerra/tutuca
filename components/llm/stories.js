@@ -1,6 +1,7 @@
 import { step, stories } from "../../src/storybook/index.js";
 import { $if, component, field, pushView, render, send, t, tag } from "../../src/tutuca.js";
 import { schemaEditor } from "../json-schema/editor.js";
+import { WEATHER } from "./fixtures.js";
 import {
 	assistantMessage,
 	finalResponse,
@@ -14,7 +15,6 @@ import {
 	toolDefinition,
 	toolResult,
 	userMessage,
-	WEATHER,
 } from "./index.js";
 import { SAMPLE_TRANSCRIPT, transcript } from "./transcript.js";
 

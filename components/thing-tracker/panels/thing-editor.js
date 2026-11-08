@@ -13,6 +13,7 @@ import {
 	tag,
 	targetValue,
 } from "../../../src/tutuca.js";
+import { setField } from "../../common/card.js";
 import { MUTED, measureRef } from "../common.js";
 import { findMeasurement, findUnit, MEASUREMENTS } from "../measure.js";
 import { always, closing, panel } from "../panel.js";
@@ -259,18 +260,8 @@ export const ThingEditor = component({
 				ctx.stopNext();
 			},
 		},
-		setTitle: {
-			args: [t.string()],
-			run(next, [title]) {
-				next.title = title;
-			},
-		},
-		setDescription: {
-			args: [t.string()],
-			run(next, [description]) {
-				next.description = description;
-			},
-		},
+		setTitle: setField("title"),
+		setDescription: setField("description"),
 		// A checkbox's targetValue is whether it is checked, so the choice comes as its key.
 		toggleMeasurement: {
 			args: [t.index("choices")],

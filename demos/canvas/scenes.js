@@ -4,8 +4,10 @@
 import { canvas } from "../../components/canvas/index.js";
 import { isoDay } from "../../components/common/calendar.js";
 import { trackerCell } from "../../components/composition/index.js";
-import { apiOperation, httpRequest, httpResponse, TASKS } from "../../components/http/index.js";
+import { TASKS } from "../../components/http/fixtures.js";
+import { apiOperation, httpRequest, httpResponse } from "../../components/http/index.js";
 import { schemaEditor } from "../../components/json-schema/editor.js";
+import { WEATHER } from "../../components/llm/fixtures.js";
 import {
 	finalResponse,
 	followUpRequest,
@@ -13,7 +15,6 @@ import {
 	inferenceResponse,
 	structuredOutput,
 	toolResult,
-	WEATHER,
 } from "../../components/llm/index.js";
 import { transcript } from "../../components/llm/transcript.js";
 import { chordExplorer, circleOfFifths, scaleExplorer } from "../../components/music/index.js";

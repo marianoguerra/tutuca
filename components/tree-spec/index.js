@@ -21,6 +21,7 @@ import {
 	t,
 	tag,
 } from "../../src/tutuca.js";
+import { setField } from "../common/card.js";
 import { NODE_H, NODE_W } from "./model.js";
 
 const {
@@ -638,13 +639,7 @@ export const World = component({
 	},
 	on: {
 		// How many of its observations are old news.
-		markSeen: {
-			pure: true,
-			args: [t.number().int().min(0)],
-			run(next, [seen]) {
-				next.seen = seen;
-			},
-		},
+		markSeen: setField("seen", t.number().int().min(0), { pure: true }),
 		// From the instance clicked: select it, or unselect it when it was.
 		picked: {
 			args: [t.number()],

@@ -11,6 +11,7 @@ import {
 	tag,
 	targetValue,
 } from "../../../src/tutuca.js";
+import { setField } from "../../common/card.js";
 import { always, closing, panel } from "../panel.js";
 import { fromDatetimeLocal } from "../time.js";
 
@@ -108,18 +109,8 @@ export const EventEditor = component({
 	}),
 	on: {
 		...closing(always),
-		setWhen: {
-			args: [t.string()],
-			run(next, [when]) {
-				next.when = when;
-			},
-		},
-		setNotes: {
-			args: [t.string()],
-			run(next, [notes]) {
-				next.notes = notes;
-			},
-		},
+		setWhen: setField("when"),
+		setNotes: setField("notes"),
 		save: {
 			args: [],
 			emits: { notify: ["saveEntry"] },

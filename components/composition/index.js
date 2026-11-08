@@ -6,14 +6,13 @@
 // by, collapsing (Ctrl+click asks the notebook to collapse or expand every cell) and removing.
 // The other libraries' components are registered next to these, so cells are made in the
 // notebook's scope.
-import { notesComponents } from "../../demos/notes/notes.js";
+
 import {
 	$if,
 	AGENT_META,
 	agentTool,
 	apply,
 	component,
-	DISPLAY_META,
 	displayLabel,
 	displayOf,
 	dragKey,
@@ -30,9 +29,12 @@ import {
 	targetValue,
 } from "../../src/tutuca.js";
 import { isoDay } from "../common/calendar.js";
+import { setField } from "../common/card.js";
+import { metaFor } from "../common/meta.js";
 import { isModKey } from "../common/util.js";
 import { drawingComponents } from "../drawing/index.js";
 import { kanbanComponents } from "../kanban/index.js";
+import { notesComponents } from "../notes/index.js";
 import { trackerComponents } from "../thing-tracker/index.js";
 import { BUNDLES } from "../thing-tracker/model.js";
 import { thingFrom } from "../thing-tracker/records.js";
@@ -65,12 +67,7 @@ const GROUP_IDS = GROUPS.map((g) => g.id);
 // to the section, and what logging one does here instead of in the tracker app.
 export const TrackerCell = component({
 	name: "TrackerCell",
-	meta: {
-		[DISPLAY_META]: {
-			title: "Tracker",
-			icon: "📈",
-			description: "A group of things to log with a tap.",
-		},
+	meta: metaFor("Tracker", "📈", "A group of things to log with a tap.", null, {
 		// An agent logs things by their id: when someone says they did one.
 		[AGENT_META]: {
 			prompt:
@@ -81,7 +78,7 @@ export const TrackerCell = component({
 				}),
 			],
 		},
-	},
+	}),
 	fields: {
 		section: t.component("Section"),
 		things: t.array(t.component("Thing")),
@@ -186,12 +183,7 @@ const choice = (id, action, emoji, label, blurb) =>
 // A new cell's content, until you pick what it becomes.
 export const Picker = component({
 	name: "Picker",
-	meta: {
-		[DISPLAY_META]: {
-			title: "New cell",
-			description: "Picks what a new cell becomes.",
-		},
-	},
+	meta: metaFor("New cell", null, "Picks what a new cell becomes."),
 	fields: { step: t.enum("kind", "tracker") },
 	queries: {
 		get isPickingKind() {
@@ -340,21 +332,9 @@ export const Cell = component({
 				else next.collapsed = collapsed;
 			},
 		},
-		setCollapsed: {
-			pure: true,
-			args: [t.boolean()],
-			run(next, [collapsed]) {
-				next.collapsed = collapsed;
-			},
-		},
+		setCollapsed: setField("collapsed", t.boolean(), { pure: true }),
 		// Its content becomes content, a new component.
-		setContent: {
-			pure: true,
-			args: [t.component()],
-			run(next, [content]) {
-				next.content = content;
-			},
-		},
+		setContent: setField("content", t.component(), { pure: true }),
 		remove: {
 			args: [],
 			emits: { notify: ["removeCell"] },
@@ -392,14 +372,11 @@ const isOwnCell = (ctx) =>
 
 export const Notebook = component({
 	name: "Notebook",
-	meta: {
-		[DISPLAY_META]: {
-			title: "Notebook",
-			icon: "📓",
-			description:
-				"Cells of notes, todos, boards, drawings and trackers, in the order you add them.",
-		},
-	},
+	meta: metaFor(
+		"Notebook",
+		"📓",
+		"Cells of notes, todos, boards, drawings and trackers, in the order you add them.",
+	),
 	fields: {
 		title: t.string("Notebook"),
 		// An ordered map: cells by key, and the keys in order. Keys are uuids, so cells added

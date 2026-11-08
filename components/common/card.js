@@ -5,7 +5,6 @@ import {
 	$if,
 	apply,
 	canApply,
-	DISPLAY_META,
 	field,
 	renderIt,
 	send,
@@ -14,18 +13,9 @@ import {
 	tag,
 	targetValue,
 } from "../../src/tutuca.js";
-import { CANVAS_META } from "../canvas/layout.js";
 import { isModKey } from "../common/util.js";
 
 const { button, div, h3, header, input, label, section, span } = tag;
-
-// What a card says of itself (its title, icon and what it's for) and how wide it starts on a
-// canvas.
-export const metaFor = (title, icon, description, width, more = {}) => ({
-	[DISPLAY_META]: { title, icon, description },
-	[CANVAS_META]: { width },
-	...more,
-});
 
 export const BADGE = "badge badge-sm badge-soft font-semibold";
 export const MONO = "font-mono text-sm";
@@ -54,9 +44,11 @@ export const textInput = (ariaLabel, name, handler, cls = "") =>
 		value: field(name),
 		"on:input": send(handler, targetValue()),
 	});
-// A handler setting the string field name.
-export const setString = (name) => ({
-	args: [t.string()],
+// A handler setting the field name to its one arg, a type (a string by default); a pure
+// message when pure.
+export const setField = (name, type = t.string(), { pure = false } = {}) => ({
+	...(pure ? { pure } : {}),
+	args: [type],
 	run(next, [value]) {
 		next[name] = value;
 	},

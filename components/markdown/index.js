@@ -14,7 +14,8 @@ import {
 	tag,
 	targetValue,
 } from "../../src/tutuca.js";
-import { metaFor } from "../common/card.js";
+import { setField } from "../common/card.js";
+import { metaFor } from "../common/meta.js";
 import { MD_VIEW } from "./element.js";
 
 const { div, p, textarea } = tag;
@@ -149,20 +150,8 @@ export const Markdown = component({
 		),
 	},
 	on: {
-		load: {
-			pure: true,
-			args: [t.string()],
-			run(next, [text]) {
-				next.text = text;
-			},
-		},
-		setText: {
-			pure: true,
-			args: [t.string()],
-			run(next, [text]) {
-				next.text = text;
-			},
-		},
+		load: setField("text", t.string(), { pure: true }),
+		setText: setField("text", t.string(), { pure: true }),
 		append: {
 			pure: true,
 			args: [t.string().len(1)],

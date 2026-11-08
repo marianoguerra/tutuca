@@ -6,19 +6,18 @@ import {
 	$if,
 	AGENT_META,
 	agentTool,
-	apply,
-	button,
-	canApply,
 	component,
 	DATA_META,
-	DISPLAY_META,
 	field,
 	render,
 	scopeOf,
-	send,
 	t,
 	tag,
 } from "../../src/tutuca.js";
+import { setField } from "../common/card.js";
+import { kind, metaFor } from "../common/meta.js";
+import { applyBelow, openAllButtons } from "../common/open.js";
+import { segmented } from "../common/ui.js";
 import { fromJson, jsonComponents, VALUE_NAMES } from "../json/index.js";
 import { validate } from "../llm/validate.js";
 import { schemaComponents } from "./index.js";
@@ -31,67 +30,45 @@ const { div, header, p, span } = tag;
 
 const TOOLBAR = "flex items-center gap-1 border-b border-base-300 pb-2";
 const BUTTON = "btn btn-xs btn-ghost font-mono";
-const readingButton = (reading, active) =>
-	button(
-		{
-			class: $if(
-				field(active),
-				`${BUTTON} join-item btn-active reading-${reading}`,
-				`${BUTTON} join-item reading-${reading}`,
-			),
-			"aria-pressed": field(active),
-			"on:click": send("setReading", reading),
-		},
-		reading,
-	);
-const openAllButtons = [
-	button(
-		{ class: `${BUTTON} ml-auto expand-all`, "on:click": send("setOpenDeep", true) },
-		"expand all",
-	),
-	button(
-		{ class: `${BUTTON} collapse-all`, "on:click": send("setOpenDeep", false) },
-		"collapse all",
-	),
-];
 
 // The tree of a schema, without its toolbar.
 const bareTree = (C, schema) => C.SchemaRoot({ node: fromSchema(C, schema), bare: true });
 
 export const JsonSchemaEditor = component({
 	name: "JsonSchemaEditor",
-	meta: {
-		[DISPLAY_META]: {
-			title: "JSON Schema",
-			icon: "📐",
-			description: "A JSON Schema, read as a tree or as JSON, and edited as JSON.",
-		},
-		[DATA_META]: {
-			load: "load",
-			data: "schema",
-			schema: {
-				type: ["object", "boolean"],
-				description: "A JSON Schema document: an object of keywords, or true or false.",
+	meta: metaFor(
+		"JSON Schema",
+		"📐",
+		"A JSON Schema, read as a tree or as JSON, and edited as JSON.",
+		null,
+		{
+			[DATA_META]: {
+				load: "load",
+				data: "schema",
+				schema: {
+					type: ["object", "boolean"],
+					description: "A JSON Schema document: an object of keywords, or true or false.",
+				},
+			},
+			// An agent writes the schema whole (set_state) and checks values against it.
+			[AGENT_META]: {
+				prompt:
+					"A JSON Schema (2020-12). To change it, write the whole new schema with set_state; the summary is the schema now. Check example values against it with check_value before saying it fits them.",
+				tools: [
+					agentTool(
+						"check_value",
+						"query",
+						["value"],
+						"Check a JSON value against the schema: the paths that don't fit and why, [] when it fits.",
+					),
+				],
+				skills: {
+					"conventions.md":
+						"Prefer required over defaults for what must be there. Say additionalProperties: false only when asked for a closed object. Give every property a description when its name doesn't say it.",
+				},
 			},
 		},
-		// An agent writes the schema whole (set_state) and checks values against it.
-		[AGENT_META]: {
-			prompt:
-				"A JSON Schema (2020-12). To change it, write the whole new schema with set_state; the summary is the schema now. Check example values against it with check_value before saying it fits them.",
-			tools: [
-				agentTool(
-					"check_value",
-					"query",
-					["value"],
-					"Check a JSON value against the schema: the paths that don't fit and why, [] when it fits.",
-				),
-			],
-			skills: {
-				"conventions.md":
-					"Prefer required over defaults for what must be there. Say additionalProperties: false only when asked for a closed object. Give every property a description when its name doesn't say it.",
-			},
-		},
-	},
+	),
 	fields: {
 		json: t.component(VALUE_NAMES), // The schema as edited.
 		source: t.string(), // The last JSON that read as a schema, as text.
@@ -140,12 +117,20 @@ export const JsonSchemaEditor = component({
 		{ class: "json-schema-editor flex flex-col gap-2" },
 		header(
 			{ class: TOOLBAR },
-			span(
-				{ class: "join", role: "group", "aria-label": "Reading" },
-				readingButton("compact", "isCompact"),
-				readingButton("json", "isJson"),
+			segmented(
+				"Reading",
+				"setReading",
+				[
+					["compact", "compact", "isCompact"],
+					["json", "json", "isJson"],
+				],
+				{
+					box: span,
+					base: (reading) => `${BUTTON} join-item reading-${reading}`,
+					active: "btn-active",
+				},
 			),
-			...openAllButtons,
+			...openAllButtons(),
 		),
 		$if(
 			field("isCompact"),
@@ -157,26 +142,19 @@ export const JsonSchemaEditor = component({
 	views: {
 		edit: div(
 			{ class: "json-schema-editor flex flex-col gap-2" },
-			header({ class: TOOLBAR }, ...openAllButtons),
+			header({ class: TOOLBAR }, ...openAllButtons()),
 			div({ class: "overflow-auto" }, render(field("json"))),
 			$if(field("hasError"), p({ class: "text-xs text-error" }, field("error")), ""),
 		),
 	},
 	on: {
-		setReading: {
-			args: [t.enum("compact", "json")],
-			run(next, [reading]) {
-				next.reading = reading;
-			},
-		},
+		setReading: setField("reading", t.enum("compact", "json")),
 		// Both readings open or close, so switching keeps what's shown.
 		setOpenDeep: {
 			pure: true,
 			args: [t.boolean()],
 			run(next, [open]) {
-				for (const key of ["tree", "json"]) {
-					if (canApply(next[key], "setOpenDeep")) next[key] = apply(next[key], "setOpenDeep", open);
-				}
+				applyBelow(next, ["tree", "json"], "setOpenDeep", open);
 			},
 		},
 		// A schema replaces the one edited.
@@ -215,3 +193,12 @@ export const schemaEditor = (C, schema) =>
 	});
 
 export const schemaEditorComponents = { ...jsonComponents, ...schemaComponents, JsonSchemaEditor };
+
+// The kinds a hole can become to hold a JSON Schema, schema, and a JSON value, value. They say
+// nothing to a canvas, so their kinds give their width.
+export const jsonKinds = (schema, value) => ({
+	jsonSchema: kind("JsonSchemaEditor", (C) => schemaEditor(C, schema), { width: 420 }),
+	json: kind("JsonEditor", (C) => C.JsonEditor({ mode: "view", value: fromJson(C, value) }), {
+		width: 420,
+	}),
+});

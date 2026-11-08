@@ -10,14 +10,12 @@ import {
 	agentTool,
 	apply,
 	component,
-	DATA_META,
 	each,
 	field,
 	render,
 	renderIt,
 	scopeOf,
 	send,
-	sourceKey,
 	t,
 	tag,
 	targetValue,
@@ -28,7 +26,6 @@ import {
 	cardHeader,
 	labeled,
 	MONO,
-	metaFor,
 	numberInput,
 	removable,
 	removableRow,
@@ -36,15 +33,17 @@ import {
 	sectionFields,
 	sectionMessages,
 	sectionQueries,
+	setField,
 	setNumber,
-	setString,
 	textInput,
 	titled,
 } from "../common/card.js";
-import { schemaChecked } from "../common/data.js";
+import { dataMeta, loadFrom } from "../common/data.js";
+import { kind, metaFor } from "../common/meta.js";
+import { pickerRow } from "../common/ui.js";
 import { NOTE } from "../common/util.js";
-import { jsonRoot } from "../json/index.js";
-import { schemaEditor, schemaEditorComponents } from "../json-schema/editor.js";
+import { droppableJson, jsonRoot } from "../json/index.js";
+import { jsonKinds, schemaEditor, schemaEditorComponents } from "../json-schema/editor.js";
 import {
 	cachingOf,
 	checkExchange,
@@ -57,6 +56,7 @@ import {
 	rawResponse,
 	statusClass,
 } from "./check.js";
+import { TASK, TASKS } from "./fixtures.js";
 
 const { button, div, input, label, li, option, p, pre, select, span, textarea, ul } = tag;
 
@@ -161,16 +161,6 @@ const EXCHANGE_SCHEMA = {
 	required: ["request", "response"],
 	additionalProperties: false,
 };
-// A card's data meta: it loads what its asJson gives, checked against schema.
-const dataMeta = (schema) => ({ [DATA_META]: { load: "load", data: "asJson", schema } });
-// A pure load that checks its arg against schema and sets the fields fields(C, json) makes.
-const loadFrom = (schema, fields) => ({
-	pure: true,
-	...schemaChecked(schema),
-	run(next, [json]) {
-		Object.assign(next, fields(scopeOf(this).components, json));
-	},
-});
 
 // A header: its name and value, and what it's for when it's a known one.
 export const HttpHeader = component({
@@ -200,7 +190,7 @@ export const HttpHeader = component({
 			textInput("Header value", "value", "setValue", "font-mono"),
 		),
 	},
-	on: { setName: setString("name"), setValue: setString("value") },
+	on: { setName: setField("name"), setValue: setField("value") },
 });
 
 // The header list, read and edited; each card that has one has headers, addHeader and
@@ -241,20 +231,15 @@ const headerMessages = () => ({
 			const C = ctx.scope.components;
 			if (kind === "json") {
 				const parsed = this.bodyKind === "text" ? parseJson(this.bodyText) : undefined;
-				if (parsed !== undefined) next.body = droppable(C, parsed);
-				else if (this.body === null) next.body = droppable(C, {});
+				if (parsed !== undefined) next.body = droppableJson(C, parsed);
+				else if (this.body === null) next.body = droppableJson(C, {});
 			} else if (kind === "text" && this.bodyKind === "json" && this.body !== null) {
 				next.bodyText = JSON.stringify(this.body.toJson(), null, 2);
 			}
 			next.bodyKind = kind;
 		},
 	},
-	setBodyText: {
-		args: [t.string()],
-		run(next, [text]) {
-			next.bodyText = text;
-		},
-	},
+	setBodyText: setField("bodyText"),
 });
 // What an agent changes a request's or response's headers and body with, by name: a header
 // set replaces the one of that name (any case) or adds it, and a body is none, text or JSON.
@@ -289,7 +274,7 @@ const agentMessageHandlers = () => ({
 			if (kind === "text") {
 				next.bodyText = typeof value === "string" ? value : JSON.stringify(value, null, 2);
 			} else if (kind === "json") {
-				next.body = droppable(scopeOf(this).components, value ?? {});
+				next.body = droppableJson(scopeOf(this).components, value ?? {});
 			}
 		},
 	},
@@ -349,21 +334,7 @@ const bodyEdit = () =>
 	titled(
 		"body",
 		"Body",
-		div(
-			{ class: "join self-start", role: "group", "aria-label": "Body" },
-			each(
-				field("bodyKinds"),
-				button(
-					{
-						class: field("cls"),
-						title: field("title"),
-						"aria-pressed": field("pressed"),
-						"on:click": send("setBodyKind", sourceKey()),
-					},
-					field("text"),
-				),
-			),
-		),
+		pickerRow("Body", "bodyKinds", "setBodyKind", { cls: "join self-start" }),
 		$if(
 			field("isJsonBody"),
 			render(field("body")),
@@ -518,7 +489,7 @@ export const HttpRequest = component({
 		...sectionMessages(REQUEST_SECTIONS, ["headers", "body"]),
 		...headerMessages(),
 		setMethod: setMethod(),
-		setUrl: setString("url"),
+		setUrl: setField("url"),
 		...agentMessageHandlers(),
 		load: loadFrom(REQUEST_SCHEMA, (C, json) => requestFields(C, json)),
 	},
@@ -622,13 +593,7 @@ export const HttpResponse = component({
 		...sectionMessages(RESPONSE_SECTIONS, ["headers", "body"]),
 		...headerMessages(),
 		setStatus: setNumber("status", isStatus),
-		set_status: {
-			pure: true,
-			args: [t.number().int().min(100).max(599)],
-			run(next, [status]) {
-				next.status = status;
-			},
-		},
+		set_status: setField("status", t.number().int().min(100).max(599), { pure: true }),
 		...agentMessageHandlers(),
 		load: loadFrom(RESPONSE_SCHEMA, (C, json) => responseFields(C, json)),
 	},
@@ -697,8 +662,8 @@ export const ApiResponse = component({
 	},
 	on: {
 		...sectionMessages(["schema"], ["schema"]),
-		setStatus: setString("status"),
-		setDescription: setString("description"),
+		setStatus: setField("status"),
+		setDescription: setField("description"),
 		toggleSchema(next, _args, ctx) {
 			next.schema =
 				this.schema === null ? schemaEditor(ctx.scope.components, { type: "object" }) : null;
@@ -918,15 +883,10 @@ export const ApiOperation = component({
 	on: {
 		...sectionMessages(OPERATION_SECTIONS, ["parameters", "requestBody", "responses"]),
 		setMethod: setMethod(),
-		setPath: setString("path"),
-		setOperationId: setString("operationId"),
-		setSummary: setString("summary"),
-		setBodyRequired: {
-			args: [t.boolean()],
-			run(next, [required]) {
-				next.bodyRequired = required;
-			},
-		},
+		setPath: setField("path"),
+		setOperationId: setField("operationId"),
+		setSummary: setField("summary"),
+		setBodyRequired: setField("bodyRequired", t.boolean()),
 		toggleBody(next, _args, ctx) {
 			next.requestBody =
 				this.requestBody === null ? schemaEditor(ctx.scope.components, TASKS.newTask.schema) : null;
@@ -1163,98 +1123,7 @@ export const httpComponents = {
 	HttpExchange,
 };
 
-// A worked example to start from, and to make each kind with: a tasks API, a web page on
-// app.example.com reading one task from api.example.com.
-const TASK = {
-	type: "object",
-	properties: {
-		id: { type: "integer" },
-		title: { type: "string", minLength: 1 },
-		done: { type: "boolean" },
-	},
-	required: ["id", "title", "done"],
-	additionalProperties: false,
-};
-const ERROR = {
-	type: "object",
-	properties: { message: { type: "string" } },
-	required: ["message"],
-};
-export const TASKS = {
-	operation: {
-		method: "GET",
-		path: "/tasks/{taskId}",
-		operationId: "getTask",
-		summary: "Get a task by its id.",
-		parameters: [
-			{ name: "taskId", in: "path", required: true, schema: { type: "integer", minimum: 1 } },
-			{ name: "fields", in: "query", schema: { type: "string" } },
-		],
-		responses: [
-			{ status: "200", description: "The task.", schema: TASK },
-			{ status: "404", description: "There's no task with that id.", schema: ERROR },
-		],
-	},
-	request: {
-		method: "GET",
-		url: "https://api.example.com/v1/tasks/42?fields=title,done",
-		headers: [
-			["Accept", "application/json"],
-			["Origin", "https://app.example.com"],
-			["Authorization", "Bearer eyJhbGciOi…"],
-		],
-	},
-	response: {
-		status: 200,
-		headers: [
-			["Content-Type", "application/json"],
-			["Cache-Control", "private, max-age=60"],
-			["ETag", '"v7"'],
-			["Access-Control-Allow-Origin", "https://app.example.com"],
-			["Vary", "Origin"],
-		],
-		body: { id: 42, title: "Explain HTTP on a canvas", done: false },
-	},
-	// The other operation: creating a task, whose body follows a schema.
-	newTask: {
-		schema: {
-			type: "object",
-			properties: { title: { type: "string", minLength: 1 }, done: { type: "boolean" } },
-			required: ["title"],
-			additionalProperties: false,
-		},
-	},
-	create: {
-		operation: {
-			method: "POST",
-			path: "/tasks",
-			operationId: "createTask",
-			summary: "Create a task.",
-			parameters: [],
-			responses: [
-				{ status: "201", description: "The task, created.", schema: TASK },
-				{ status: "4XX", description: "The task isn't valid.", schema: ERROR },
-			],
-		},
-		request: {
-			method: "POST",
-			url: "https://api.example.com/v1/tasks",
-			headers: [["Content-Type", "application/json"]],
-			body: { title: "Write the stories" },
-		},
-		response: {
-			status: 201,
-			headers: [
-				["Content-Type", "application/json"],
-				["Location", "/v1/tasks/43"],
-			],
-			body: { id: 43, title: "Write the stories", done: false },
-		},
-	},
-};
-
 // The JSON a card holds: a dropped JSON file replaces it.
-const droppable = (C, v) => jsonRoot(C, v, { allowDrop: true });
 const headers = (C, list) => list.map(([name, value]) => C.HttpHeader({ name, value }));
 
 // Each part of the example, made with C.
@@ -1267,7 +1136,7 @@ const bodyOf = (C, body, bodyType = typeof body === "string" ? "text" : "json") 
 		? { bodyKind: "none", body: null, bodyText: "" }
 		: bodyType === "text"
 			? { bodyKind: "text", body: null, bodyText: String(body) }
-			: { bodyKind: "json", body: droppable(C, body), bodyText: "" };
+			: { bodyKind: "json", body: droppableJson(C, body), bodyText: "" };
 // The fields of a request, a response or an operation, from what their asJson gives.
 const requestFields = (C, { method, url, headers: hs = [], body, bodyType }) => ({
 	method,
@@ -1301,7 +1170,7 @@ const operationFields = (C, json) => {
 		path: op.path,
 		operationId: op.operationId ?? "",
 		summary: op.summary ?? "",
-		parameters: droppable(C, op.parameters ?? []),
+		parameters: droppableJson(C, op.parameters ?? []),
 		requestBody: body === undefined ? null : schemaEditor(C, body),
 		bodyRequired: op.requestBody?.required ?? false,
 		responses: Object.entries(op.responses ?? {}).map(([status, r]) =>
@@ -1327,7 +1196,7 @@ export const apiOperation = (C, op = TASKS.operation, body = undefined) =>
 		path: op.path,
 		operationId: op.operationId,
 		summary: op.summary,
-		parameters: droppable(C, op.parameters),
+		parameters: droppableJson(C, op.parameters),
 		requestBody: body === undefined ? null : schemaEditor(C, body),
 		bodyRequired: body !== undefined,
 		responses: op.responses.map((r) => apiResponse(C, r)),
@@ -1351,20 +1220,11 @@ export const createExchange = (C) =>
 
 // What a canvas hole can become, in the http bundle: the parts above, a schema and a JSON value.
 export const HTTP_KINDS = {
-	request: { component: "HttpRequest", make: (C) => httpRequest(C) },
-	response: { component: "HttpResponse", make: (C) => httpResponse(C) },
-	header: { component: "HttpHeader", make: (C) => httpHeader(C) },
-	operation: { component: "ApiOperation", make: (C) => apiOperation(C) },
-	apiResponse: { component: "ApiResponse", make: (C) => apiResponse(C) },
-	exchange: { component: "HttpExchange", make: (C) => httpExchange(C) },
-	jsonSchema: {
-		component: "JsonSchemaEditor",
-		width: 420,
-		make: (C) => schemaEditor(C, TASK),
-	},
-	json: {
-		component: "JsonEditor",
-		width: 420,
-		make: (C) => C.JsonEditor({ mode: "view", value: droppable(C, TASKS.response.body).value }),
-	},
+	request: kind("HttpRequest", httpRequest),
+	response: kind("HttpResponse", httpResponse),
+	header: kind("HttpHeader", httpHeader),
+	operation: kind("ApiOperation", apiOperation),
+	apiResponse: kind("ApiResponse", apiResponse),
+	exchange: kind("HttpExchange", httpExchange),
+	...jsonKinds(TASK, TASKS.response.body),
 };

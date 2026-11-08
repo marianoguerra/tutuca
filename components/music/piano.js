@@ -12,13 +12,15 @@ import {
 	t,
 	tag,
 } from "../../src/tutuca.js";
-import { labeled, metaFor, numberInput, setNumber } from "../common/card.js";
+import { labeled, numberInput, setNumber } from "../common/card.js";
+import { metaFor } from "../common/meta.js";
 import { NOTE } from "../common/util.js";
 import { isBlack, midiName, midiOf, SHARP_NAMES } from "./theory.js";
 import {
 	agentMarkMessages,
 	agentMarkTools,
 	between,
+	COLOR_NAMES,
 	COLORS,
 	markFields,
 	markMessage,
@@ -118,8 +120,7 @@ export const Piano = component({
 	name: "Piano",
 	meta: metaFor("Piano", "🎹", "A piano that marks keys: pick its octaves in its edit view.", 420, {
 		[AGENT_META]: {
-			prompt:
-				"A piano keyboard that marks keys. Name notes with their octave (C4 is middle C; without one, octave 4). Colors: amber, sky, pink, green, violet. The summary is its range and what's marked.",
+			prompt: `A piano keyboard that marks keys. Name notes with their octave (C4 is middle C; without one, octave 4). Colors: ${COLOR_NAMES}. The summary is its range and what's marked.`,
 			summary: "ariaLabel",
 			tools: [
 				...agentMarkTools("on the keys"),

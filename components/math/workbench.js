@@ -1,6 +1,7 @@
 // A workbench over the math components: they sit under tabs, and the problems solved along the
 // way are kept in a history to go back to.
 import { $if, component, each, field, render, send, sourceKey, t, tag } from "../../src/tutuca.js";
+import { setField } from "../common/card.js";
 import { fmt, mathComponents } from "./index.js";
 
 const { aside, button, div, h2, li, p, span, ul } = tag;
@@ -146,12 +147,7 @@ export const Workbench = component({
 		),
 	),
 	on: {
-		setTab: {
-			args: [t.enum(...TABS.map(([id]) => id))],
-			run(next, [tab]) {
-				next.tab = tab;
-			},
-		},
+		setTab: setField("tab", t.enum(...TABS.map(([id]) => id))),
 		saveProblem: {
 			args: [],
 			run(next) {

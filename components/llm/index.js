@@ -28,19 +28,21 @@ import {
 	isCount,
 	labeled,
 	MONO,
-	metaFor,
 	numberInput,
 	removable,
 	SMALL_BUTTON,
 	sectionFields,
 	sectionMessages,
 	sectionQueries,
+	setField,
 	setNumber,
 	TEXTAREA,
 	titled,
 } from "../common/card.js";
-import { fromJson, jsonRoot } from "../json/index.js";
-import { schemaEditor, schemaEditorComponents } from "../json-schema/editor.js";
+import { kind, metaFor } from "../common/meta.js";
+import { droppableJson } from "../json/index.js";
+import { jsonKinds, schemaEditor, schemaEditorComponents } from "../json-schema/editor.js";
+import { WEATHER } from "./fixtures.js";
 import { MessageGroup, Transcript, TranscriptEntry, transcript } from "./transcript.js";
 import { validate } from "./validate.js";
 
@@ -97,12 +99,7 @@ const message = (name, role, badge, badgeClass, placeholder, meta) =>
 			),
 		},
 		on: {
-			setText: {
-				args: [t.string()],
-				run(next, [text]) {
-					next.text = text;
-				},
-			},
+			setText: setField("text"),
 		},
 	});
 
@@ -195,18 +192,8 @@ export const ToolDefinition = component({
 	},
 	on: {
 		...sectionMessages(["schema"], ["parameters"]),
-		setName: {
-			args: [t.string()],
-			run(next, [name]) {
-				next.name = name;
-			},
-		},
-		setDescription: {
-			args: [t.string()],
-			run(next, [description]) {
-				next.description = description;
-			},
-		},
+		setName: setField("name"),
+		setDescription: setField("description"),
 	},
 });
 
@@ -272,18 +259,8 @@ export const ToolCall = component({
 	},
 	on: {
 		...sectionMessages(["input"], ["input"]),
-		setName: {
-			args: [t.string()],
-			run(next, [name]) {
-				next.name = name;
-			},
-		},
-		setId: {
-			args: [t.string()],
-			run(next, [id]) {
-				next.id = id;
-			},
-		},
+		setName: setField("name"),
+		setId: setField("id"),
 	},
 });
 
@@ -360,18 +337,8 @@ export const ToolResult = component({
 	},
 	on: {
 		...sectionMessages(["content"], ["content"]),
-		setCallId: {
-			args: [t.string()],
-			run(next, [callId]) {
-				next.callId = callId;
-			},
-		},
-		setError: {
-			args: [t.boolean()],
-			run(next, [isError]) {
-				next.isError = isError;
-			},
-		},
+		setCallId: setField("callId"),
+		setError: setField("isError", t.boolean()),
 	},
 });
 
@@ -693,12 +660,7 @@ export const InferenceRequest = component({
 	},
 	on: {
 		...sectionMessages(REQUEST_SECTIONS, ["system", "messages", "tools", "outputSchema"]),
-		setModel: {
-			args: [t.string()],
-			run(next, [model]) {
-				next.model = model;
-			},
-		},
+		setModel: setField("model"),
 		setTemperature: setNumber("temperature", (n) => n >= 0 && n <= 2),
 		setMaxTokens: setNumber("maxTokens", (n) => isCount(n) && n >= 1),
 		toggleSystem(next, _args, ctx) {
@@ -985,24 +947,9 @@ export const InferenceResponse = component({
 	},
 	on: {
 		...sectionMessages(RESPONSE_SECTIONS, ["content"]),
-		setModel: {
-			args: [t.string()],
-			run(next, [model]) {
-				next.model = model;
-			},
-		},
-		setStopReason: {
-			args: [t.enum(...Object.keys(STOP_REASONS))],
-			run(next, [stopReason]) {
-				next.stopReason = stopReason;
-			},
-		},
-		setErrorMessage: {
-			args: [t.string()],
-			run(next, [errorMessage]) {
-				next.errorMessage = errorMessage;
-			},
-		},
+		setModel: setField("model"),
+		setStopReason: setField("stopReason", t.enum(...Object.keys(STOP_REASONS))),
+		setErrorMessage: setField("errorMessage"),
 		...Object.fromEntries(USAGE.map(([name, , , set]) => [set, setNumber(name, isCount)])),
 	},
 });
@@ -1023,50 +970,6 @@ export const llmComponents = {
 	MessageGroup,
 };
 
-// A worked example to start from, and to make each kind with: a weather tool, called once.
-export const WEATHER = {
-	system:
-		"You are a helpful assistant. Use the tools you're given when they help, and answer in a sentence or two.",
-	user: "What's the weather like in Buenos Aires right now?",
-	tool: {
-		name: "get_weather",
-		description: "Get the current weather in a city.",
-		parameters: {
-			type: "object",
-			properties: {
-				city: { type: "string", description: "The city's name, like Buenos Aires." },
-				unit: { type: "string", enum: ["celsius", "fahrenheit"] },
-			},
-			required: ["city"],
-		},
-	},
-	call: { id: "call_1", name: "get_weather", input: { city: "Buenos Aires", unit: "celsius" } },
-	result: { temperature: 18, conditions: "partly cloudy" },
-	assistant: "It's 18 °C and partly cloudy in Buenos Aires right now.",
-	model: "claude-haiku-5-5",
-	// What each of the two calls took: the second reads the first's prompt from the cache.
-	usage: {
-		toolUse: { input: 412, output: 38, cacheRead: 0, cacheWrite: 0 },
-		stop: { input: 61, output: 17, cacheRead: 412, cacheWrite: 0 },
-	},
-	output: {
-		schema: {
-			type: "object",
-			properties: {
-				city: { type: "string" },
-				temperature: { type: "number" },
-				conditions: { type: "string", enum: ["sunny", "partly cloudy", "cloudy", "rainy"] },
-			},
-			required: ["city", "temperature", "conditions"],
-			additionalProperties: false,
-		},
-		value: { city: "Buenos Aires", temperature: 18, conditions: "partly cloudy" },
-	},
-};
-
-// The JSON a card holds: a dropped JSON file replaces it.
-const droppable = (C, v) => jsonRoot(C, v, { allowDrop: true });
-
 // Each part of the example, made with C.
 export const systemMessage = (C, text = WEATHER.system) => C.SystemMessage({ text });
 export const userMessage = (C, text = WEATHER.user) => C.UserMessage({ text });
@@ -1074,14 +977,14 @@ export const assistantMessage = (C, text = WEATHER.assistant) => C.AssistantMess
 export const toolDefinition = (C, { name, description, parameters } = WEATHER.tool) =>
 	C.ToolDefinition({ name, description, parameters: schemaEditor(C, parameters) });
 export const toolCall = (C, { id, name, input } = WEATHER.call) =>
-	C.ToolCall({ id, name, input: droppable(C, input) });
+	C.ToolCall({ id, name, input: droppableJson(C, input) });
 export const toolResult = (
 	C,
 	content = WEATHER.result,
 	{ callId = WEATHER.call.id, isError = false } = {},
-) => C.ToolResult({ callId, isError, content: droppable(C, content) });
+) => C.ToolResult({ callId, isError, content: droppableJson(C, content) });
 export const structuredOutput = (C, { schema, value } = WEATHER.output) =>
-	C.StructuredOutput({ schema: schemaEditor(C, schema), output: droppable(C, value) });
+	C.StructuredOutput({ schema: schemaEditor(C, schema), output: droppableJson(C, value) });
 
 // The first call of the example: the question, with the weather tool to answer it with.
 // messages makes the transcript, for the calls after it.
@@ -1121,24 +1024,15 @@ export const finalResponse = (C) =>
 // each making its component, which says what it is in its display meta. The JSON ones say
 // nothing to a canvas: their kinds give their width.
 export const LLM_KINDS = {
-	system: { component: "SystemMessage", make: (C) => systemMessage(C) },
-	user: { component: "UserMessage", make: (C) => userMessage(C) },
-	assistant: { component: "AssistantMessage", make: (C) => assistantMessage(C) },
-	toolDefinition: { component: "ToolDefinition", make: (C) => toolDefinition(C) },
-	toolCall: { component: "ToolCall", make: (C) => toolCall(C) },
-	toolResult: { component: "ToolResult", make: (C) => toolResult(C) },
-	structuredOutput: { component: "StructuredOutput", make: (C) => structuredOutput(C) },
-	request: { component: "InferenceRequest", make: (C) => inferenceRequest(C) },
-	response: { component: "InferenceResponse", make: (C) => inferenceResponse(C) },
-	transcript: { component: "Transcript", make: (C) => transcript(C) },
-	jsonSchema: {
-		component: "JsonSchemaEditor",
-		width: 420,
-		make: (C) => schemaEditor(C, WEATHER.tool.parameters),
-	},
-	json: {
-		component: "JsonEditor",
-		width: 420,
-		make: (C) => C.JsonEditor({ mode: "view", value: fromJson(C, WEATHER.call.input) }),
-	},
+	system: kind("SystemMessage", systemMessage),
+	user: kind("UserMessage", userMessage),
+	assistant: kind("AssistantMessage", assistantMessage),
+	toolDefinition: kind("ToolDefinition", toolDefinition),
+	toolCall: kind("ToolCall", toolCall),
+	toolResult: kind("ToolResult", toolResult),
+	structuredOutput: kind("StructuredOutput", structuredOutput),
+	request: kind("InferenceRequest", inferenceRequest),
+	response: kind("InferenceResponse", inferenceResponse),
+	transcript: kind("Transcript", transcript),
+	...jsonKinds(WEATHER.tool.parameters, WEATHER.call.input),
 };

@@ -12,7 +12,8 @@ import {
 	tag,
 	targetValue,
 } from "../../src/tutuca.js";
-import { cardClass, cardHeader, metaFor } from "../common/card.js";
+import { cardClass, cardHeader } from "../common/card.js";
+import { metaFor } from "../common/meta.js";
 import { NOTE } from "../common/util.js";
 import { guitarNeck } from "./guitar.js";
 import { piano } from "./piano.js";
@@ -32,13 +33,13 @@ import {
 	instrumentQueries,
 	instrumentToggle,
 	instrumentView,
+	kindSelect,
 	pair,
 	rootPicker,
 	rootQueries,
-	SELECT,
 } from "./ui.js";
 
-const { div, input, label, option, p, select, span } = tag;
+const { div, input, label, p, span } = tag;
 
 const CHANGED = { notify: ["selectionChanged"] };
 
@@ -78,15 +79,7 @@ export const NoteChordSelector = component({
 		{ class: "note-chord-selector flex flex-col gap-2" },
 		rootPicker(),
 		pair(
-			select(
-				{
-					class: SELECT,
-					"aria-label": "Note or chord",
-					value: field("kind"),
-					"on:change": send("setKind", targetValue()),
-				},
-				each(field("kinds"), option({ value: field("key") }, field("text"))),
-			),
+			kindSelect("Note or chord"),
 			span(
 				{ class: "flex items-baseline gap-2" },
 				span({ class: "font-bold" }, field("symbol")),

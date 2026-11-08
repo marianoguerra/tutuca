@@ -24,7 +24,6 @@ import {
 	apply,
 	component,
 	copy,
-	DISPLAY_META,
 	dataOf,
 	each,
 	errorMessage,
@@ -47,7 +46,10 @@ import {
 	targetValue,
 } from "../../src/tutuca.js";
 import { agent, agentComponents } from "../agent/index.js";
-import { DROP_TARGET, droppedFile } from "../common/files.js";
+import { setField } from "../common/card.js";
+import { fileDrop } from "../common/drop.js";
+import { DROP_TARGET } from "../common/files.js";
+import { metaFor } from "../common/meta.js";
 import { clamp, isModKey } from "../common/util.js";
 import { compositionComponents, GROUPS, KINDS, makeContent } from "../composition/index.js";
 import { capture, coord, paintType, svgPoint } from "../drawing/shapes.js";
@@ -55,7 +57,6 @@ import { transcriptComponents } from "../llm/transcript.js";
 import { markdownComponents } from "../markdown/index.js";
 import {
 	BECOME_ARGS,
-	CANVAS_META,
 	canvasMetaOf,
 	kindEnv,
 	kindHandlers,
@@ -126,6 +127,18 @@ const contentArea = (drop) =>
 // header to drag it by, collapse it, toggle editing it, clone it or remove it, and a corner to
 // resize it by. Its height is its content's until it's resized (0). Editing, it pushes the edit view above
 // its content, for the components that have one (the layouts).
+// A file dropped from outside the page on an item's content: the first one of its data's file
+// format, loaded into its content when it fits.
+const itemDrop = fileDrop({
+	enabled: (self) => self.canLoad,
+	format: (self) => self.fileFormat,
+	load(self, next, value, name) {
+		const loaded = loadData(self.content, value, name);
+		if (loaded.error !== undefined) return loaded.error;
+		next.content = loaded.next;
+		return "";
+	},
+});
 export const Item = component({
 	name: "Item",
 	fields: {
@@ -426,13 +439,7 @@ export const Item = component({
 				else next.collapsed = collapsed;
 			},
 		},
-		setCollapsed: {
-			pure: true,
-			args: [t.boolean()],
-			run(next, [collapsed]) {
-				next.collapsed = collapsed;
-			},
-		},
+		setCollapsed: setField("collapsed", t.boolean(), { pure: true }),
 		// Maximized, the focus goes to its Restore button, so Esc reaches it.
 		maximize: {
 			args: [],
@@ -460,13 +467,7 @@ export const Item = component({
 				ctx.notify("restoreItem");
 			},
 		},
-		setTitle: {
-			pure: true,
-			args: [t.string()],
-			run(next, [title]) {
-				next.title = title;
-			},
-		},
+		setTitle: setField("title", t.string(), { pure: true }),
 		// width wide and height tall; 0 tall, as tall as its content.
 		setSize: {
 			pure: true,
@@ -548,24 +549,7 @@ export const Item = component({
 				ctx.ask("saveFile", [this.fileName, text, format.type]);
 			},
 		},
-		// A file dropped from outside the page on its content: the first one of its data's file
-		// format is read, and loaded when the answer comes.
-		dropFile: {
-			args: [],
-			emits: { ask: ["readText"] },
-			run(next, _args, ctx) {
-				if (!this.canLoad) return;
-				const dropped = droppedFile(ctx.event, this.fileFormat);
-				if (dropped === null) return;
-				if (dropped.error !== undefined) {
-					next.dropError = dropped.error;
-					return;
-				}
-				next.dropName = dropped.file.name;
-				next.dropError = "";
-				ctx.ask("readText", [dropped.file]);
-			},
-		},
+		...itemDrop.on,
 		raise: {
 			args: [],
 			emits: { notify: ["raiseItem"] },
@@ -618,37 +602,7 @@ export const Item = component({
 		become: { args: BECOME_ARGS, run() {} },
 	},
 	answers: {
-		// The dropped file's text, parsed as JSON unless its data is text: loaded into its content
-		// when it fits, the error shown otherwise.
-		readText: {
-			ok(next, [text]) {
-				const name = this.dropName || "the file";
-				next.dropName = "";
-				let data = text;
-				if (this.fileFormat.json) {
-					try {
-						data = JSON.parse(text);
-					} catch (error) {
-						next.dropError = `${name} is not JSON: ${error.message}`;
-						return;
-					}
-				}
-				const loaded = loadData(this.content, data, name);
-				if (loaded.error !== undefined) {
-					next.dropError = loaded.error;
-					return;
-				}
-				next.content = loaded.next;
-				next.dropError = "";
-			},
-			error(next, [error]) {
-				next.dropError = `Reading ${this.dropName || "the file"} failed: ${error?.message ?? error}`;
-				next.dropName = "";
-			},
-			unhandled(next) {
-				next.dropName = "";
-			},
-		},
+		...itemDrop.answers,
 		saveFile: { ok() {} },
 	},
 });
@@ -778,15 +732,15 @@ overlap: each is as wide as it says.`,
 };
 export const Canvas = component({
 	name: "Canvas",
-	meta: {
-		[DISPLAY_META]: {
-			title: "Canvas",
-			icon: "🖼️",
-			description: "Components and the shapes drawn between them, laid out on an SVG canvas.",
+	meta: metaFor(
+		"Canvas",
+		"🖼️",
+		"Components and the shapes drawn between them, laid out on an SVG canvas.",
+		720,
+		{
+			[AGENT_META]: ASSISTANT,
 		},
-		[CANVAS_META]: { width: 720 },
-		[AGENT_META]: ASSISTANT,
-	},
+	),
 	fields: {
 		width: t.number().int().min(200).max(MAX_SIZE).default(2400),
 		height: t.number().int().min(200).max(MAX_SIZE).default(1600),
@@ -1348,13 +1302,7 @@ export const Canvas = component({
 			},
 		},
 		// From the agent driving it: the model it uses, for its items' agents.
-		useModel: {
-			pure: true,
-			args: [t.string().len(1)],
-			run(next, [model]) {
-				next.agentModel = model;
-			},
-		},
+		useModel: setField("agentModel", t.string().len(1), { pure: true }),
 		// What holds it stopped: so do its items' agents.
 		stopAgents(_next, _args, ctx) {
 			for (const key of this.order) {

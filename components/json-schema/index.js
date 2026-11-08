@@ -9,7 +9,6 @@ import {
 	$if,
 	apply,
 	button,
-	canApply,
 	component,
 	DATA_META,
 	each,
@@ -27,6 +26,8 @@ import {
 	tag,
 } from "../../src/tutuca.js";
 import { dataDrop, jsonDropFields, jsonDropTarget } from "../common/drop.js";
+import { applyBelow, openAllButtons } from "../common/open.js";
+import { segmented } from "../common/ui.js";
 import { isModKey } from "../common/util.js";
 import { VALUE_NAMES } from "../json/index.js";
 import { DEFAULT_PER_PAGE, fromSchema, isSchema } from "./read.js";
@@ -85,20 +86,12 @@ const KIDS = {
 const kidsOf = (v) => (KIDS[specOf(v)?.name] ?? []).flatMap((k) => v[k]).filter(isComponent);
 const isOpenable = (v) => isComponent(v) && "open" in specOf(v).fields;
 // Applies the pure message name to the nodes right below next that have it, in place.
-const applyBelow = (next, name, ...args) => {
-	for (const key of KIDS[specOf(next)?.name] ?? []) {
-		const v = next[key];
-		if (Array.isArray(v)) {
-			v.forEach((k, i) => {
-				if (canApply(k, name)) v[i] = apply(k, name, ...args);
-			});
-		} else if (canApply(v, name)) next[key] = apply(v, name, ...args);
-	}
-};
+const applyToKids = (next, name, ...args) =>
+	applyBelow(next, KIDS[specOf(next)?.name] ?? [], name, ...args);
 // next and every node below it; nodes apply it to their own kids.
 const openDeep = (next, open) => {
 	if (isOpenable(next)) next.open = open;
-	applyBelow(next, "setOpenDeep", open);
+	applyToKids(next, "setOpenDeep", open);
 };
 const nodesBelow = (v) => [v, ...kidsOf(v).flatMap(nodesBelow)];
 // The open state of v and every node below it, depth first.
@@ -119,7 +112,7 @@ const setOpenDeep = {
 const openSiblings = {
 	args: [t.boolean()],
 	run(next, [open], ctx) {
-		applyBelow(next, "setOpen", open);
+		applyToKids(next, "setOpen", open);
 		ctx.stopNext();
 	},
 };
@@ -359,19 +352,7 @@ const putNumbers = (v, out, keys) => {
 
 // -- the root ---------------------------------------------------------------------
 
-const viewButton = (view, label) =>
-	button(
-		{
-			class: $if(
-				field(view === "format" ? "isFormat" : "isMain"),
-				`btn btn-xs btn-ghost join-item btn-active view-${label}`,
-				`btn btn-xs btn-ghost join-item view-${label}`,
-			),
-			"aria-pressed": field(view === "format" ? "isFormat" : "isMain"),
-			"on:click": send("setView", view),
-		},
-		label,
-	);
+const VIEW_LABELS = { main: "compact", format: "format" };
 
 // A JSON file that reads as a schema replaces the tree, through load.
 const rootDrop = dataDrop();
@@ -426,22 +407,21 @@ export const SchemaRoot = component({
 				null,
 				header(
 					{ class: "flex gap-1 items-center pb-2 mb-2 border-b border-base-300" },
-					span(
-						{ class: "join mr-2", role: "group", "aria-label": "Reading" },
-						viewButton("main", "compact"),
-						viewButton("format", "format"),
-					),
-					button(
+					segmented(
+						"Reading",
+						"setView",
+						[
+							["main", "compact", "isMain"],
+							["format", "format", "isFormat"],
+						],
 						{
-							class: "btn btn-xs btn-ghost ml-auto expand-all",
-							"on:click": send("setOpenDeep", true),
+							box: span,
+							cls: "join mr-2",
+							base: (view) => `btn btn-xs btn-ghost join-item view-${VIEW_LABELS[view]}`,
+							active: "btn-active",
 						},
-						"expand all",
 					),
-					button(
-						{ class: "btn btn-xs btn-ghost collapse-all", "on:click": send("setOpenDeep", false) },
-						"collapse all",
-					),
+					...openAllButtons("btn btn-xs btn-ghost"),
 				),
 			),
 			pushView(field("view"), div({ class: "schema-tree" }, render(field("node")))),

@@ -18,6 +18,7 @@ import {
 	tag,
 	targetValue,
 } from "../../src/tutuca.js";
+import { setField } from "../common/card.js";
 import { plural } from "../common/util.js";
 import {
 	eventRecord,
@@ -1067,12 +1068,7 @@ export const TrackerApp = component({
 				next.manageQuery = "";
 			},
 		},
-		setManageQuery: {
-			args: [t.string()],
-			run(next, [query]) {
-				next.manageQuery = query;
-			},
-		},
+		setManageQuery: setField("manageQuery"),
 		browseBundles: {
 			args: [],
 			run(next) {
@@ -1129,12 +1125,7 @@ export const TrackerApp = component({
 				if (mode === "merge" || mode === "replace") next.importMode = mode;
 			},
 		},
-		setImportText: {
-			args: [t.string()],
-			run(next, [text]) {
-				next.importText = text;
-			},
-		},
+		setImportText: setField("importText"),
 		previewImport: {
 			args: [],
 			run(next, _args, ctx) {
@@ -1158,12 +1149,7 @@ export const TrackerApp = component({
 				openImport(next, ctx, bundle.title, JSON.stringify(bundle.pack));
 			},
 		},
-		setOverwrite: {
-			args: [t.boolean()],
-			run(next, [overwrite]) {
-				next.overwrite = overwrite;
-			},
-		},
+		setOverwrite: setField("overwrite", t.boolean()),
 		cancelImport: {
 			args: [],
 			run(next) {

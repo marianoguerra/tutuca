@@ -1,6 +1,6 @@
 // Dropping a JSON file on a component to replace what it shows, when its allowDrop is on: the
 // file's JSON goes through the component's data load (DATA_META, src/data.js).
-import { $if, field, loadData, send, t, tag } from "../../src/tutuca.js";
+import { $if, errorMessage, field, JSON_FILE, loadData, send, t, tag } from "../../src/tutuca.js";
 import { DROP_TARGET, droppedFile } from "./files.js";
 
 const { div, p } = tag;
@@ -27,49 +27,54 @@ export const jsonDropTarget = (body) =>
 		body(),
 	);
 
-// The dropFile message and the readText answer that load the file's JSON through the
-// component's data load (DATA_META), so a drop sets it the way an agent's set_state does and
-// is refused for the same reasons. after(next, ctx) runs once a drop loaded.
-export const dataDrop = ({ after = () => {} } = {}) => ({
+// The dropFile message and the readText answer that read a file dropped from outside the page:
+// the first one of format(self) (JSON_FILE by default), parsed when it's JSON, goes to
+// load(self, next, value, name, ctx), which returns an error, "" when it loaded, or undefined
+// when it said so itself. enabled(self) says whether a drop is taken; errors show in the field
+// errorField. Reading it sets dropName while the answer comes.
+export const fileDrop = ({
+	load,
+	enabled = () => true,
+	format = () => JSON_FILE,
+	errorField = "dropError",
+}) => ({
 	on: {
-		// A file dropped from outside the page: the first JSON one is read, and loaded when the
-		// answer comes.
 		dropFile: {
 			args: [],
 			emits: { ask: ["readText"] },
 			run(next, _args, ctx) {
-				if (!this.allowDrop) return;
-				const dropped = droppedFile(ctx.event);
+				if (!enabled(this)) return;
+				const dropped = droppedFile(ctx.event, format(this));
 				if (dropped === null) return;
 				if (dropped.error !== undefined) {
-					next.dropError = dropped.error;
+					next[errorField] = dropped.error;
 					return;
 				}
 				next.dropName = dropped.file.name;
-				next.dropError = "";
+				next[errorField] = "";
 				ctx.ask("readText", [dropped.file]);
 			},
 		},
 	},
 	answers: {
-		// The dropped file's text: loaded when it's valid, the error shown otherwise.
 		readText: {
 			ok(next, [text], ctx) {
 				const name = this.dropName || "the file";
 				next.dropName = "";
-				let json;
-				try {
-					json = JSON.parse(text);
-				} catch (error) {
-					next.dropError = `${name} is not JSON: ${error.message}`;
-					return;
+				let value = text;
+				if (format(this).json) {
+					try {
+						value = JSON.parse(text);
+					} catch (error) {
+						next[errorField] = `${name} is not JSON: ${error.message}`;
+						return;
+					}
 				}
-				const { error } = loadData(next, json, name);
-				next.dropError = error ?? "";
-				if (error === undefined) after(next, ctx);
+				const error = load(this, next, value, name, ctx);
+				if (error !== undefined) next[errorField] = error;
 			},
 			error(next, [error]) {
-				next.dropError = `Reading ${this.dropName || "the file"} failed: ${error?.message ?? error}`;
+				next[errorField] = `Reading ${this.dropName || "the file"} failed: ${errorMessage(error)}`;
 				next.dropName = "";
 			},
 			unhandled(next) {
@@ -78,3 +83,15 @@ export const dataDrop = ({ after = () => {} } = {}) => ({
 		},
 	},
 });
+// A fileDrop of JSON, when allowDrop is on, through the component's data load (DATA_META), so a
+// drop sets it the way an agent's set_state does and is refused for the same reasons.
+// after(next, ctx) runs once a drop loaded.
+export const dataDrop = ({ after = () => {} } = {}) =>
+	fileDrop({
+		enabled: (self) => self.allowDrop,
+		load(_self, next, value, name, ctx) {
+			const { error } = loadData(next, value, name);
+			if (error === undefined) after(next, ctx);
+			return error ?? "";
+		},
+	});

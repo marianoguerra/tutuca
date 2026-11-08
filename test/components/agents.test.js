@@ -7,10 +7,10 @@ import { drawingComponents } from "../../components/drawing/index.js";
 import { HTTP_KINDS, httpComponents } from "../../components/http/index.js";
 import { LLM_KINDS, llmComponents } from "../../components/llm/index.js";
 import { MUSIC_KINDS, musicComponents } from "../../components/music/index.js";
+import { notesComponents } from "../../components/notes/index.js";
 import { sampleApp } from "../../components/todo/fixtures.js";
 import { todoComponents } from "../../components/todo/index.js";
 import { BUNDLES } from "../../demos/canvas/bundles.js";
-import { notesComponents } from "../../demos/notes/notes.js";
 import { lint } from "../../src/lint/index.js";
 import {
 	agentMetaSchemas,

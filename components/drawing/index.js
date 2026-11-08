@@ -11,7 +11,6 @@ import {
 	apply,
 	button,
 	component,
-	DISPLAY_META,
 	each,
 	field,
 	render,
@@ -22,6 +21,7 @@ import {
 	tag,
 	targetValue,
 } from "../../src/tutuca.js";
+import { metaFor } from "../common/meta.js";
 import { isModKey } from "../common/util.js";
 import {
 	COORD_MAX,
@@ -115,14 +115,9 @@ const AGENT = {
 
 export const Drawing = component({
 	name: "Drawing",
-	meta: {
-		[DISPLAY_META]: {
-			title: "Drawing",
-			icon: "🎨",
-			description: "Shapes you draw, move and layer.",
-		},
+	meta: metaFor("Drawing", "🎨", "Shapes you draw, move and layer.", null, {
 		[AGENT_META]: AGENT,
-	},
+	}),
 	fields: {
 		width: t.number(640).int().min(16).max(4000),
 		height: t.number(400).int().min(16).max(4000),

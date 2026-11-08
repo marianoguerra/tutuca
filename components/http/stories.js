@@ -1,5 +1,6 @@
 import { step, stories } from "../../src/storybook/index.js";
 import { $if, component, field, pushView, render, send, t, tag } from "../../src/tutuca.js";
+import { TASKS } from "./fixtures.js";
 import {
 	apiOperation,
 	apiResponse,
@@ -9,7 +10,6 @@ import {
 	httpHeader,
 	httpRequest,
 	httpResponse,
-	TASKS,
 } from "./index.js";
 
 const { button, div } = tag;

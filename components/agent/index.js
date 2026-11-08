@@ -21,7 +21,6 @@ import {
 	agentOf,
 	apply,
 	component,
-	DISPLAY_META,
 	displayLabel,
 	each,
 	field,
@@ -42,7 +41,9 @@ import {
 	toolResultMessage,
 	toolsFor,
 } from "../../src/tutuca.js";
-import { BECOME_ARGS, CANVAS_META } from "../canvas/layout.js";
+import { BECOME_ARGS } from "../canvas/layout.js";
+import { setField } from "../common/card.js";
+import { metaFor } from "../common/meta.js";
 import { isModKey } from "../common/util.js";
 
 const { button, div, form, header, label, option, p, select, span, textarea } = tag;
@@ -255,14 +256,12 @@ const progressType = t.record({
 // target's own message, named by the tool the model calls.
 export const Agent = component({
 	name: "Agent",
-	meta: {
-		[DISPLAY_META]: {
-			title: "Agent",
-			icon: "🤖",
-			description: "An LLM agent for whatever component you give it, through its agent meta.",
-		},
-		[CANVAS_META]: { width: 1000 },
-	},
+	meta: metaFor(
+		"Agent",
+		"🤖",
+		"An LLM agent for whatever component you give it, through its agent meta.",
+		1000,
+	),
 	fields: {
 		target: t.component(),
 		transcript: t.component("Transcript"),
@@ -442,12 +441,7 @@ export const Agent = component({
 		toggleTools(next) {
 			next.toolsOpen = !this.toolsOpen;
 		},
-		setDraft: {
-			args: [t.string()],
-			run(next, [text]) {
-				next.draft = text;
-			},
-		},
+		setDraft: setField("draft"),
 		// Picked in the select: this one keeps it.
 		setModel: {
 			args: [t.string()],

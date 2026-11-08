@@ -10,7 +10,6 @@ import {
 	apply,
 	component,
 	DATA_META,
-	DISPLAY_META,
 	each,
 	field,
 	renderEach,
@@ -22,6 +21,8 @@ import {
 	tag,
 	targetValue,
 } from "../../src/tutuca.js";
+import { setField } from "../common/card.js";
+import { metaFor } from "../common/meta.js";
 
 const { button, div, form, h2, input, section, span } = tag;
 
@@ -102,12 +103,7 @@ export const Column = component({
 		},
 	},
 	on: {
-		setText: {
-			args: [t.string()],
-			run(next, [text]) {
-				next.text = text;
-			},
-		},
+		setText: setField("text"),
 		add: {
 			args: [],
 			run(next, _args, ctx) {
@@ -234,15 +230,10 @@ const DATA = { load: "load", data: "domain", samples: { week: WEEK } };
 
 export const Board = component({
 	name: "Board",
-	meta: {
-		[DISPLAY_META]: {
-			title: "Kanban board",
-			icon: "🗂️",
-			description: "Cards you drag between columns.",
-		},
+	meta: metaFor("Kanban board", "🗂️", "Cards you drag between columns.", null, {
 		[AGENT_META]: AGENT,
 		[DATA_META]: DATA,
-	},
+	}),
 	fields: { columns: t.array(t.component("Column")) },
 	queries: {
 		// A line per column, with its index and its cards' ids, for the agent's prompt.

@@ -11,6 +11,7 @@ import {
 	tag,
 	targetValue,
 } from "../../src/tutuca.js";
+import { setField } from "../common/card.js";
 import { MUTED } from "./common.js";
 import { EMOJI, EMOJI_CATEGORIES } from "./emoji.js";
 import { normalize, terms } from "./model.js";
@@ -197,12 +198,7 @@ export const EmojiPicker = component({
 		),
 	),
 	on: {
-		setQuery: {
-			args: [t.string()],
-			run(next, [query]) {
-				next.query = query;
-			},
-		},
+		setQuery: setField("query"),
 		setCategory: {
 			args: [t.string()],
 			run(next, [category]) {

@@ -94,7 +94,7 @@ export const demos = [
 		blurb:
 			"A notes list for trying sync: the title and notes are shared, the filter stays on this device, the new note's text isn't kept.",
 		story: null,
-		sources: [],
+		sources: ["notes"],
 	},
 ];
 

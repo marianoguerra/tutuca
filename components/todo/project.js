@@ -1,6 +1,7 @@
 // A project: a named, colored list of tasks.
 
 import { $if, button, component, field, send, t, tag, targetValue } from "../../src/tutuca.js";
+import { setField } from "../common/card.js";
 import { COLORS } from "./common.js";
 
 const { div, h2, input, option, select, span } = tag;
@@ -71,12 +72,7 @@ export const TodoProject = component({
 				if (this.id !== "inbox") next.isEditing = true;
 			},
 		},
-		setName: {
-			args: [t.string()],
-			run(next, [name]) {
-				next.name = name;
-			},
-		},
+		setName: setField("name"),
 		setColor: {
 			args: [t.string()],
 			run(next, [color]) {

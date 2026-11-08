@@ -25,6 +25,8 @@ import {
 	tag,
 	targetValue,
 } from "../../src/tutuca.js";
+import { setField } from "../common/card.js";
+import { segmented } from "../common/ui.js";
 import { isModKey } from "../common/util.js";
 
 const { div, input, option, pre, select, span } = tag;
@@ -892,6 +894,9 @@ export const Editor = component({
 		get isEdit() {
 			return this.mode === "edit";
 		},
+		get isView() {
+			return this.mode === "view";
+		},
 		get isLisp() {
 			return this.notation === "lisp";
 		},
@@ -909,41 +914,24 @@ export const Editor = component({
 		{ class: "flex flex-col gap-3" },
 		div(
 			{ class: "flex flex-wrap items-center gap-2" },
-			div(
-				{ class: "join", role: "group", "aria-label": "Mode" },
-				button(
-					{
-						class: $if(field("isEdit"), "btn btn-xs join-item", "btn btn-xs btn-primary join-item"),
-						"data-mode": "view",
-						"on:click": send("setMode", "view"),
-					},
-					"View",
-				),
-				button(
-					{
-						class: $if(field("isEdit"), "btn btn-xs btn-primary join-item", "btn btn-xs join-item"),
-						"data-mode": "edit",
-						"on:click": send("setMode", "edit"),
-					},
-					"Edit",
-				),
+			segmented(
+				"Mode",
+				"setMode",
+				[
+					["view", "View", "isView"],
+					["edit", "Edit", "isEdit"],
+				],
+				{ attrs: (mode) => ({ "data-mode": mode }) },
 			),
-			div(
-				{ class: "join", role: "group", "aria-label": "Notation" },
-				...Object.entries(NOTATION_LABELS).map(([notation, label]) =>
-					button(
-						{
-							class: $if(
-								field(`is${NOTATIONS[notation]}`),
-								"btn btn-xs btn-primary join-item",
-								"btn btn-xs join-item",
-							),
-							"data-notation": notation,
-							"on:click": send("setNotation", notation),
-						},
-						label,
-					),
-				),
+			segmented(
+				"Notation",
+				"setNotation",
+				Object.entries(NOTATION_LABELS).map(([notation, label]) => [
+					notation,
+					label,
+					`is${NOTATIONS[notation]}`,
+				]),
+				{ attrs: (notation) => ({ "data-notation": notation }) },
 			),
 		),
 		pre(
@@ -963,12 +951,7 @@ export const Editor = component({
 		),
 	),
 	on: {
-		setMode: {
-			args: [t.enum("view", "edit")],
-			run(next, [mode]) {
-				next.mode = mode;
-			},
-		},
+		setMode: setField("mode", t.enum("view", "edit")),
 		// From a hole: the node at from, keys from the root, was dropped on the hole at to. It
 		// moves there, leaving a hole behind, or is copied. A node can't go into a hole inside
 		// itself, and only expressions from this editor's program move.
@@ -989,12 +972,7 @@ export const Editor = component({
 				if (!copy) putAt(next, source.keys, ctx.scope.make("Hole", {}));
 			},
 		},
-		setNotation: {
-			args: [t.enum(...Object.keys(NOTATIONS))],
-			run(next, [notation]) {
-				next.notation = notation;
-			},
-		},
+		setNotation: setField("notation", t.enum(...Object.keys(NOTATIONS))),
 	},
 });
 

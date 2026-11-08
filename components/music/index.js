@@ -18,9 +18,10 @@ import {
 	sourceKey,
 	t,
 	tag,
-	targetValue,
 } from "../../src/tutuca.js";
-import { BADGE, cardClass, cardHeader, metaFor } from "../common/card.js";
+import { BADGE, cardClass, cardHeader, setField } from "../common/card.js";
+import { kind, metaFor } from "../common/meta.js";
+import { pickerRow } from "../common/ui.js";
 import { NOTE } from "../common/util.js";
 import { GuitarNeck, guitarNeck } from "./guitar.js";
 import { Piano, piano } from "./piano.js";
@@ -52,7 +53,6 @@ import {
 	spell,
 } from "./theory.js";
 import {
-	CHIP,
 	COLORS,
 	instrumentField,
 	instrumentMessages,
@@ -60,16 +60,17 @@ import {
 	instrumentToggle,
 	instrumentTool,
 	instrumentView,
+	kindSelect,
 	markNeckOn,
 	markOn,
 	noteChips,
 	octaveStepper,
+	octaveTool,
 	outsideText,
 	pair,
 	readout,
 	rootPicker,
 	rootQueries,
-	SELECT,
 } from "./ui.js";
 
 export {
@@ -85,7 +86,7 @@ export {
 	piano,
 };
 
-const { div, g, option, p, path, select, span, svg, text } = tag;
+const { div, g, p, path, span, svg, text } = tag;
 
 // What a picker of a root, an octave and the notes above them does to its instruments: each
 // handler changes the fields, then marks notesOf(next) on them, its piano unless marksOf says
@@ -122,12 +123,7 @@ const MUSIC_PROMPT =
 	"Name notes as C, F♯ or Bb (b and # work for ♭ and ♯). Explain the theory in plain words when you change something.";
 
 const rootHandlers = {
-	setRoot: {
-		args: [t.number().int().min(0).max(11)],
-		run(next, [root]) {
-			next.root = root;
-		},
-	},
+	setRoot: setField("root", t.number().int().min(0).max(11)),
 	shiftOctave: {
 		args: [t.number().int()],
 		run(next, [by]) {
@@ -167,9 +163,7 @@ export const IntervalPicker = component({
 						["root", "intervals"],
 						"Set the root and the intervals above it.",
 					),
-					agentTool("shift_octave", "message", ["by"], "Move it up or down by octaves.", {
-						target: "shiftOctave",
-					}),
+					octaveTool(),
 					instrumentTool(),
 				],
 			},
@@ -281,22 +275,7 @@ function pickerView() {
 			$if(field("onPiano"), octaveStepper(), ""),
 		),
 		rootPicker(),
-		div(
-			{ class: "join flex w-full", role: "group", "aria-label": "Intervals" },
-			each(
-				field("pickable"),
-				tag.button(
-					{
-						type: "button",
-						class: field("cls"),
-						title: field("title"),
-						"aria-pressed": field("pressed"),
-						"on:click": send("toggleInterval", sourceKey()),
-					},
-					field("key"),
-				),
-			),
-		),
+		pickerRow("Intervals", "pickable", "toggleInterval", { label: "key" }),
 		noteChips("outside", instrumentToggle()),
 		instrumentView(),
 	);
@@ -327,9 +306,7 @@ export const ChordExplorer = component({
 						["root", "kind", "inversion"],
 						"Show a chord: its root, kind and inversion.",
 					),
-					agentTool("shift_octave", "message", ["by"], "Move it up or down by octaves.", {
-						target: "shiftOctave",
-					}),
+					octaveTool(),
 					instrumentTool(),
 				],
 			},
@@ -438,33 +415,7 @@ function explorerView() {
 			$if(field("onPiano"), octaveStepper(), ""),
 		),
 		rootPicker(),
-		pair(
-			select(
-				{
-					class: SELECT,
-					"aria-label": "Chord",
-					value: field("kind"),
-					"on:change": send("setKind", targetValue()),
-				},
-				each(field("kinds"), option({ value: field("key") }, field("text"))),
-			),
-			div(
-				{ class: "join flex w-full", role: "group", "aria-label": "Inversion" },
-				each(
-					field("inversions"),
-					tag.button(
-						{
-							type: "button",
-							class: field("cls"),
-							title: field("title"),
-							"aria-pressed": field("pressed"),
-							"on:click": send("setInversion", sourceKey()),
-						},
-						field("text"),
-					),
-				),
-			),
-		),
+		pair(kindSelect("Chord"), pickerRow("Inversion", "inversions", "setInversion")),
 		noteChips("outside", instrumentToggle()),
 		p({ class: NOTE }, field("inversionText")),
 		instrumentView(),
@@ -506,9 +457,7 @@ export const ScaleExplorer = component({
 				prompt: `Shows a scale on a piano, from its root up an octave, and on a guitar's neck, wherever its notes are played: its root and kind (${Object.keys(SCALES).join(", ")}). The root is in amber, the other notes in blue. ${MUSIC_PROMPT}`,
 				tools: [
 					agentTool("set_scale", "message", ["root", "kind"], "Show a scale: its root and kind."),
-					agentTool("shift_octave", "message", ["by"], "Move it up or down by octaves.", {
-						target: "shiftOctave",
-					}),
+					octaveTool(),
 					instrumentTool(),
 				],
 			},
@@ -572,12 +521,7 @@ export const ScaleExplorer = component({
 						next.kind = kind;
 					},
 				},
-				setKind: {
-					args: [t.enum(...Object.keys(SCALES))],
-					run(next, [kind]) {
-						next.kind = kind;
-					},
-				},
+				setKind: setField("kind", t.enum(...Object.keys(SCALES))),
 			},
 			onBoth,
 		),
@@ -594,36 +538,8 @@ function scaleView() {
 			$if(field("onPiano"), octaveStepper(), ""),
 		),
 		rootPicker(),
-		pair(
-			select(
-				{
-					class: SELECT,
-					"aria-label": "Scale",
-					value: field("kind"),
-					"on:change": send("setKind", targetValue()),
-				},
-				each(field("kinds"), option({ value: field("key") }, field("text"))),
-			),
-			readout(field("steps"), field("stepsText")),
-		),
-		pair(
-			div(
-				{ class: "music-notes flex flex-wrap items-center gap-1" },
-				each(
-					field("notes"),
-					span(
-						{
-							class: CHIP,
-							title: field("about"),
-						},
-						span({ class: "font-bold" }, field("name")),
-						span({ class: "font-mono text-xs opacity-60" }, field("degree")),
-					),
-				),
-				span({ class: "text-xs text-warning" }, field("outside")),
-			),
-			instrumentToggle(),
-		),
+		pair(kindSelect("Scale"), readout(field("steps"), field("stepsText"))),
+		noteChips("outside", instrumentToggle(), "degree"),
 		instrumentView(),
 	);
 }
@@ -881,13 +797,13 @@ export const circleOfFifths = (C, { selected = 9, mode = "major" } = {}) =>
 
 // What a canvas hole can become, in the music bundle.
 export const MUSIC_KINDS = {
-	circle: { component: "CircleOfFifths", make: (C) => circleOfFifths(C) },
-	intervals: { component: "IntervalPicker", make: (C) => intervalPicker(C) },
-	piano: { component: "Piano", make: (C) => piano(C) },
-	chords: { component: "ChordExplorer", make: (C) => chordExplorer(C) },
-	scales: { component: "ScaleExplorer", make: (C) => scaleExplorer(C) },
-	guitar: { component: "GuitarNeck", make: (C) => guitarNeck(C) },
-	noteChord: { component: "NoteChordSelector", make: (C) => noteChordSelector(C) },
-	offset: { component: "OffsetSelector", make: (C) => offsetSelector(C) },
-	offsetExplorer: { component: "OffsetExplorer", make: (C) => offsetExplorer(C) },
+	circle: kind("CircleOfFifths", circleOfFifths),
+	intervals: kind("IntervalPicker", intervalPicker),
+	piano: kind("Piano", piano),
+	chords: kind("ChordExplorer", chordExplorer),
+	scales: kind("ScaleExplorer", scaleExplorer),
+	guitar: kind("GuitarNeck", guitarNeck),
+	noteChord: kind("NoteChordSelector", noteChordSelector),
+	offset: kind("OffsetSelector", offsetSelector),
+	offsetExplorer: kind("OffsetExplorer", offsetExplorer),
 };

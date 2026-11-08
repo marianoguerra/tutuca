@@ -3,6 +3,7 @@
 // canvas handles them all alike.
 
 import { component, field, t, tag } from "../../src/tutuca.js";
+import { setField } from "../common/card.js";
 import { mix } from "../common/util.js";
 import {
 	coord,
@@ -105,12 +106,6 @@ export const Text = component({
 				next.y = this.y + dy;
 			},
 		},
-		setText: {
-			pure: true,
-			args: [t.string()],
-			run(next, [value]) {
-				next.text = value;
-			},
-		},
+		setText: setField("text", t.string(), { pure: true }),
 	},
 });

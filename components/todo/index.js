@@ -9,7 +9,6 @@ import {
 	apply,
 	button,
 	component,
-	DISPLAY_META,
 	each,
 	field,
 	lookupBind,
@@ -23,6 +22,8 @@ import {
 	tag,
 	targetValue,
 } from "../../src/tutuca.js";
+import { setField } from "../common/card.js";
+import { metaFor } from "../common/meta.js";
 import {
 	allTasks,
 	applyEach,
@@ -112,12 +113,7 @@ export const QuickAdd = component({
 		),
 	),
 	on: {
-		setText: {
-			args: [t.string()],
-			run(next, [text]) {
-				next.text = text;
-			},
-		},
+		setText: setField("text"),
 		submit: {
 			args: [],
 			emits: { notify: ["addTask"] },
@@ -223,14 +219,9 @@ const AGENT = {
 
 export const TodoApp = component({
 	name: "TodoApp",
-	meta: {
-		[DISPLAY_META]: {
-			title: "Todos",
-			icon: "✅",
-			description: "Projects, labels and due dates.",
-		},
+	meta: metaFor("Todos", "✅", "Projects, labels and due dates.", null, {
 		[AGENT_META]: AGENT,
-	},
+	}),
 	fields: {
 		today: todayType(),
 		projects: t.array(t.component("TodoProject")).len(1),
@@ -514,12 +505,7 @@ export const TodoApp = component({
 		),
 	),
 	on: {
-		openView: {
-			args: [t.enum("inbox", "today", "upcoming")],
-			run(next, [view]) {
-				next.view = view;
-			},
-		},
+		openView: setField("view", t.enum("inbox", "today", "upcoming")),
 		openProject: {
 			args: [t.index("projects")],
 			run(next, [key]) {
@@ -542,12 +528,7 @@ export const TodoApp = component({
 				else if (this.view === "search") next.view = "inbox";
 			},
 		},
-		setShowCompleted: {
-			args: [t.boolean()],
-			run(next, [show]) {
-				next.showCompleted = show;
-			},
-		},
+		setShowCompleted: setField("showCompleted", t.boolean()),
 		clearCompleted: {
 			args: [],
 			post: (_prev, next) => next.tasks.every((task) => !task.isCompleted),
@@ -555,12 +536,7 @@ export const TodoApp = component({
 				next.tasks = next.tasks.filter((task) => !task.isCompleted);
 			},
 		},
-		setNewProject: {
-			args: [t.string()],
-			run(next, [name]) {
-				next.newProject = name;
-			},
-		},
+		setNewProject: setField("newProject"),
 		addProject: {
 			args: [],
 			run(next, _args, ctx) {

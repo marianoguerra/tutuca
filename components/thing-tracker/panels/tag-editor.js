@@ -13,6 +13,7 @@ import {
 	tag,
 	targetValue,
 } from "../../../src/tutuca.js";
+import { setField } from "../../common/card.js";
 import { MUTED } from "../common.js";
 import { filterThings } from "../model.js";
 import { always, closing, panel } from "../panel.js";
@@ -170,18 +171,8 @@ export const TagEditor = component({
 				ctx.stopNext();
 			},
 		},
-		setTitle: {
-			args: [t.string()],
-			run(next, [title]) {
-				next.title = title;
-			},
-		},
-		setQuery: {
-			args: [t.string()],
-			run(next, [query]) {
-				next.query = query;
-			},
-		},
+		setTitle: setField("title"),
+		setQuery: setField("query"),
 		toggleMember: {
 			args: [t.index("members")],
 			run(next, [i]) {

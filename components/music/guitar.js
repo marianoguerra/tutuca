@@ -11,13 +11,15 @@ import {
 	t,
 	tag,
 } from "../../src/tutuca.js";
-import { labeled, metaFor, numberInput, setNumber } from "../common/card.js";
+import { labeled, numberInput, setNumber } from "../common/card.js";
+import { metaFor } from "../common/meta.js";
 import { NOTE } from "../common/util.js";
 import { midiName, SHARP_NAMES } from "./theory.js";
 import {
 	agentMarkMessages,
 	agentMarkTools,
 	between,
+	COLOR_NAMES,
 	COLORS,
 	markFields,
 	markMessage,
@@ -204,8 +206,7 @@ export const GuitarNeck = component({
 		560,
 		{
 			[AGENT_META]: {
-				prompt:
-					"A guitar's neck in standard tuning that marks notes: a note marked shows wherever it's played on the frets shown. Name notes without octaves (C, F♯, Bb). Colors: amber, sky, pink, green, violet. The summary is the frets shown and what's marked.",
+				prompt: `A guitar's neck in standard tuning that marks notes: a note marked shows wherever it's played on the frets shown. Name notes without octaves (C, F♯, Bb). Colors: ${COLOR_NAMES}. The summary is the frets shown and what's marked.`,
 				summary: "ariaLabel",
 				tools: agentMarkTools("on the neck"),
 			},

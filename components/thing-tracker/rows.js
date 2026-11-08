@@ -13,6 +13,7 @@ import {
 	t,
 	tag,
 } from "../../src/tutuca.js";
+import { setField } from "../common/card.js";
 import { plural } from "../common/util.js";
 import { MUTED, measureRef } from "./common.js";
 
@@ -304,13 +305,7 @@ export const Section = component({
 		),
 	),
 	on: {
-		setOpen: {
-			pure: true,
-			args: [t.boolean()],
-			run(next, [isOpen]) {
-				next.isOpen = isOpen;
-			},
-		},
+		setOpen: setField("isOpen", t.boolean(), { pure: true }),
 		toggle: {
 			args: [],
 			emits: { notify: ["toggleSection"] },

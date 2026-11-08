@@ -7,8 +7,6 @@ import {
 	$if,
 	apply,
 	component,
-	DATA_META,
-	DISPLAY_META,
 	field,
 	render,
 	renderEach,
@@ -18,7 +16,8 @@ import {
 	t,
 	tag,
 } from "../../src/tutuca.js";
-import { CANVAS_META } from "../canvas/layout.js";
+import { dataMeta } from "../common/data.js";
+import { metaFor } from "../common/meta.js";
 import { jsonComponents, jsonRoot } from "../json/index.js";
 import { MD_VIEW } from "../markdown/element.js";
 
@@ -333,15 +332,13 @@ const TRANSCRIPT_SCHEMA = {
 };
 export const Transcript = component({
 	name: "Transcript",
-	meta: {
-		[DISPLAY_META]: {
-			title: "Transcript",
-			icon: "💬",
-			description: "A conversation with a model: messages, tool calls and their results.",
-		},
-		[CANVAS_META]: { width: 460 },
-		[DATA_META]: { load: "load", data: "asJson", schema: TRANSCRIPT_SCHEMA },
-	},
+	meta: metaFor(
+		"Transcript",
+		"💬",
+		"A conversation with a model: messages, tool calls and their results.",
+		460,
+		dataMeta(TRANSCRIPT_SCHEMA),
+	),
 	fields: {
 		messages: t.array(t.any()),
 		// What the messages show as, made as they're appended: consecutive tool calls grouped.

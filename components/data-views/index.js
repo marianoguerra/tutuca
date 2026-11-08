@@ -19,6 +19,8 @@ import {
 	tag,
 	targetValue,
 } from "../../src/tutuca.js";
+import { setField } from "../common/card.js";
+import { segmented } from "../common/ui.js";
 import { isModKey, mix } from "../common/util.js";
 import { indent, nodes, parse } from "./json.js";
 import { columnsOf, previewRows } from "./table.js";
@@ -76,11 +78,8 @@ export const JsonView = component({
 		get hasLabel() {
 			return this.label !== "";
 		},
-		get treeClass() {
-			return `btn btn-xs join-item ${this.showTree ? "btn-active" : ""}`;
-		},
-		get rawClass() {
-			return `btn btn-xs join-item ${this.showTree ? "" : "btn-active"}`;
+		get showRaw() {
+			return !this.showTree;
 		},
 		get copyLabel() {
 			return this.copied ? "Copied" : "Copy";
@@ -118,10 +117,14 @@ export const JsonView = component({
 			span({ class: "flex-1" }),
 			$if(
 				field("isJson"),
-				div(
-					{ class: "join" },
-					button({ class: field("treeClass"), "on:click": send("show", "tree") }, "Tree"),
-					button({ class: field("rawClass"), "on:click": send("show", "raw") }, "Raw"),
+				segmented(
+					"Show",
+					"show",
+					[
+						["tree", "Tree", "showTree"],
+						["raw", "Raw", "showRaw"],
+					],
+					{ active: "btn-active" },
 				),
 				"",
 			),
@@ -178,27 +181,9 @@ export const JsonView = component({
 	),
 	on: {
 		// What its holder may change: the text it shows, and its label.
-		set_text: {
-			pure: true,
-			args: [t.string()],
-			run(next, [text]) {
-				next.text = text;
-			},
-		},
-		set_label: {
-			pure: true,
-			args: [t.string()],
-			run(next, [label]) {
-				next.label = label;
-			},
-		},
-		show: {
-			pure: true,
-			args: [t.enum("tree", "raw")],
-			run(next, [mode]) {
-				next.mode = mode;
-			},
-		},
+		set_text: setField("text", t.string(), { pure: true }),
+		set_label: setField("label", t.string(), { pure: true }),
+		show: setField("mode", t.enum("tree", "raw"), { pure: true }),
 		// A click on a tree row folds or unfolds it; with Ctrl (Cmd on a Mac) its siblings that
 		// have children do the same.
 		fold: {
