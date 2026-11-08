@@ -13,7 +13,7 @@ import test from "node:test";
 import { JSDOM } from "jsdom";
 import { wrapMarkers } from "../../src/markers.js";
 import { Frame } from "../../src/tree/path.js";
-import { Shape, VComment, VFragment, VNode, VText, render as jsRender } from "../../src/vdom.js";
+import { Shape, VComment, VFragment, VNode, VText, morph as jsMorph } from "../../src/vdom.js";
 import { load } from "../js/tutuca-rt.js";
 import * as assert from "./assert.mjs";
 
@@ -105,7 +105,7 @@ test(`renders like tutuca's vdom, step by step (${SEEDS} seeds x ${STEPS} render
 			const tree = genChilds(rand, 0);
 			const jsDone = watch(window, jsContainer);
 			const jsChilds = tree.map(toJs);
-			jsRender(document, jsContainer, jsChilds, jsPrev);
+			jsMorph(document, jsContainer, jsChilds, jsPrev);
 			jsPrev = jsChilds;
 			const jsRecords = jsDone();
 			const wasmDone = watch(window, wasmContainer);
@@ -268,7 +268,7 @@ test(`lowers like tutuca's runtime, step by step (${SEEDS} seeds x ${STEPS} rend
 			const tree = genSem(rand, 0);
 			const jsDone = watch(window, jsContainer);
 			const jsChilds = tree.flatMap(jsLower);
-			jsRender(document, jsContainer, jsChilds, jsPrev);
+			jsMorph(document, jsContainer, jsChilds, jsPrev);
 			jsPrev = jsChilds;
 			const jsRecords = jsDone();
 			const waxDone = watch(window, waxContainer);

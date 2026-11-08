@@ -11,7 +11,7 @@ import { Scope } from "./scope.js";
 import { specOf } from "./spec.js";
 import { Address, DispatchPath, Selector, selectorFrom, Target } from "./tree/index.js";
 import { HostTask, schedulerFor } from "./tree-binding.js";
-import { render as $render, toVChilds } from "./vdom.js";
+import { morph, toVChilds } from "./vdom.js";
 import { RenderContext, renderView } from "./view.js";
 
 // What handlers read from the world, through ctx.now(), ctx.random() and ctx.uuid(): the
@@ -85,7 +85,7 @@ export class Host {
 		const ctx = RenderContext.root(this.root);
 		const curVDom = this._curVDom;
 		const newVDom = toVChilds(renderView(this.root, ctx));
-		$render(this.document, this.rootNode, newVDom, curVDom);
+		morph(this.document, this.rootNode, newVDom, curVDom);
 		this._curVDom = newVDom;
 		this.notify("render", { ctx, newVDom, curVDom });
 	}

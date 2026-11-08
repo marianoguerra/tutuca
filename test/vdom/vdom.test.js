@@ -1,6 +1,6 @@
 import assert from "node:assert/strict";
 import test from "node:test";
-import { render } from "../../src/vdom.js";
+import { morph } from "../../src/vdom.js";
 import { dom, vh as h, mutationsOf, vchilds, vfrag } from "../helpers.js";
 
 const SVG = "http://www.w3.org/2000/svg";
@@ -10,7 +10,7 @@ const HTML = "http://www.w3.org/1999/xhtml";
 // Renders root and returns the flat list to pass as prev next time.
 const draw = (document, container, root, prev) => {
 	const childs = vchilds(root);
-	render(document, container, childs, prev);
+	morph(document, container, childs, prev);
 	return childs;
 };
 
@@ -22,7 +22,7 @@ function setup() {
 
 // Runs fn and resolves with the DOM mutations it caused in container.
 
-test("render mounts, then morphs in place from what the last render returned", () => {
+test("morph mounts, then morphs in place from what the last render returned", () => {
 	const { document, container } = setup();
 	const prev = draw(document, container, [h("p", { class: "a" }, "one"), "tail"]);
 	assert.equal(prev.length, 2);

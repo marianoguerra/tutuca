@@ -162,6 +162,7 @@
   `metaShapeProblems`, `checkCall` and `checkInvariants`. The core bundle (`dist/tutuca.min.js`)
   drops from 105 KB to 91 KB. `src/meta.js`, the render comment markers, is `src/markers.js`.
 - **`tutuca/tree` no longer exports `call` or `isNode`**, which only the tree uses.
+- **`tutuca/vdom`'s `render` is `morph`**, so `render` is only the view builder.
 - **A view's named binds are `withBinds`, not `scope`.** `scope(name, child)` is
   `withBinds(name, child)` (node `WithBinds`, was `XScope`), and the component option
   `scopes: { name: { bind() {} } }` is `binds: { name() {} }`, a function per name as

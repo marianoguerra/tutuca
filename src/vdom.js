@@ -340,8 +340,9 @@ function morphChildren(
 	}
 	return newGroups.flat();
 }
-// Renders childs (a flat array of vnodes) into container, morphing from prev if given.
-export function render(doc, container, childs, prev) {
+// Puts childs (a flat array of vnodes) in container: morphs what prev rendered there into them,
+// or, without prev, replaces what container holds.
+export function morph(doc, container, childs, prev) {
 	if (prev) morphChildren(container, prev, childs, doc, null);
 	else {
 		container.replaceChildren();
