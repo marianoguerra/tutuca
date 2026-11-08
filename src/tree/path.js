@@ -45,13 +45,13 @@ export class Frame {
 	forItem(key) {
 		return new Frame(this.accessKeys, key, this.provider, false);
 	}
-	// The short form the DOM's meta comments carry, and back.
-	toMeta() {
+	// The short form the DOM's marker comments carry, and back.
+	toMarker() {
 		const { provider: p } = this;
 		const base = p === null ? null : { v: p.name, d: p.depth, k: p.keys };
 		return { t: "frame", p: base, k: this.keys, i: this.item };
 	}
-	static fromMeta({ p, k, i }) {
+	static fromMarker({ p, k, i }) {
 		const provider = p === null ? null : { name: p.v, depth: p.d, keys: p.k };
 		return new Frame(k, i, provider);
 	}
@@ -60,7 +60,7 @@ export class Frame {
 		return `${this.keys.map(keyText).join("")}${this.item === null ? "" : `[${jsonText(this.item)}]`}`;
 	}
 }
-const frameText = (frame) => JSON.stringify(frame.toMeta());
+const frameText = (frame) => JSON.stringify(frame.toMarker());
 // The frames a message went through from the root: spec/tree's π.
 export class DispatchPath {
 	/** @param {Frame[]} frames */

@@ -36,7 +36,7 @@
    (siblings-before (dom_c ...) (natural ...))
    (where (element ns tag (prop ...) (dom_c ...)) ,(list-ref (term (dom ...)) (term natural_0)))])
 
-;; enclosingNodeMeta: scan previous siblings, nearest first. Each closing
+;; enclosingMarkers: scan previous siblings, nearest first. Each closing
 ;; comment hides one opening comment; any other comment, including look-alikes
 ;; that do not parse as metadata, is skipped.
 (define-metafunction Routing

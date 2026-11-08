@@ -1,6 +1,6 @@
 #lang racket
 ;; Metadata comments: how the DOM records the semantic tree's wrappers
-;; (wrapMeta in view.js, parseMeta in meta.js).
+;; (wrapMarkers in view.js, parseMarker in markers.js).
 ;;
 ;; A wrapper becomes an opening comment before its children and the closing
 ;; comment §/§ after them. The opening comment says what the wrapper is: a

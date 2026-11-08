@@ -1,5 +1,5 @@
 // Views: the AST nodes view builders make, how they evaluate to vnodes, and the render context.
-import { wrapMeta } from "./markers.js";
+import { wrapMarkers } from "./markers.js";
 import { planElement } from "./optimize.js";
 import { isComponent, specOf } from "./spec.js";
 import { DispatchPath, Frame, selectorFrom } from "./tree/path.js";
@@ -8,7 +8,7 @@ import { addChild, toVChilds, VFragment, VNode } from "./vdom.js";
 export const renderView = (instance, ctx, viewName) => {
 	const spec = specOf(instance);
 	const view = ctx.getBestViewFor(spec, viewName);
-	return wrapMeta({ t: "component" }, view.eval(ctx.with({ component: instance })));
+	return wrapMarkers({ t: "component" }, view.eval(ctx.with({ component: instance })));
 };
 export class AstNode {
 	static kind = "node"; // The Walker method it dispatches to.
@@ -156,7 +156,7 @@ export class Render extends AstNode {
 	eval(ctx) {
 		const child = this.source.eval(ctx);
 		const frame = this.source.toFrame(ctx);
-		return wrapMeta(frame.toMeta(), renderView(child, ctx.enterFrame(child), this.viewName));
+		return wrapMarkers(frame.toMarker(), renderView(child, ctx.enterFrame(child), this.viewName));
 	}
 	childNodes() {
 		return [this.source];
@@ -188,7 +188,7 @@ const loopFragments = (ctx, source, loopName, renderItem) => {
 		const base = { value, key };
 		const binds = loop.enrich ? { ...loop.enrich.call(self, base, state), value, key } : base;
 		const dom = renderItem(ctx.enterFrame(value, binds), loop);
-		nodes.push(new VFragment(toVChilds(wrapMeta(frame.toMeta(), dom)), fragmentKey));
+		nodes.push(new VFragment(toVChilds(wrapMarkers(frame.toMarker(), dom)), fragmentKey));
 	}
 	return new VFragment(nodes);
 };

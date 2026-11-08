@@ -1,4 +1,4 @@
-// Metadata comments (wrapMeta in tutuca's src/meta.js, the spec's
+// Metadata comments (wrapMarkers in tutuca's src/markers.js, the spec's
 // bind/meta.rkt): how the DOM records the semantic tree's wrappers. A wrapper
 // becomes an opening comment before its children and the closing comment
 // after them. The text is §JSON.stringify(meta)§, with the runtime's key

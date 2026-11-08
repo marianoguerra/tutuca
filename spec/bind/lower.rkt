@@ -1,5 +1,5 @@
 #lang racket
-;; Lowering: from the semantic tree to vnodes (wrapMeta, planElement's data-eid
+;; Lowering: from the semantic tree to vnodes (wrapMarkers, planElement's data-eid
 ;; and the loop fragments in view.js). This is what binds the tutuca side to
 ;; the vdom; the encoding it picks is an implementation detail of the binding.
 ;;

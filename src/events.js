@@ -1,57 +1,57 @@
-// DOM events: finds the component, path and handlers an event belongs to from the meta comments.
-import { isMetaOpen, META_CLOSE, parseMeta } from "./markers.js";
+// DOM events: finds the component, path and handlers an event belongs to from the marker comments.
+import { isMarkerOpen, MARKER_CLOSE, parseMarker } from "./markers.js";
 import { specOf } from "./spec.js";
 import { Address, DispatchPath, Frame } from "./tree/index.js";
 
-const META_TYPES = new Set(["component", "frame"]);
-function* enclosingNodeMeta(node) {
+const MARKER_TYPES = new Set(["component", "frame"]);
+function* enclosingMarkers(node) {
 	let closed = 0;
 	for (let n = node.previousSibling; n; n = n.previousSibling) {
 		if (n.nodeType !== 8) continue;
 		const data = n.data;
-		if (data === META_CLOSE) {
+		if (data === MARKER_CLOSE) {
 			closed++;
 			continue;
 		}
-		if (!isMetaOpen(data)) continue;
+		if (!isMarkerOpen(data)) continue;
 		if (closed > 0) {
 			closed--;
 			continue;
 		}
-		let meta;
+		let marker;
 		try {
-			meta = parseMeta(data);
+			marker = parseMarker(data);
 		} catch (err) {
-			console.error("bad meta comment", err, n, node);
+			console.error("bad marker comment", err, n, node);
 			continue;
 		}
-		if (META_TYPES.has(meta?.t)) yield meta; // Skip look-alike comments from unmanaged DOM.
+		if (MARKER_TYPES.has(marker?.t)) yield marker; // Skip look-alike comments from unmanaged DOM.
 	}
 }
-// From node up to rootNode: the metas, innermost first; where each component meta is in them;
+// From node up to rootNode: the markers, innermost first; where each component marker is in them;
 // and the elements with handlers, each with the number of components below it. null when
 // node is outside rootNode.
 const walkUp = (node, rootNode) => {
-	const metas = [];
+	const markers = [];
 	const components = [];
 	const eids = [];
 	while (node && node !== rootNode) {
 		// The attribute, not dataset, which elements outside HTML and SVG (MathML in jsdom) lack.
 		const eid = node.getAttribute?.("data-eid");
 		if (eid != null) eids.push({ eid: parseInt(eid, 10), node, level: components.length });
-		for (const meta of enclosingNodeMeta(node)) {
-			if (meta.t === "component") components.push(metas.length);
-			metas.push(meta);
+		for (const marker of enclosingMarkers(node)) {
+			if (marker.t === "component") components.push(markers.length);
+			markers.push(marker);
 		}
 		node = node.parentNode;
 	}
-	return node === rootNode ? { metas, components, eids } : null;
+	return node === rootNode ? { markers, components, eids } : null;
 };
-// The path the metas, innermost first, describe.
-const pathFrom = (metas) => {
+// The path the markers, innermost first, describe.
+const pathFrom = (markers) => {
 	const frames = [];
-	for (const meta of [...metas].reverse()) {
-		if (meta.t === "frame") frames.push(Frame.fromMeta(meta));
+	for (const marker of [...markers].reverse()) {
+		if (marker.t === "frame") frames.push(Frame.fromMarker(marker));
 		else if (frames.length > 0) frames.push(frames.pop().asComponent());
 	}
 	return new DispatchPath(frames);
@@ -59,7 +59,7 @@ const pathFrom = (metas) => {
 // The path of the component, and the loop items in it, node was rendered in.
 export const pathOf = (node, rootNode) => {
 	const walk = walkUp(node, rootNode);
-	return walk === null || walk.components.length === 0 ? null : pathFrom(walk.metas);
+	return walk === null || walk.components.length === 0 ? null : pathFrom(walk.markers);
 };
 // The handler for a type event on target, with the address of its component and its element.
 // Only the component target is in handles it, unless bubbles: then the nearest enclosing
@@ -73,7 +73,7 @@ export const getEventInfoFor = (target, type, rootNode, root, bubbles = false) =
 		if (eids.length === 0) continue;
 		// What is outside the component below: its frame is the child the event came through.
 		const start = level === 0 ? 0 : walk.components[level - 1] + 1;
-		const to = Address.at(pathFrom(walk.metas.slice(start)), root);
+		const to = Address.at(pathFrom(walk.markers.slice(start)), root);
 		const { eventHandlers } = specOf(to.keyPath.getIn(root));
 		for (const { eid, node } of eids) {
 			for (const handler of eventHandlers.get(eid) ?? []) {

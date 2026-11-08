@@ -49,9 +49,9 @@ Each directory requires only the ones above it in this table, plus `data.rkt`.
 | | `view.rkt` | view definitions, expressions, registration, `RenderContext`, `eval`, `renderView` | the `AstNode` subclasses, `ComponentSpec`, `RenderContext` |
 | | `route.rkt` | routing on the semantic tree | (what `getEventInfoFor` means) |
 | | `wf.rkt` | well-formed views | lint's `unknown-handler`, `send-arity`, `send-arg-type` |
-| `bind/` | `meta.rkt` | metadata comment text | `wrapMeta`'s objects, `parseMeta` |
-| | `lower.rkt` | semantic tree → vnodes | `wrapMeta`, `planElement`'s `data-eid`, loop fragments |
-| | `decode.rkt` | `enclosingNodeMeta`, `getEventInfoFor` | `events.js` |
+| `bind/` | `meta.rkt` | metadata comment text | `wrapMarkers`'s objects, `parseMarker` |
+| | `lower.rkt` | semantic tree → vnodes | `wrapMarkers`, `planElement`'s `data-eid`, loop fragments |
+| | `decode.rkt` | `enclosingMarkers`, `getEventInfoFor` | `events.js` |
 | `system/` | `host.rkt` | `handleTask`, the task kinds, `MessageContext`, `Host` scheduling, dev checks | `Task`, `NotifyTask`, `AskTask`, `HostTask`, `Host` |
 | | `tutuca.rkt` | end-to-end scenarios, routing soundness, the binding theorem | |
 | | `render.rkt` | `semantics.pdf` | |
@@ -173,7 +173,7 @@ Other points:
   with handlers. Ids are opaque, so only uniqueness per template matters.
 - **Registration:** `register` follows `component()`. A class needs `"main"`, and `collect` is
   the `Collect` walker: an element's entry, then its attribute expressions, then its children.
-- **Wrappers:** a wrapper holds its children normalized. The runtime keeps `wrapMeta`'s triple
+- **Wrappers:** a wrapper holds its children normalized. The runtime keeps `wrapMarkers`'s triple
   unnormalized until `addChild`. The two differ only for a render used as a prop value whose
   view evaluates to a component instance, which would throw in text position.
 - **Routing on the tree:** an element's dispatch path is the frames of the wrappers above it,
@@ -294,7 +294,7 @@ A metafunction undefined on its input stands for a thrown JS exception. Examples
 These do not change the meaning, so the model does not include them:
 - `planElement`'s split of attributes into static and dynamic. All attributes are evaluated
   on every render. Props are kept sorted by name, because attribute order is not observable.
-- `reuseConstant`'s shared vnodes, the prebuilt literal `texts`, and the shared `META_END`
+- `reuseConstant`'s shared vnodes, the prebuilt literal `texts`, and the shared `MARKER_END`
   comment.
 - The `source === target` and `isEqualTo` skips in `morphNode`, writing only the props that
   changed, the `innerHTML` re-parse skip, the `childNodes` snapshot taken before editing, the

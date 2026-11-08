@@ -1,4 +1,4 @@
-// Lowering (the spec's bind/lower.rkt; wrapMeta, planElement's data-eid and
+// Lowering (the spec's bind/lower.rkt; wrapMarkers, planElement's data-eid and
 // the loop fragments in tutuca's src/view.js): from the semantic tree to
 // vnodes. This is what binds tutuca to the vdom, which knows nothing of it.
 //

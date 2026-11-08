@@ -1,9 +1,9 @@
 // Differential tests against tutuca's own runtime (../src), in jsdom:
 //
 // - the vdom: random vnode trees with keys, fragments, attrs and namespaces;
-// - the metadata comments: random frames, against JSON.stringify(toMeta());
+// - the metadata comments: random frames, against JSON.stringify(toMarker());
 // - lowering: random semantic trees, against a lowering made of the
-//   runtime's own pieces (wrapMeta, Frame.toMeta, view.js's loop fragments).
+//   runtime's own pieces (wrapMarkers, Frame.toMarker, view.js's loop fragments).
 //
 // Trees are rendered as a sequence by both sides. After every render the two
 // containers must hold the same markup, and the render must have caused the
@@ -11,7 +11,7 @@
 // to the same result.
 import test from "node:test";
 import { JSDOM } from "jsdom";
-import { wrapMeta } from "../../src/meta.js";
+import { wrapMarkers } from "../../src/markers.js";
 import { Frame } from "../../src/tree/path.js";
 import { Shape, VComment, VFragment, VNode, VText, render as jsRender } from "../../src/vdom.js";
 import { load } from "../js/tutuca-rt.js";
@@ -145,12 +145,12 @@ test("metadata comments are JSON.stringify of the runtime's meta objects (2000 f
 	const rand = prng(7);
 	for (let i = 0; i < 2000; i++) {
 		const f = randomFrame(rand);
-		assert.equal(vdom.sem.frameMeta(waxFrame(f)), `§${JSON.stringify(jsFrame(f).toMeta())}§`, JSON.stringify(f));
+		assert.equal(vdom.sem.frameMeta(waxFrame(f)), `§${JSON.stringify(jsFrame(f).toMarker())}§`, JSON.stringify(f));
 	}
 });
 
-// Random semantic trees, lowered by tutuca's runtime pieces (wrapMeta,
-// Frame.toMeta, the loop fragments of view.js) and by the wax lowering, then
+// Random semantic trees, lowered by tutuca's runtime pieces (wrapMarkers,
+// Frame.toMarker, the loop fragments of view.js) and by the wax lowering, then
 // rendered by each side's vdom.
 const TEMPLATES = [
 	{ tid: 1, tag: "div", names: ["class"] },
@@ -221,14 +221,14 @@ const jsLower = (n) => {
 		case "el":
 			return [new VNode(jsShapeOf(n.tmpl), n.values, n.childs.flatMap(jsLower), n.key)];
 		case "component":
-			return wrapMeta({ t: "component" }, n.childs.flatMap(jsLower)).flat();
+			return wrapMarkers({ t: "component" }, n.childs.flatMap(jsLower)).flat();
 		case "enter":
-			return wrapMeta(jsFrame(n.frame).toMeta(), n.childs.flatMap(jsLower)).flat();
+			return wrapMarkers(jsFrame(n.frame).toMarker(), n.childs.flatMap(jsLower)).flat();
 		case "items":
 			return [
 				new VFragment(
 					n.entries.map(
-						(e) => new VFragment(wrapMeta(jsFrame(e.frame).toMeta(), e.body.flatMap(jsLower)).flat(), e.key),
+						(e) => new VFragment(wrapMarkers(jsFrame(e.frame).toMarker(), e.body.flatMap(jsLower)).flat(), e.key),
 					),
 				),
 			];

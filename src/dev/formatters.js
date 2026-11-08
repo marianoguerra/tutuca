@@ -1,6 +1,6 @@
 // DevTools custom formatters for tutuca values (Chrome/Firefox).
 
-import { isMetaOpen, META_CLOSE, parseMeta } from "../markers.js";
+import { isMarkerOpen, MARKER_CLOSE, parseMarker } from "../markers.js";
 import {
 	AstNode,
 	ComponentSpec,
@@ -173,22 +173,22 @@ const keyPathParts = (path) => orRoot(path.keys.flatMap(keyParts));
 const targetParts = (target) =>
 	orRoot([...target.base.frames.flatMap(frameParts), ...target.selector.ops.flatMap(opParts)]);
 
-// Labels the §{meta}§ comments tutuca wraps rendered components and loop items in.
-const metaParts = (meta) => {
-	switch (meta.t) {
+// Labels the §{marker}§ comments tutuca wraps rendered components and loop items in.
+const markerParts = (marker) => {
+	switch (marker.t) {
 		case "component":
 			return [span(S.name, "component")];
 		case "frame":
-			return frameParts(Frame.fromMeta(meta));
+			return frameParts(Frame.fromMarker(marker));
 		default:
-			return [span(S.muted, JSON.stringify(meta))];
+			return [span(S.muted, JSON.stringify(marker))];
 	}
 };
-const metaComment = (text) => {
-	if (text === META_CLOSE) return [span(S.muted, "⟨/⟩")];
-	if (!isMetaOpen(text)) return null;
+const markerComment = (text) => {
+	if (text === MARKER_CLOSE) return [span(S.muted, "⟨/⟩")];
+	if (!isMarkerOpen(text)) return null;
 	try {
-		return [span(S.muted, "⟨"), ...metaParts(parseMeta(text)), span(S.muted, "⟩")];
+		return [span(S.muted, "⟨"), ...markerParts(parseMarker(text)), span(S.muted, "⟩")];
 	} catch {
 		return null;
 	}
@@ -385,6 +385,6 @@ const formatter = makeFormatter({
 });
 
 export const installFormatters = (target = globalThis) => {
-	installVdomFormatters(target, { comment: metaComment });
+	installVdomFormatters(target, { comment: markerComment });
 	return install(target, formatter);
 };
