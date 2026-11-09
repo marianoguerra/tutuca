@@ -1,6 +1,7 @@
 // Runs stories live in <tutuca-app>s for the UI: a StoryRunner per mounted app, with a timeline
 // of states, and the StoryRegistry that answers the UI's "story" asks.
 
+import { argsLabel, jsonText } from "../core/text.js";
 import { ClassCompiler } from "../css/classes.js";
 import { Timeline } from "../history/index.js";
 import { lint } from "../lint/index.js";
@@ -11,7 +12,6 @@ import { carry, specChanges } from "../sync/migrate.js";
 import { opText } from "../sync/ops.js";
 import { componentPaths, Driver, describeProblems, PROBLEMS, snapshot } from "../testing/driver.js";
 import { drivableMessages, messageCommand, resolveRefs, sourceFrames } from "../testing/pbt.js";
-import { argsLabel, jsonText } from "../text.js";
 import { specOf } from "../tutuca.js";
 
 // Runs a story live in a <tutuca-app>: the controller passed to mount. Keeps a timeline of

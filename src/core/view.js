@@ -1,9 +1,10 @@
 // Views: the AST nodes view builders make, how they evaluate to vnodes, and the render context.
+
+import { DispatchPath, Frame, selectorFrom } from "../tree/path.js";
 import { EVENT_ARGS } from "./events.js";
 import { wrapMarkers } from "./markers.js";
 import { planElement } from "./optimize.js";
 import { isComponent, specOf } from "./spec.js";
-import { DispatchPath, Frame, selectorFrom } from "./tree/path.js";
 import { addChild, toVChilds, VFragment, VNode } from "./vdom.js";
 
 export const renderView = (instance, ctx, viewName) => {

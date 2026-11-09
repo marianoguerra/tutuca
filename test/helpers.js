@@ -5,6 +5,7 @@ import test from "node:test";
 import fc from "fast-check";
 // biome-ignore lint/correctness/noUnresolvedImports: jsdom uses conditional exports that Node resolves.
 import { JSDOM } from "jsdom";
+import { Shape, toVChilds, VComment, VFragment, VNode } from "../src/core/vdom.js";
 import { DevChecks } from "../src/dev/checks.js";
 import { lint, lintScope } from "../src/lint/index.js";
 import { planToolCall } from "../src/meta/index.js";
@@ -12,7 +13,6 @@ import { Driver, testEnv } from "../src/testing/driver.js";
 import { arbitraries, specProperties } from "../src/testing/pbt.js";
 import { MessageContext, Scheduler } from "../src/tree/index.js";
 import { component, Host, Scope, t } from "../src/tutuca.js";
-import { Shape, toVChilds, VComment, VFragment, VNode } from "../src/vdom.js";
 
 // --- documents, hosts and scopes ---------------------------------------------------------
 

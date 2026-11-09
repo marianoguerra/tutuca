@@ -8,15 +8,15 @@ has the design. Implemented so far:
   component), with `List` and `Map` over wax-mb's persistent vector and hash
   map, vendored in `vendor/wax-mb`;
 - the vdom: shapes, vnodes whose props are values, and building and morphing
-  the DOM, ported from tutuca's `src/vdom.js`;
+  the DOM, ported from tutuca's `src/core/vdom.js`;
 - the semantic tree a view evaluates to, and lowering it to vnodes with the
   metadata comments routing reads back, from the spec's `view/sem.rkt`,
   `bind/meta.rkt` and `bind/lower.rkt`;
 - the component runtime: components, their specs and vtables, scopes, paths,
   the handler context and its effects, the host's tasks and transactions,
   asks, rendering components, and routing DOM events back to their handlers,
-  from NOTES.md, tutuca's `src/host.js`, `src/tree-binding.js`, `src/tree/`,
-  `src/scope.js` and `src/events.js`, and the spec's `component/paths.rkt`,
+  from NOTES.md, tutuca's `src/core/host.js`, `src/core/tree-binding.js`, `src/tree/`,
+  `src/core/scope.js` and `src/core/events.js`, and the spec's `component/paths.rkt`,
   `bind/decode.rkt` and `system/host.rkt`;
 - component modules: a component type is a `.wasm` of its own, loaded at run
   time, that imports the runtime's functions and shares its types through a
@@ -839,7 +839,7 @@ their views and schemas with `lib/author.wax`'s helpers).
 ## Differences from tutuca's JS vdom
 
 `test/parity.test.mjs` checks that this renders the same markup with the same
-DOM mutations as `src/vdom.js`, over random trees with keys, fragments, attrs
+DOM mutations as `src/core/vdom.js`, over random trees with keys, fragments, attrs
 and namespaces. Where they differ, on purpose:
 
 - When nodes render made were removed by other code, JS's morph throws

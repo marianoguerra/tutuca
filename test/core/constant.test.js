@@ -1,7 +1,8 @@
 import assert from "node:assert/strict";
 import test from "node:test";
+import { isConstant } from "../../src/core/optimize.js";
+import { VBase, VComment, VNode } from "../../src/core/vdom.js";
 import { collectClasses } from "../../src/css/classes.js";
-import { isConstant } from "../../src/optimize.js";
 import {
 	$if,
 	AstNode,
@@ -16,7 +17,6 @@ import {
 	sourceKey,
 	t,
 } from "../../src/tutuca.js";
-import { VBase, VComment, VNode } from "../../src/vdom.js";
 import { startHost } from "../helpers.js";
 
 const setup = startHost;

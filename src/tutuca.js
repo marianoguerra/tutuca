@@ -1,8 +1,14 @@
 // The core: components, views, schemas, specs, paths, tasks and the host. Each lives in its own module;
 // this one is the public surface npm consumers and dist/ bundle.
 
-export { ComponentSpec, component } from "./component.js";
-export { filledMeta, hasMeta, metaOf, metaProblems, metaShapeProblems } from "./component-meta.js";
+export { ComponentSpec, component } from "./core/component.js";
+export {
+	filledMeta,
+	hasMeta,
+	metaOf,
+	metaProblems,
+	metaShapeProblems,
+} from "./core/component-meta.js";
 export {
 	apply,
 	argIssues,
@@ -16,18 +22,18 @@ export {
 	messageIssues,
 	query,
 	supports,
-} from "./contract.js";
-export { DRAG_EVENTS, DROP_EVENTS, Drag } from "./drag.js";
-export { browserEnv, Host } from "./host.js";
+} from "./core/contract.js";
+export { DRAG_EVENTS, DROP_EVENTS, Drag } from "./core/drag.js";
+export { browserEnv, Host } from "./core/host.js";
 export {
 	Interface,
 	iface,
 	implementsIface,
 	interfaceProblems,
 	resolveImplements,
-} from "./interface.js";
-export * from "./schema.js";
-export { Scope } from "./scope.js";
+} from "./core/interface.js";
+export * from "./core/schema.js";
+export { Scope } from "./core/scope.js";
 export {
 	HandlerSpec,
 	isComponent,
@@ -39,33 +45,10 @@ export {
 	toAnswers,
 	toMessages,
 	toQueries,
-} from "./spec.js";
-export * from "./tag.js";
-export {
-	Address,
-	ANSWER_OUTCOMES,
-	AnswerTask,
-	AskTask,
-	copy,
-	DispatchPath,
-	errorMessage,
-	Frame,
-	HOST,
-	idOf,
-	idSym,
-	KeyPath,
-	MessageContext,
-	NotifyTask,
-	SCOPE_OUTCOMES,
-	Scheduler,
-	Selector,
-	SettleScope,
-	selectorFrom,
-	Target,
-	Task,
-} from "./tree/index.js";
-export { componentKinds, HostTask, TutucaContext } from "./tree-binding.js";
-export { findInvalidFields } from "./validate.js";
+} from "./core/spec.js";
+export * from "./core/tag.js";
+export { componentKinds, HostTask, TutucaContext } from "./core/tree-binding.js";
+export { findInvalidFields } from "./core/validate.js";
 export {
 	$if,
 	$query,
@@ -102,5 +85,28 @@ export {
 	targetValue,
 	WithBinds,
 	withBinds,
-} from "./view.js";
-export * from "./walk.js";
+} from "./core/view.js";
+export * from "./core/walk.js";
+export {
+	Address,
+	ANSWER_OUTCOMES,
+	AnswerTask,
+	AskTask,
+	copy,
+	DispatchPath,
+	errorMessage,
+	Frame,
+	HOST,
+	idOf,
+	idSym,
+	KeyPath,
+	MessageContext,
+	NotifyTask,
+	SCOPE_OUTCOMES,
+	Scheduler,
+	Selector,
+	SettleScope,
+	selectorFrom,
+	Target,
+	Task,
+} from "./tree/index.js";

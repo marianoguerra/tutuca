@@ -72,4 +72,4 @@ new Scheduler({
 ```
 
 Tutuca's own bindings are `componentKinds`, `TutucaContext` and `HostTask` in `src/tasks.js`,
-plus immer's `produce` and the hooks in `Host` (`src/host.js`).
+plus immer's `produce` and the hooks in `Host` (`src/core/host.js`).

@@ -2,7 +2,7 @@
 // message schemas. fast-check is passed in, so tutuca itself doesn't depend on it. The Driver
 // they run on is tutuca/testing's (driver.js).
 
-import { preHolds } from "../contract.js";
+import { preHolds } from "../core/contract.js";
 import {
 	AnyType,
 	brokenInvariants,

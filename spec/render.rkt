@@ -59,7 +59,7 @@
     "about tutuca and is specified in Appendix A.")
    (string-append
     "Conventions. A metafunction undefined on its input stands for a thrown JS exception. "
-    "The optimizations in src/optimize.js and the fast paths in vdom.js are erased; they "
+    "The optimizations in src/core/optimize.js and the fast paths in vdom.js are erased; they "
     "must preserve the meaning given here. Shaded fragments inside a rule are Racket code. "
     "The rules are executable: raco test spec/ checks them against scenarios ported from "
     "the JS test suite and against random properties.")))

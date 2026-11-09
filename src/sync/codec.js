@@ -10,8 +10,8 @@ import {
 	RecordType,
 	syncsAt,
 	unlessNoDefault,
-} from "../schema.js";
-import { isComponent, scopeOf, specOf } from "../spec.js";
+} from "../core/schema.js";
+import { isComponent, scopeOf, specOf } from "../core/spec.js";
 import { setOwn } from "./ops.js";
 
 const ANY = new AnyType(null);

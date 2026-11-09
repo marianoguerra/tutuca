@@ -1,5 +1,5 @@
 // Evaluating views (the spec's view/view.rkt eval; the eval methods of
-// tutuca's src/view.js AstNodes): a component's view, as data, to the
+// tutuca's src/core/view.js AstNodes): a component's view, as data, to the
 // semantic tree. And spec_new, which makes a component type's spec from its
 // views, collecting their templates.
 

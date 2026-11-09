@@ -11,9 +11,9 @@
 // to the same result.
 import test from "node:test";
 import { JSDOM } from "jsdom";
-import { wrapMarkers } from "../../src/markers.js";
+import { wrapMarkers } from "../../src/core/markers.js";
 import { Frame } from "../../src/tree/path.js";
-import { Shape, VComment, VFragment, VNode, VText, morph as jsMorph } from "../../src/vdom.js";
+import { Shape, VComment, VFragment, VNode, VText, morph as jsMorph } from "../../src/core/vdom.js";
 import { load } from "../js/tutuca-rt.js";
 import * as assert from "./assert.mjs";
 

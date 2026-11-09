@@ -3,7 +3,7 @@
 // and render contexts, each node expanding into its rows. The main views say it in plain
 // words (summary.js); the code views print it as formatters.js does.
 
-import { truncate } from "../text.js";
+import { truncate } from "../core/text.js";
 import {
 	$if,
 	apply,

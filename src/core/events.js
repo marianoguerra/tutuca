@@ -1,8 +1,9 @@
 // DOM events: finds the component, path and handler an event belongs to from the marker comments,
 // and the send it makes, its args read from the event.
+
+import { Address, DispatchPath, Frame } from "../tree/index.js";
 import { isMarkerOpen, MARKER_CLOSE, parseMarker } from "./markers.js";
 import { specOf } from "./spec.js";
-import { Address, DispatchPath, Frame } from "./tree/index.js";
 
 const MARKER_TYPES = new Set(["component", "frame"]);
 function* enclosingMarkers(node) {

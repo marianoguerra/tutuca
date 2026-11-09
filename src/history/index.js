@@ -2,8 +2,8 @@
 // live Host as a sync engine and travels by applying a recorded state as a change from
 // elsewhere, so the other engines (storage, peers) follow.
 
-import { argsLabel } from "../text.js";
-import { HostTask } from "../tree-binding.js";
+import { argsLabel } from "../core/text.js";
+import { HostTask } from "../core/tree-binding.js";
 
 // The icon of each origin of a timeline entry.
 export const ORIGINS = { initial: "◆", reload: "↻", step: "▸", user: "☝", external: "⇅" };

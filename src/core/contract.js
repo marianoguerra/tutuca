@@ -3,11 +3,11 @@
 // synchronously; contractOf describes them. What it doesn't support, or a call that breaks
 // the operation's contract, throws a ContractError. The checks of a handled message against its
 // spec (messageIssues, for dev mode) and of an instance against its invariants are here too.
-import { current, freeze, isDraft, produce } from "../deps/immer.js";
+import { current, freeze, isDraft, produce } from "../../deps/immer.js";
+import { idOf } from "../tree/identity.js";
 import { ComponentSpec } from "./component.js";
 import { Interface, interfaceProblems, resolveImplements } from "./interface.js";
 import { HandlerSpec, QuerySpec, scopeOf, specOf } from "./spec.js";
-import { idOf } from "./tree/identity.js";
 
 // Whether fn returns truthy without throwing.
 export function holds(fn) {

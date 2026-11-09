@@ -8,7 +8,7 @@
 ;; frame and looping make wrapper nodes. How the DOM records those wrappers is
 ;; bind/lower.rkt's business, not the view's.
 ;;
-;; Erased optimizations (src/optimize.js): reuseConstant's shared vnodes,
+;; Erased optimizations (src/core/optimize.js): reuseConstant's shared vnodes,
 ;; prebuilt literal texts, the static/dynamic attribute split and the shared
 ;; closing comment. Each builds an equal vnode, so eval builds it plainly.
 ;;

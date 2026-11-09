@@ -1,4 +1,4 @@
-// Schemas as data (tutuca's src/schema.js): the types and constraints of a
+// Schemas as data (tutuca's src/core/schema.js): the types and constraints of a
 // component type's fields, computed properties and message arguments, which
 // the runtime checks values against, and tools read to know a component's
 // protocol. prelude/component.wax holds what refers to the handler context

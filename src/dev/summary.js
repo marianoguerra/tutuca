@@ -1,7 +1,7 @@
 // Plain language for tutuca values: what a node shows in its readable view, as
 // { title, detail }. The code view shows them as src/dev/formatters.js prints them.
 
-import { truncate } from "../text.js";
+import { truncate } from "../core/text.js";
 import {
 	ArrayType,
 	AskTask,

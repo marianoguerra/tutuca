@@ -1,5 +1,5 @@
 // Schemas (prelude/schema.wax and the schema types of prelude/component.wax;
-// tutuca's src/schema.js): their constructors; checking a value against a
+// tutuca's src/core/schema.js): their constructors; checking a value against a
 // type and its constraints, with a sentence saying why it doesn't fit;
 // writing types as TCD writes them; interfaces and what implementing one
 // takes; and a schema as a value, for tools to read a component's protocol.

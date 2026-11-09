@@ -1,6 +1,6 @@
 import assert from "node:assert/strict";
 import test from "node:test";
-import { morph } from "../../src/vdom.js";
+import { morph } from "../../src/core/vdom.js";
 import { dom, vh as h, mutationsOf, vchilds, vfrag } from "../helpers.js";
 
 const SVG = "http://www.w3.org/2000/svg";

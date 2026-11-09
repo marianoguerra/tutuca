@@ -1,5 +1,5 @@
 // Shapes and vnodes (Shape, VText, VComment, VNode and VFragment in tutuca's
-// src/vdom.js). The shape type is in prelude/sem.wax, since templates hold one.
+// src/core/vdom.js). The shape type is in prelude/sem.wax, since templates hold one.
 
 // Attrs read when the element is created or after its children, so never
 // static: value, checked, is, dangerouslySetInnerHTML.

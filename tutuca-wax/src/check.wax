@@ -1,5 +1,5 @@
-// What the host checks with schemas (tutuca's src/host.js checkState,
-// checkMessage and checkSettled, and src/schema.js findInvalidFields and
+// What the host checks with schemas (tutuca's src/core/host.js checkState,
+// checkMessage and checkSettled, and src/core/schema.js findInvalidFields and
 // messageIssues): a message's arguments, always, rejecting the ones that
 // don't fit before the handler sees them, with a structured rejection; and
 // in dev mode, the message's contract around its handler, the state's fields

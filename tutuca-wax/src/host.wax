@@ -1,4 +1,4 @@
-// The host (NOTES.md; tutuca's src/host.js and src/tree-binding.js; the spec's
+// The host (NOTES.md; tutuca's src/core/host.js and src/core/tree-binding.js; the spec's
 // system/host.rkt): the root state and a queue of tasks, run one at a time,
 // each as one transaction. The handler runs on the component the task's route
 // reaches, its effects become child tasks, the new root is set, and every
@@ -750,7 +750,7 @@ fn host_dispatch_event(
     queued;
 }
 
-// ---- Drag and drop (tutuca's src/drag.js and its Host's drag methods) --------
+// ---- Drag and drop (tutuca's src/core/drag.js and its Host's drag methods) --------
 
 fn is_drop_event(kind: js_string) -> i32 {
     if str_eq(kind, s_dragenter) | str_eq(kind, s_dragover) {

@@ -1,5 +1,5 @@
 // What walking a component type's views collects (src/walk.wax): its
-// templates (the spec's collect, tutuca's Collect in src/walk.js), the DOM
+// templates (the spec's collect, tutuca's Collect in src/core/walk.js), the DOM
 // events they handle (ComponentSpec's eventNames) and the constant class
 // names they use (ClassNames in tutuca's src/css/classes.js).
 

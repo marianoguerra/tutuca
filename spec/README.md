@@ -10,7 +10,7 @@ A PLT Redex model of tutuca. It has two sides, joined by a binding layer:
 - **The virtual DOM** (`vdom.js`). It covers normalized vnodes, the DOM they render to, and reconciliation with node identity. It knows nothing about tutuca.
 - **The binding** lowers the semantic tree to vnodes, writing metadata comments and `data-eid` attributes. It also decodes events back from the DOM. The comments are an implementation detail of this layer.
 
-The optimizations in `src/optimize.js` and the fast paths in `vdom.js` are not part of the
+The optimizations in `src/core/optimize.js` and the fast paths in `vdom.js` are not part of the
 model. The model defines the meaning those optimizations must preserve.
 
 ```sh
@@ -345,7 +345,7 @@ Two of these are equivalent only when other code doesn't edit or remove the node
   it had (`ctx.drag`), the `data-dragging` and `data-draggingover` marks, and
   `preventDefault`/`dropEffect` over a drop target.
 - Sync engines (`src/sync/`).
-- `src/tag.js`, `src/dev/`, `src/css/`, `src/embed/`, `src/playground/`, the storybook, the
+- `src/core/tag.js`, `src/dev/`, `src/css/`, `src/embed/`, `src/playground/`, the storybook, the
   test driver and pbt, and the lint modules (beyond `wf.rkt`).
 
 ## What the tests check

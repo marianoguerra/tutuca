@@ -1,9 +1,9 @@
 // How tutuca binds src/tree: how a component's spec gives the tree its handlers, the context
 // they get (the world, the scope and the DOM event), messages from the host (DOM events among
 // them), and the Scheduler a Host runs its tasks with.
-import { produce } from "../deps/immer.js";
+import { produce } from "../../deps/immer.js";
+import { HOST, hidden, MessageContext, Scheduler, Task } from "../tree/index.js";
 import { scopeOf, specOf } from "./spec.js";
-import { HOST, hidden, MessageContext, Scheduler, Task } from "./tree/index.js";
 
 // The handlers of a component: its spec's on (sends and notifications) and answers, and its
 // scope's ask handlers.

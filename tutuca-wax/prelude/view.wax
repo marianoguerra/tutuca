@@ -1,5 +1,5 @@
 // Views as data (the spec's view/view.rkt `e`; the AstNodes of tutuca's
-// src/view.js): what a component type's views are before any render, so a
+// src/core/view.js): what a component type's views are before any render, so a
 // walker (src/walk.wax) can visit every branch of an if and every loop body
 // once, with the bindings still unevaluated. src/view.wax has the
 // constructors.

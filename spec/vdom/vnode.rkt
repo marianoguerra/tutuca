@@ -6,7 +6,7 @@
 ;; that is the element's Shape, shared by every render of one template:
 ;; VNode.isSameKind compares shapes and keys, so two templates with the same
 ;; tag replace rather than patch each other. Whether an attribute is static
-;; (set once on create) or dynamic is an optimization of src/optimize.js; the
+;; (set once on create) or dynamic is an optimization of src/core/optimize.js; the
 ;; model keeps all of them as props, sorted by name, since attribute order is
 ;; not observable.
 (require redex/reduction-semantics "../data.rkt")

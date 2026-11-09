@@ -1,4 +1,4 @@
-// Scopes (NOTES.md; tutuca's src/scope.js): the names component types are
+// Scopes (NOTES.md; tutuca's src/core/scope.js): the names component types are
 // registered under, nested into a tree, and making components through them.
 
 fn scope_new(name: js_string, parent: &?scope) -> &scope {

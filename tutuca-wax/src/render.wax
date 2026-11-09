@@ -1,5 +1,5 @@
 // Rendering components into the semantic tree (RenderContext and renderView
-// in tutuca's src/view.js; the spec's view/view.rkt): what crosses component
+// in tutuca's src/core/view.js; the spec's view/view.rkt): what crosses component
 // boundaries while a view renders, and wrapping a component's render.
 
 // What a render gets from where it happens: what ancestors provide (name ->

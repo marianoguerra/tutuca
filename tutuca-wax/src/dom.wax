@@ -1,5 +1,5 @@
 // Building and patching real nodes from vnodes: toDom, morphNode,
-// morphChildren and render of tutuca's src/vdom.js. `ns` is the namespace
+// morphChildren and render of tutuca's src/core/vdom.js. `ns` is the namespace
 // children inherit from their parent, null for HTML.
 
 fn is_namespaced(node: dom_node) -> i32 {

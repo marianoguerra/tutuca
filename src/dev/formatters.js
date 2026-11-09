@@ -1,7 +1,7 @@
 // DevTools custom formatters for tutuca values (Chrome/Firefox).
 
-import { isMarkerOpen, MARKER_CLOSE, parseMarker } from "../markers.js";
-import { truncate } from "../text.js";
+import { isMarkerOpen, MARKER_CLOSE, parseMarker } from "../core/markers.js";
+import { truncate } from "../core/text.js";
 import {
 	AstNode,
 	ComponentSpec,

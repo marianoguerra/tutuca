@@ -1,5 +1,5 @@
 // Walkers: visits over views (prelude/view.wax), dispatching on each node's
-// kind (tutuca's src/walk.js). A walker is a table of visits and the state
+// kind (tutuca's src/core/walk.js). A walker is a table of visits and the state
 // its visits share: wax has no closures, so a consumer's visits cast state to
 // its own type, the way a vtable's functions cast their instance.
 //

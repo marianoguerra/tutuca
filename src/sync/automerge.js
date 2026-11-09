@@ -4,7 +4,7 @@
 //
 // handle: an automerge-repo DocHandle, or docHandle(doc) for a document without a repo.
 import * as A from "@automerge/automerge";
-import { StringType } from "../schema.js";
+import { StringType } from "../core/schema.js";
 import { componentOf, getIn, keyType, narrow, typeAt } from "./codec.js";
 import { diff } from "./diff.js";
 import { applyProjection, applyStateOps, opsOf } from "./index.js";

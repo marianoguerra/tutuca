@@ -2,14 +2,14 @@
 // Everything from outside the tree comes in through send: DOM events, and the messages of
 // whatever drives the app (an agent, a test, a bar). Without a document it is headless: it
 // renders nothing and listens to no events, and the tree runs the same.
-import { current, isDraft, produce } from "../deps/immer.js";
+import { current, isDraft, produce } from "../../deps/immer.js";
+import { Address, DispatchPath, Selector, selectorFrom, Target } from "../tree/index.js";
 import { apply, checkInvariants, query } from "./contract.js";
 import { DROP_EVENTS, DragTracker } from "./drag.js";
 import { eventSend } from "./events.js";
 import { Scope } from "./scope.js";
 import { specOf } from "./spec.js";
 import { SyncEngines } from "./sync-engines.js";
-import { Address, DispatchPath, Selector, selectorFrom, Target } from "./tree/index.js";
 import { HostTask, schedulerFor } from "./tree-binding.js";
 import { morph, toVChilds } from "./vdom.js";
 import { RenderContext, renderView } from "./view.js";
