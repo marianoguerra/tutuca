@@ -19,7 +19,7 @@ import {
 	unlessNoDefault,
 	unwrapOption,
 } from "../tutuca.js";
-import { componentPaths, Driver, describeProblems, snapshot } from "./driver.js";
+import { componentPaths, Driver, describeProblems, snapshot, specsByName } from "./driver.js";
 
 const mapValues = (record, fn) =>
 	Object.fromEntries(Object.entries(record).map(([k, v]) => [k, fn(v, k)]));
@@ -30,6 +30,11 @@ const tryMake = (spec, args, scope) =>
 		() => undefined,
 	);
 
+// Throws saying what cmd broke, when the problems its run reported are any.
+const throwIfBroke = (cmd, problems) => {
+	if (problems.length === 0) return;
+	throw new Error(`${cmd} broke:\n  ${describeProblems(problems).join("\n  ")}`);
+};
 // A key chosen in a collection that only exists once the owner does: n picks among its keys.
 class KeyRef {
 	constructor(n) {
@@ -68,7 +73,7 @@ export const arbitraries = ({
 	numberRange = 1000,
 	overrides = {},
 }) => {
-	const specs = scope?.allSpecs() ?? {};
+	const specs = specsByName(scope);
 	for (const spec of Object.values(specs)) printCompactly(spec);
 	const cache = new Map();
 	// Specs makeable with no args end the recursion once maxDepth is reached.
@@ -77,7 +82,7 @@ export const arbitraries = ({
 	const specFor = (specOrName) => (typeof specOrName === "string" ? specs[specOrName] : specOrName);
 
 	// Candidates that can't be built within maxDepth are left out; none left is an error.
-	const component = (type, depth) => {
+	const componentArb = (type, depth) => {
 		const named = type.names.map((name) => specs[name]).filter(Boolean);
 		const candidates = named.length > 0 ? named : Object.values(specs);
 		const leafOrNull = (spec) => (leaves.includes(spec) ? leafOf(spec) : null);
@@ -129,7 +134,7 @@ export const arbitraries = ({
 		},
 		record: (type, depth) => fc.record(mapValues(type.shape, (v) => value(v, depth))),
 		oneOf: (type, depth) => fc.oneof(...type.types.map((v) => value(v, depth))),
-		component: (type, depth) => component(type, depth),
+		component: componentArb,
 	};
 	const derive = (type, depth) =>
 		Object.hasOwn(derivers, type.constructor.kind)
@@ -261,7 +266,7 @@ export const drivableMessages = (A, spec) => {
 };
 
 // The frames a message's sourceKey comes from: the item at key of index's field.
-export const sourceFrames = (index, key) => [new Frame([index.fieldName], key, null, true)];
+export const sourceFrames = (index, key) => [Frame.node(index.fieldName, key)];
 
 // Sends message to the target-th component of its spec in the current state.
 export class MessageCommand {
@@ -297,10 +302,7 @@ export class MessageCommand {
 		this.resolved = r;
 		const before = driver.reports.length;
 		driver.send(this.message.name, r.args, { to: r.path, from: r.from });
-		const problems = driver.problemsSince(before);
-		if (problems.length > 0) {
-			throw new Error(`${this} broke:\n  ${describeProblems(problems).join("\n  ")}`);
-		}
+		throwIfBroke(this, driver.problemsSince(before));
 		model.state = driver.state;
 		this.afterEach?.(prev, driver.state, this);
 	}
@@ -367,10 +369,7 @@ const elementText = (el) => `<${el.tagName.toLowerCase()} data-eid=${el.dataset.
 // Throws if cmd's run on driver broke something since the before-th report, or patched the DOM
 // into something a fresh render doesn't make.
 const checkAfter = (cmd, model, driver, before) => {
-	const problems = driver.problemsSince(before);
-	if (problems.length > 0) {
-		throw new Error(`${cmd} broke:\n  ${describeProblems(problems).join("\n  ")}`);
-	}
+	throwIfBroke(cmd, driver.problemsSince(before));
 	const fresh = new Driver({ root: driver.state, document: driver.rootNode.ownerDocument });
 	if (domSignature(fresh.rootNode) !== domSignature(driver.rootNode)) {
 		throw new Error(`${cmd}: the patched DOM differs from a fresh render`);

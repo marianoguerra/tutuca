@@ -6,16 +6,16 @@
 
 import { isComponent, specOf } from "../core/model/spec.js";
 import { isRecord, typeText, unlessNoDefault } from "../core/model/types.js";
-import { findInvalid } from "../core/model/validate.js";
+import { pathText } from "../tree/index.js";
 import { componentOf, getIn, hydrate, keyType, project, typeAt } from "./codec.js";
 import { diff } from "./diff.js";
 import { applyOps, opFits } from "./ops.js";
 
 // The state plain (a projection at level) makes through scope's components, and what didn't
-// come through: { root, added: [path], reset: [{ path, before, after }], dropped: [path],
-// broken: [issue] }. added are fields plain lacks that level sees, now at their default; reset
+// come through: { root, added: [path], reset: [{ path, before, after }], dropped: [path] }.
+// added are fields plain lacks that level sees, now at their default; reset
 // values their type rejects, now at their default; dropped fields the components don't
-// declare; broken the issues findInvalid finds in root, invariants included. Throws when
+// declare. Throws when
 // plain can't be made: a component that's gone, a new field without a default.
 // type is the type plain has where it goes, for a value that isn't the whole state.
 export const rebuild = (plain, scope, { level = "none", type = undefined } = {}) => {
@@ -30,7 +30,7 @@ export const rebuild = (plain, scope, { level = "none", type = undefined } = {})
 		else reset.push({ path, before: getIn(plain, path), after: getIn(after, path) });
 	}
 	const dropped = droppedFields(plain, type, scope.root);
-	return { root, added, reset, dropped, broken: findInvalid(root, null) };
+	return { root, added, reset, dropped };
 };
 // The state prev holds, made again through scope's components: hot reload. rebuild of its
 // projection with every field; throws as rebuild does, and for values a projection can't hold.
@@ -64,7 +64,7 @@ const declared = (root, path) => {
 // A value that can't be made where it goes: its op is dropped and path reported.
 class Unfit extends Error {
 	constructor(path) {
-		super(`can't fit /${path.join("/")}`);
+		super(`can't fit ${pathText(path)}`);
 		this.path = path;
 	}
 }
@@ -147,12 +147,19 @@ export const writeFitting = (
 	return { copy, ops: written };
 };
 
+// Every spec registered in scope or below, by its ref.
+const specsByRef = (scope) =>
+	new Map(
+		[...scope.descendants()].flatMap((s) =>
+			Object.entries(s.specs).map(([name, spec]) => [[...s.path, name].join("/"), spec]),
+		),
+	);
 // What changed between the components two scope trees register, by ref: for telling what a
 // reload did, not deciding it. { ref, field, change: "added" | "removed" | "changed", before,
 // after }, field null for a whole component, before and after typeText of the field.
 export const specChanges = (prevScope, scope) => {
-	const prevRefs = prevScope.root.specsByRef();
-	const refs = scope.root.specsByRef();
+	const prevRefs = specsByRef(prevScope.root);
+	const refs = specsByRef(scope.root);
 	const changes = [];
 	for (const ref of new Set([...prevRefs.keys(), ...refs.keys()])) {
 		const a = prevRefs.get(ref);

@@ -31,7 +31,7 @@ import {
 	Walker,
 } from "../tutuca.js";
 import { install, join, makeFormatter, objectRef, span } from "./jsonml.js";
-import { isTutucaComponent, taskVerb } from "./summary.js";
+import { brief, isTutucaComponent, SUMMARIES, taskVerb } from "./summary.js";
 import { installVdomFormatters } from "./vdom-formatters.js";
 
 export const STYLES = {
@@ -50,7 +50,7 @@ const MAX_AST_CHILDREN = 3;
 export const isObject = (v) => (v !== null && typeof v === "object") || typeof v === "function";
 const ref = (v) => (isObject(v) ? objectRef(v) : prim(v));
 
-const prim = (v) => {
+export const prim = (v) => {
 	if (typeof v === "string") return span(STYLES.str, JSON.stringify(truncate(v, MAX_STR)));
 	if (typeof v === "number" || typeof v === "boolean" || typeof v === "bigint") {
 		return span(STYLES.num, String(v));
@@ -201,10 +201,12 @@ const markerComment = (text) => {
 
 const objectRows = (obj) => Object.keys(obj ?? {}).map((k) => [k, ref(obj[k])]);
 
-// Each kind: test(v), header(v) → JsonML parts, rows(v) → [label | null, JsonML][].
+// Each kind: test(v), header(v) → JsonML parts, rows(v) → [label | null, JsonML][], and
+// summary(v) → { title, detail }, what it says in plain words (summary.js).
 const KINDS = [
 	{
 		test: isTutucaComponent,
+		summary: SUMMARIES.component,
 		header(v) {
 			const spec = specOf(v);
 			const keys = Object.keys(spec.fields);
@@ -224,10 +226,11 @@ const KINDS = [
 	},
 	{
 		test: (v) => v instanceof ComponentSpec,
+		summary: SUMMARIES.spec,
 		header: (spec) => [span(STYLES.muted, "ComponentSpec "), span(STYLES.name, spec.name)],
 		rows(spec) {
 			const rows = [];
-			for (const k in spec.fields) rows.push([k, span("", ...typeHeader(spec.fields[k]))]);
+			for (const k in spec.fields) rows.push([k, ref(spec.fields[k])]);
 			for (const k in spec.views) rows.push([`view ${k}`, ref(spec.views[k])]);
 			const methods = Object.keys(spec.methods);
 			if (methods.length > 0) rows.push(["methods", span(STYLES.fn, methods.join(", "))]);
@@ -240,11 +243,13 @@ const KINDS = [
 	},
 	{
 		test: (v) => v instanceof Type,
+		summary: SUMMARIES.type,
 		header: typeHeader,
 		rows: () => [],
 	},
 	{
 		test: (v) => v instanceof ViewNode,
+		summary: SUMMARIES.viewNode,
 		header: astHeader,
 		rows(node) {
 			if (!(node instanceof ElementNode)) return node.childNodes().map((c) => [null, ref(c)]);
@@ -257,16 +262,19 @@ const KINDS = [
 	},
 	{
 		test: (v) => v instanceof DispatchPath,
+		summary: SUMMARIES.path,
 		header: (path) => [span(STYLES.muted, "DispatchPath "), ...pathParts(path)],
 		rows: (path) => path.frames.map((f) => [null, ref(f)]),
 	},
 	{
 		test: (v) => v instanceof KeyPath,
+		summary: SUMMARIES.path,
 		header: (path) => [span(STYLES.muted, "KeyPath "), ...keyPathParts(path)],
 		rows: () => [],
 	},
 	{
 		test: (v) => v instanceof Frame,
+		summary: SUMMARIES.frame,
 		header: (frame) => [
 			span(STYLES.muted, frame.isNode ? "Frame (component) " : "Frame "),
 			...orRoot(frameParts(frame)),
@@ -275,11 +283,13 @@ const KINDS = [
 	},
 	{
 		test: (v) => v instanceof Selector,
+		summary: SUMMARIES.selector,
 		header: (sel) => [span(STYLES.muted, "Selector "), ...orRoot(sel.ops.flatMap(opParts))],
 		rows: () => [],
 	},
 	{
 		test: (v) => v instanceof Target,
+		summary: SUMMARIES.target,
 		header: (target) => [span(STYLES.muted, "Target "), ...targetParts(target)],
 		rows: (target) => [
 			["base", ref(target.base)],
@@ -288,6 +298,7 @@ const KINDS = [
 	},
 	{
 		test: (v) => v instanceof Task,
+		summary: SUMMARIES.task,
 		header: (task) => [
 			span(STYLES.muted, `${taskVerb(task)} `),
 			span(STYLES.name, task.name),
@@ -316,6 +327,7 @@ const KINDS = [
 	},
 	{
 		test: (v) => v instanceof Transition,
+		summary: SUMMARIES.transition,
 		header: (record) => [
 			span(
 				record.issues.length > 0 || record.outcome === "failed" ? STYLES.name : STYLES.muted,
@@ -337,6 +349,7 @@ const KINDS = [
 	},
 	{
 		test: (v) => v instanceof HostEvent,
+		summary: SUMMARIES.hostEvent,
 		header: (record) => [
 			span(STYLES.muted, "host event "),
 			span(STYLES.name, record.type),
@@ -346,6 +359,7 @@ const KINDS = [
 	},
 	{
 		test: (v) => v instanceof MessageContext,
+		summary: SUMMARIES.messageContext,
 		header(ctx) {
 			const parts = [span(STYLES.muted, "ctx "), ...pathParts(ctx.path)];
 			if (ctx.sourceKey !== null)
@@ -362,6 +376,7 @@ const KINDS = [
 	},
 	{
 		test: (v) => v instanceof Scope,
+		summary: SUMMARIES.scope,
 		header: (scope) => [
 			span(STYLES.muted, "Scope "),
 			"[",
@@ -377,6 +392,7 @@ const KINDS = [
 	},
 	{
 		test: (v) => v instanceof RenderContext,
+		summary: SUMMARIES.renderContext,
 		header: (ctx) => [
 			span(STYLES.muted, "RenderContext "),
 			prim(ctx.component),
@@ -405,11 +421,22 @@ const kindOf = (v) => {
 		return null; // e.g. a revoked immer draft
 	}
 };
-// The header (JsonML parts) and rows ([label | null, JsonML][]) the formatter shows for v,
-// or null when v isn't a tutuca value; for other UIs over the same information.
+// The header (JsonML parts) and rows ([label | null, JsonML][]) the formatter shows for v and
+// what v says in plain words (title, detail), or null when v isn't a tutuca value (or can't be
+// read: a revoked immer draft); for other UIs over the same information.
 export const describe = (v) => {
-	const kind = kindOf(v);
-	return kind === null ? null : { header: kind.header(v), rows: kind.rows(v) };
+	try {
+		const kind = kindOf(v);
+		if (kind === null) return null;
+		return { header: kind.header(v), rows: kind.rows(v), ...kind.summary(v) };
+	} catch {
+		return null;
+	}
+};
+// v in plain words, as { title, detail }: its kind's summary, else what it is in a few words.
+export const summarize = (v) => {
+	const { title = brief(v), detail = "" } = describe(v) ?? {};
+	return { title, detail };
 };
 const rowItem = ([label, value]) =>
 	label === null ? ["li", {}, value] : ["li", {}, span(STYLES.key, label), ": ", value];

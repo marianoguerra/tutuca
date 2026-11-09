@@ -10,7 +10,7 @@ import {
 	startSynced,
 	storageEngine,
 } from "../../src/sync/index.js";
-import { component, specOf, t, typeText } from "../../src/tutuca.js";
+import { component, findInvalid, specOf, t, typeText } from "../../src/tutuca.js";
 import { scopeWith, setupHost } from "../helpers.js";
 
 // The same components before and after an edit, each version registered with scopeWith in its
@@ -31,11 +31,8 @@ const made = () => {
 test("the same components carry everything and report nothing", () => {
 	const prev = made();
 	const scope = scopeWith({ List: List(), Item: v1 });
-	const { root, added, reset, dropped, broken } = carry(prev, scope);
-	assert.deepEqual(
-		{ added, reset, dropped, broken },
-		{ added: [], reset: [], dropped: [], broken: [] },
-	);
+	const { root, added, reset, dropped } = carry(prev, scope);
+	assert.deepEqual({ added, reset, dropped }, { added: [], reset: [], dropped: [] });
 	assert.equal(root.title, "todo");
 	assert.deepEqual(
 		root.items.map((i) => [i.label, i.done]),
@@ -122,10 +119,10 @@ test("invariants the carried state breaks are reported, and the state still carr
 			},
 		},
 	);
-	const { root, broken } = carry(made(), scopeWith({ List: fewer, Item: labelled }));
+	const { root } = carry(made(), scopeWith({ List: fewer, Item: labelled }));
 	assert.equal(root.items.length, 2);
 	assert.deepEqual(
-		broken.map((i) => [i.path, i.component, i.reason]),
+		findInvalid(root, null).map((i) => [i.path, i.component, i.reason]),
 		[
 			[["items", "1"], "Item", "invariant:labelled"],
 			[[], "List", "invariant:atMostOne"],

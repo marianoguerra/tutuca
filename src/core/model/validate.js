@@ -5,7 +5,7 @@
 import { isComponent, scopeOf, specOf } from "./spec.js";
 
 // Whether fn returns truthy without throwing.
-export function holds(fn) {
+function holds(fn) {
 	try {
 		return Boolean(fn());
 	} catch {

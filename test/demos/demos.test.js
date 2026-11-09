@@ -682,9 +682,9 @@ test("boot syncs any demo from the query: ?sync=local keeps the state in this br
 
 test("without ?sync a demo starts at once, its only engine the time travel history", () => {
 	const host = startNotes(page("").document);
-	assert.equal(host.engines.length, 1);
+	assert.equal(host.engines.list.length, 1);
 	assert.notEqual(host.root, null);
-	assert.equal(startNotes(page("?history=0").document).engines.length, 0);
+	assert.equal(startNotes(page("?history=0").document).engines.list.length, 0);
 });
 
 test("?sync=worker: tabs sync through the backend, and a new tab starts from it", async () => {

@@ -3,8 +3,8 @@
 // events leaving it are retargeted to the element, so the outer Host never sees inside.
 //
 // Protocol, both as bubbling CustomEvents on the element:
-// - REQUEST, on connect and when app-key changes. Its detail is { key, element, rootNode,
-//   document, adoptCss(text) → <style>, adoptLink(href), emit(type, data), mount(controller) }; a
+// - REQUEST, on connect and when app-key changes. Its detail is { key, rootNode,
+//   document, adoptCss(text) → <style>, emit(type, data), mount(controller) }; a
 //   listener mounts an app on rootNode and passes mount a controller with dispose().
 // - REPORT, sent by emit, with detail { key, type, data }. An outer view can handle it
 //   like any event: h("tutuca-app", { "app-key": ..., "on:tutucareport": send(...) }).
@@ -18,20 +18,19 @@ export const REQUEST = "tutucarequest";
 export const REPORT = "tutucareport";
 
 // Defines the element in window once; returns its class.
-export const defineTutucaApp = (window, tagName = "tutuca-app") => {
-	const existing = window.customElements.get(tagName);
+export const defineTutucaApp = (window) => {
+	const existing = window.customElements.get("tutuca-app");
 	if (existing !== undefined) return existing;
 	class TutucaApp extends window.HTMLElement {
 		static observedAttributes = ["app-key"];
 		controller = null;
-		mountedKey = null;
 		current = null; // The detail of the live request; emits from older ones are dropped.
 		get key() {
 			return this.getAttribute("app-key");
 		}
 		// A keyed move (insertBefore) disconnects and reconnects; keep the app through it.
 		connectedCallback() {
-			if (this.current === null || this.mountedKey !== this.key) this.request();
+			if (this.current?.key !== this.key) this.request();
 		}
 		disconnectedCallback() {
 			queueMicrotask(() => {
@@ -51,7 +50,6 @@ export const defineTutucaApp = (window, tagName = "tutuca-app") => {
 			let controller = null;
 			const detail = {
 				key,
-				element: this,
 				rootNode,
 				document: doc,
 				adoptCss: (text) => {
@@ -59,12 +57,6 @@ export const defineTutucaApp = (window, tagName = "tutuca-app") => {
 					style.textContent = text;
 					shadow.insertBefore(style, rootNode);
 					return style; // To update as the app needs more.
-				},
-				adoptLink: (href) => {
-					const link = doc.createElement("link");
-					link.rel = "stylesheet";
-					link.href = href;
-					shadow.insertBefore(link, rootNode);
 				},
 				emit: (type, data) =>
 					queueMicrotask(() => {
@@ -77,7 +69,6 @@ export const defineTutucaApp = (window, tagName = "tutuca-app") => {
 				},
 			};
 			this.current = detail;
-			this.mountedKey = key;
 			this.dispatchEvent(new window.CustomEvent(REQUEST, { bubbles: true, detail }));
 			if (controller === null) rootNode.textContent = `no app for ${key}`;
 			this.controller = controller;
@@ -86,11 +77,10 @@ export const defineTutucaApp = (window, tagName = "tutuca-app") => {
 			const { controller } = this;
 			this.controller = null;
 			this.current = null;
-			this.mountedKey = null;
 			controller?.dispose();
 		}
 	}
-	window.customElements.define(tagName, TutucaApp);
+	window.customElements.define("tutuca-app", TutucaApp);
 	return TutucaApp;
 };
 

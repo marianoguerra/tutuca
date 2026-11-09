@@ -8,7 +8,7 @@ import { hidden } from "./record.js";
 // ctx: what it does depends on the node and the args alone.
 // The handler's contract counts what it emits, not what ran before it in the task (an ask
 // handler, before the reply's).
-export const call = (handler, instance, next, args, ctx) => {
+const call = (handler, instance, next, args, ctx) => {
 	ctx.ran = { message: handler, args };
 	ctx.emitted = [];
 	const result = handler.pure

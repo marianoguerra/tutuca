@@ -2,18 +2,22 @@
 // and look into it with the story panels (src/panels). The element runs the code and sends the
 // stories of each run here; a new run gives the app a new key, so it mounts again.
 import { showArgs } from "../../history/bar.js";
-import { tabButton } from "../../panels/ui/common.js";
+import { appCard, tabButton } from "../../panels/ui/common.js";
 import {
-	applyAppReport,
 	makePanels,
+	PANEL_LABELS,
+	PANELS,
 	panelFields,
 	panelHandlers,
+	panelsView,
 	resetPanels,
 	storyApp,
 	withPanelQueries,
 } from "../../panels/ui/panels.js";
+import { storyAppKey } from "../../stories/key.js";
 import {
 	$if,
+	apply,
 	component,
 	each,
 	errorMessage,
@@ -28,8 +32,9 @@ import {
 
 const { div, option, p, pre, section, select, span } = tag;
 
-const TABS = ["preview", "steps", "stress", "dev"];
-const TAB_LABELS = { preview: "Preview", steps: "Steps", stress: "Stress test", dev: "Dev" };
+// What it shows: the app, or one of its panels with the app kept mounted.
+const TABS = ["preview", ...PANELS];
+const TAB_LABELS = { preview: "Preview", ...PANEL_LABELS };
 // The dev tab counts the lint issues of the run.
 const issueBadge = $if(
 	field("hasIssues"),
@@ -37,7 +42,7 @@ const issueBadge = $if(
 	"",
 );
 const playgroundTab = (name) =>
-	tabButton("setTab", name, TAB_LABELS[name], ...(name === "dev" ? [issueBadge] : []));
+	tabButton("setPanel", name, TAB_LABELS[name], ...(name === "dev" ? [issueBadge] : []));
 
 export const Playground = component({
 	name: "Playground",
@@ -46,21 +51,20 @@ export const Playground = component({
 		example: t.string(),
 		stories: t.array(t.record({ id: t.string(), label: t.string() })),
 		selectedId: t.string(),
-		seed: t.number().int().min(0),
 		run: t.number().int().min(0),
 		status: t.enum("loading", "ready", "failed"),
 		error: t.string(),
-		tab: t.enum(...TABS),
+		panel: t.enum(...TABS),
 		issueCount: t.number().int().min(0),
 		...panelFields,
 		travel: t.component("TimeTravel"), // Under the preview, over the story's timeline.
 	},
-	queries: withPanelQueries("tab", {
+	queries: withPanelQueries({
 		get appKey() {
-			return `r${this.run}/${this.selectedId}@${this.seed}`;
+			return storyAppKey(`r${this.run}/`, this.selectedId);
 		},
 		get isPreview() {
-			return this.tab === "preview";
+			return this.panel === "preview";
 		},
 		get hasExamples() {
 			return this.examples.length > 1;
@@ -138,19 +142,11 @@ export const Playground = component({
 						{ class: "flex flex-col gap-3" },
 						// The app stays mounted while other tabs show, so its state is kept.
 						section(
-							{
-								class: $if(
-									field("isPreview"),
-									"card border border-base-300 bg-base-100 p-4 shadow-sm",
-									"hidden",
-								),
-							},
+							{ class: $if(field("isPreview"), appCard, "hidden") },
 							storyApp(),
 							div({ class: "mt-3 empty:hidden" }, render(field("travel"))),
 						),
-						$if(field("isSteps"), render(field("story")), ""),
-						$if(field("isStress"), render(field("stress")), ""),
-						$if(field("isDev"), render(field("dev")), ""),
+						panelsView(),
 					),
 					$if(field("isLoading"), "", p({ class: "text-base-content/60" }, "Nothing to show.")),
 				),
@@ -217,27 +213,18 @@ export const Playground = component({
 				ctx.ask("playground", ["story", id]);
 			},
 		},
-		setTab: {
+		setPanel: {
 			args: [t.enum(...TABS)],
-			run(next, [tab]) {
-				next.tab = tab;
+			run(next, [panel]) {
+				next.panel = panel;
 			},
 		},
-		...panelHandlers("tab"),
-		// The panels' appReport, and the run's lint issues and timeline.
-		appReport(next, _args, ctx) {
-			const detail = ctx.event?.detail;
-			if (detail?.key === this.appKey && detail.type === "state") {
-				const { dev, timeline, cursor } = detail.data;
-				next.issueCount = dev?.issues.length ?? 0;
-				const [size, , label, origin] = showArgs({
-					size: timeline.length,
-					current: timeline[cursor],
-				});
-				Object.assign(next.travel, { target: this.appKey, size, cursor, label, origin });
-			}
-			applyAppReport(this, next, detail);
-		},
+		// Of the app's state reports, the run's lint issues and timeline too.
+		...panelHandlers((_self, next, { dev, timeline, cursor }) => {
+			next.issueCount = dev?.issues.length ?? 0;
+			const shown = showArgs({ size: timeline.length, cursor, current: timeline[cursor] });
+			next.travel = apply(next.travel, "show", ...shown);
+		}),
 	},
 	answers: {
 		playground: {
@@ -255,7 +242,7 @@ const showStory = (self, next, id) => {
 	next.selectedId = id;
 	next.issueCount = 0;
 	resetPanels(self, next);
-	next.travel = scopeOf(self).components.TimeTravel();
+	next.travel = scopeOf(self).components.TimeTravel({ target: next.appKey });
 };
 
 export const makePlayground = (C) =>

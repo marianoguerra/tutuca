@@ -92,21 +92,8 @@ export const handlerFor = (target, type, rootNode, root, bubbles = false) => {
 	}
 	return null;
 };
-// What each event arg (view.js's EventArg) reads from the ctx eventSend makes when the event
-// arrives.
-export const EVENT_ARGS = {
-	// The element with the handler: the click may land on a child of it, like an icon.
-	targetValue(ctx) {
-		const target = ctx.node ?? ctx.event.target;
-		return target.type === "checkbox" ? target.checked : target.value;
-	},
-	sourceKey: (ctx) => ctx.sourceKey,
-	// The key of the child the dragged element is in, as sourceKey is for the event's element;
-	// null when nothing, or something from outside the component, is dragged.
-	dragKey: (ctx) => ctx.drag?.sourceKeyIn(ctx.path) ?? null,
-};
 // The send event's handler makes: { name, args, to, node }, args as values worked out as the
-// event arrives, as a handler's context would (EVENT_ARGS read the event, the element with the
+// event arrives, as a handler's context would (view.js's EVENT_ARGS read the event, the element with the
 // handler, the drag and the key of the item the event reached); null when no handler takes it.
 export const eventSend = (event, rootNode, root, drag, bubbles = false) => {
 	const found = handlerFor(event.target, event.type, rootNode, root, bubbles);

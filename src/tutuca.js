@@ -3,9 +3,13 @@
 
 export { DRAG_EVENTS, DROP_EVENTS, Drag } from "./core/host/drag.js";
 export { browserEnv, Host } from "./core/host/host.js";
-export { FAILED_TYPES, HOST_EVENT_TYPES, HostEvent } from "./core/host/host-event.js";
-export { isProblem, problemLines, transitionLabel } from "./core/host/records.js";
-export { engineName } from "./core/host/sync-engines.js";
+export { HOST_EVENT_TYPES, HostEvent } from "./core/host/host-event.js";
+export {
+	FAILED_TYPES,
+	isProblem,
+	problemLines,
+	transitionLabel,
+} from "./core/host/records.js";
 export { componentHandlers, HandlerContext, HostTask } from "./core/host/tree-binding.js";
 export { ComponentSpec, component } from "./core/model/component.js";
 export {

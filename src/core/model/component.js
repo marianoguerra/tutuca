@@ -1,6 +1,6 @@
 // Component specs: component() turns options into a ComponentSpec that makes instances.
 import { immerable } from "../../../deps/immer.js";
-import { mint } from "../../tree/identity.js";
+import { mint } from "../../tree/index.js";
 import { toNode } from "../view/view.js";
 import { eventHandlersOf } from "../view/walk.js";
 import { toMeta } from "./component-meta.js";
@@ -19,9 +19,9 @@ export class ComponentSpec {
 		binds,
 		provides,
 		invariants,
-		queries = Object.create(null),
-		implements: implemented = [],
-		meta = toMeta(name, undefined),
+		queries,
+		implements: implemented,
+		meta,
 	}) {
 		this.name = name;
 		/** @type {Object<string, import("./types.js").Type>} */

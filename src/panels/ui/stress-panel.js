@@ -1,5 +1,6 @@
 // Stress tests of the selected story, and loading their counterexample as a sequence.
 
+import { STRESS_DEFAULTS } from "../../stories/stories.js";
 import { STRESS_IDLE } from "../../stories/stress.js";
 import {
 	$if,
@@ -26,6 +27,14 @@ const resultFields = {
 	commands: t.array(t.string()),
 	log: t.array(t.string()),
 };
+// A run's settings: the story's (stressSettings) until the user changes them.
+const settingFields = {
+	numRuns: t.number(STRESS_DEFAULTS.numRuns).int().min(1).max(100000),
+	maxCommands: t.number(STRESS_DEFAULTS.maxCommands).int().min(1).max(1000),
+	seed: t.number(STRESS_DEFAULTS.seed).int(),
+	from: t.enum("story", "generated", "current"),
+	events: t.boolean(),
+};
 // A labeled number input for the numeric option name.
 const numberInput = (name, text) =>
 	label(
@@ -43,11 +52,8 @@ export const StressPanel = component({
 	name: "StressPanel",
 	fields: {
 		appKey: t.string(),
-		numRuns: t.number(100).int().min(1).max(100000),
-		maxCommands: t.number(20).int().min(1).max(1000),
-		seed: t.number(1).int(),
-		from: t.enum("story", "generated", "current"),
-		events: t.boolean(),
+		...settingFields,
+		isSet: t.boolean(), // The settings are its story's or the user's, not the defaults.
 		...resultFields,
 	},
 	queries: {
@@ -161,6 +167,14 @@ export const StressPanel = component({
 			args: [t.record(resultFields)],
 			run(next, [result]) {
 				Object.assign(next, result);
+			},
+		},
+		// The settings of its app's story, from its first state report; later ones change nothing.
+		showSettings: {
+			pure: true,
+			args: [t.record(settingFields)],
+			run(next, [settings]) {
+				if (!this.isSet) Object.assign(next, settings, { isSet: true });
 			},
 		},
 		setNumber: {

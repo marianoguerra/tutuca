@@ -6,8 +6,15 @@ import { Driver, describeProblems } from "../testing/driver.js";
 import { arbitraries, eventCommands, messageCommands, runCommands } from "../testing/pbt.js";
 import { DispatchPath, errorMessage, Scope, selectorFrom, specOf } from "../tutuca.js";
 
+// Where a step's to and from say: a selector fn is run; anything else (a DispatchPath, frames)
+// is as Driver.send takes it. The root and no child, without one.
+const whereOf = (where, none) =>
+	where === undefined ? none : typeof where === "function" ? selectorFrom(where) : where;
+const toOf = (to) => whereOf(to, new DispatchPath());
+const toText = (to) => (to === undefined ? "·" : String(toOf(to)));
 // Steps of a sequence, as plain data. to and from are selector functions relative to
-// the story root, as in ctx.sendAt; from is the child the message comes through.
+// the story root, as in ctx.sendAt (or what they'd write, as Driver.send takes it); from is the
+// child the message comes through.
 export const step = {
 	send: (name, args = [], { to, from, label } = {}) => ({
 		kind: "send",
@@ -15,7 +22,7 @@ export const step = {
 		args,
 		to,
 		from,
-		label: label ?? `${to ? selectorFrom(to) : "·"}.${name}(${argsLabel(args)})`,
+		label: label ?? `${toText(to)}.${name}(${argsLabel(args)})`,
 	}),
 	// value, when given, is set on the form field first, as targetValue() reads it.
 	event: (type, selector, { value, label } = {}) => ({
@@ -34,16 +41,11 @@ export const step = {
 	}),
 	// The answer to an ask, delivered to the component at to (the root without one): for its
 	// answers[ask][outcome], with value as the answer's argument (none for unhandled).
-	answer: (ask, outcome, value, { to, label } = {}) => ({
-		kind: "answer",
-		ask,
-		outcome,
-		args: outcome === "unhandled" ? [] : [value],
-		to,
-		label:
-			label ??
-			`${to ? selectorFrom(to) : "·"} ← ${ask}.${outcome}(${argsLabel(outcome === "unhandled" ? [] : [value])})`,
-	}),
+	answer: (ask, outcome, value, { to, label } = {}) => {
+		const args = outcome === "unhandled" ? [] : [value];
+		const text = label ?? `${toText(to)} ← ${ask}.${outcome}(${argsLabel(args)})`;
+		return { kind: "answer", ask, outcome, args, to, label: text };
+	},
 	check: (label, pred) => ({ kind: "check", label, pred }),
 	// A MessageCommand or EventCommand from pbt.js.
 	command: (cmd, label) => ({ kind: "command", cmd, label }),
@@ -90,17 +92,12 @@ export const runStep = (driver, s) => {
 	};
 	try {
 		switch (s.kind) {
-			case "send": {
-				const to = s.path ?? (s.to ? selectorFrom(s.to) : new DispatchPath());
-				const from = s.fromFrames ?? (s.from ? selectorFrom(s.from) : []);
-				driver.send(s.name, s.args, { to, from });
+			case "send":
+				driver.send(s.name, s.args, { to: toOf(s.to), from: whereOf(s.from, []) });
 				break;
-			}
-			case "answer": {
-				const to = s.to ? selectorFrom(s.to) : new DispatchPath();
-				driver.answer(s.ask, s.outcome, s.args, { to });
+			case "answer":
+				driver.answer(s.ask, s.outcome, s.args, { to: toOf(s.to) });
 				break;
-			}
 			case "event": {
 				if (typeof driver.rootNode.querySelector !== "function") {
 					return done("failed", "event steps need a document");
@@ -157,6 +154,22 @@ export const checkStory = (story, { fc, document = null }) => {
 
 // The fc property of story's stress test: sequences of messages, or of events with a
 // document, from root or, with from "generated", from instances of the root's spec.
+// A stress run's settings: story.stress says numRuns, maxCommands and events, the rest and
+// what it leaves out are STRESS_DEFAULTS.
+export const STRESS_DEFAULTS = {
+	numRuns: 50,
+	maxCommands: 20,
+	seed: 1,
+	from: "story",
+	events: false,
+};
+export const stressSettings = (story) => {
+	const settings = { ...STRESS_DEFAULTS };
+	for (const key of ["numRuns", "maxCommands", "events"]) {
+		if (story.stress?.[key] !== undefined) settings[key] = story.stress[key];
+	}
+	return settings;
+};
 // onRun(ops, error), when given, is called after each run with the text of the commands
 // that ran and the error that failed it, or null.
 export const stressProperty = (
@@ -165,9 +178,9 @@ export const stressProperty = (
 		fc,
 		A,
 		root,
-		from = "story",
-		events = story.stress?.events ?? false,
-		maxCommands = story.stress?.maxCommands ?? 20,
+		from = STRESS_DEFAULTS.from,
+		events = stressSettings(story).events,
+		maxCommands = stressSettings(story).maxCommands,
 		document = null,
 		onRun = null,
 	},
@@ -195,5 +208,5 @@ export const stressProperty = (
 export const stressStory = (story, { fc, document = null, numRuns, seed, ...options } = {}) => {
 	const { A, root } = prepareStory(story, { fc });
 	const property = stressProperty(story, { fc, A, root, document, ...options });
-	fc.assert(property, { numRuns: numRuns ?? story.stress?.numRuns ?? 50, seed });
+	fc.assert(property, { numRuns: numRuns ?? stressSettings(story).numRuns, seed });
 };

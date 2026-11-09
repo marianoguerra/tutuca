@@ -11,8 +11,8 @@ export {
 	Task,
 } from "./messages.js";
 export { DispatchPath, Frame, KeyPath, Selector, selectorFrom, Target } from "./path.js";
-export { hidden, plainOf } from "./record.js";
+export { hidden, plainOf, Record } from "./record.js";
 export { Scheduler } from "./scheduler.js";
-export { errorMessage, jsonText, keyText } from "./text.js";
+export { errorMessage, jsonText, keyText, pathText } from "./text.js";
 export { TRANSITION_OUTCOMES, Transition } from "./transition.js";
 export { WATCH_OUTCOMES, Watch } from "./watch.js";

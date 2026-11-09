@@ -1,16 +1,15 @@
 // Views: the AST nodes view builders make, how they evaluate to vnodes, and the render context.
 
-import { DispatchPath, Frame, selectorFrom } from "../../tree/path.js";
+import { DispatchPath, Frame, selectorFrom } from "../../tree/index.js";
 import { addChild, toVChildren, VFragment, VNode } from "../../vdom/index.js";
-import { EVENT_ARGS } from "../host/events.js";
 import { isComponent, specOf } from "../model/spec.js";
 import { planElement } from "./element-plan.js";
-import { componentMarker, frameMarker, wrapMarkers } from "./markers.js";
+import { wrapComponent, wrapFrame } from "./markers.js";
 
 export const renderView = (instance, ctx, viewName) => {
 	const spec = specOf(instance);
 	const view = ctx.getBestViewFor(spec, viewName);
-	return wrapMarkers(componentMarker(), view.eval(ctx.with({ component: instance })));
+	return wrapComponent(view.eval(ctx.with({ component: instance })));
 };
 export class ViewNode {
 	static kind = "node"; // The Walker method it dispatches to.
@@ -31,7 +30,7 @@ export class FieldNode extends ViewNode {
 		return ctx.it[this.name];
 	}
 	toFrame(_ctx) {
-		return new Frame([this.name], null, null, true);
+		return Frame.node(this.name);
 	}
 }
 export const field = (name) => new FieldNode(name);
@@ -64,7 +63,7 @@ export class SeqItemNode extends ViewNode {
 		return ctx.it[this.seqName][key];
 	}
 	toFrame(ctx) {
-		return new Frame([this.seqName], ctx.it[this.keyName] ?? null, null, true);
+		return Frame.node(this.seqName, ctx.it[this.keyName] ?? null);
 	}
 }
 export const seqItem = (seqName, keyName) => new SeqItemNode(seqName, keyName);
@@ -160,7 +159,7 @@ export class RenderNode extends ViewNode {
 	eval(ctx) {
 		const child = this.source.eval(ctx);
 		const frame = this.source.toFrame(ctx);
-		return wrapMarkers(frameMarker(frame), renderView(child, ctx.enterFrame(child), this.viewName));
+		return wrapFrame(frame, renderView(child, ctx.enterFrame(child), this.viewName));
 	}
 	childNodes() {
 		return [this.source];
@@ -192,7 +191,7 @@ const loopFragments = (ctx, source, loopName, renderItem) => {
 		const base = { value, key };
 		const binds = loop.enrich ? { ...loop.enrich.call(self, base, state), value, key } : base;
 		const dom = renderItem(ctx.enterFrame(value, binds), loop);
-		nodes.push(new VFragment(toVChildren(wrapMarkers(frameMarker(frame), dom)), fragmentKey));
+		nodes.push(new VFragment(toVChildren(wrapFrame(frame, dom)), fragmentKey));
 	}
 	return new VFragment(nodes);
 };
@@ -288,6 +287,18 @@ export class SendNode extends ViewNode {
 	}
 }
 export const send = (name, ...args) => new SendNode(name, args.map(toNode));
+// What each event arg reads from the ctx the host makes when the event arrives (eventSend).
+const EVENT_ARGS = {
+	// The element with the handler: the click may land on a child of it, like an icon.
+	targetValue(ctx) {
+		const target = ctx.node ?? ctx.event.target;
+		return target.type === "checkbox" ? target.checked : target.value;
+	},
+	sourceKey: (ctx) => ctx.sourceKey,
+	// The key of the child the dragged element is in, as sourceKey is for the event's element;
+	// null when nothing, or something from outside the component, is dragged.
+	dragKey: (ctx) => ctx.drag?.sourceKeyIn(ctx.path) ?? null,
+};
 // A send arg that reads the event, not the state: one of EVENT_ARGS, by name.
 export class EventArgNode extends ViewNode {
 	static kind = "eventArg";

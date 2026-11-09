@@ -3,14 +3,11 @@
 // and render contexts, each node expanding into its rows. The main views say it in plain
 // words (dev/summary.js); the code views print it as dev/formatters.js does.
 
-import { truncate } from "../../core/host/text.js";
-import { describe, isObject, STYLES } from "../../dev/formatters.js";
-import { summarize } from "../../dev/summary.js";
+import { describe, isObject, prim, STYLES, summarize } from "../../dev/formatters.js";
 import { CLASSES_META } from "../../meta/classes.js";
 import {
 	$if,
 	apply,
-	ComponentSpec,
 	component,
 	each,
 	field,
@@ -54,7 +51,6 @@ const TONES = {
 	muted: "opacity-60",
 };
 const TONE_OF_STYLE = new Map(Object.entries(STYLES).map(([tone, style]) => [style, tone]));
-const MAX_TEXT = 60;
 
 // JsonML parts as { text, tone } tokens; adjacent tokens of one tone merge.
 const tokensOf = (parts) => {
@@ -75,40 +71,21 @@ const tokensOf = (parts) => {
 	for (const part of parts) visit(part, "plain");
 	return tokens;
 };
-const primTokens = (v) => {
-	if (typeof v === "string") return [{ text: truncate(JSON.stringify(v), MAX_TEXT), tone: "str" }];
-	if (typeof v === "function") return [{ text: `ƒ ${v.name}`, tone: "fn" }];
-	if (typeof v === "number" || typeof v === "boolean" || typeof v === "bigint") {
-		return [{ text: String(v), tone: "num" }];
-	}
-	return [{ text: String(v), tone: "muted" }];
-};
 const entriesOf = (v) => {
 	if (v instanceof Map) return [...v.entries()].map(([k, x]) => ({ label: String(k), value: x }));
 	if (v instanceof Set) return [...v].map((x, i) => ({ label: String(i), value: x }));
 	return Object.keys(v).map((k) => ({ label: k, value: v[k] }));
 };
-const safeDescribe = (v) => {
-	try {
-		return describe(v);
-	} catch {
-		return null; // e.g. a revoked immer draft
-	}
-};
 // What a node shows for v: header tokens, and rows as { label, value } to expand into nodes
 // or { label, tokens } leaves.
-export const inspect = (v) => {
-	if (!isObject(v) || typeof v === "function") return { tokens: primTokens(v), rows: [] };
-	const described = safeDescribe(v);
+const inspect = (v) => {
+	if (!isObject(v) || typeof v === "function") return { tokens: tokensOf([prim(v)]), rows: [] };
+	const described = describe(v);
 	if (described !== null) {
-		// A spec's field types expand as types, so the readable view can name them.
-		const fields = v instanceof ComponentSpec ? v.fields : {};
 		const rows = described.rows.map(([label, value]) =>
-			Object.hasOwn(fields, label)
-				? { label, value: fields[label] }
-				: value[0] === "object"
-					? { label: label ?? "", value: value[1].object }
-					: { label: label ?? "", tokens: tokensOf([value]) },
+			value[0] === "object"
+				? { label: label ?? "", value: value[1].object }
+				: { label: label ?? "", tokens: tokensOf([value]) },
 		);
 		return { tokens: tokensOf(described.header), rows };
 	}
@@ -232,7 +209,7 @@ export const DevNode = component({
 const sectionTitle = "text-xs font-semibold uppercase tracking-wider text-base-content/60";
 
 // A titled list of nodes.
-export const DevSection = component({
+const DevSection = component({
 	name: "DevSection",
 	fields: {
 		title: t.string(),
@@ -333,7 +310,7 @@ export const lintRecords = (issues) =>
 // Dev information about a running app: its state, the transitions that made it, its components
 // and their lint issues. update() keeps the nodes whose values didn't change, so what is
 // open stays open.
-const card = (name) =>
+const sectionCard = (name) =>
 	div({ class: "card border border-base-300 bg-base-100 p-4" }, render(field(name)));
 const VIEW_BUTTON = "btn btn-xs join-item";
 export const DevPanel = component({
@@ -376,8 +353,12 @@ export const DevPanel = component({
 			field("view"),
 			div(
 				{ class: "grid gap-4 xl:grid-cols-2" },
-				div({ class: "flex min-w-0 flex-col gap-4" }, card("state"), card("transitions")),
-				div({ class: "flex min-w-0 flex-col gap-4" }, card("specs"), card("lint")),
+				div(
+					{ class: "flex min-w-0 flex-col gap-4" },
+					sectionCard("state"),
+					sectionCard("transitions"),
+				),
+				div({ class: "flex min-w-0 flex-col gap-4" }, sectionCard("specs"), sectionCard("lint")),
 			),
 		),
 	),

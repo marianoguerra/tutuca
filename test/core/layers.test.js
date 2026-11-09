@@ -1,6 +1,6 @@
 // src/core's layers: the model (specs, types, contracts, scopes) knows nothing of the host that
 // runs it, and of the views only what component() needs to build a spec's; the views know
-// nothing of the host but how an event's args are read.
+// nothing of the host.
 import assert from "node:assert/strict";
 import { readdirSync, readFileSync } from "node:fs";
 import { test } from "node:test";
@@ -29,6 +29,6 @@ test("the model imports nothing from the host, and from the views only to build 
 	]);
 });
 
-test("the views import from the host only how event args are read", () => {
-	assert.deepEqual(from(importsOf("view"), "host"), ["view.js ../host/events.js"]);
+test("the views import nothing from the host", () => {
+	assert.deepEqual(from(importsOf("view"), "host"), []);
 });

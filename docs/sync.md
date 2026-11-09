@@ -219,7 +219,7 @@ An engine is an object:
 	name: "storage",             // optional: what reports call it; else its place, "engine 0"
 	level: "shared" | "local",   // the fields it sees
 	load() {},                   // optional: its stored projection, or null
-	attach(link) {},             // optional: link.host, link.root(), link.apply(producer, info)
+	attach(link) {},             // optional: link.host, link.root(), link.apply(producer, info), link.report(type, fields)
 	prepare(change) {},          // optional: { prev, next, task }; task is null for changes from
 	                             // elsewhere. The work that can fail on the change; returns what
 	                             // commit writes
@@ -234,8 +234,8 @@ An engine is an object:
   `link.apply((draft) => applyStateOps(draft, ops, link.host.scope, { level, onMigrate }))`.
   Apply it **when it arrives**, not later: its ops are paths into the state as it is now.
   `onMigrate(report)` is called when ops from a peer on another version had to be changed to
-  fit; the included engines pass it on as
-  `host.report("migrated", { engine: host.engineName(engine), ...report })`.
+  fit; the included engines pass it on as `link.report("migrated", report)`, which reports a
+  host event naming the engine.
 - An engine that keeps a copy of the state (a document, a server's projection) writes each
   change's ops with `writeFitting(copy, ops, next, { scope, level, write })`, so they fit the
   copy even where this version of the components made the state differ from it. To bring the
@@ -300,8 +300,8 @@ takes its default and the others stay, whether it came in a stored projection or
 - `dropped`: paths of fields the components don't declare, and of values that can't be made.
 
 `rebuild(plain, scope, { level })` makes a projection into a state this way and returns
-`{ root, added, reset, dropped, broken }`, `broken` being what `findInvalid` finds in
-`root`, invariants included. It throws when a component the data holds is gone or a field has no
+`{ root, added, reset, dropped }`. It doesn't check `root`'s invariants (`findInvalid(root, null)`
+does, and a host's dev checks report them). It throws when a component the data holds is gone or a field has no
 default. `startSynced` and `remoteEngine`'s reload use it; when the stored data didn't fit as is,
 the host reports a `migrated` host event with the report (`engine` is `null` for `startSynced`).
 

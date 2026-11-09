@@ -3,11 +3,11 @@
 // handlers and pure messages, not by its ancestors'. What breaks is returned as issues, which
 // the host puts on the record (a Transition or a HostEvent) of what caused them.
 import { produce } from "../../deps/immer.js";
-import { keyText } from "../core/host/text.js";
+import { leafProduce } from "../core/host/tree-binding.js";
 import { trackApplies } from "../core/model/contract.js";
 import { isComponent, specOf } from "../core/model/spec.js";
 import { findInvalid, messageIssues } from "../core/model/validate.js";
-import { idOf } from "../tree/identity.js";
+import { idOf, pathText } from "../tree/index.js";
 
 // The writes from prev to next, the component a task (or host.apply) handled before and after,
 // that changed another component's own data, as { path, owner, field }: a component under it
@@ -44,7 +44,7 @@ export const foreignWrites = (prev, next, ids) => {
 		for (const field of Object.keys(specOf(b).fields)) {
 			if (dataChanged(a[field], b[field], [...path, field]) && !own) {
 				const write = {
-					path: [...path, field].map(keyText).join(""),
+					path: pathText([...path, field]),
 					owner: specOf(b).name,
 					field,
 				};
@@ -86,18 +86,14 @@ const stateIssuesOf = (root, prevRoot, check) =>
 // puts them on the report of what caused them.
 export class DevChecks {
 	constructor() {
-		this.settledRoot = null; // The root as of the last empty queue, for settled.
 		this.writes = []; // The foreign writes of the last transaction, for message.
 	}
 	start(root) {
-		this.settledRoot = root;
 		return this.state(null, null, root);
 	}
 	// A task's transaction, as the host's, recording the foreign writes it makes.
 	transact(root, path, fn) {
-		const [next, ids] = trackApplies(() =>
-			produce(root, (rootDraft) => path.setIn(rootDraft, fn(path.getIn(rootDraft)))),
-		);
+		const [next, ids] = trackApplies(() => leafProduce(root, path, fn));
 		this.writes = foreignWrites(path.getIn(root), path.getIn(next), ids);
 		return next;
 	}
@@ -113,12 +109,8 @@ export class DevChecks {
 	state(task, prevRoot, root) {
 		return stateIssuesOf(root, prevRoot, { fields: true, invariants: task === null });
 	}
-	// Once the queue is empty, the invariants of what changed since it last was; null when the
-	// root is the one it checked last time.
-	settled(root) {
-		if (this.settledRoot === root) return null;
-		const prevRoot = this.settledRoot;
-		this.settledRoot = root;
+	// Once the queue is empty, the invariants of what changed since it last was, at prevRoot.
+	settled(prevRoot, root) {
 		return stateIssuesOf(root, prevRoot, { fields: false, invariants: true });
 	}
 	// The message the task's handler ran, against its spec, from prev to next, and the foreign

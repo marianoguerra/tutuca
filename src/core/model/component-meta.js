@@ -4,7 +4,7 @@
 // which the components registered there are checked and from which metaOf fills defaults.
 
 import { scopeOf, specOf } from "./spec.js";
-import { isRecord } from "./types.js";
+import { isRecord, unlessNoDefault } from "./types.js";
 
 const emptyMeta = Object.freeze(Object.create(null));
 const noMeta = Object.freeze({});
@@ -35,11 +35,10 @@ export const metaProblems = (uri, values, shape, scope = null) => {
 			}
 			continue;
 		}
-		try {
-			type.make(undefined, scope);
-		} catch {
-			problems.push(`its meta ${uri} lacks ${key}, which has no default`);
-		}
+		unlessNoDefault(
+			() => type.make(undefined, scope),
+			() => problems.push(`its meta ${uri} lacks ${key}, which has no default`),
+		);
 	}
 	return problems;
 };
@@ -54,9 +53,12 @@ export const metaOf = (c, uri, scope = scopeOf(c)) => {
 const defaultsOf = (shape, scope) => {
 	const out = {};
 	for (const key in shape) {
-		try {
-			out[key] = shape[key].make(undefined, scope);
-		} catch {} // No default: only what c gives.
+		unlessNoDefault(
+			() => {
+				out[key] = shape[key].make(undefined, scope);
+			},
+			() => {}, // No default: only what c gives.
+		);
 	}
 	return out;
 };

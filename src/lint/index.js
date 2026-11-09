@@ -59,6 +59,8 @@ const labelOf = (node, kind) => {
 			return node.tagName;
 		case "field":
 		case "provided":
+		case "send":
+		case "query":
 			return `${kind}(${node.name})`;
 		case "seqItem":
 			return `seqItem(${node.seqName}, ${node.keyName})`;
@@ -67,16 +69,22 @@ const labelOf = (node, kind) => {
 			return `${kind}(${node.loopName ?? ""})`;
 		case "withBinds":
 			return `withBinds(${node.bindsName})`;
-		case "send":
-		case "query":
-			return `${kind}(${node.name})`;
 		case "eventArg":
 			return node.name;
 		default:
 			return kind;
 	}
 };
-// What a node a class attribute computes its class from reads, as a view writes it.
+// What each meta convention says a spec declares that it can't do, by the code lint reports it
+// with: tools naming no message or query, a load that isn't a pure one-arg message, classes
+// that aren't a string of class names.
+const META_PROBLEMS = [
+	["agent-meta", agentProblems],
+	["data-meta", dataProblems],
+	["classes-meta", classesProblems],
+];
+// What a node a class attribute computes its class from reads, as a view writes it: a path
+// labels a bind lookup by its kind alone.
 const sourceText = (node) => {
 	const kind = kindOf(node);
 	return kind === "lookupBind" ? `lookupBind(${node.name})` : labelOf(node, kind);
@@ -109,7 +117,7 @@ export class Lint extends Walker {
 		// The interface names registrations say they implement, which fields can hold.
 		this.implementedNames = new Set(
 			this.registrations.flatMap((spec) =>
-				(spec.implements ?? []).map((it) => (it instanceof Interface ? it.name : it)),
+				spec.implements.map((it) => (it instanceof Interface ? it.name : it)),
 			),
 		);
 		this.spec = null;
@@ -143,35 +151,22 @@ export class Lint extends Walker {
 	// component() already rejects a missing main view and copies each section into an
 	// object, so only the entries are left to check.
 	lintSpec(spec) {
-		// What its agent meta says it can't do: tools naming no message or query, wrong params.
-		for (const problem of agentProblems(spec)) this.report("error", "agent-meta", null, problem);
-		// What its data meta says it can't do: a load that isn't a pure one-arg message.
-		for (const problem of dataProblems(spec)) this.report("error", "data-meta", null, problem);
-		// What its classes meta says that isn't a string of class names.
-		for (const problem of classesProblems(spec)) {
-			this.report("error", "classes-meta", null, problem);
+		for (const [code, problemsOf] of META_PROBLEMS) {
+			for (const problem of problemsOf(spec)) this.report("error", code, null, problem);
 		}
-		for (const [name, fn] of Object.entries(spec.provides)) {
-			if (typeof fn !== "function") {
-				this.report("error", "section-shape", null, `provides.${name} must be a function`);
-			}
-		}
+		this.functionsIn("provides", spec.provides);
 		for (const [name, message] of Object.entries(spec.on)) {
 			this.lintMessage(`on.${name}`, message);
 		}
 		this.lintAnswers(spec);
 		this.lintQueries(spec);
 		// A computed property is a query: methods are the component's own helpers.
-		for (const [name, d] of Object.entries(Object.getOwnPropertyDescriptors(spec.methods ?? {}))) {
+		for (const [name, d] of Object.entries(Object.getOwnPropertyDescriptors(spec.methods))) {
 			if (d.get === undefined) continue;
 			const text = `methods.${name} is a getter: move it to queries, where computed properties go`;
 			this.report("warning", "getter-in-methods", null, text);
 		}
-		for (const [name, fn] of Object.entries(spec.binds)) {
-			if (typeof fn !== "function") {
-				this.report("error", "section-shape", null, `binds.${name} must be a function`);
-			}
-		}
+		this.functionsIn("binds", spec.binds);
 		for (const [name, loop] of Object.entries(spec.loops)) {
 			this.lintLoop(name, loop);
 		}
@@ -242,20 +237,23 @@ export class Lint extends Walker {
 			}
 		}
 	}
+	// Reports the entries of record that aren't functions: every one, or those of names that
+	// are there.
+	functionsIn(label, record, names = null) {
+		for (const name of names ?? Object.keys(record)) {
+			if (typeof record[name] === "function") continue;
+			if (names !== null && record[name] === undefined) continue;
+			this.report("error", "section-shape", null, `${label}.${name} must be a function`);
+		}
+	}
 	lintMessage(label, message) {
 		const bad = (what) => this.report("error", "section-shape", null, `${label}${what}`);
 		if (!(message instanceof HandlerSpec)) return bad(" must be a function or a handler spec");
-		const { run, args, sourceKey, pre, post, emits } = message;
+		const { run, args, sourceKey, emits } = message;
 		if (typeof run !== "function") bad(".run must be a function");
 		if (args !== undefined && !isTypeList(args)) bad(".args must be an array of types");
 		if (sourceKey !== undefined && !(sourceKey instanceof Type)) bad(".sourceKey must be a type");
-		for (const [hook, fn] of [
-			["pre", pre],
-			["why", message.why],
-			["post", post],
-		]) {
-			if (fn !== undefined && typeof fn !== "function") bad(`.${hook} must be a function`);
-		}
+		this.functionsIn(label, message, ["pre", "why", "post"]);
 		if (emits !== undefined) {
 			const kinds = Object.entries(isRecord(emits) ? emits : { "": null });
 			if (kinds.some(([kind, names]) => !EMIT_KINDS.has(kind) || !Array.isArray(names))) {
@@ -276,7 +274,7 @@ export class Lint extends Walker {
 	// queries: getters, functions, { get, returns } or { run, args, returns }. They read: one
 	// that assigns to this changes what it was asked about.
 	lintQueries(spec) {
-		for (const [name, q] of Object.entries(spec.queries ?? {})) {
+		for (const [name, q] of Object.entries(spec.queries)) {
 			const bad = (what) => this.report("error", "section-shape", null, `queries.${name}${what}`);
 			if (!(q instanceof QuerySpec)) {
 				bad(" must be a getter, a function, { get, returns } or { run, args, returns }");
@@ -308,11 +306,7 @@ export class Lint extends Walker {
 			this.report("error", "section-shape", null, `loops.${name} must be an object`);
 			return;
 		}
-		for (const hook of LOOP_HOOKS) {
-			if (loop[hook] !== undefined && typeof loop[hook] !== "function") {
-				this.report("error", "section-shape", null, `loops.${name}.${hook} must be a function`);
-			}
-		}
+		this.functionsIn(`loops.${name}`, loop, LOOP_HOOKS);
 		if (loop.view !== undefined) {
 			if (typeof loop.view !== "string") {
 				this.report("error", "loop-view-type", null, `loops.${name}.view must be a string`);
@@ -429,7 +423,7 @@ export class Lint extends Walker {
 	}
 	// $query(name, ...args): one of the component's queries that takes args.
 	query(node) {
-		const q = this.spec.queries?.[node.name];
+		const q = this.spec.queries[node.name];
 		if (!(q instanceof QuerySpec)) {
 			this.report("error", "unknown-query", node, `${this.spec.name} has no query "${node.name}"`);
 		} else if (q.kind !== "call") {

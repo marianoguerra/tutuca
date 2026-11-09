@@ -175,7 +175,7 @@ test("a handler that breaks the schema is found with a minimal sequence", () => 
 			{ seed: 1 },
 		),
 	);
-	assert.match(message, /Item at ·\.inc\(\) broke:\n {2}invalid state: Item count invalid/);
+	assert.match(message, /Item at ·\.inc\(\) broke:\n {2}invalid state: Item \.count invalid/);
 });
 
 test("a tab switch that forgets the old tab breaks the invariant", () => {

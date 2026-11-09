@@ -42,7 +42,7 @@ export class MessageContext {
 	notify(name, args = []) {
 		this.emitted.push({ kind: "notify", name, args });
 		if (this.path.isRootPath) this.reportUnhandled(name, null);
-		else this.push(NotifyTask, name, args, null);
+		else this.tasks.push(new NotifyTask(name, args, this.address, null, this.task));
 	}
 	// Asks the host; returns the request's id, which its answer's handler reads as ctx.request.
 	// Detached, the ask and its answer are in no watch: nothing waits for them.
@@ -86,6 +86,7 @@ export class MessageContext {
 	cancel(id) {
 		this.cancels.push(id);
 	}
+	// Sends the message being handled on, as it is, down the path the selector fn writes.
 	forwardAt(selectorFn) {
 		this.sendAt(this.task.name, this.task.args, selectorFn);
 	}
@@ -98,15 +99,9 @@ export class MessageContext {
 		if (this.task.from.isHost) return this.reportUnhandled(name, null);
 		this.tasks.push(new Task(name, args, this.address, this.task.from, this.task));
 	}
-	// What an ask's handler gets: what it can read, and nothing to send with, so nothing it does
-	// outlives the ask's task.
-	readOnly() {
-		return Object.freeze(this.readable());
-	}
+	// What an ask's handler gets (frozen, in startAsk): what it can read, and nothing to send
+	// with, so nothing it does outlives the ask's task.
 	readable() {
 		return { path: this.path, sourceKey: this.sourceKey };
-	}
-	push(TaskClass, name, args, target) {
-		this.tasks.push(new TaskClass(name, args, this.address, target, this.task));
 	}
 }

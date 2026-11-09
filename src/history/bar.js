@@ -4,11 +4,10 @@
 // one, with a historyEngine, next to a live Host.
 
 import { $if, button, component, field, Host, send, t, tag, targetValue } from "../tutuca.js";
-import { historyEngine, ORIGINS } from "./index.js";
+import { historyEngine, MOVES, ORIGINS } from "./index.js";
 
 const { div, input, span } = tag;
 
-const OPS = ["goto", "back", "forward", "toStart", "toEnd"];
 const BUTTON = "btn btn-xs btn-ghost font-mono";
 const KEYS = { ArrowLeft: "back", ArrowRight: "forward", Home: "toStart", End: "toEnd" };
 // The step buttons: [op, title, the query that disables it, glyph].
@@ -87,13 +86,14 @@ export const TimeTravel = component({
 	),
 	on: {
 		show: {
+			pure: true,
 			args: [t.number().int().min(0), t.number().int().min(0), t.string(), t.string()],
 			run(next, [size, cursor, label, origin]) {
 				Object.assign(next, { size, cursor, label, origin });
 			},
 		},
 		op: {
-			args: [t.enum(...OPS)],
+			args: [t.enum(...MOVES)],
 			emits: { ask: ["history"] },
 			run(_next, [op], ctx) {
 				ctx.ask("history", [this.target, op, null]);

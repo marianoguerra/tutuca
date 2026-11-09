@@ -173,6 +173,8 @@ test("a stress run from the UI reports its result", async () => {
 	await settle();
 	click(byText('[role="tab"]', "Stress test"));
 	await settle();
+	// The panel starts with the story's own stress settings.
+	assert.equal(host.root.stress.maxCommands, 10);
 	const numRuns = rootNode.querySelector('input[type="number"]');
 	numRuns.value = "15";
 	numRuns.dispatchEvent(new numRuns.ownerDocument.defaultView.Event("input", { bubbles: true }));

@@ -1,24 +1,35 @@
 // Runs stories live in <tutuca-app>s for the UI: a StoryRunner per mounted app, with a timeline
 // of states, and the StoryRegistry that answers the UI's "story" asks.
 
-import { argsLabel, jsonText } from "../core/host/text.js";
+import { argsLabel } from "../core/host/text.js";
 import { ClassCompiler } from "../css/classes.js";
 import { Timeline } from "../history/index.js";
 import { lint } from "../lint/index.js";
 import { diff } from "../sync/diff.js";
 import { carry, specChanges } from "../sync/migrate.js";
 import { opText } from "../sync/ops.js";
-import { componentPaths, Driver, describeProblems, snapshot } from "../testing/driver.js";
+import {
+	componentPaths,
+	Driver,
+	describeProblems,
+	snapshot,
+	specsByName,
+} from "../testing/driver.js";
 import { drivableMessages, messageCommand, resolveRefs, sourceFrames } from "../testing/pbt.js";
+import { jsonText, pathText } from "../tree/index.js";
 import { isProblem, specOf } from "../tutuca.js";
-import { prepareStory, runStep, step, stepText } from "./stories.js";
+import { parseStoryAppKey } from "./key.js";
+import { prepareStory, runStep, step, stepText, stressSettings } from "./stories.js";
 import { runStress } from "./stress.js";
 
 // Runs a story live in a <tutuca-app>: the controller passed to mount. Keeps a timeline of
 // states, one entry per step and per user interaction, to go back and forth through.
 class StoryRunner {
-	constructor(story, { fc, seed = 0, css = "", links = [], classes = null, carried = null }) {
-		Object.assign(this, { story, fc, seed, css, links, classes, carried });
+	constructor(
+		story,
+		{ fc, seed = 0, css = "", classes = null, carried = null, onDispose = () => {} },
+	) {
+		Object.assign(this, { story, fc, seed, css, classes, carried, onDispose });
 		this.reload = []; // What carrying the last run's state did, when there was one.
 		this.detail = null;
 		this.driver = null;
@@ -31,14 +42,13 @@ class StoryRunner {
 	}
 	mount(detail) {
 		this.detail = detail;
-		for (const href of this.links) detail.adoptLink(href);
 		if (this.css !== "") detail.adoptCss(this.css);
 		this.classes?.watch(detail.adoptCss(""));
 		const prepared = prepareStory(this.story, { fc: this.fc, seed: this.seed });
 		const { A, scope } = prepared;
 		this.A = A;
 		this.scope = scope;
-		const specs = scope.allSpecs();
+		const specs = specsByName(scope);
 		this.specs = Object.values(specs);
 		this.classes?.add(this.specs); // The story's own registrations.
 		this.issues = lint(this.specs, Object.keys(specs));
@@ -60,6 +70,7 @@ class StoryRunner {
 		detail.mount(this);
 	}
 	dispose() {
+		this.onDispose();
 		this.stressToken = null;
 		this.detail = null;
 		this.driver.host.stop();
@@ -83,7 +94,6 @@ class StoryRunner {
 	carryOver(made) {
 		if (this.carried === null) return { root: made, lost: [] };
 		const { state, scope } = this.carried;
-		const pathText = (path) => `/${path.join("/")}`;
 		this.reload = specChanges(scope, this.scope).map(({ ref, field, change, before, after }) => {
 			if (field === null) return `${ref} ${change}`;
 			if (change === "changed") return `${ref}.${field} changed: ${before} → ${after}`;
@@ -97,7 +107,7 @@ class StoryRunner {
 			);
 			const lost = reset.map(
 				({ path, before, after }) =>
-					`${pathText(path)} reset: ${JSON.stringify(before)} → ${JSON.stringify(after)}`,
+					`${pathText(path)} reset: ${jsonText(before)} → ${jsonText(after)}`,
 			);
 			return { root, lost };
 		} catch (error) {
@@ -105,20 +115,16 @@ class StoryRunner {
 			return { root: made, lost: [`state not carried, started fresh: ${error.message}`] };
 		}
 	}
-	// A new timeline from root.
-	begin(root, problems = null, { label = "initial", origin = "initial", nextStep = 0 } = {}) {
-		const before = this.driver.reports.length;
-		if (problems === null) this.act(() => this.driver.restart(root));
-		const initial = problems ?? describeProblems(this.driver.problemsSince(before));
-		this.timeline.begin({
-			label,
-			origin,
-			state: root,
-			problems: initial,
-			nextStep,
-			transitions: [],
-		});
+	// A new timeline from root, which the driver is at, with the problems starting on it had.
+	begin(root, problems, { label = "initial", origin = "initial", nextStep = 0 } = {}) {
+		this.timeline.begin({ label, origin, state: root, problems, nextStep, transitions: [] });
 		this.publish();
+	}
+	// Starts the driver again on root, with a new timeline from it.
+	restart(root) {
+		const before = this.driver.reports.length;
+		this.act(() => this.driver.restart(root));
+		this.begin(root, describeProblems(this.driver.problemsSince(before)));
 	}
 	runAt(s, stepIndex, nextStep) {
 		this.transitions = [];
@@ -146,7 +152,7 @@ class StoryRunner {
 		if (name === "counterexample") return this.loadCounterexample();
 		this.sequence = name;
 		this.steps = this.story.sequences[name] ?? [];
-		this.begin(this.timeline.entries[0].state);
+		this.restart(this.timeline.entries[0].state);
 	}
 	goto(i) {
 		this.timeline.goto(i);
@@ -206,14 +212,14 @@ class StoryRunner {
 		const { target, message } = this.findMessage(targetIndex, name);
 		const args = JSON.parse(argsJson.trim() || "[]");
 		if (!Array.isArray(args)) throw new Error("args must be a JSON array");
-		let fromFrames = [];
+		let from = [];
 		if (message.index !== null) {
 			const sourceKey = message.keys.find((k) => String(k) === key);
 			if (sourceKey === undefined) throw new Error(`no ${message.index.fieldName} key ${key}`);
-			fromFrames = sourceFrames(message.index, sourceKey);
+			from = sourceFrames(message.index, sourceKey);
 		}
 		const label = `${target.label}.${name}(${argsLabel(args)})`;
-		this.runSingle({ kind: "send", name, args, path: target.path, fromFrames, label });
+		this.runSingle(step.send(name, args, { to: target.path, from, label }));
 	}
 	// Generated args for a message, as JSON for the step form.
 	sampleArgs(targetIndex, name, seed) {
@@ -238,14 +244,7 @@ class StoryRunner {
 		const token = {};
 		this.stressToken = token;
 		const { fc, A } = this;
-		const opts = {
-			numRuns: 100,
-			maxCommands: 20,
-			seed: 1,
-			from: "story",
-			events: false,
-			...options,
-		};
+		const opts = { ...stressSettings(this.story), ...options };
 		const root = opts.from === "current" ? this.driver.state : this.timeline.entries[0].state;
 		return await runStress({
 			...opts,
@@ -271,7 +270,7 @@ class StoryRunner {
 		const { root, commands } = this.lastStress;
 		this.sequence = "counterexample";
 		this.steps = commands.map((c) => step.command(c.clone(), String(c)));
-		this.begin(root);
+		this.restart(root);
 	}
 	// What the host reports: the transitions of tasks from the user or from async replies, each
 	// with its own problems, and the rest, whose problems go to the current entry.
@@ -332,10 +331,10 @@ class StoryRunner {
 			})),
 			cursor: this.timeline.cursor,
 			problems: current.error && current.status !== "failed" ? [current.error] : current.problems,
-			error: current.status === "ok" ? "" : (current.error ?? ""),
 			stateJson: JSON.stringify(snapshot(current.state), null, 2) ?? "",
 			changes: this.changes(),
 			reload: this.reload,
+			stress: stressSettings(this.story), // What the stress panel starts with.
 			// Live values for the dev panel, which keeps refs to them, not the values.
 			dev: {
 				state: current.state,
@@ -357,8 +356,7 @@ class StoryRunner {
 	}
 }
 
-// The live runners by app key, `${prefix}${storyId}@${seed}`; answers <tutuca-app> requests.
-// A new prefix gives the same stories new keys, so their apps mount again.
+// The live runners by app key (key.js), under its prefix; answers <tutuca-app> requests.
 // The asks of the panels: "story" runs an op on the StoryRunner of an app of registryOf(),
 // "delay" waits.
 export const storyAskHandlers = (registryOf) => {
@@ -380,33 +378,26 @@ export class StoryRegistry {
 		fc,
 		books,
 		css = "",
-		links = [],
 		compile = null,
 		known = [],
 		prefix = "",
 		carried = new Map(),
 	}) {
-		Object.assign(this, { fc, css, links, prefix, carried });
+		Object.assign(this, { fc, css, prefix, carried });
 		this.classes = compile === null ? null : new ClassCompiler(compile, known);
 		this.stories = new Map(books.flatMap((book) => book.stories.map((s) => [s.id, s])));
 		this.runners = new Map();
 	}
 	mount(detail) {
-		if (!detail.key?.startsWith(this.prefix)) return;
-		const key = detail.key.slice(this.prefix.length);
-		const at = key.lastIndexOf("@");
-		const story = this.stories.get(at < 0 ? key : key.slice(0, at));
+		const parsed = parseStoryAppKey(this.prefix, detail.key);
+		const story = this.stories.get(parsed?.id);
 		if (story === undefined) return;
-		const seed = at < 0 ? 0 : Number(key.slice(at + 1)) || 0;
-		const { fc, css, links, classes } = this;
+		const { seed } = parsed;
+		const { fc, css, classes } = this;
 		const carried = this.carried.get(story.id) ?? null;
 		this.carried.delete(story.id); // Once: mounting the story again starts it fresh.
-		const runner = new StoryRunner(story, { fc, seed, css, links, classes, carried });
-		const { dispose } = runner;
-		runner.dispose = () => {
-			this.runners.delete(detail.key);
-			dispose.call(runner);
-		};
+		const onDispose = () => this.runners.delete(detail.key);
+		const runner = new StoryRunner(story, { fc, seed, css, classes, carried, onDispose });
 		runner.mount(detail);
 		this.runners.set(detail.key, runner);
 	}

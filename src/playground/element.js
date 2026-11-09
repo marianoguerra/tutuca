@@ -9,7 +9,7 @@
 
 import { defineTutucaApp } from "../embed/element.js";
 import { TimeTravel } from "../history/bar.js";
-import { bookClasses, startPanelHost, uiClasses, watchPanelHost } from "../panels/host.js";
+import { bookClasses, logProblems, startPanelHost, uiClasses } from "../panels/host.js";
 import { panelComponents } from "../panels/ui/panels.js";
 import { StoryRegistry } from "../stories/live.js";
 import { booksOf, linkSources, loadSources } from "./sources.js";
@@ -88,11 +88,9 @@ ${INHERIT_THEME}
 
 const errorText = (error) => String(error?.stack ?? error?.message ?? error);
 
-export const definePlayground = (
-	window,
-	{ codemirror, fc, compile, tagName = "tutuca-playground" },
-) => {
-	if (window.customElements.get(tagName)) return window.customElements.get(tagName);
+export const definePlayground = (window, { codemirror, fc, compile }) => {
+	const existing = window.customElements.get("tutuca-playground");
+	if (existing !== undefined) return existing;
 	defineTutucaApp(window);
 	const { EditorState, EditorView, Compartment, keymap, basicSetup, javascript, oneDark } =
 		codemirror;
@@ -115,7 +113,7 @@ export const definePlayground = (
 			if (this.shadowRoot !== null) return;
 			const root = this.attachShadow({ mode: "open" });
 			const { document } = window;
-			root.innerHTML = `<style>${LAYOUT}</style><style data-ui></style><style data-ui-extra></style>
+			root.innerHTML = `<style>${LAYOUT}</style><style data-ui></style>
 <div class="pg">
 	<div class="pg-editor">
 		<div class="pg-head">
@@ -176,11 +174,7 @@ export const definePlayground = (
 				askHandlers: { playground: ([op, id]) => this.onPick(op, id) },
 			});
 			this.host = host;
-			watchPanelHost(host, {
-				compile,
-				classes: playgroundClasses(),
-				style: root.querySelector("style[data-ui-extra]"),
-			});
+			logProblems(host);
 			host.start(makePlayground(host.scope.components));
 			const src = this.getAttribute("src");
 			if (src !== null) void this.load(src, { story: this.getAttribute("story") ?? "" });
@@ -344,6 +338,6 @@ export const definePlayground = (
 			);
 		}
 	}
-	window.customElements.define(tagName, TutucaPlayground);
+	window.customElements.define("tutuca-playground", TutucaPlayground);
 	return TutucaPlayground;
 };

@@ -68,6 +68,9 @@ export class HostTask extends Task {
 		return this.now;
 	}
 }
+// A task's transaction: root with the node at path replaced by what fn makes of its draft.
+export const leafProduce = (root, path, fn) =>
+	produce(root, (rootDraft) => path.setIn(rootDraft, fn(path.getIn(rootDraft))));
 // The Scheduler that delivers host's tasks against its root: the tree's store is the host's
 // root, a transaction is immer's produce (dev mode's checks also record who wrote what), and the
 // host hears what happens through its hooks.
@@ -76,9 +79,7 @@ export const schedulerFor = (host) =>
 		handlers: componentHandlers,
 		store: { get: () => host.root, set: (root) => (host.root = root) },
 		transact: (root, path, fn) =>
-			host.checks !== null
-				? host.checks.transact(root, path, fn)
-				: produce(root, (rootDraft) => path.setIn(rootDraft, fn(path.getIn(rootDraft)))),
+			host.checks !== null ? host.checks.transact(root, path, fn) : leafProduce(root, path, fn),
 		hooks: {
 			context: (task, instance, nextRequest) =>
 				new HandlerContext(task, nextRequest, host.env, scopeOf(instance)),

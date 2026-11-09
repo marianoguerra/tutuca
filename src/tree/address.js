@@ -20,13 +20,12 @@ export class Address {
 	static of(target, root) {
 		return Address.at(target.fix(root), root);
 	}
-	// { instance } when the node it recorded is at its path, { stale } with the identity of the
-	// one there instead, or { orphaned } when none is.
+	// { instance } when the node it recorded is at its path, { stale } when another is there
+	// instead, or { orphaned } when none is.
 	resolve(root) {
 		const instance = this.keyPath.getIn(root);
 		if (!isNode(instance)) return { orphaned: true };
-		const found = idOf(instance);
-		return found === this.id ? { instance } : { stale: found };
+		return idOf(instance) === this.id ? { instance } : { stale: true };
 	}
 	// The node ancestors, nearest first, fixed against root: the hops of a notification from
 	// here, which a bubble visits in one turn.

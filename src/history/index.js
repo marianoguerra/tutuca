@@ -112,6 +112,8 @@ export class Timeline {
 	}
 }
 
+// The moves through a Timeline, by its method: goto takes the entry's index.
+export const MOVES = ["goto", "back", "forward", "toStart", "toEnd"];
 // Records the timeline of the Host it's attached to (host.attachSync(engine)): one entry per
 // user action, its async replies folded in, and one per change from another engine. The
 // first entry is the state before the first change. goto(i) clears the queued tasks and
@@ -148,10 +150,6 @@ export const historyEngine = ({ max = 1000, now = Date.now, onChange = () => {} 
 			} else timeline.recordTask(task, next);
 			onChange(timeline);
 		},
-		goto: move("goto"),
-		back: move("back"),
-		forward: move("forward"),
-		toStart: move("toStart"),
-		toEnd: move("toEnd"),
+		...Object.fromEntries(MOVES.map((op) => [op, move(op)])),
 	};
 };

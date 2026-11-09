@@ -79,7 +79,7 @@ test("a run can ask for a story, and tabs show the steps and dev panels", async 
 	assert.equal(host.root.story.sequence, "−1 ± 2i");
 	click(tab("Steps"));
 	await settle();
-	assert.equal(host.root.tab, "steps");
+	assert.equal(host.root.panel, "steps");
 	click(rootNode.querySelector('[title="Run to end"]'));
 	await settle();
 	assert.deepEqual(

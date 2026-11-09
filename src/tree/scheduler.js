@@ -3,7 +3,6 @@
 // response; one answered later is appended, as a normal one), and step its run rule (the head of
 // the queue runs, as one transaction). receiver is the routing policy: by-path-checked.
 import { AskTask, NotifyTask } from "./messages.js";
-import { hidden } from "./record.js";
 import { Transition } from "./transition.js";
 import { Watches } from "./watch.js";
 
@@ -117,7 +116,7 @@ export class Scheduler {
 		}
 	}
 	// ran.ctx is the context its handler got, for the transition of a task that fails.
-	deliver(task, ran = { ctx: null }) {
+	deliver(task, ran) {
 		const { handlers, hooks } = this;
 		const curRoot = this.store.get();
 		// A notification starts from its sender, found as any address is, and visits the ancestors
@@ -172,7 +171,6 @@ export class Scheduler {
 		if (outcome === "lost") console.assert(false, "a notification lost its hop", task);
 		const record = Transition.of(task, outcome, { before: root });
 		record.to = address;
-		if (outcome === "stale") hidden(record, { found: found.stale ?? null });
 		this.hooks.transition(record);
 		return null;
 	}
@@ -183,11 +181,12 @@ export class Scheduler {
 	startAsk(task, instance) {
 		const ctx = this.hooks.context(task, instance, this.nextRequest);
 		const handler = this.handlers.askHandler(instance, task.name);
-		let read = ctx.readOnly();
+		const read = ctx.readable();
 		if (task.watch !== null) {
 			task.controller = new AbortController();
-			read = Object.freeze({ ...ctx.readable(), signal: task.controller.signal });
+			read.signal = task.controller.signal;
 		}
+		Object.freeze(read);
 		task.asked = true;
 		const { now, later } = task.start(handler, read);
 		if (now !== undefined) {

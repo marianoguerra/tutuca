@@ -4,7 +4,7 @@
 // the operation's contract, throws a ContractError. What a call or a state breaks is worked out
 // in validate.js.
 import { current, freeze, isDraft, produce } from "../../../deps/immer.js";
-import { idOf } from "../../tree/identity.js";
+import { idOf } from "../../tree/index.js";
 import { ComponentSpec } from "./component.js";
 import { Interface, interfaceProblems, resolveImplements } from "./interface.js";
 import { HandlerSpec, QuerySpec, scopeOf, specOf } from "./spec.js";
@@ -98,7 +98,7 @@ const frozenView = (c) => {
 // so far).
 export const query = (c, name, ...args) => {
 	const spec = specOrThrow(c, name);
-	const q = spec.queries?.[name];
+	const q = spec.queries[name];
 	if (!(q instanceof QuerySpec)) throw new ContractError(spec.name, name, ["unknown"]);
 	const it = frozenView(c);
 	const scope = scopeOf(c);
@@ -112,7 +112,7 @@ export const query = (c, name, ...args) => {
 };
 // Whether c offers the pure message or query name.
 export const canApply = (c, name) => specOf(c)?.on[name]?.pure === true;
-export const canQuery = (c, name) => specOf(c)?.queries?.[name] instanceof QuerySpec;
+export const canQuery = (c, name) => specOf(c)?.queries[name] instanceof QuerySpec;
 // What c (a component or its spec) offers: the interfaces it implements (resolved in its
 // scope), its messages, which pure, its queries and the notifies its handlers declare. No state.
 export const contractOf = (c) => {
@@ -126,7 +126,7 @@ export const contractOf = (c) => {
 			for (const n of m.emits?.notify ?? []) notifies.add(n);
 			return { name: m.name, pure: m.pure, args: m.args };
 		});
-	const queries = Object.values(spec.queries ?? {})
+	const queries = Object.values(spec.queries)
 		.filter((q) => q instanceof QuerySpec)
 		.map((q) => ({ name: q.name, args: q.args, returns: q.returns }));
 	const implemented = resolveImplements(spec, scope).map((it, i) =>

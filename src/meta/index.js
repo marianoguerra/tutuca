@@ -9,9 +9,7 @@ export {
 	agentOf,
 	agentProblems,
 	agentTool,
-	callArgs,
 	hasAgentMeta,
-	MAX_STEPS,
 	maxStepsOf,
 	nextAction,
 	pendingResults,
@@ -21,7 +19,6 @@ export {
 	settledText,
 	summaryOf,
 	systemPrompt,
-	toolCallsOf,
 	toolResultMessage,
 	toolsFor,
 } from "./agent.js";

@@ -13,6 +13,7 @@ import {
 	syncsAt,
 	unlessNoDefault,
 } from "../core/model/types.js";
+import { pathText } from "../tree/index.js";
 import { setOwn } from "./ops.js";
 
 const ANY = new AnyType(null);
@@ -40,14 +41,19 @@ export const componentOf = (v, rootScope, type = ANY) => {
 	return { spec, scope };
 };
 // The alternative of type that value takes: options and unions narrowed to it.
-export const narrow = (type, value, scope) => {
-	if (type instanceof OptionType)
-		return value === null ? type : narrow(type.valueType, value, scope);
+export const narrow = (type, value) => {
+	if (type instanceof OptionType) return value === null ? type : narrow(type.valueType, value);
 	if (type instanceof OneOfType) {
-		const alt = type.types.find((t) => t.isValid(value, scope));
-		return alt === undefined ? ANY : narrow(alt, value, scope);
+		const alt = type.types.find((t) => t.isValid(value, null));
+		return alt === undefined ? ANY : narrow(alt, value);
 	}
 	return type ?? ANY;
+};
+// The type of the items of items, an array where type says what goes; ANY when it isn't an
+// array's.
+const itemTypeOf = (type, items) => {
+	const t = narrow(type, items);
+	return t instanceof ArrayType ? t.valueType : ANY;
 };
 // The type of key in plain data of narrowed type t: an array's or map's value type, a record's
 // key type (undefined for a key outside its shape), ANY for anything else.
@@ -61,7 +67,7 @@ const innerType = (t, key) =>
 export const keyType = (type, value, key, level, rootScope) => {
 	const component = componentOf(value, rootScope, type);
 	const child =
-		component !== null ? component.spec.fields[key] : innerType(narrow(type, value, null), key);
+		component !== null ? component.spec.fields[key] : innerType(narrow(type, value), key);
 	if (child === undefined) return component === null ? ANY : null;
 	return syncsAt(child, level) ? child : null;
 };
@@ -74,7 +80,7 @@ export const keysOf = (value, level, rootScope, type = ANY) => {
 };
 
 const fail = (path, what) => {
-	throw new Error(`can't sync ${what} at /${path.join("/")}`);
+	throw new Error(`can't sync ${what} at ${pathText(path)}`);
 };
 // The plain data of value, with the fields level sees. leaf maps each string with its type, so
 // an engine can tell text from atomic strings.
@@ -83,7 +89,7 @@ export const project = (value, { level = "shared", type = ANY, leaf = null } = {
 	if (typeof value === "number") return Number.isFinite(value) ? value : fail(path, value);
 	if (typeof value === "string") return leaf === null ? value : leaf(value, narrow(type, value));
 	if (Array.isArray(value)) {
-		const itemType = narrow(type, value) instanceof ArrayType ? narrow(type, value).valueType : ANY;
+		const itemType = itemTypeOf(type, value);
 		return value.map((v, i) => project(v, { level, type: itemType, leaf }, [...path, i]));
 	}
 	if (typeof value !== "object") return fail(path, typeof value);
@@ -126,8 +132,7 @@ export const hydrate = (plain, scope, type = ANY) => {
 	const build = (v, t, s) => {
 		if (v === null || typeof v !== "object") return v;
 		if (Array.isArray(v)) {
-			const n = narrow(t, v);
-			const itemType = n instanceof ArrayType ? n.valueType : ANY;
+			const itemType = itemTypeOf(t, v);
 			return v.map((item) => fitIn(itemType, build(item, itemType, s), s));
 		}
 		const component = componentOf(v, rootScope, t);
@@ -188,5 +193,5 @@ export const typeAt = (root, path, scope, level = "none") => {
 		type = keyType(type, value, key, level, rootScope) ?? ANY;
 		value = value?.[key];
 	}
-	return { type, scope: at, value };
+	return { type, scope: at };
 };

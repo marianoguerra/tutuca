@@ -304,6 +304,42 @@
 - **Host's `registrations`, `componentNames` and `registeredEntries()` are gone**: they were
   there for lint. `lintScope(host.scope)` (`tutuca/lint`) lints what a host registered, and
   `registeredIn(scope)` gives `{ specs, names }` for `lint(specs, names)`.
+- **Unused parts are gone, and what was written twice is written once.**
+  - Removed, as nothing used them: the `links` option of `startStorybook`, `StoryRegistry` and a
+    story's runner, with a request's `adoptLink` and `element`; the `tagName` option of
+    `defineTutucaApp` and `definePlayground`; `rebuild` and `carry`'s `broken` (call
+    `findInvalid(root, null)`); `Scope.allSpecs()` and `Scope.specsByRef()`, which were there
+    for tooling (`specsByName(scope)` in `tutuca/testing` is the first); `SyncEngines.length`;
+    a remote engine's `clientId` and an Automerge engine's `handle`; a stale transition's
+    `found`; `MessageContext.push` and `readOnly`; the exports `engineName` (`tutuca`),
+    `componentOf` (`tutuca/sync`), `MAX_STEPS`, `toolCallsOf` and `callArgs` (`tutuca/meta`)
+    and `storybookClasses` (`tutuca/storybook`).
+  - **A state path prints one way**, as a `KeyPath` does: `.items[0].label`, `·` for the root
+    (`pathText(keys)`, `tutuca/tree`). Sync errors, an op's text, a reload's report and
+    `invalid state:` lines said it in four other ways.
+  - `Transition` and `HostEvent` extend `Record` (`tutuca/tree`); `FAILED_TYPES` comes from the
+    table of what each failure says.
+  - A sync engine reports through its link: `link.report(type, fields)` names the engine.
+    `rootOps(root, level)` (`tutuca/sync`) is the ops that start an engine's copy.
+  - The panels' parent has one field for the panel it shows, `panel`, and one message,
+    `setPanel`: the playground's `tab` and `setTab` are those. `panelHandlers(onState)` and
+    `withPanelQueries(queries)` take no field name; `watchPanelHost` is `logProblems(host)`,
+    as the UI's classes were compiled twice.
+  - `TimeTravel`'s `show` is a pure message; `MOVES` (`tutuca/history`) lists a timeline's.
+  - `markers.js` has `wrapComponent(node)` and `wrapFrame(frame, node)` instead of
+    `wrapMarkers`, `componentMarker` and `frameMarker`; `Frame.node(name, item)` makes a node's
+    frame.
+
+### Fixed
+
+- **The Stress panel starts with its story's `stress` settings.** It always sent its own
+  defaults (100 runs, 20 steps), so a story's `maxCommands`, `numRuns` and `events` only
+  applied to `stressStory`. Both read `stressSettings(story)` now, over `STRESS_DEFAULTS`
+  (50 runs, as `stressStory` had).
+- **The Dev panel says what a transition or a host event is** ("send “toggle” handled", "host
+  event settled") instead of how many entries it has: a kind's summary is in the formatters'
+  table with its header and rows, so a kind can't have one without the other.
+- An op's text no longer throws for an `undefined` value.
 
 ### Added
 

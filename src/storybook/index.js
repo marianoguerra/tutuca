@@ -6,19 +6,22 @@
 
 import { DevChecks } from "../dev/checks.js";
 
-export { StoryRegistry } from "../stories/live.js";
 export { book, checkStory, prepareStory, step, stressStory } from "../stories/stories.js";
 
 import { defineTutucaApp } from "../embed/element.js";
-import { bookClasses, startPanelHost, uiClasses, watchPanelHost } from "../panels/host.js";
+import { bookClasses, logProblems, startPanelHost, uiClasses } from "../panels/host.js";
 import { makePanels, panelComponents } from "../panels/ui/panels.js";
+import { storyAppKey } from "../stories/key.js";
 import { StoryRegistry } from "../stories/live.js";
+
+export { StoryRegistry };
+
 import { StoryLink } from "./ui/link.js";
 import { Storybook } from "./ui/storybook.js";
 
 export const storybookComponents = { Storybook, StoryLink, ...panelComponents };
 
-export const storybookClasses = () => uiClasses(storybookComponents);
+const storybookClasses = () => uiClasses(storybookComponents);
 
 // The storybook root for books, with initialId selected when it names a story.
 const makeStorybook = (C, books, initialId = "") => {
@@ -40,25 +43,24 @@ const makeStorybook = (C, books, initialId = "") => {
 		links,
 		selectedId: selected?.id ?? "",
 		isGenerated: selected?.isGenerated ?? false,
-		...makePanels(C, `${selected?.id ?? ""}@0`),
+		...makePanels(C, storyAppKey("", selected?.id ?? "")),
 	});
 };
 
-// Starts the storybook UI on rootNode. css and links style the stories' shadow roots.
+// Starts the storybook UI on rootNode. css styles the stories' shadow roots.
 export const startStorybook = ({
 	document,
 	rootNode,
 	fc,
 	books,
 	css = "",
-	links = [],
 	compile = null,
 	known = [],
 	initialId = "",
 	dev = true,
 }) => {
 	defineTutucaApp(document.defaultView);
-	const registry = new StoryRegistry({ fc, books, css, links, compile, known });
+	const registry = new StoryRegistry({ fc, books, css, compile, known });
 	const host = startPanelHost({
 		document,
 		rootNode,
@@ -87,8 +89,7 @@ export const startStorybook = ({
 };
 
 // Opens the storybook for books on a page: compile (class names → css) styles its UI into
-// uiStyle and the stories in their shadow roots, the classes views compute as they render
-// included. Failed tasks and invalid states are logged.
+// uiStyle and the stories in their shadow roots. Failed tasks and invalid states are logged.
 export const openStorybook = async ({
 	document,
 	rootNode,
@@ -102,10 +103,6 @@ export const openStorybook = async ({
 	const [uiCss, css] = await Promise.all([compile(storybookClasses()), compile(known)]);
 	uiStyle.textContent = uiCss;
 	const started = startStorybook({ document, rootNode, fc, books, css, compile, known, initialId });
-	watchPanelHost(started.host, {
-		compile,
-		classes: storybookClasses(),
-		style: document.head.appendChild(document.createElement("style")),
-	});
+	logProblems(started.host);
 	return started;
 };

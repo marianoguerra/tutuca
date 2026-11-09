@@ -5,9 +5,9 @@
 // handle: an automerge-repo DocHandle, or docHandle(doc) for a document without a repo.
 import * as A from "@automerge/automerge";
 import { StringType } from "../core/model/types.js";
-import { componentOf, getIn, keyType, narrow, typeAt } from "./codec.js";
+import { getIn, keyType, narrow, typeAt } from "./codec.js";
 import { diff } from "./diff.js";
-import { applyProjection, applyStateOps, opsOf } from "./index.js";
+import { applyProjection, applyStateOps, opsOf, rootOps } from "./index.js";
 import { writeFitting } from "./migrate.js";
 import { setOwn } from "./ops.js";
 
@@ -30,10 +30,9 @@ const toDoc = (v, type, rootScope) => {
 	if (Array.isArray(v))
 		return v.map((item) => toDoc(item, keyType(type, v, 0, "shared", rootScope), rootScope));
 	const out = {};
-	const isComponent = componentOf(v, rootScope, type) !== null;
 	for (const key of Object.keys(v)) {
-		const t = key === "$" && isComponent ? null : keyType(type, v, key, "shared", rootScope);
-		setOwn(out, key, toDoc(v[key], t, rootScope)); // a null type keeps the ref an ImmutableString
+		// A component's $ has no type, which keeps the ref an ImmutableString.
+		setOwn(out, key, toDoc(v[key], keyType(type, v, key, "shared", rootScope), rootScope));
 	}
 	return out;
 };
@@ -76,8 +75,7 @@ export const automergeEngine = ({ handle }) => {
 	let link = null;
 	let writing = false;
 	let loaded = null; // the document load read, to catch what changed before attach
-	const onMigrate = (report) =>
-		link.host.report("migrated", { engine: link.host.engineName(engine), ...report });
+	const onMigrate = (report) => link.report("migrated", report);
 	const onChange = ({ patchInfo }) => {
 		if (writing || link === null) return;
 		const { scope } = link.host;
@@ -87,7 +85,7 @@ export const automergeEngine = ({ handle }) => {
 			link.apply((root) => applyStateOps(root, ops, scope, { onMigrate }), patchInfo);
 		} catch (error) {
 			// The state and the document parted ways: bring the state to the document whole.
-			link.host.report("syncFailed", { engine: link.host.engineName(engine), error });
+			link.report("syncFailed", { error });
 			applyProjection(link, fromDoc(patchInfo.after), { onMigrate, info: patchInfo });
 		}
 	};
@@ -107,7 +105,6 @@ export const automergeEngine = ({ handle }) => {
 	const engine = {
 		name: "automerge",
 		level: "shared",
-		handle,
 		load() {
 			const doc = handle.doc();
 			loaded = doc ?? null;
@@ -118,10 +115,8 @@ export const automergeEngine = ({ handle }) => {
 			const doc = handle.doc();
 			// An empty document starts from this root; one that changed since load (or that load
 			// didn't read) brings the state to it.
-			if (doc?.$ === undefined) {
-				const change = { prev: undefined, next: l.root(), task: null };
-				write(opsOf(change, "shared", l.host.scope), l.root());
-			} else if (doc !== loaded) {
+			if (doc?.$ === undefined) write(rootOps(l.root(), "shared"), l.root());
+			else if (doc !== loaded) {
 				applyProjection(l, fromDoc(doc), { onMigrate, info: { attach: true } });
 			}
 			loaded = null;

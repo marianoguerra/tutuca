@@ -11,7 +11,7 @@ import { overlay, project } from "./codec.js";
 import { diff } from "./diff.js";
 import { applyFitting, rebuild } from "./migrate.js";
 
-export { componentOf, hydrate, overlay, project } from "./codec.js";
+export { hydrate, overlay, project } from "./codec.js";
 export { diff, textSplice } from "./diff.js";
 export { applyFitting, carry, rebuild, specChanges, writeFitting } from "./migrate.js";
 export { applyOps, OpConflictError, opFits, opText } from "./ops.js";
@@ -24,6 +24,8 @@ export const opsOf = (change, level, scope) => {
 	if (!byLevel.has(level)) byLevel.set(level, diff(change.prev, change.next, { level, scope }));
 	return byLevel.get(level);
 };
+// The ops that start an engine's copy from root: its whole projection at level.
+export const rootOps = (root, level) => [{ op: "set", path: [], value: project(root, { level }) }];
 // Applies plain ops to a state draft, made to fit this version's components (applyFitting):
 // ops from a peer on another version keep the state valid. onMigrate(report) gets what that
 // changed, { added, reset, dropped }, when it changed anything. Returns the root.

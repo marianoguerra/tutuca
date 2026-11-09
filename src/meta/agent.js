@@ -79,7 +79,7 @@ export const hasAgentMeta = (c) => hasMeta(c, AGENT_META);
 // The handler or query a tool of spec runs, or undefined.
 const operationOf = (spec, tool) => {
 	const name = tool.target ?? tool.name;
-	return tool.kind === "message" ? spec.on[name] : spec.queries?.[name];
+	return tool.kind === "message" ? spec.on[name] : spec.queries[name];
 };
 const isOperation = (op, kind) =>
 	kind === "message" ? op instanceof HandlerSpec : op instanceof QuerySpec;
@@ -127,38 +127,61 @@ export const agentProblems = (c, scope = undefined) => {
 	return problems;
 };
 
-// The tools every agent gets, besides the component's own, by what the meta says.
+const hasSkills = (_data, meta) => Object.keys(meta.skills).length > 0;
+const hasSamples = (data) => data !== null && Object.keys(data.samples).length > 0;
+// The tools every agent gets, besides the component's own: each one's description, the schema
+// of its params, when the component gets it, by what its data and agent metas say, and
+// run(c, meta, data, args, done), which answers a call with done(text, isError, next).
 const SHARED = {
 	get_state: {
 		description: "The whole state, as JSON. Prefer the summary and the tools' results.",
 		params: () => ({}),
 		when: (data) => data?.data != null,
+		run: (c, _meta, data, _args, done) => done(asText(query(c, data.data))),
 	},
 	set_state: {
 		description:
 			"Replace the whole state with value, in the shape get_state answers. Prefer the other tools for small changes.",
 		params: (c) => ({ value: dataSchema(c) }),
 		when: (data) => data !== null,
+		run(c, meta, _data, args, done) {
+			const { next, error } = loadData(c, args.value ?? null, "value");
+			if (error !== undefined) return done(error, true);
+			return done(resultText(next, meta.summary), false, next);
+		},
 	},
 	skills_list: {
 		description: "The paths of the skills, texts on how to work in this domain.",
 		params: () => ({}),
-		when: (_data, meta) => Object.keys(meta.skills).length > 0,
+		when: hasSkills,
+		run: (_c, meta, _data, _args, done) => done(JSON.stringify(Object.keys(meta.skills))),
 	},
 	skills_read: {
 		description: "A skill's text, by its path.",
 		params: () => ({ path: { type: "string" } }),
-		when: (_data, meta) => Object.keys(meta.skills).length > 0,
+		when: hasSkills,
+		run(_c, meta, _data, args, done) {
+			const text = meta.skills[args.path];
+			return text === undefined ? done(`There's no skill ${args.path}.`, true) : done(text);
+		},
 	},
 	samples_list: {
 		description: "The names of the samples the state can start from.",
 		params: () => ({}),
-		when: (data) => data !== null && Object.keys(data.samples).length > 0,
+		when: hasSamples,
+		run: (_c, _meta, data, _args, done) => done(JSON.stringify(Object.keys(data.samples))),
 	},
 	load_sample: {
 		description: "Replace the whole state with a sample, by its name.",
 		params: () => ({ name: { type: "string" } }),
-		when: (data) => data !== null && Object.keys(data.samples).length > 0,
+		when: hasSamples,
+		run(c, meta, data, args, done) {
+			if (!Object.hasOwn(data.samples, args.name)) {
+				return done(`There's no sample ${args.name}.`, true);
+			}
+			const next = withSample(c, args.name);
+			return done(resultText(next, meta.summary), false, next);
+		},
 	},
 };
 const SHARED_NAMES = new Set(Object.keys(SHARED));
@@ -222,16 +245,16 @@ export const summaryOf = (c) => {
 	try {
 		return asText(query(c, agentOf(c).summary));
 	} catch (error) {
-		return `(no summary: ${errorText(c, null, error)})`;
+		return `(no summary: ${contractErrorText(c, error)})`;
 	}
 };
 const asText = (v) => (typeof v === "string" ? v : JSON.stringify(v));
 
 // The most steps (model turns) an agent takes for one prompt, unless its target's meta says.
-export const MAX_STEPS = 12;
+const MAX_STEPS = 12;
 export const maxStepsOf = (c) => agentOf(c).maxSteps ?? MAX_STEPS;
 // The tool calls of a pi-ai assistant message.
-export const toolCallsOf = (message) =>
+const toolCallsOf = (message) =>
 	message?.role === "assistant" && Array.isArray(message.content)
 		? message.content.filter((b) => b?.type === "toolCall")
 		: [];
@@ -259,11 +282,8 @@ export const toolResultMessage = (call, text, isError = false) => ({
 	isError,
 });
 
-// Why calling a tool on c failed, in words the model reads.
-const errorText = (c, tool, error) => contractErrorText(c, error, tool?.params ?? []);
-
 // The positional args for a tool call's named arguments; one left out is null.
-export const callArgs = (tool, argsObject) => tool.params.map((name) => argsObject?.[name] ?? null);
+const callArgs = (tool, argsObject) => tool.params.map((name) => argsObject?.[name] ?? null);
 
 // What running call (a pi-ai tool call) on c takes, as one of:
 // - { done: { text, isError }, next }: it ran, a query, a shared tool or a pure message; next is
@@ -276,7 +296,11 @@ export const planToolCall = (c, call) => {
 	const done = (text, isError = false, next = c) => ({ done: { text, isError }, next });
 	const data = dataMetaOf(c);
 	if (SHARED_NAMES.has(call.name) && SHARED[call.name].when(data, meta)) {
-		return runShared(c, meta, data, call, done);
+		try {
+			return SHARED[call.name].run(c, meta, data, call.arguments ?? {}, done);
+		} catch (error) {
+			return done(contractErrorText(c, error), true);
+		}
 	}
 	const tool = meta.tools.find((tl) => tl.name === call.name);
 	if (tool === undefined) return done(`There's no tool ${call.name}.`, true);
@@ -292,35 +316,8 @@ export const planToolCall = (c, call) => {
 		checkCall(spec, target, message, c, args);
 		return { send: { name: target, args }, result: tool.result ?? meta.summary };
 	} catch (error) {
-		return done(errorText(c, tool, error), true);
+		return done(contractErrorText(c, error, tool.params), true);
 	}
-};
-const runShared = (c, meta, data, call, done) => {
-	const { name, arguments: args = {} } = call;
-	try {
-		if (name === "get_state") return done(asText(query(c, data.data)));
-		if (name === "set_state") {
-			const { next, error } = loadData(c, args.value ?? null, "value");
-			if (error !== undefined) return done(error, true);
-			return done(resultText(next, meta.summary), false, next);
-		}
-		if (name === "skills_list") return done(JSON.stringify(Object.keys(meta.skills)));
-		if (name === "skills_read") {
-			const text = meta.skills[args.path];
-			return text === undefined ? done(`There's no skill ${args.path}.`, true) : done(text);
-		}
-		if (name === "samples_list") return done(JSON.stringify(Object.keys(data.samples)));
-		if (name === "load_sample") {
-			if (!Object.hasOwn(data.samples, args.name)) {
-				return done(`There's no sample ${args.name}.`, true);
-			}
-			const next = withSample(c, args.name);
-			return done(resultText(next, meta.summary), false, next);
-		}
-	} catch (error) {
-		return done(errorText(c, null, error), true);
-	}
-	return done(`There's no tool ${name}.`, true);
 };
 // What a watch (src/tree/watch.js) tells its watcher: a tool's message and everything it
 // caused ran (ok), some of it threw (failed), or it was stopped (cancelled, timeout).
@@ -354,6 +351,6 @@ export const resultText = (c, result) => {
 	try {
 		return asText(query(c, result));
 	} catch (error) {
-		return `It ran, but ${result} couldn't be read: ${errorText(c, null, error)}`;
+		return `It ran, but ${result} couldn't be read: ${contractErrorText(c, error)}`;
 	}
 };

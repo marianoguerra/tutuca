@@ -1,7 +1,7 @@
 // Paths: where a node is in the state (KeyPath), how a message got there (DispatchPath), and
 // where one goes before it is fixed (Selector, Target). spec/tree's path steps are (field f),
 // (index f i) and (key f κ), a frame here; a written path can also hold (sel f g), a seqItem op.
-import { jsonText, keyText } from "./text.js";
+import { jsonText, keyText, pathText } from "./text.js";
 
 // The keys from the root to a value.
 export class KeyPath {
@@ -22,7 +22,7 @@ export class KeyPath {
 		return root;
 	}
 	toString() {
-		return this.keys.map(keyText).join("") || "·";
+		return pathText(this.keys);
 	}
 }
 // One step of a DispatchPath: keys into the value, then the item of a collection there, if any.
@@ -35,6 +35,10 @@ export class Frame {
 		this.item = item;
 		this.provider = provider;
 		this.isNode = isNode;
+	}
+	// The frame of the node in field name, the one at item when it holds a collection.
+	static node(name, item = null) {
+		return new Frame([name], item, null, true);
 	}
 	get accessKeys() {
 		return this.item === null ? this.keys : [...this.keys, this.item];
@@ -108,7 +112,7 @@ export class DispatchPath {
 	}
 }
 // Paths print their ops as .name, .name[item] or .name[keyName], with · for the root.
-const opText = (op) =>
+const selectorOpText = (op) =>
 	`.${op.name}${op.t === "item" ? `[${jsonText(op.key)}]` : op.t === "seqItem" ? `[${op.keyName}]` : ""}`;
 // A written path, relative to a node: field (field f), item (index f i) or (key f κ), and
 // seqItem (sel f g), the item of f at the key in the node's g. fix(value) turns it into frames
@@ -132,13 +136,13 @@ export class Selector {
 		return this;
 	}
 	toString() {
-		return this.ops.map(opText).join("") || "·";
+		return this.ops.map(selectorOpText).join("") || "·";
 	}
 	fix(value) {
 		const frames = [];
 		for (const op of this.ops) {
 			const item = op.t === "item" ? op.key : op.t === "seqItem" ? value[op.keyName] : null;
-			const frame = new Frame([op.name], item ?? null, null, true);
+			const frame = Frame.node(op.name, item ?? null);
 			frames.push(frame);
 			value = new KeyPath(frame.accessKeys).getIn(value);
 		}

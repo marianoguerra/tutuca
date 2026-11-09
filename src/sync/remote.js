@@ -7,8 +7,7 @@
 //            delivering each direction's messages in order
 // batch:     { clientId, seq, base, ops }, base being the version the ops were made against
 // messages:  { type: "batch", clientId, seq, version, ops } | { type: "reject", clientId, seq }
-import { project } from "./codec.js";
-import { applyProjection, applyStateOps, opsOf } from "./index.js";
+import { applyProjection, applyStateOps, opsOf, rootOps } from "./index.js";
 import { writeFitting } from "./migrate.js";
 import { applyOps, OpConflictError } from "./ops.js";
 
@@ -25,8 +24,7 @@ export const remoteEngine = ({ transport, level = "shared", clientId = newId() }
 	let flushing = false; // a flush is queued for the end of this run of tasks
 	let resyncs = 0; // the resync in flight, 0 for none; a newer one supersedes it
 	let held = []; // messages that arrived during a resync, or between load and attach
-	const report = (type, fields) =>
-		link?.host.report(type, { engine: link.host.engineName(engine), ...fields });
+	const report = (type, fields) => link?.report(type, fields);
 	const onMigrate = (migration) => report("migrated", migration);
 
 	// Pushes the pending ops as one batch, made to fit the remote's copy, unless one is in flight.
@@ -74,7 +72,7 @@ export const remoteEngine = ({ transport, level = "shared", clientId = newId() }
 			});
 	};
 	const pushRoot = () => {
-		pending = [{ op: "set", path: [], value: project(link.root(), { level }) }];
+		pending = rootOps(link.root(), level);
 		scheduleFlush();
 	};
 	const receive = (message) => {
@@ -115,7 +113,6 @@ export const remoteEngine = ({ transport, level = "shared", clientId = newId() }
 	const engine = {
 		name: "remote",
 		level,
-		clientId,
 		async load() {
 			// Subscribed before loading, so nothing sent meanwhile is missed: attach replays it.
 			unsubscribe = transport.subscribe(receive);

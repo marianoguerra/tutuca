@@ -5,7 +5,7 @@
 // node it reached) are hidden, so inspecting or comparing one doesn't walk the tree, and toJSON
 // gives what can be written down.
 import { AskTask } from "./messages.js";
-import { hidden, plainOf } from "./record.js";
+import { hidden, Record } from "./record.js";
 
 // handled: its handler ran. passed: a notification's hop with no handler, which passes it on.
 // unhandled: nobody handles it. asked: an ask, handed to its handler (its answer is a
@@ -23,16 +23,14 @@ export const TRANSITION_OUTCOMES = [
 	"asked",
 ];
 
-export class Transition {
+export class Transition extends Record {
 	/**
 	 * @param {object} fields what happened, plain: seq, cause, origin, mode, name, args, from,
 	 *   to, outcome, error, emitted, unhandled, watch
 	 * @param {object} heavy what it refers to, hidden: task, before, after, instance
 	 */
 	constructor(fields, heavy = {}) {
-		this.kind = "transition";
-		this.n = null; // Its place among what the host reported, set as it's reported.
-		this.at = null; // When it was reported, by the host's clock.
+		super("transition");
 		this.seq = null; // The task's number, per scheduler, so runs repeat.
 		this.cause = null; // The number of the task that sent it; null when the host did.
 		this.origin = null; // The number of the task its chain started with.
@@ -46,7 +44,6 @@ export class Transition {
 		this.emitted = []; // What its handler sent, as { kind, name, args }.
 		this.unhandled = []; // Messages it made that nobody handles.
 		this.watch = null; // The id of the watch it ran in.
-		this.issues = []; // What the host's dev checks found.
 		Object.assign(this, fields);
 		hidden(this, { task: null, before: null, after: null, instance: null, ...heavy });
 	}
@@ -79,9 +76,6 @@ export class Transition {
 	// Whether its handler ran or it reached a node to run on: the state may have changed.
 	get committed() {
 		return this.outcome === "handled" || this.outcome === "passed" || this.outcome === "unhandled";
-	}
-	toJSON() {
-		return plainOf(this);
 	}
 }
 const modeOf = (task) => (task instanceof AskTask ? "ask" : task.hkey.mode);

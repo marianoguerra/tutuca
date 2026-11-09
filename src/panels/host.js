@@ -1,6 +1,6 @@
 // The Host of a UI of panels over story apps, shared by the storybook and the playground.
 
-import { ClassCompiler, classNamesOf } from "../css/classes.js";
+import { classNamesOf } from "../css/classes.js";
 import { REQUEST } from "../embed/element.js";
 import { storyAskHandlers } from "../stories/live.js";
 import { Host, isProblem, problemLines } from "../tutuca.js";
@@ -21,14 +21,11 @@ export const startPanelHost = ({
 	host.scope.registerAskHandlers({ ...storyAskHandlers(registryOf), ...askHandlers });
 	return host;
 };
-// Logs what goes wrong in host (failed tasks, invalid states, ...), and compiles classes, the
-// class names of its UI, into style.
-export const watchPanelHost = (host, { compile, classes, style }) => {
+// Logs what goes wrong in host (failed tasks, invalid states, ...).
+export const logProblems = (host) =>
 	host.listen((record) => {
 		if (isProblem(record)) console.error(problemLines(record).join("\n"), record);
 	});
-	new ClassCompiler(compile, classes).watch(style);
-};
 // The class names a UI made of components and the panels builds.
 export const uiClasses = (components) => classNamesOf(Object.values(components));
 // The class names the stories of books build.

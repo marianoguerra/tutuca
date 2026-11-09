@@ -3,8 +3,18 @@
 // here: whether one is a problem, and what it says in words. A record's issues are what dev
 // checks found, as codes ({ check, reason, ... }); the problems of a spec or a meta (elsewhere)
 // are sentences.
-import { FAILED_TYPES } from "./host-event.js";
+import { pathText } from "../../tree/index.js";
 import { argsLabel } from "./text.js";
+
+const why = (error) => String(error?.stack ?? error);
+// The host events that are problems whatever their issues, and what each says went wrong.
+const FAILURES = {
+	renderFailed: (record) => `render failed: ${why(record.error)}`,
+	eventFailed: (record) => `${record.eventType} event failed: ${why(record.error)}`,
+	syncFailed: (record) => `sync engine ${record.engine} failed: ${why(record.error)}`,
+	syncRejected: (record) => `sync engine ${record.engine} rejected ${record.ops.length} changes`,
+};
+export const FAILED_TYPES = new Set(Object.keys(FAILURES));
 
 // Whether a record is a problem: a task that failed, a host event that is a failure, or
 // anything dev checks found something wrong with.
@@ -27,7 +37,7 @@ export const problemLines = (record) => {
 	if (failure !== null) lines.push(failure);
 	const state = record.issues.filter((i) => i.check === "state");
 	if (state.length > 0) {
-		const text = state.map((i) => `${i.component} ${i.path.join(".")} ${i.reason}`);
+		const text = state.map((i) => `${i.component} ${pathText(i.path)} ${i.reason}`);
 		lines.push(`invalid state: ${text.join("; ")}`);
 	}
 	const byMessage = new Map();
@@ -40,22 +50,10 @@ export const problemLines = (record) => {
 	return lines;
 };
 const failureText = (record) => {
-	const why = (error) => String(error?.stack ?? error);
 	if (record.kind === "transition") {
 		return record.outcome === "failed"
 			? `${transitionLabel(record)} failed: ${why(record.error)}`
 			: null;
 	}
-	switch (record.type) {
-		case "renderFailed":
-			return `render failed: ${why(record.error)}`;
-		case "eventFailed":
-			return `${record.eventType} event failed: ${why(record.error)}`;
-		case "syncFailed":
-			return `sync engine ${record.engine} failed: ${why(record.error)}`;
-		case "syncRejected":
-			return `sync engine ${record.engine} rejected ${record.ops.length} changes`;
-		default:
-			return null;
-	}
+	return FAILURES[record.type]?.(record) ?? null;
 };

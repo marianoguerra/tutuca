@@ -8,27 +8,21 @@ import {
 	BooleanType,
 	ComponentSpec,
 	ComponentType,
-	DispatchPath,
 	EnumType,
-	Frame,
 	HostTask,
 	IndexType,
 	KeyPath,
 	MapType,
-	MessageContext,
 	NotifyTask,
 	NumberType,
 	OneOfType,
 	OptionType,
 	RecordType,
-	RenderContext,
-	Scope,
 	Selector,
 	StringType,
 	specOf,
 	Target,
 	Task,
-	Type,
 	ViewNode,
 } from "../tutuca.js";
 
@@ -39,7 +33,7 @@ const quote = (s) => `“${truncate(String(s), MAX)}”`;
 export const isTutucaComponent = (v) => specOf(v) instanceof ComponentSpec;
 
 // A value in a few words: "“hello”", "42", "3 items", "Tab".
-const brief = (v) => {
+export const brief = (v) => {
 	if (typeof v === "string") return quote(v);
 	if (v === null || v === undefined) return "nothing";
 	if (typeof v === "function") return `function ${v.name || "(anonymous)"}`;
@@ -180,24 +174,21 @@ const TASKS = [
 ];
 const taskWords = (task) => TASKS.find(([is]) => is(task));
 export const taskVerb = (task) => taskWords(task)[2];
+const issueWords = (record) =>
+	record.issues.length === 0 ? [] : [plural(record.issues.length, "issue")];
 
-export const summarize = (v) => {
-	try {
-		return summarizeUnsafe(v);
-	} catch {
-		return { title: brief(v), detail: "" }; // e.g. a revoked immer draft
-	}
-};
-const summarizeUnsafe = (v) => {
-	if (isTutucaComponent(v)) {
+// What each kind of tutuca value says of itself, as { title, detail }: the summary of its kind
+// in formatters.js's KINDS, which tells the kinds apart.
+export const SUMMARIES = {
+	component(v) {
 		const fields = Object.keys(specOf(v).fields);
 		const shown = fields.slice(0, 3).map((k) => `${k} ${brief(v[k])}`);
 		return {
 			title: `${specOf(v).name}`,
 			detail: [...shown, ...(fields.length > 3 ? ["…"] : [])].join(" · "),
 		};
-	}
-	if (v instanceof ComponentSpec) {
+	},
+	spec(v) {
 		const n = (o) => Object.keys(o).length;
 		const parts = [
 			plural(n(v.fields), "field"),
@@ -206,15 +197,14 @@ const summarizeUnsafe = (v) => {
 		];
 		if (n(v.invariants) > 0) parts.push(plural(n(v.invariants), "invariant"));
 		return { title: `${v.name} component`, detail: parts.join(" · ") };
-	}
-	if (v instanceof Type) return { title: typeWords(v), detail: typeDetail(v) };
-	if (v instanceof ViewNode) return { title: astTitle(v), detail: astDetail(v) };
-	if (v instanceof DispatchPath || v instanceof KeyPath)
-		return { title: "path", detail: pathWords(v) };
-	if (v instanceof Selector) return { title: "selector", detail: pathWords(v) };
-	if (v instanceof Target) return { title: "target", detail: pathWords(v) };
-	if (v instanceof Frame) return { title: "frame", detail: frameWords(v).join(" → ") || "nothing" };
-	if (v instanceof Task) {
+	},
+	type: (v) => ({ title: typeWords(v), detail: typeDetail(v) }),
+	viewNode: (v) => ({ title: astTitle(v), detail: astDetail(v) }),
+	path: (v) => ({ title: "path", detail: pathWords(v) }),
+	selector: (v) => ({ title: "selector", detail: pathWords(v) }),
+	target: (v) => ({ title: "target", detail: pathWords(v) }),
+	frame: (v) => ({ title: "frame", detail: frameWords(v).join(" → ") || "nothing" }),
+	task(v) {
 		const [, kind] = taskWords(v);
 		const where = v.to?.path ?? v.target;
 		const to = where === null ? "the ancestors" : pathWords(where);
@@ -223,20 +213,26 @@ const summarizeUnsafe = (v) => {
 			title: `${kind} ${quote(v.name)}`,
 			detail: from === to ? `to ${to}` : `from ${from} to ${to}`,
 		};
-	}
-	if (v instanceof MessageContext)
-		return { title: "message context", detail: `at ${pathWords(v.path)}` };
-	if (v instanceof Scope) {
+	},
+	// What became of a task: "send “toggle” handled", and where it went.
+	transition(v) {
+		const to = v.to === null ? "nowhere" : v.to.isHost ? "the host" : pathWords(v.to.path);
+		return {
+			title: `${v.mode} ${quote(v.name)} ${v.outcome}`,
+			detail: [`to ${to}`, ...issueWords(v)].join(" · "),
+		};
+	},
+	hostEvent: (v) => ({ title: `host event ${v.type}`, detail: issueWords(v).join("") }),
+	messageContext: (v) => ({ title: "message context", detail: `at ${pathWords(v.path)}` }),
+	scope(v) {
 		const names = Object.keys(v.specs);
 		return {
 			title: "scope",
 			detail: `${plural(names.length, "component")}${v.parent === null ? "" : " · inside another scope"}`,
 		};
-	}
-	if (v instanceof RenderContext)
-		return {
-			title: "render context",
-			detail: `${specOf(v.component)?.name ?? "?"} at depth ${v.depth}`,
-		};
-	return { title: brief(v), detail: "" };
+	},
+	renderContext: (v) => ({
+		title: "render context",
+		detail: `${specOf(v.component)?.name ?? "?"} at depth ${v.depth}`,
+	}),
 };

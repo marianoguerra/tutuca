@@ -104,8 +104,8 @@ test("project keeps the fields its level sees and hydrate makes them back", () =
 });
 
 test("project rejects what it can't store", () => {
-	assert.throws(() => project({ meta: { a: Number.NaN } }), /meta\/a/);
-	assert.throws(() => project({ a: undefined }), /undefined at \/a/);
+	assert.throws(() => project({ meta: { a: Number.NaN } }), /\.meta\.a/);
+	assert.throws(() => project({ a: undefined }), /undefined at \.a/);
 	assert.throws(() => project({ $: "x" }), /reserved key/);
 	assert.throws(() => project(Item.make({})), /without a scope/);
 });

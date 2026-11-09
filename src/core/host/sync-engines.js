@@ -12,10 +12,12 @@ export class SyncEngines {
 		this.deferred = [];
 	}
 	failed(engine, error) {
-		this.report("syncFailed", { engine: engineName(engine, this.list), error });
+		this.report("syncFailed", { engine: this.nameOf(engine), error });
 	}
-	get length() {
-		return this.list.length;
+	// An engine as records name it: its name, else its place among the engines; null for none.
+	nameOf(engine) {
+		if (engine === null || engine === undefined) return null;
+		return engine.name ?? `engine ${Math.max(0, this.list.indexOf(engine))}`;
 	}
 	attach(engine, link) {
 		this.list.push(engine);
@@ -64,8 +66,3 @@ export class SyncEngines {
 		};
 	}
 }
-// An engine as records name it: its name, else its place among the host's engines.
-export const engineName = (engine, engines) =>
-	engine === null || engine === undefined
-		? null
-		: (engine.name ?? `engine ${Math.max(0, engines.indexOf(engine))}`);

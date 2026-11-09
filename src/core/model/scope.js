@@ -144,19 +144,19 @@ export class Scope {
 	// spec implements, resolved here, what it says it implements, and the interface name is
 	// under here if it is registered (or made) by one; its meta holds for the schemas here.
 	// Throws saying what's wrong.
-	check(spec, name = null) {
+	check(spec, name) {
 		const problems = [];
 		const resolved = resolveImplements(spec, this);
-		(spec.implements ?? []).forEach((it, i) => {
+		spec.implements.forEach((it, i) => {
 			if (resolved[i] === null) problems.push(`it implements ${it}, which isn't an interface here`);
 		});
 		const ifaces = resolved.filter((it) => it !== null);
-		const under = name === null ? null : this.lookupInterface(name);
+		const under = this.lookupInterface(name);
 		if (under !== null && !ifaces.includes(under)) ifaces.push(under);
 		for (const it of ifaces) {
 			for (const problem of interfaceProblems(spec, it)) problems.push(`${problem} (${it.name})`);
 		}
-		for (const uri in spec.meta ?? {}) {
+		for (const uri in spec.meta) {
 			const shape = this.lookupMetaSchema(uri);
 			if (shape !== null) problems.push(...metaProblems(uri, spec.meta[uri], shape, this));
 		}
@@ -167,22 +167,6 @@ export class Scope {
 			);
 		}
 		this.checked.add(spec);
-	}
-	// Every spec registered here or in a parent, by name; inner registrations win.
-	allSpecs() {
-		const specs = {};
-		for (const s of this.ancestors()) {
-			for (const name in s.specs) specs[name] ??= s.specs[name];
-		}
-		return specs;
-	}
-	// Every spec registered here or below, by its ref.
-	specsByRef() {
-		const specs = new Map();
-		for (const s of this.descendants()) {
-			for (const name in s.specs) specs.set([...s.path, name].join(refSep), s.specs[name]);
-		}
-		return specs;
 	}
 	make(name, args) {
 		const spec = this.lookupSpec(name);

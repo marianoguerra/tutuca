@@ -20,7 +20,7 @@ import { RenderContext, renderView } from "../view/view.js";
 import { DRAG_EVENTS, DROP_EVENTS, DragTracker } from "./drag.js";
 import { eventSend } from "./events.js";
 import { HostEvent } from "./host-event.js";
-import { engineName, SyncEngines } from "./sync-engines.js";
+import { SyncEngines } from "./sync-engines.js";
 import { HostTask, schedulerFor } from "./tree-binding.js";
 
 // What handlers read from the world, through ctx.now(), ctx.random() and ctx.uuid(): the
@@ -64,7 +64,6 @@ export class Host {
 		this.scheduler = schedulerFor(this);
 		this.scope = new Scope((spec) => this.addEventListeners(spec.eventTypes));
 		this._listeners = new Set();
-		this.pushTask = this.pushTask.bind(this);
 		this.handleTasks = this.handleTasks.bind(this);
 		this._curVDom = null;
 		this._publish = publish;
@@ -164,11 +163,7 @@ export class Host {
 	// of the queue, behind the ones sent now before it and a bubble under way. Any other waits at
 	// the back of the queue for the next tick. event, node and drag are what the handler reads as
 	// ctx.event, ctx.node and ctx.drag. Returns the task.
-	send(
-		name,
-		args = [],
-		{ to = new DispatchPath(), now = false, event = null, node = null, drag = null } = {},
-	) {
+	send(name, args = [], { to, now = false, event = null, node = null, drag = null } = {}) {
 		const task = new HostTask(name, args, targetOf(to), { now, event, node, drag });
 		task.prepare(this.root);
 		if (now) {
@@ -182,7 +177,7 @@ export class Host {
 	// if the component there doesn't support it.
 	// Nothing changes if it breaks the component's invariants.
 	// It's reported as a transition (mode apply), failed when it throws.
-	apply(name, args = [], { to = new DispatchPath() } = {}) {
+	apply(name, args = [], { to } = {}) {
 		const address = this.addressOf(to);
 		const at = address.keyPath;
 		const seq = this.scheduler.nextSeq();
@@ -219,7 +214,7 @@ export class Host {
 		}
 	}
 	// What the query name(...args) of the component at to returns, read from the current root.
-	query(name, args = [], { to = new DispatchPath() } = {}) {
+	query(name, args = [], { to } = {}) {
 		return query(this.addressOf(to).keyPath.getIn(this.root), name, ...args);
 	}
 	// The Address to (as send takes it) reaches in the current root.
@@ -286,6 +281,8 @@ export class Host {
 			this.engines.attach(engine, {
 				host: this,
 				root: () => this.root,
+				// Reports a HostEvent about the engine: syncFailed, syncRejected, migrated.
+				report: (type, fields) => this.report(type, { engine: this.engineName(engine), ...fields }),
 				apply: (producer, info = null) => this.applyChange(producer, { source: engine, info }),
 			});
 		}
@@ -323,12 +320,13 @@ export class Host {
 	// root that settles.
 	reportSettled() {
 		if (this.root === this._settledRoot) return;
+		const issues = this.checks?.settled(this._settledRoot, this.root) ?? [];
 		this._settledRoot = this.root;
-		this.report("settled", { upTo: this._lastSeq }, {}, this.checks?.settled(this.root) ?? []);
+		this.report("settled", { upTo: this._lastSeq }, {}, issues);
 	}
 	// An engine as reports name it.
 	engineName(engine) {
-		return engineName(engine, this.engines.list);
+		return this.engines.nameOf(engine);
 	}
 	handleTasks() {
 		if (this._handlingTasks) return;
@@ -350,7 +348,7 @@ export class Host {
 				this.report("renderFailed", { error, upTo: this._lastSeq });
 			} finally {
 				this._handlingTasks = false;
-				if (this.tasks.length > 0) this.scheduleNextTaskTick();
+				if (!this.scheduler.isEmpty) this.scheduleNextTaskTick();
 				else {
 					this.reportSettled();
 					this.resolveIdle();
@@ -390,8 +388,8 @@ export class Host {
 	}
 }
 // Where a message from the host goes: to as it is, if it is an Address; otherwise a Target from
-// the root, fixed when it is sent.
-const targetOf = (to) => {
+// the root, fixed when it is sent. The root, without one.
+const targetOf = (to = new DispatchPath()) => {
 	if (to instanceof Address) return to;
 	if (to instanceof DispatchPath) return new Target(to);
 	if (to instanceof Selector) return new Target(new DispatchPath(), to);

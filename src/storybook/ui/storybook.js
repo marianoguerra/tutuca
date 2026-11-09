@@ -1,19 +1,22 @@
 // The storybook root: the sidebar of stories and the panels of the selected one.
 
-import { smallButton, tabButton } from "../../panels/ui/common.js";
+import { appCard, smallButton, tabButton } from "../../panels/ui/common.js";
 import {
+	PANEL_LABELS,
+	PANELS,
 	panelFields,
 	panelHandlers,
+	panelsView,
 	resetPanels,
 	storyApp,
 	withPanelQueries,
 } from "../../panels/ui/panels.js";
+import { storyAppKey } from "../../stories/key.js";
 import {
 	$if,
 	apply,
 	component,
 	field,
-	render,
 	renderEach,
 	send,
 	t,
@@ -32,12 +35,12 @@ export const Storybook = component({
 		selectedId: t.string(),
 		isGenerated: t.boolean(),
 		seed: t.number().int().min(0),
-		panel: t.enum("steps", "stress", "dev"),
+		panel: t.enum(...PANELS),
 		...panelFields,
 	},
-	queries: withPanelQueries("panel", {
+	queries: withPanelQueries({
 		get appKey() {
-			return `${this.selectedId}@${this.seed}`;
+			return storyAppKey("", this.selectedId, this.seed);
 		},
 		get hasStory() {
 			return this.selectedId !== "";
@@ -88,18 +91,12 @@ export const Storybook = component({
 							"",
 						),
 					),
-					section({ class: "card border border-base-300 bg-base-100 p-4 shadow-sm" }, storyApp()),
+					section({ class: appCard }, storyApp()),
 					div(
 						{ role: "tablist", class: "tabs tabs-box self-start" },
-						tabButton("setPanel", "steps", "Steps"),
-						tabButton("setPanel", "stress", "Stress test"),
-						tabButton("setPanel", "dev", "Dev"),
+						PANELS.map((panel) => tabButton("setPanel", panel, PANEL_LABELS[panel])),
 					),
-					$if(
-						field("isSteps"),
-						render(field("story")),
-						$if(field("isStress"), render(field("stress")), render(field("dev"))),
-					),
+					panelsView(),
 				),
 				p({ class: "text-base-content/60" }, "Pick a story."),
 			),
@@ -138,12 +135,12 @@ export const Storybook = component({
 			},
 		},
 		setPanel: {
-			args: [t.enum("steps", "stress", "dev")],
+			args: [t.enum(...PANELS)],
 			run(next, [panel]) {
 				next.panel = panel;
 			},
 		},
-		...panelHandlers("panel"),
+		...panelHandlers(),
 		reroll(next) {
 			next.seed = this.seed + 1;
 			resetPanels(this, next);

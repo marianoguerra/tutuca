@@ -3,7 +3,7 @@
 import { ContractError, errorMessage, specOf } from "../tutuca.js";
 
 // A type in words: an any with where checks is what its checks are named.
-const typeWords = (type) => {
+const argTypeText = (type) => {
 	const where = type.constructor?.kind === "any" ? (type.constraints.where ?? []) : [];
 	return where.length > 0 ? where.map((w) => w.name || "valid").join(" and ") : type.text();
 };
@@ -20,7 +20,7 @@ export const contractErrorText = (c, error, params = []) => {
 		if (issue.startsWith("arg:")) {
 			const i = Number(issue.slice(4));
 			const type = (spec?.on[op] ?? spec?.queries?.[op])?.args?.[i];
-			return `${params[i] ?? `argument ${i + 1}`} isn't ${type ? typeWords(type) : "valid"}`;
+			return `${params[i] ?? `argument ${i + 1}`} isn't ${type ? argTypeText(type) : "valid"}`;
 		}
 		if (issue === "pre")
 			return `it can't run with these arguments now${error.detail ? `: ${error.detail}` : ""}`;

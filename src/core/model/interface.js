@@ -42,7 +42,7 @@ export const interfaceProblems = (spec, iface) => {
 	for (const name in iface.pure) checkMessage(name, iface.pure[name], true);
 	for (const name in iface.queries) {
 		const want = iface.queries[name];
-		const q = spec.queries?.[name];
+		const q = spec.queries[name];
 		if (!(q instanceof QuerySpec)) {
 			missing("query", name);
 			continue;
@@ -63,7 +63,7 @@ export const interfaceProblems = (spec, iface) => {
 // The interfaces spec says it implements, resolved in scope: an Interface as it is, a name as
 // the scope has it (null when it doesn't).
 export const resolveImplements = (spec, scope) =>
-	(spec.implements ?? []).map((it) =>
+	spec.implements.map((it) =>
 		it instanceof Interface ? it : (scope?.lookupInterface(it) ?? null),
 	);
 // Whether value is a component implementing iface: it says so, in its scope, or its scope makes

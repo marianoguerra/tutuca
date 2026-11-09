@@ -4,7 +4,7 @@
 // that happened, told apart by its type. Heavy references (roots, the DOM event, the vdom, an
 // engine) are hidden, so inspecting or comparing one doesn't walk them, and toJSON gives what
 // can be written down.
-import { hidden, plainOf } from "../../tree/index.js";
+import { hidden, Record } from "../../tree/index.js";
 
 // The types, and what each carries besides n, at and issues:
 // - started: the root started (hidden: root); issues, what dev checks found in it
@@ -34,25 +34,17 @@ export const HOST_EVENT_TYPES = [
 	"watchSettled",
 	"settled",
 ];
-// The types that are problems whatever their issues.
-export const FAILED_TYPES = new Set(["renderFailed", "eventFailed", "syncFailed", "syncRejected"]);
 
-export class HostEvent {
+export class HostEvent extends Record {
 	/**
 	 * @param {string} type one of HOST_EVENT_TYPES
 	 * @param {object} fields what happened, plain
 	 * @param {object} heavy what it refers to, hidden
 	 */
 	constructor(type, fields = {}, heavy = {}) {
-		this.kind = "hostEvent";
-		this.n = null; // Its place among what the host reported, set as it's reported.
-		this.at = null; // When it was reported, by the host's clock.
+		super("hostEvent");
 		this.type = type;
-		this.issues = []; // What the host's dev checks found.
 		Object.assign(this, fields);
 		hidden(this, heavy);
-	}
-	toJSON() {
-		return plainOf(this);
 	}
 }

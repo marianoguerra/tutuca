@@ -19,17 +19,21 @@ import { askStory, BADGES, card, smallButton, title } from "./common.js";
 
 const { button, div, h3, input, li, ol, option, pre, section, select, span, ul } = tag;
 
-const stepFields = () => ({
+const stepFields = {
 	label: t.string(),
 	status: t.enum("pending", "ok", "failed", "skipped"),
 	isNext: t.boolean(),
-});
-const entryFields = () => ({
+};
+const entryFields = {
 	label: t.string(),
 	origin: t.enum("initial", "reload", "step", "user"),
 	problemCount: t.number().int().min(0),
 	isCurrent: t.boolean(),
-});
+};
+// An <option> for each string a loop goes through.
+const valueOption = option({ value: lookupBind("value") }, lookupBind("value"));
+// How long playing waits between steps, in ms.
+const PLAY_DELAY = 400;
 // Keeps the step form's choices among the current targets and their messages.
 const syncForm = (next) => {
 	if (next.target >= next.targets.length) next.target = 0;
@@ -41,14 +45,13 @@ const syncForm = (next) => {
 };
 
 // What a state report of its app tells it.
-const summaryFields = () => ({
+const summaryFields = {
 	sequences: t.array(t.string()),
 	sequence: t.string(),
-	steps: t.array(t.record(stepFields())),
-	timeline: t.array(t.record(entryFields())),
+	steps: t.array(t.record(stepFields)),
+	timeline: t.array(t.record(entryFields)),
 	cursor: t.number().int().min(0),
 	problems: t.array(t.string()),
-	error: t.string(),
 	stateJson: t.string(),
 	changes: t.array(t.string()),
 	reload: t.array(t.string()),
@@ -58,8 +61,8 @@ const summaryFields = () => ({
 			messages: t.array(t.record({ name: t.string(), sourceKeys: t.array(t.string()) })),
 		}),
 	),
-});
-export const SUMMARY_KEYS = Object.keys(summaryFields());
+};
+export const SUMMARY_KEYS = Object.keys(summaryFields);
 // The buttons that move through the timeline: [op, title, glyph].
 const TRANSPORT = [
 	["toStart", "Reset", "⏮"],
@@ -72,7 +75,7 @@ export const StoryPanel = component({
 	meta: { [CLASSES_META]: { classes: Object.values(BADGES).join(" ") } },
 	fields: {
 		appKey: t.string(),
-		...summaryFields(),
+		...summaryFields,
 		target: t.number().int().min(0),
 		messages: t.array(t.string()),
 		message: t.string(),
@@ -128,7 +131,7 @@ export const StoryPanel = component({
 							"on:change": send("selectSequence", targetValue()),
 						},
 						option({ value: "" }, "(no sequence)"),
-						each(field("sequences"), option({ value: lookupBind("value") }, lookupBind("value"))),
+						each(field("sequences"), valueOption),
 					),
 					div(
 						{ class: "join" },
@@ -199,7 +202,7 @@ export const StoryPanel = component({
 							value: field("message"),
 							"on:change": send("setMessage", targetValue()),
 						},
-						each(field("messages"), option({ value: lookupBind("value") }, lookupBind("value"))),
+						each(field("messages"), valueOption),
 					),
 					$if(
 						field("hasSourceKeys"),
@@ -210,10 +213,7 @@ export const StoryPanel = component({
 								value: field("sourceKey"),
 								"on:change": send("setSourceKey", targetValue()),
 							},
-							each(
-								field("sourceKeys"),
-								option({ value: lookupBind("value") }, lookupBind("value")),
-							),
+							each(field("sourceKeys"), valueOption),
 						),
 						"",
 					),
@@ -307,7 +307,7 @@ export const StoryPanel = component({
 		// A state report of its app.
 		showSummary: {
 			pure: true,
-			args: [t.record(summaryFields())],
+			args: [t.record(summaryFields)],
 			run(next, [summary]) {
 				for (const key of SUMMARY_KEYS) next[key] = summary[key];
 				syncForm(next);
@@ -389,7 +389,7 @@ export const StoryPanel = component({
 			emits: { ask: ["delay"] },
 			run(next, _args, ctx) {
 				next.isPlaying = !this.isPlaying;
-				if (next.isPlaying) ctx.ask("delay", [400]);
+				if (next.isPlaying) ctx.ask("delay", [PLAY_DELAY]);
 			},
 		},
 	},
@@ -402,7 +402,7 @@ export const StoryPanel = component({
 					return;
 				}
 				askStory(ctx, this, "forward");
-				ctx.ask("delay", [400]);
+				ctx.ask("delay", [PLAY_DELAY]);
 			},
 			error(next) {
 				next.isPlaying = false;
@@ -413,14 +413,12 @@ export const StoryPanel = component({
 		},
 		story: {
 			ok(next, [result]) {
-				next.error = "";
 				if (typeof result?.argsJson === "string") next.argsJson = result.argsJson;
 				// forward returns false at a failing or missing step: stop playing there.
 				if (result === false) next.isPlaying = false;
 			},
 			error(next, [error]) {
-				next.error = errorMessage(error);
-				next.problems = [next.error];
+				next.problems = [errorMessage(error)];
 				next.isPlaying = false;
 			},
 			unhandled(next) {

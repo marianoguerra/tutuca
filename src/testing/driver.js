@@ -40,6 +40,15 @@ export const testEnv = ({ seed = 1, start = Date.UTC(2026, 0, 1) } = {}) => {
 	};
 };
 
+// Every spec a component made in scope can make, by the name it's looked up by there: those
+// registered in it or in a parent, inner registrations first. {} for no scope.
+export const specsByName = (scope) => {
+	const specs = {};
+	for (const s of scope?.ancestors() ?? []) {
+		for (const name in s.specs) specs[name] ??= s.specs[name];
+	}
+	return specs;
+};
 // A plain copy of a state for comparing runs: components become { $: name, ...fields }.
 export const snapshot = (v) => {
 	if (v === null || typeof v !== "object") return v;
@@ -54,7 +63,7 @@ export const snapshot = (v) => {
 // reports (Transitions and HostEvents), as it reports them. Live keeps the timers, for async
 // ask replies and events from a user, and only keeps problems in reports; onReport gets every
 // report as it happens.
-const specsOf = (root) => Object.values(scopeOf(root)?.allSpecs() ?? {});
+const specsOf = (root) => Object.values(specsByName(scopeOf(root)));
 export class Driver {
 	constructor({
 		root,

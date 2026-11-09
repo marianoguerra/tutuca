@@ -47,7 +47,7 @@ the four interfaces in `scheduler.js`. It ships as `tutuca/tree`.
 
 `Frame.provider` has no counterpart in spec/tree. It is a frame that starts from an ancestor's
 frame (the one at `provider.depth`, plus `provider.keys`) instead of from the frame before it.
-That's where a node reads a value an ancestor provides, and `DispatchPath.resolve` is where it
+That's where a node reads a value an ancestor provides, and `DispatchPath.toKeyPath` is where it
 matters.
 
 [spec/tree's README](../../spec/tree/README.md#what-tutuca-does) lists where tutuca's choices
