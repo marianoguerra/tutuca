@@ -1,8 +1,7 @@
 // The Driver (tutuca/testing): runs a component tree through a dev-mode Host with no timers,
 // headless or rendered, and keeps what it reports. Tests, stress runs and the live storybook
 // drive apps through it: it sends messages, answers asks and fires DOM events as a user would.
-import { isProblem } from "../core/lifecycle.js";
-import { problemLines } from "../core/text.js";
+import { isProblem, problemLines } from "../core/host/records.js";
 import { DevChecks } from "../dev/checks.js";
 import {
 	Address,
@@ -50,11 +49,9 @@ export const snapshot = (v) => {
 	return out;
 };
 
-export { isProblem };
-
 // Runs messages on a component tree through Host's task handling in dev mode, with no
 // timers. With a document it renders too; otherwise it is headless. It keeps what the host
-// reports (Transitions and Lifecycles), as it reports them. Live keeps the timers, for async
+// reports (Transitions and HostEvents), as it reports them. Live keeps the timers, for async
 // ask replies and events from a user, and only keeps problems in reports; onReport gets every
 // report as it happens.
 const specsOf = (root) => Object.values(scopeOf(root)?.allSpecs() ?? {});
@@ -69,14 +66,15 @@ export class Driver {
 	}) {
 		const node = rootNode ?? document?.createElement("main") ?? null;
 		this.env = env; // Its clock moves with env.advance(ms).
-		this.host = new Host({ document, rootNode: node, checks: DevChecks, env });
 		this.reports = [];
-		this.host.publish = (record) => {
+		const publish = (record) => {
 			if (!live || isProblem(record)) this.reports.push(record);
 			onReport?.(record);
 		};
-		if (!live) this.host.scheduleNextTaskTick = () => {};
-		for (const spec of specsOf(root)) this.host.addEventListeners(spec.eventNames);
+		// Not live, nothing runs later: drain runs the tasks.
+		const schedule = live ? undefined : () => () => {};
+		this.host = new Host({ document, rootNode: node, checks: DevChecks, env, publish, schedule });
+		for (const spec of specsOf(root)) this.host.addEventListeners(spec.eventTypes);
 		this.host.start(root);
 	}
 	get state() {
@@ -102,19 +100,19 @@ export class Driver {
 		return this.reports.filter((r) => r.kind === "transition");
 	}
 	// The rest of what the host reported: started, rendered, settled, ...
-	get lifecycle() {
-		return this.reports.filter((r) => r.kind === "lifecycle");
+	get hostEvents() {
+		return this.reports.filter((r) => r.kind === "hostEvent");
 	}
-	// Send name to the component at path, a DispatchPath or a Selector from the root, as the
-	// host does. from is the frames (or a Selector) from it to the child the message comes
-	// through, which sets ctx.sourceKey: then the child sends it, as a test can and the host
-	// can't.
-	send(path, name, args = [], from = []) {
+	// Sends name(...args) to the component at to, as host.send takes it (the root by default),
+	// and runs what it causes. from is the frames (or a Selector) from it to the child the
+	// message comes through, which sets ctx.sourceKey: then the child sends it, as a test can and
+	// the host can't, and to is a DispatchPath or a Selector.
+	send(name, args = [], { to = new DispatchPath(), from = [] } = {}) {
 		if (from.length === 0 || (from instanceof Selector && from.ops.length === 0)) {
-			this.host.send(name, args, { to: path });
+			this.host.send(name, args, { to });
 			return this.drain();
 		}
-		const base = path instanceof Selector ? new DispatchPath(path.fix(this.state)) : path;
+		const base = to instanceof Selector ? new DispatchPath(to.fix(this.state)) : to;
 		const fromFrames =
 			from instanceof Selector ? from.fix(base.toKeyPath().getIn(this.state)) : from;
 		const sender = Address.at(base.concat(fromFrames), this.state);
@@ -123,10 +121,11 @@ export class Driver {
 		this.host.pushTask(task);
 		this.drain();
 	}
-	// The answer to an ask, as if the scope's handler gave it: for path's answers[ask][outcome]
-	// (ok and error take the value or error as args[0]), with the request id ctx.request reads.
-	answer(path, ask, outcome, args = [], request = null) {
-		const task = new AnswerTask(ask, outcome, args, request, this.host.addressOf(path), null);
+	// The answer to an ask, as if the scope's handler gave it: for the answers[ask][outcome] of
+	// the component at to (ok and error take the value or error as args[0]), with the request
+	// id ctx.request reads.
+	answer(ask, outcome, args = [], { to = new DispatchPath(), request = null } = {}) {
+		const task = new AnswerTask(ask, outcome, args, request, this.host.addressOf(to), null);
 		this.host.pushTask(task);
 		this.drain();
 	}

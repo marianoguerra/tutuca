@@ -6,13 +6,13 @@
 
 import { DevChecks } from "../dev/checks.js";
 
-export { StoryRegistry } from "../panels/runner.js";
-export { checkStory, prepareStory, step, stories, stressStory } from "../stories/stories.js";
+export { StoryRegistry } from "../stories/live.js";
+export { book, checkStory, prepareStory, step, stressStory } from "../stories/stories.js";
 
 import { defineTutucaApp } from "../embed/element.js";
 import { bookClasses, startPanelHost, uiClasses, watchPanelHost } from "../panels/host.js";
-import { StoryRegistry } from "../panels/runner.js";
 import { makePanels, panelComponents } from "../panels/ui/panels.js";
+import { StoryRegistry } from "../stories/live.js";
 import { StoryLink } from "./ui/link.js";
 import { Storybook } from "./ui/storybook.js";
 

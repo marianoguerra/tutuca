@@ -1,4 +1,4 @@
-import { step, stories } from "../../src/storybook/index.js";
+import { book, step } from "../../src/storybook/index.js";
 import { components, jsonViewArgs, listOf } from "./index.js";
 
 const order = {
@@ -18,7 +18,7 @@ const people = Array.from({ length: 12 }, (_, i) => ({
 	active: i % 3 !== 0,
 }));
 
-export default stories({
+export default book({
 	title: "Data views",
 	components,
 	stories: {

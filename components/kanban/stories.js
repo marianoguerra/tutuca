@@ -1,4 +1,4 @@
-import { step, stories } from "../../src/storybook/index.js";
+import { book, step } from "../../src/storybook/index.js";
 import { kanbanComponents } from "./index.js";
 
 const COLUMNS = [
@@ -22,7 +22,7 @@ const card = (column, n) =>
 	`.grid > :nth-child(${column}) [data-dragtype="card"]:nth-of-type(${n})`;
 const column = (n) => `.grid > :nth-child(${n})`;
 
-export default stories({
+export default book({
 	title: "Kanban",
 	components: kanbanComponents,
 	stories: {
@@ -61,7 +61,7 @@ export default stories({
 				],
 			},
 		},
-		"Board/DOM events": { make: sampleBoard, pbt: { events: true, maxCommands: 15 } },
+		"Board/DOM events": { make: sampleBoard, stress: { events: true, maxCommands: 15 } },
 		"Board/Empty": {
 			make: (C) => C.Board({ columns: COLUMNS.map(([title]) => C.Column({ title })) }),
 		},

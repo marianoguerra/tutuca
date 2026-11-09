@@ -260,7 +260,7 @@ test("applyStateOps hydrates the components ops insert", () => {
 	const prev = C.Root();
 	const ops = diffOf(host, prev, edit(prev, { items: [C.Item({ label: "n" })] }));
 	host.start(prev);
-	host.applyExternal((next) => applyStateOps(next, ops, host.scope));
+	host.applyChange((next) => applyStateOps(next, ops, host.scope));
 	assert.equal(specOf(host.root.items[0]), Item);
 	assert.equal(host.root.items[0].label, "n");
 });
@@ -349,7 +349,7 @@ test("a change an engine applies while engines commit waits until they all have"
 	]);
 });
 
-test("applyExternal keeps untouched subtrees and skips the engine it came from", () => {
+test("applyChange keeps untouched subtrees and skips the engine it came from", () => {
 	const { host, C } = setup();
 	host.start(C.Root({ items: [C.Item({ label: "a" })], meta: { x: 1 } }));
 	const commits = [];
@@ -425,7 +425,7 @@ test("a local engine restores local fields under the shared ones", async () => {
 		make: (C) => C.Root(),
 		engines: [remoteEngine({ transport: remote.connect() }), local],
 	});
-	s.host.applyExternal((d) => {
+	s.host.applyChange((d) => {
 		d.selected = 0;
 		d.open = true;
 	});
@@ -491,14 +491,14 @@ test("a client has one batch in flight, so none goes on a version it wasn't made
 	const h = hub(r);
 	const a = await hubClient(h);
 	const b = await hubClient(h);
-	a.host.applyExternal((d) => {
+	a.host.applyChange((d) => {
 		d.title = "abcX";
 	});
 	await tick();
-	a.host.applyExternal((d) => {
+	a.host.applyChange((d) => {
 		d.title = "abcXY";
 	}); // waits for the first
-	b.host.applyExternal((d) => {
+	b.host.applyChange((d) => {
 		d.title = "Zabc";
 	});
 	await tick();
@@ -520,14 +520,14 @@ test("a resync keeps the fields the remote doesn't see", async () => {
 	);
 	const a = await hubClient(h);
 	const b = await hubClient(h);
-	a.host.applyExternal((d) => {
+	a.host.applyChange((d) => {
 		d.selected = 0;
 		d.open = true;
 	});
-	b.host.applyExternal((d) => {
+	b.host.applyChange((d) => {
 		d.title = "from b";
 	});
-	a.host.applyExternal((d) => {
+	a.host.applyChange((d) => {
 		d.title = "from a";
 	});
 	await tick();
@@ -543,7 +543,7 @@ test("messages a client has seen don't make it resync", async () => {
 	const h = hub(relay({ version: 1, value: rootPlain() }));
 	const a = await hubClient(h);
 	const b = await hubClient(h);
-	b.host.applyExternal((d) => {
+	b.host.applyChange((d) => {
 		d.title = "t";
 	});
 	await tick();
@@ -562,11 +562,11 @@ test("a batch that arrives before a client pushed its own edits makes it resync"
 	const h = hub(r);
 	const a = await hubClient(h);
 	const b = await hubClient(h);
-	b.host.applyExternal((d) => {
+	b.host.applyChange((d) => {
 		d.title = "Yabc";
 	});
 	await tick();
-	a.host.applyExternal((d) => {
+	a.host.applyChange((d) => {
 		d.title = "aXbc";
 	});
 	h.deliver(); // before a pushed its edit, which was made against "abc"
@@ -581,7 +581,7 @@ test("a batch sent between a client's load and attach reaches it", async () => {
 	const r = relay({ version: 1, value: rootPlain({ title: "abc" }) });
 	const h = hub(r);
 	const b = await hubClient(h);
-	b.host.applyExternal((d) => {
+	b.host.applyChange((d) => {
 		d.title = "Yabc";
 	});
 	await tick();
@@ -635,13 +635,13 @@ test("a field a newer version adds syncs through the relay, and older clients dr
 	const old = await hubClient(h, { Root: Doc1 });
 	const neu = await hubClient(h, { Root: Doc2 });
 	const loads = h.loads;
-	neu.host.applyExternal((d) => {
+	neu.host.applyChange((d) => {
 		d.body = "hi";
 	});
 	await tick();
 	h.deliver();
 	await tick();
-	neu.host.applyExternal((d) => {
+	neu.host.applyChange((d) => {
 		d.body += "!";
 	});
 	await tick();
@@ -662,25 +662,25 @@ test("a field a newer version adds syncs through automerge, and older peers keep
 	const peer = async (specs, handle) => {
 		const s = setupHost(specs, {
 			sync: true,
-			onReport: (r) => r.phase === "syncFailed" && failures.push(r),
+			onReport: (r) => r.type === "syncFailed" && failures.push(r),
 		});
 		await startSynced(s.host, { make: (C) => C.Root(), engines: [automergeEngine({ handle })] });
 		return s.host;
 	};
 	const old = await peer({ Root: Doc1 }, ha);
-	old.applyExternal((d) => {
+	old.applyChange((d) => {
 		d.title = "t";
 	});
 	const hb = docHandle();
 	hb.merge(ha.doc());
 	const neu = await peer({ Root: Doc2 }, hb);
-	neu.applyExternal((d) => {
+	neu.applyChange((d) => {
 		d.body = "hi";
 	});
-	neu.applyExternal((d) => {
+	neu.applyChange((d) => {
 		d.body += "!";
 	});
-	old.applyExternal((d) => {
+	old.applyChange((d) => {
 		d.title += "itle";
 	});
 	ha.merge(hb.doc());
@@ -699,9 +699,9 @@ test("automerge brings a state that parted from its document back to it", async 
 	hb.merge(ha.doc());
 	const b = await amClient(hb);
 	// a loses the item without its document hearing of it.
-	a.host.applyExternal((d) => void d.items.splice(0, 1), a.engine);
+	a.host.applyChange((d) => void d.items.splice(0, 1), a.engine);
 	send(b.host, "retitle", ["t"]);
-	b.host.applyExternal((d) => void d.items.splice(0, 1));
+	b.host.applyChange((d) => void d.items.splice(0, 1));
 	ha.merge(hb.doc());
 	assert.deepEqual(project(a.host.root), fromDoc(ha.doc()));
 	assert.equal(a.host.root.title, "t");

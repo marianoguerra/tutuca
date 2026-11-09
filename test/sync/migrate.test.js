@@ -44,7 +44,7 @@ test("the same components carry everything and report nothing", () => {
 			["b", false],
 		],
 	);
-	assert.equal(specOf(root.items[0]), scope.lookupByName("Item"));
+	assert.equal(specOf(root.items[0]), scope.lookupSpec("Item"));
 });
 
 test("an added field takes its default and a removed one is dropped", () => {
@@ -95,7 +95,7 @@ test("components in a scope entered by name carry through their ref", () => {
 	const next = scopeWith({ List: AnyList });
 	next.enter("editor").register({ Item: v1 });
 	const { root } = carry(prev, next);
-	assert.equal(specOf(root.items[0]), next.enter("editor").lookupByName("Item"));
+	assert.equal(specOf(root.items[0]), next.enter("editor").lookupSpec("Item"));
 	assert.equal(root.items[0].label, "x");
 });
 
@@ -186,8 +186,8 @@ test("startSynced reports what a projection stored by another version lost", asy
 		{ List: List(), Item: Item({ label: t.string(), done: t.enum("open", "done") }) },
 		{
 			sync: true,
-			onReport: ({ phase, engine, added, reset, dropped }) =>
-				phase === "migrated" && reports.push({ engine, added, reset, dropped }),
+			onReport: ({ type, engine, added, reset, dropped }) =>
+				type === "migrated" && reports.push({ engine, added, reset, dropped }),
 		},
 	);
 	const stored = { $: "List", title: "old", items: [{ $: "Item", label: "a", done: true, x: 1 }] };

@@ -1,11 +1,9 @@
 import assert from "node:assert/strict";
 import test from "node:test";
-import { isConstant } from "../../src/core/optimize.js";
-import { VBase, VComment, VNode } from "../../src/core/vdom.js";
+import { isConstant } from "../../src/core/view/element-plan.js";
 import { collectClasses } from "../../src/css/classes.js";
 import {
 	$if,
-	AstNode,
 	component,
 	each,
 	field,
@@ -16,18 +14,20 @@ import {
 	send,
 	sourceKey,
 	t,
+	ViewNode,
 } from "../../src/tutuca.js";
+import { VBase, VComment, VNode } from "../../src/vdom/index.js";
 import { startHost } from "../helpers.js";
 
 const setup = startHost;
 
-function* allVNodes(childs) {
-	for (const c of childs) {
+function* allVNodes(children) {
+	for (const c of children) {
 		yield c;
-		if (c.childs) yield* allVNodes(c.childs);
+		if (c.children) yield* allVNodes(c.children);
 	}
 }
-const vnodes = (childs) => [...allVNodes(childs)].filter((c) => c instanceof VNode);
+const vnodes = (children) => [...allVNodes(children)].filter((c) => c instanceof VNode);
 const findVNode = (host, tag) => vnodes(host._curVDom).find((n) => n.tag === tag);
 
 test("isConstant: literals, elements with constant parts and constant conditions", () => {
@@ -53,7 +53,7 @@ test("isConstant: anything reading the ctx makes it and its ancestors dynamic", 
 		h("div", {}, h("p", {}, h("b", {}, field("name")))),
 		$if(field("on"), "a", "b"),
 		$if(true, field("name"), "b"),
-		new (class extends AstNode {})(),
+		new (class extends ViewNode {})(),
 	];
 	for (const node of dynamics) assert.equal(isConstant(node), false);
 });
@@ -155,13 +155,13 @@ test("literal text children of dynamic elements keep their vnode across renders"
 		view: h("p", { title: field("count") }, "Count: ", field("count"), 7),
 	});
 	const { host, rootNode, C } = setup(Comp);
-	const [label, , seven] = findVNode(host, "p").childs;
+	const [label, , seven] = findVNode(host, "p").children;
 	host.root = C.Comp({ count: 1 });
 	host.render();
 	const p = findVNode(host, "p");
-	assert.ok(p.childs.every((c) => c instanceof VBase));
-	assert.equal(p.childs[0], label);
-	assert.equal(p.childs[2], seven);
+	assert.ok(p.children.every((c) => c instanceof VBase));
+	assert.equal(p.children[0], label);
+	assert.equal(p.children[2], seven);
 	assert.equal(rootNode.querySelector("p").textContent, "Count: 17");
 });
 

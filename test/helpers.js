@@ -5,7 +5,6 @@ import test from "node:test";
 import fc from "fast-check";
 // biome-ignore lint/correctness/noUnresolvedImports: jsdom uses conditional exports that Node resolves.
 import { JSDOM } from "jsdom";
-import { Shape, toVChilds, VComment, VFragment, VNode } from "../src/core/vdom.js";
 import { DevChecks } from "../src/dev/checks.js";
 import { lint, lintScope } from "../src/lint/index.js";
 import { planToolCall } from "../src/meta/index.js";
@@ -13,6 +12,7 @@ import { Driver, testEnv } from "../src/testing/driver.js";
 import { arbitraries, specProperties } from "../src/testing/pbt.js";
 import { MessageContext, Scheduler } from "../src/tree/index.js";
 import { component, Host, Scope, t } from "../src/tutuca.js";
+import { Shape, toVChildren, VComment, VFragment, VNode } from "../src/vdom/index.js";
 
 // --- documents, hosts and scopes ---------------------------------------------------------
 
@@ -22,25 +22,23 @@ export const { document } = dom();
 
 // A Host on a new <main> with specs registered, and C its components. sync stops the timer
 // tick and has the host publish its reports right away, collecting the errors of failed tasks
-// in failures and passing every report (a Transition or a Lifecycle) to onReport, so a test
+// in failures and passing every report (a Transition or a HostEvent) to onReport, so a test
 // drives the queue with drain() and click(target).
 export const setupHost = (specs, { dev = false, sync = false, onReport = null } = {}) => {
 	const window = dom();
 	const rootNode = window.document.createElement("main");
+	const failures = [];
+	const publish = (record) => {
+		if (record.outcome === "failed") failures.push(record.error);
+		onReport?.(record);
+	};
 	const host = new Host({
 		document: window.document,
 		rootNode,
 		checks: dev ? DevChecks : null,
 		env: testEnv(),
+		...(sync ? { publish, schedule: () => () => {} } : {}),
 	});
-	const failures = [];
-	if (sync) {
-		host.publish = (record) => {
-			if (record.outcome === "failed") failures.push(record.error);
-			onReport?.(record);
-		};
-		host.scheduleNextTaskTick = () => {};
-	}
 	host.scope.register(specs);
 	const drain = () => {
 		while (host.tasks.length > 0) host.handleTasks();
@@ -61,9 +59,8 @@ export const startHost = (Comp, args, options) => {
 // A Host without a page, in dev mode, with specs registered (C, their factories) and its
 // reports collected in reports as they're made.
 export const devHost = (specs) => {
-	const host = new Host({ checks: DevChecks });
 	const reports = [];
-	host.publish = (record) => reports.push(record);
+	const host = new Host({ checks: DevChecks, publish: (record) => reports.push(record) });
 	return { host, reports, C: host.scope.register(specs) };
 };
 // A leaf component with a pure bump, for tests of trees of components.
@@ -85,7 +82,7 @@ export const Leaf = component({
 export const treeHarness = ({ root, handler, askHandler = () => null, transition = () => {} }) => {
 	const store = { root, get: () => store.root, set: (r) => (store.root = r) };
 	const scheduler = new Scheduler({
-		kinds: { handler, askHandler },
+		handlers: { handler, askHandler },
 		store,
 		transact: (r, path, fn) => path.setIn(r, fn(path.getIn(r))),
 		hooks: {
@@ -236,20 +233,20 @@ const shapeFor = (tag, namespace, names) => {
 	return shapes.get(id);
 };
 
-export const vchilds = toVChilds;
+export const vchildren = toVChildren;
 
 export function vh(tag, attrs = {}, children = null) {
 	const { key, namespace = null, ...rest } = attrs;
 	const names = Object.keys(rest);
 	const values = names.map((name) => rest[name]);
-	return new VNode(shapeFor(tag, namespace, names), values, vchilds(children), key);
+	return new VNode(shapeFor(tag, namespace, names), values, vchildren(children), key);
 }
-export const vfrag = (children, key) => new VFragment(vchilds(children), key);
+export const vfrag = (children, key) => new VFragment(vchildren(children), key);
 export const vcomment = (text) => new VComment(text);
 // The messages a report says nobody handles: a transition's unhandled, none for the rest.
 export const unhandledNames = (record) => (record.kind === "transition" ? record.unhandled : []);
-// What a report says happened: a transition's outcome, a lifecycle's phase.
-export const reportType = (record) => record.outcome ?? record.phase;
+// What a report says happened: a transition's outcome, a host event's type.
+export const reportType = (record) => record.outcome ?? record.type;
 // The reasons of the message issues in reports: what broke a message's spec, in order.
 export const messageReasons = (reports) =>
 	reports.flatMap((r) => r.issues.filter((i) => i.check === "message").map((i) => i.reason));

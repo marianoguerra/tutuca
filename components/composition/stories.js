@@ -1,4 +1,4 @@
-import { step, stories } from "../../src/storybook/index.js";
+import { book, step } from "../../src/storybook/index.js";
 import { specOf } from "../../src/tutuca.js";
 import { NOW } from "../thing-tracker/fixtures.js";
 import { compositionComponents, notebook } from "./index.js";
@@ -12,7 +12,7 @@ const gapBefore = (n) => `:scope > div > div:nth-of-type(${n}) > div:first-child
 const lastGap = ":scope > div > div:last-child";
 const ALL = ["notes", "todos", "kanban", "drawing", "tracker", "notebook"];
 
-export default stories({
+export default book({
 	title: "Composition",
 	components: compositionComponents,
 	stories: {
@@ -48,7 +48,7 @@ export default stories({
 					step.check("first gone", (s) => names(s).join() === "Board,Picker"),
 				],
 			},
-			pbt: { events: true, maxCommands: 10 },
+			stress: { events: true, maxCommands: 10 },
 		},
 		"Notebook/One of each": {
 			make: (C) => notebook(C, { kinds: ALL, now: NOW }),

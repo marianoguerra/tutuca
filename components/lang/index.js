@@ -265,7 +265,7 @@ export const Hole = component({
 			emits: { notify: ["placeNode"] },
 			run(_next, _args, ctx) {
 				if (ctx.drag?.type !== "node") return;
-				const from = ctx.drag.path.toComponentPath().toKeyPath().keys;
+				const from = ctx.drag.path.toNodePath().toKeyPath().keys;
 				const to = ctx.path.toKeyPath().keys;
 				const copy = isModKey(ctx.event);
 				ctx.notify("placeNode", [from, to, copy]);
@@ -753,7 +753,7 @@ const isLowerHalf = ({ event, node }) => {
 };
 // Whether the drag is of one of this program's statements, by the handle in its row.
 const isOwnStatement = (ctx) =>
-	ctx.drag?.type === "statement" && String(ctx.drag.path.toComponentPath()) === String(ctx.path);
+	ctx.drag?.type === "statement" && String(ctx.drag.path.toNodePath()) === String(ctx.path);
 
 export const Program = component({
 	name: "Program",

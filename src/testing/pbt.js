@@ -2,16 +2,16 @@
 // message schemas. fast-check is passed in, so tutuca itself doesn't depend on it. The Driver
 // they run on is tutuca/testing's (driver.js).
 
-import { preHolds } from "../core/contract.js";
+import { preHolds } from "../core/model/validate.js";
 import {
 	AnyType,
 	brokenInvariants,
 	ComponentType,
 	component,
-	EventArg,
+	EventArgNode,
 	Frame,
 	field,
-	findInvalidFields,
+	findInvalid,
 	IndexType,
 	render,
 	specOf,
@@ -231,7 +231,7 @@ const argsFor = (A, spec, message) => {
 	const tuples = [];
 	for (const { args } of sends) {
 		const arbs = args.map((arg) => {
-			if (arg instanceof EventArg) return EVENT_ARG[arg.name]?.(fc) ?? null;
+			if (arg instanceof EventArgNode) return EVENT_ARG[arg.name]?.(fc) ?? null;
 			return arg.constructor.kind === "constant" ? fc.constant(arg.value) : null;
 		});
 		if (!arbs.includes(null)) tuples.push(fc.tuple(...arbs));
@@ -296,7 +296,7 @@ export class MessageCommand {
 		const r = this.resolve(prev);
 		this.resolved = r;
 		const before = driver.reports.length;
-		driver.send(r.path, this.message.name, r.args, r.from);
+		driver.send(this.message.name, r.args, { to: r.path, from: r.from });
 		const problems = driver.problemsSince(before);
 		if (problems.length > 0) {
 			throw new Error(`${this} broke:\n  ${describeProblems(problems).join("\n  ")}`);
@@ -360,8 +360,8 @@ const domSignature = (node) => {
 	if (node.nodeType === 3) return node.data;
 	if (node.nodeType === 8) return `<!--${node.data}-->`;
 	const attrs = [...node.attributes].map((a) => `${a.name}="${a.value}"`).sort();
-	const childs = [...node.childNodes].map(domSignature).join("");
-	return `<${node.tagName} ${attrs.join(" ")}>${childs}</${node.tagName}>`;
+	const children = [...node.childNodes].map(domSignature).join("");
+	return `<${node.tagName} ${attrs.join(" ")}>${children}</${node.tagName}>`;
 };
 const elementText = (el) => `<${el.tagName.toLowerCase()} data-eid=${el.dataset.eid}>`;
 // Throws if cmd's run on driver broke something since the before-th report, or patched the DOM
@@ -409,9 +409,9 @@ class EventCommand extends DomCommand {
 		const el = elements[this.target % elements.length];
 		const handlers = handlersOf(driver, el);
 		if (handlers.length === 0) return;
-		const { name } = handlers[this.pick % handlers.length];
-		this.dispatchAndCheck(model, driver, `${name} on ${elementText(el)}`, () =>
-			driver.fire(name, el, { value: this.value }),
+		const { type } = handlers[this.pick % handlers.length];
+		this.dispatchAndCheck(model, driver, `${type} on ${elementText(el)}`, () =>
+			driver.fire(type, el, { value: this.value }),
 		);
 	}
 	toString() {
@@ -432,7 +432,7 @@ class DragCommand extends DomCommand {
 	run(model, driver) {
 		const sources = [...driver.rootNode.querySelectorAll('[draggable="true"]')];
 		const targets = handlerElements(driver).filter((el) =>
-			handlersOf(driver, el).some((h) => h.name === "drop"),
+			handlersOf(driver, el).some((h) => h.type === "drop"),
 		);
 		if (sources.length === 0 || targets.length === 0) return;
 		const from = sources[this.source % sources.length];
@@ -470,7 +470,7 @@ export const specProperties = (spec, A, { document = null } = {}) => {
 	const { fc, scope } = A;
 	const props = {};
 	const schemaIssues = (v) =>
-		findInvalidFields(v, null).filter((i) => !i.reason.startsWith("invariant:"));
+		findInvalid(v, null).filter((i) => !i.reason.startsWith("invariant:"));
 	props.makeIsTotal = fc.property(A.args(spec), (args) => {
 		const made = tryMake(spec, args, scope);
 		if (made === undefined) return;
@@ -550,8 +550,8 @@ export const specProperties = (spec, A, { document = null } = {}) => {
 			fc.pre(ok);
 			const [a, b] = [new Driver({ root: input.made }), new Driver({ root: input.made })];
 			const r = cmd.resolve(input.made);
-			a.send(r.path, cmd.message.name, r.args, r.from);
-			b.send(r.path, cmd.message.name, r.args, r.from);
+			a.send(cmd.message.name, r.args, { to: r.path, from: r.from });
+			b.send(cmd.message.name, r.args, { to: r.path, from: r.from });
 			const [sa, sb] = [JSON.stringify(snapshot(a.state)), JSON.stringify(snapshot(b.state))];
 			if (sa !== sb) throw new Error(`${cmd} gave different states:\n${sa}\n${sb}`);
 		});

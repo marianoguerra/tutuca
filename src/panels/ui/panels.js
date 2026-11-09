@@ -1,7 +1,8 @@
 // The panels of a story's app, shared by the storybook and the playground: the steps, the
 // stress test and the dev panel, fed by the reports of its <tutuca-app>.
-import { devComponents, makeDevPanel } from "../../dev/panel.js";
+
 import { apply, field, scopeOf, send, t, tag } from "../../tutuca.js";
+import { devComponents, makeDevPanel } from "./dev-panel.js";
 import { StoryPanel, SUMMARY_KEYS } from "./story-panel.js";
 import { StressPanel, stressResult } from "./stress-panel.js";
 

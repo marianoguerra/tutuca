@@ -1,10 +1,9 @@
 // The Host of a UI of panels over story apps, shared by the storybook and the playground.
 
-import { problemLines } from "../core/text.js";
 import { ClassCompiler, classNamesOf } from "../css/classes.js";
 import { REQUEST } from "../embed/element.js";
-import { Host, isProblem } from "../tutuca.js";
-import { storyAskHandlers } from "./runner.js";
+import { storyAskHandlers } from "../stories/live.js";
+import { Host, isProblem, problemLines } from "../tutuca.js";
 
 // A Host on rootNode with components registered: the <tutuca-app> requests in rootNode mount
 // on registryOf()'s StoryRegistry, and the panels' asks run on it, besides askHandlers.

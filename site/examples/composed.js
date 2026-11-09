@@ -2,7 +2,7 @@
 // with its own messages; the cart renders them and listens to what they notify.
 // Messages declare typed args, checked when sent: try sending setQuantity(-1) from Steps.
 import { component, field, renderEach, send, t, tag } from "tutuca";
-import { step, stories } from "tutuca/storybook";
+import { book, step } from "tutuca/storybook";
 
 const { button, div, span, strong } = tag;
 
@@ -97,7 +97,7 @@ const sample = (C) =>
 		],
 	});
 
-export default stories({
+export default book({
 	title: "Cart",
 	components: { Cart, Line },
 	stories: {
@@ -105,13 +105,13 @@ export default stories({
 			make: sample,
 			sequences: {
 				"change and remove": [
-					step.send("step", [1], { at: (b) => b.item("lines", 1) }),
+					step.send("step", [1], { to: (b) => b.item("lines", 1) }),
 					step.check("two filters", (s) => s.lines[1].quantity === 2),
 					step.event("click", ".btn-ghost"),
 					step.check("coffee is gone", (s) => s.lines.length === 2 && s.total === "15.75"),
 				],
 			},
-			pbt: { maxCommands: 10 },
+			stress: { maxCommands: 10 },
 		},
 		Empty: { make: (C) => C.Cart() },
 	},

@@ -66,11 +66,11 @@ test("attribute values", () => {
 test("namespaces only show when not implied", () => {
 	const svg = h("svg", {}, [h("circle", { r: "1", namespace: "http://www.w3.org/2000/svg" })]);
 	assert.equal(header(svg), "<svg>…</svg>");
-	assert.equal(header(svg.childs[0]), '<svg:circle r="1"></svg:circle>');
+	assert.equal(header(svg.children[0]), '<svg:circle r="1"></svg:circle>');
 });
 
 test("text, comments, fragments and vnode arrays", () => {
-	assert.equal(header(h("p", {}, "x".repeat(50)).childs[0]), `"${"x".repeat(40)}…"`);
+	assert.equal(header(h("p", {}, "x".repeat(50)).children[0]), `"${"x".repeat(40)}…"`);
 	assert.equal(header(comment(" note ")), "<!-- note -->");
 	const frag = fragment([h("i"), "t"], "k");
 	assert.equal(header(frag), '<> key="k" (2)');

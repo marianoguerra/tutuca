@@ -1,11 +1,18 @@
 // DOM events: finds the component, path and handler an event belongs to from the marker comments,
 // and the send it makes, its args read from the event.
 
-import { Address, DispatchPath, Frame } from "../tree/index.js";
-import { isMarkerOpen, MARKER_CLOSE, parseMarker } from "./markers.js";
-import { specOf } from "./spec.js";
+import { Address, DispatchPath } from "../../tree/index.js";
+import { specOf } from "../model/spec.js";
+import {
+	frameOfMarker,
+	isComponentMarker,
+	isFrameMarker,
+	isMarkerOpen,
+	isTutucaMarker,
+	MARKER_CLOSE,
+	parseMarker,
+} from "../view/markers.js";
 
-const MARKER_TYPES = new Set(["component", "frame"]);
 function* enclosingMarkers(node) {
 	let closed = 0;
 	for (let n = node.previousSibling; n; n = n.previousSibling) {
@@ -27,7 +34,7 @@ function* enclosingMarkers(node) {
 			console.error("bad marker comment", err, n, node);
 			continue;
 		}
-		if (MARKER_TYPES.has(marker?.t)) yield marker; // Skip look-alike comments from unmanaged DOM.
+		if (isTutucaMarker(marker)) yield marker; // Skip look-alike comments from unmanaged DOM.
 	}
 }
 // From node up to rootNode: the markers, innermost first; where each component marker is in them;
@@ -42,7 +49,7 @@ const walkUp = (node, rootNode) => {
 		const eid = node.getAttribute?.("data-eid");
 		if (eid != null) eids.push({ eid: parseInt(eid, 10), node, level: components.length });
 		for (const marker of enclosingMarkers(node)) {
-			if (marker.t === "component") components.push(markers.length);
+			if (isComponentMarker(marker)) components.push(markers.length);
 			markers.push(marker);
 		}
 		node = node.parentNode;
@@ -53,8 +60,8 @@ const walkUp = (node, rootNode) => {
 const pathFrom = (markers) => {
 	const frames = [];
 	for (const marker of [...markers].reverse()) {
-		if (marker.t === "frame") frames.push(Frame.fromMarker(marker));
-		else if (frames.length > 0) frames.push(frames.pop().asComponent());
+		if (isFrameMarker(marker)) frames.push(frameOfMarker(marker));
+		else if (frames.length > 0) frames.push(frames.pop().asNode());
 	}
 	return new DispatchPath(frames);
 };
@@ -79,7 +86,7 @@ export const handlerFor = (target, type, rootNode, root, bubbles = false) => {
 		const { eventHandlers } = specOf(to.keyPath.getIn(root));
 		for (const { eid, node } of eids) {
 			for (const handler of eventHandlers.get(eid) ?? []) {
-				if (handler.name === type) return { handler, to, node };
+				if (handler.type === type) return { handler, to, node };
 			}
 		}
 	}
@@ -105,7 +112,7 @@ export const eventSend = (event, rootNode, root, drag, bubbles = false) => {
 	const found = handlerFor(event.target, event.type, rootNode, root, bubbles);
 	if (found === null) return null;
 	const { handler, to, node } = found;
-	const path = to.path.toComponentPath();
+	const path = to.path.toNodePath();
 	const ctx = { event, node, drag, path, sourceKey: to.path.sourceKeyIn(path) };
 	const args = handler.action.args.map((arg) => arg.eval(ctx));
 	return { name: handler.action.name, args, to, node };

@@ -1,12 +1,11 @@
 // Component specs: component() turns options into a ComponentSpec that makes instances.
-import { immerable } from "../../deps/immer.js";
-import { mint } from "../tree/identity.js";
+import { immerable } from "../../../deps/immer.js";
+import { mint } from "../../tree/identity.js";
+import { toNode } from "../view/view.js";
+import { eventHandlersOf } from "../view/walk.js";
 import { toMeta } from "./component-meta.js";
-import { DRAG_EVENTS } from "./drag.js";
-import { prefixed } from "./schema.js";
 import { QuerySpec, scopeSym, specSym, toAnswers, toMessages, toQueries } from "./spec.js";
-import { toNode } from "./view.js";
-import { eventHandlersOf } from "./walk.js";
+import { prefixed } from "./types.js";
 
 export class ComponentSpec {
 	constructor({
@@ -25,7 +24,7 @@ export class ComponentSpec {
 		meta = toMeta(name, undefined),
 	}) {
 		this.name = name;
-		/** @type {Object<string, import("./schema.js").Type>} */
+		/** @type {Object<string, import("./types.js").Type>} */
 		this.fields = fields;
 		this.methods = methods;
 		// Copy descriptors, not values, so getters in methods stay getters.
@@ -42,9 +41,9 @@ export class ComponentSpec {
 		// The interfaces it says it implements: Interfaces, or names resolved in the scope it is
 		// registered in (scope.js checks them there).
 		this.implements = implemented;
-		// What it says about itself to hosts, by namespace URI (spec.js's toMeta), frozen.
+		// What it says about itself to hosts, by namespace URI (component-meta.js's toMeta), frozen.
 		this.meta = meta;
-		/** @type {Object<string, import("./view.js").AstNode>} */
+		/** @type {Object<string, import("../view/view.js").ViewNode>} */
 		this.views = views;
 		this.on = on;
 		this.answers = answers; // ask name -> outcome (ok, error, unhandled) -> its handler.
@@ -53,9 +52,7 @@ export class ComponentSpec {
 		this.provides = provides;
 		this.invariants = invariants; // name → predicate on the instance, checked in dev and tests.
 		this.eventHandlers = eventHandlersOf(views);
-		this.eventNames = new Set([...this.eventHandlers.values()].flat().map((h) => h.name));
-		// A drop target needs the drag from its start: the host tracks it.
-		if (this.eventNames.has("drop")) for (const name of DRAG_EVENTS) this.eventNames.add(name);
+		this.eventTypes = new Set([...this.eventHandlers.values()].flat().map((h) => h.type));
 	}
 	make(args = {}, scope = null) {
 		const state = mint(Object.create(this.proto));

@@ -14,7 +14,7 @@ import {
 	tag,
 	targetValue,
 } from "tutuca";
-import { step, stories } from "tutuca/storybook";
+import { book, step } from "tutuca/storybook";
 
 const { div, input, li, ul } = tag;
 
@@ -85,7 +85,7 @@ export const Planets = component({
 
 const PLANETS = ["Mercury", "Venus", "Earth", "Mars", "Jupiter", "Saturn"];
 
-export default stories({
+export default book({
 	title: "Planets",
 	components: { Planets },
 	stories: {

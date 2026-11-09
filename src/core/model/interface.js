@@ -1,6 +1,6 @@
 // Interfaces: what a component offers other components, by name and type, and the checks of
-// a spec against one. Field types are in schema.js, which imports this module, so this one
-// reads a type's text through its text() method instead of importing schema.js.
+// a spec against one. Field types are in types.js, which imports this module, so this one
+// reads a type's text through its text() method instead of importing types.js.
 import { HandlerSpec, QuerySpec, scopeOf, specOf } from "./spec.js";
 
 // An interface: what a component offers other components, by name and type, and no state.
@@ -76,7 +76,7 @@ export const implementsIface = (value, iface) => {
 	if (scope === null) return false;
 	for (const s of scope.ancestors()) {
 		for (const name in s.interfaces) {
-			if (s.interfaces[name] === iface && scope.lookupByName(name) === spec) return true;
+			if (s.interfaces[name] === iface && scope.lookupSpec(name) === spec) return true;
 		}
 	}
 	return false;

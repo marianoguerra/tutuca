@@ -1,11 +1,10 @@
 // Plain language for tutuca values: what a node shows in its readable view, as
 // { title, detail }. The code view shows them as src/dev/formatters.js prints them.
 
-import { truncate } from "../core/text.js";
+import { truncate } from "../core/host/text.js";
 import {
 	ArrayType,
 	AskTask,
-	AstNode,
 	BooleanType,
 	ComponentSpec,
 	ComponentType,
@@ -30,6 +29,7 @@ import {
 	Target,
 	Task,
 	Type,
+	ViewNode,
 } from "../tutuca.js";
 
 const MAX = 40;
@@ -114,7 +114,7 @@ const EVENT_ARG_TITLES = {
 	sourceKey: "the key the event came from",
 	dragKey: "the key the dragged element came from",
 };
-const sourceWords = (node) => (node instanceof AstNode ? astTitle(node) : brief(node));
+const sourceWords = (node) => (node instanceof ViewNode ? astTitle(node) : brief(node));
 const astTitle = (node) => {
 	switch (node.constructor.kind) {
 		case "element":
@@ -136,9 +136,9 @@ const astTitle = (node) => {
 		case "each":
 			return `repeats for each of ${sourceWords(node.source)}`;
 		case "cond":
-			return `if ${sourceWords(node.source)}`;
+			return `if ${sourceWords(node.test)}`;
 		case "pushView":
-			return `uses the view ${sourceWords(node.viewNameVal)} inside`;
+			return `uses the view ${sourceWords(node.source)} inside`;
 		case "withBinds":
 			return `with the bindings of ${quote(node.bindsName)}`;
 		case "send":
@@ -156,9 +156,9 @@ const astDetail = (node) => {
 		case "element": {
 			const parts = [];
 			if (node.attrs.length > 0) parts.push(plural(node.attrs.length, "attribute"));
-			if (node.childs.length > 0) parts.push(plural(node.childs.length, "child", "children"));
+			if (node.children.length > 0) parts.push(plural(node.children.length, "child", "children"));
 			if (node.handlers.length > 0)
-				parts.push(`handles ${node.handlers.map((h) => h.name).join(", ")}`);
+				parts.push(`handles ${node.handlers.map((h) => h.type).join(", ")}`);
 			return parts.join(" · ");
 		}
 		case "each":
@@ -208,7 +208,7 @@ const summarizeUnsafe = (v) => {
 		return { title: `${v.name} component`, detail: parts.join(" · ") };
 	}
 	if (v instanceof Type) return { title: typeWords(v), detail: typeDetail(v) };
-	if (v instanceof AstNode) return { title: astTitle(v), detail: astDetail(v) };
+	if (v instanceof ViewNode) return { title: astTitle(v), detail: astDetail(v) };
 	if (v instanceof DispatchPath || v instanceof KeyPath)
 		return { title: "path", detail: pathWords(v) };
 	if (v instanceof Selector) return { title: "selector", detail: pathWords(v) };
@@ -227,7 +227,7 @@ const summarizeUnsafe = (v) => {
 	if (v instanceof MessageContext)
 		return { title: "message context", detail: `at ${pathWords(v.path)}` };
 	if (v instanceof Scope) {
-		const names = Object.keys(v.byName);
+		const names = Object.keys(v.specs);
 		return {
 			title: "scope",
 			detail: `${plural(names.length, "component")}${v.parent === null ? "" : " · inside another scope"}`,

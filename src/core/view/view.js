@@ -1,18 +1,18 @@
 // Views: the AST nodes view builders make, how they evaluate to vnodes, and the render context.
 
-import { DispatchPath, Frame, selectorFrom } from "../tree/path.js";
-import { EVENT_ARGS } from "./events.js";
-import { wrapMarkers } from "./markers.js";
-import { planElement } from "./optimize.js";
-import { isComponent, specOf } from "./spec.js";
-import { addChild, toVChilds, VFragment, VNode } from "./vdom.js";
+import { DispatchPath, Frame, selectorFrom } from "../../tree/path.js";
+import { addChild, toVChildren, VFragment, VNode } from "../../vdom/index.js";
+import { EVENT_ARGS } from "../host/events.js";
+import { isComponent, specOf } from "../model/spec.js";
+import { planElement } from "./element-plan.js";
+import { componentMarker, frameMarker, wrapMarkers } from "./markers.js";
 
 export const renderView = (instance, ctx, viewName) => {
 	const spec = specOf(instance);
 	const view = ctx.getBestViewFor(spec, viewName);
-	return wrapMarkers({ t: "component" }, view.eval(ctx.with({ component: instance })));
+	return wrapMarkers(componentMarker(), view.eval(ctx.with({ component: instance })));
 };
-export class AstNode {
+export class ViewNode {
 	static kind = "node"; // The Walker method it dispatches to.
 	childNodes() {
 		return [];
@@ -21,7 +21,7 @@ export class AstNode {
 		walker.dispatch(this.constructor.kind, this);
 	}
 }
-export class Field extends AstNode {
+export class FieldNode extends ViewNode {
 	static kind = "field";
 	constructor(name) {
 		super();
@@ -34,10 +34,10 @@ export class Field extends AstNode {
 		return new Frame([this.name], null, null, true);
 	}
 }
-export const field = (name) => new Field(name);
+export const field = (name) => new FieldNode(name);
 // One of the component's queries that takes args, called with them: $query("matches",
 // field("text")). A query without args reads as a field.
-export class Query extends AstNode {
+export class QueryNode extends ViewNode {
 	static kind = "query";
 	constructor(name, args) {
 		super();
@@ -51,8 +51,8 @@ export class Query extends AstNode {
 		return this.args;
 	}
 }
-export const $query = (name, ...args) => new Query(name, args.map(toNode));
-export class SeqItem extends AstNode {
+export const $query = (name, ...args) => new QueryNode(name, args.map(toNode));
+export class SeqItemNode extends ViewNode {
 	static kind = "seqItem";
 	constructor(seqName, keyName) {
 		super();
@@ -67,8 +67,8 @@ export class SeqItem extends AstNode {
 		return new Frame([this.seqName], ctx.it[this.keyName] ?? null, null, true);
 	}
 }
-export const seqItem = (seqName, keyName) => new SeqItem(seqName, keyName);
-export class Provided extends AstNode {
+export const seqItem = (seqName, keyName) => new SeqItemNode(seqName, keyName);
+export class ProvidedNode extends ViewNode {
 	static kind = "provided";
 	constructor(name) {
 		super();
@@ -84,60 +84,62 @@ export class Provided extends AstNode {
 		return new Frame([], null, { name: this.name, depth, keys }, true);
 	}
 }
-export const provided = (name) => new Provided(name);
+export const provided = (name) => new ProvidedNode(name);
 let nextEid = 0;
-export class Element extends AstNode {
+export class ElementNode extends ViewNode {
 	static kind = "element";
-	constructor(tagName, attrs, childs, handlers) {
+	constructor(tagName, attrs, children, handlers) {
 		super();
 		this.tagName = tagName;
 		this.attrs = attrs;
-		this.childs = childs;
+		this.children = children;
 		this.handlers = handlers;
 		this.eid = handlers.length > 0 ? nextEid++ : null;
 		this.plan = planElement(this); // OPT: what every render shares (shape, constant parts), see planElement.
 	}
 	// A vnode of this element's shape, with the dynamic attrs and the children evaluated in ctx.
 	eval(ctx) {
-		const { shape, valueExprs, keyExpr, childs, vnode } = this.plan;
+		const { shape, valueExprs, keyExpr, children, vnode } = this.plan;
 		if (vnode !== null) return vnode; // OPT: a constant element is prebuilt.
 		const values = valueExprs.map((v) => v.eval(ctx));
-		const vchilds = [];
-		for (let i = 0; i < this.childs.length; i++) {
-			addChild(vchilds, childs[i] ?? this.childs[i].eval(ctx)); // OPT: prebuilt constant childs.
+		const vchildren = [];
+		for (let i = 0; i < this.children.length; i++) {
+			addChild(vchildren, children[i] ?? this.children[i].eval(ctx)); // OPT: prebuilt constant children.
 		}
-		return new VNode(shape, values, vchilds, keyExpr?.eval(ctx));
+		return new VNode(shape, values, vchildren, keyExpr?.eval(ctx));
 	}
 }
-// Arrays of children splice into the element when the view is built, nested ones too.
-export const h = (tagName, attrs, ...childs) => {
+// Arrays of children splice into the element when the view is built, nested ones too. An on:type
+// attr is a handler, { type, action }: the event's type and the send it makes.
+export const h = (tagName, attrs, ...children) => {
 	const props = [];
 	const handlers = [];
 	for (const key in attrs) {
 		const value = attrs[key];
-		if (key.startsWith("on:")) handlers.push({ name: key.slice(3), action: value });
+		if (key.startsWith("on:")) handlers.push({ type: key.slice(3), action: value });
 		else props.push([key, toNode(value)]);
 	}
-	return new Element(tagName, props, childs.flat(Infinity).map(toNode), handlers);
+	return new ElementNode(tagName, props, children.flat(Infinity).map(toNode), handlers);
 };
-export class Cond extends AstNode {
+export class CondNode extends ViewNode {
 	static kind = "cond";
-	constructor(source, thenVal, elseVal) {
+	constructor(test, thenVal, elseVal) {
 		super();
-		this.source = source;
+		this.test = test;
 		this.thenVal = thenVal;
 		this.elseVal = elseVal;
 	}
 	eval(ctx) {
-		return (this.source.eval(ctx) ? this.thenVal : this.elseVal).eval(ctx);
+		return (this.test.eval(ctx) ? this.thenVal : this.elseVal).eval(ctx);
 	}
 	childNodes() {
-		return [this.source, this.thenVal, this.elseVal];
+		return [this.test, this.thenVal, this.elseVal];
 	}
 }
-export const $if = (source, thenVal, elseVal) =>
-	new Cond(toNode(source), toNode(thenVal), toNode(elseVal));
-export class Constant extends AstNode {
+// $if and $query take a $: if is a reserved word, and query is the contract's (contract.js).
+export const $if = (test, thenVal, elseVal) =>
+	new CondNode(toNode(test), toNode(thenVal), toNode(elseVal));
+export class ConstantNode extends ViewNode {
 	static kind = "constant";
 	constructor(value) {
 		super();
@@ -147,8 +149,8 @@ export class Constant extends AstNode {
 		return this.value;
 	}
 }
-export const toNode = (v) => (v instanceof AstNode ? v : new Constant(v));
-export class Render extends AstNode {
+export const toNode = (v) => (v instanceof ViewNode ? v : new ConstantNode(v));
+export class RenderNode extends ViewNode {
 	static kind = "render";
 	constructor(source, viewName) {
 		super();
@@ -158,13 +160,13 @@ export class Render extends AstNode {
 	eval(ctx) {
 		const child = this.source.eval(ctx);
 		const frame = this.source.toFrame(ctx);
-		return wrapMarkers(frame.toMarker(), renderView(child, ctx.enterFrame(child), this.viewName));
+		return wrapMarkers(frameMarker(frame), renderView(child, ctx.enterFrame(child), this.viewName));
 	}
 	childNodes() {
 		return [this.source];
 	}
 }
-export const render = (source, viewName) => new Render(toNode(source), viewName);
+export const render = (source, viewName) => new RenderNode(toNode(source), viewName);
 const entriesOf = (items) => (Array.isArray(items) ? items.entries() : Object.entries(items));
 function* filteredEntries(self, filter, items, state) {
 	for (const entry of entriesOf(items)) {
@@ -190,11 +192,11 @@ const loopFragments = (ctx, source, loopName, renderItem) => {
 		const base = { value, key };
 		const binds = loop.enrich ? { ...loop.enrich.call(self, base, state), value, key } : base;
 		const dom = renderItem(ctx.enterFrame(value, binds), loop);
-		nodes.push(new VFragment(toVChilds(wrapMarkers(frame.toMarker(), dom)), fragmentKey));
+		nodes.push(new VFragment(toVChildren(wrapMarkers(frameMarker(frame), dom)), fragmentKey));
 	}
 	return new VFragment(nodes);
 };
-export class Each extends AstNode {
+export class EachNode extends ViewNode {
 	static kind = "each";
 	constructor(source, child, loopName) {
 		super();
@@ -209,11 +211,12 @@ export class Each extends AstNode {
 		return [this.source, this.child];
 	}
 }
-export const each = (source, child, loopName) => new Each(toNode(source), toNode(child), loopName);
+export const each = (source, child, loopName) =>
+	new EachNode(toNode(source), toNode(child), loopName);
 const renderEachItem = (itemCtx, loop) =>
 	renderView(itemCtx.it, itemCtx.forItemView(itemCtx.it), loop.view);
 // A loop that renders each item, a component, with the loop's view.
-export class RenderEach extends AstNode {
+export class RenderEachNode extends ViewNode {
 	static kind = "renderEach";
 	constructor(source, loopName) {
 		super();
@@ -227,8 +230,8 @@ export class RenderEach extends AstNode {
 		return [this.source];
 	}
 }
-export const renderEach = (source, loopName) => new RenderEach(toNode(source), loopName);
-export class RenderIt extends AstNode {
+export const renderEach = (source, loopName) => new RenderEachNode(toNode(source), loopName);
+export class RenderItNode extends ViewNode {
 	static kind = "renderIt";
 	constructor(viewName) {
 		super();
@@ -239,9 +242,9 @@ export class RenderIt extends AstNode {
 		return renderView(it, ctx.forItemView(it), this.viewName);
 	}
 }
-export const renderIt = (viewName) => new RenderIt(viewName);
+export const renderIt = (viewName) => new RenderItNode(viewName);
 // child with the names one of the component's binds returns, all but value, in scope.
-export class WithBinds extends AstNode {
+export class WithBindsNode extends ViewNode {
 	static kind = "withBinds";
 	constructor(bindsName, child) {
 		super();
@@ -256,24 +259,24 @@ export class WithBinds extends AstNode {
 		return [this.child];
 	}
 }
-export const withBinds = (bindsName, child) => new WithBinds(bindsName, toNode(child));
-export class PushView extends AstNode {
+export const withBinds = (bindsName, child) => new WithBindsNode(bindsName, toNode(child));
+export class PushViewNode extends ViewNode {
 	static kind = "pushView";
-	constructor(viewNameVal, child) {
+	constructor(source, child) {
 		super();
-		this.viewNameVal = viewNameVal;
+		this.source = source; // What evaluates to the view's name.
 		this.child = child;
 	}
 	eval(ctx) {
-		const viewName = this.viewNameVal.eval(ctx);
+		const viewName = this.source.eval(ctx);
 		return this.child.eval(ctx.pushView(viewName));
 	}
 	childNodes() {
-		return [this.viewNameVal, this.child];
+		return [this.source, this.child];
 	}
 }
-export const pushView = (source, child) => new PushView(toNode(source), toNode(child));
-export class Send extends AstNode {
+export const pushView = (source, child) => new PushViewNode(toNode(source), toNode(child));
+export class SendNode extends ViewNode {
 	static kind = "send";
 	constructor(name, args) {
 		super();
@@ -284,9 +287,9 @@ export class Send extends AstNode {
 		return this.args;
 	}
 }
-export const send = (name, ...args) => new Send(name, args.map(toNode));
+export const send = (name, ...args) => new SendNode(name, args.map(toNode));
 // A send arg that reads the event, not the state: one of EVENT_ARGS, by name.
-export class EventArg extends AstNode {
+export class EventArgNode extends ViewNode {
 	static kind = "eventArg";
 	constructor(name) {
 		super();
@@ -296,10 +299,10 @@ export class EventArg extends AstNode {
 		return EVENT_ARGS[this.name](ctx);
 	}
 }
-export const targetValue = () => new EventArg("targetValue");
-export const sourceKey = () => new EventArg("sourceKey");
-export const dragKey = () => new EventArg("dragKey");
-export class LookupBind extends AstNode {
+export const targetValue = () => new EventArgNode("targetValue");
+export const sourceKey = () => new EventArgNode("sourceKey");
+export const dragKey = () => new EventArgNode("dragKey");
+export class LookupBindNode extends ViewNode {
 	static kind = "lookupBind";
 	constructor(name) {
 		super();
@@ -309,7 +312,7 @@ export class LookupBind extends AstNode {
 		return ctx.lookupBind(this.name);
 	}
 }
-export const lookupBind = (name) => new LookupBind(name);
+export const lookupBind = (name) => new LookupBindNode(name);
 export class RenderContext {
 	constructor({ it, binds, provided, viewStack, depth, component }) {
 		this.it = it;

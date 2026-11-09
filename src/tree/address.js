@@ -9,12 +9,12 @@ export class Address {
 	constructor(path, id, isHost = false) {
 		this.path = path;
 		/** @type {import("./path.js").KeyPath} */
-		this.keyPath = path.toComponentKeyPath();
+		this.keyPath = path.toNodeKeyPath();
 		this.id = id;
 		this.isHost = isHost;
 	}
 	static at(path, root) {
-		return new Address(path, idOf(path.toComponentKeyPath().getIn(root)));
+		return new Address(path, idOf(path.toNodeKeyPath().getIn(root)));
 	}
 	// The address target reaches in root.
 	static of(target, root) {
@@ -32,8 +32,8 @@ export class Address {
 	// here, which a bubble visits in one turn.
 	ancestors(root) {
 		const hops = [];
-		for (let p = this.path.toComponentPath(); !p.isRootPath; ) {
-			p = p.toParentPath().toComponentPath();
+		for (let p = this.path.toNodePath(); !p.isRootPath; ) {
+			p = p.toParentPath().toNodePath();
 			hops.push(Address.at(p, root));
 		}
 		return hops;

@@ -1,18 +1,18 @@
 // Dev mode's checks: the state against the schemas and invariants, and each handled message
 // against its spec and against who may write what: a component's fields are written by its own
 // handlers and pure messages, not by its ancestors'. What breaks is returned as issues, which
-// the host puts on the report (a Transition or a Lifecycle) of what caused them.
+// the host puts on the record (a Transition or a HostEvent) of what caused them.
 import { produce } from "../../deps/immer.js";
-import { messageIssues, trackApplies } from "../core/contract.js";
-import { isComponent, specOf } from "../core/spec.js";
-import { keyText } from "../core/text.js";
-import { findInvalidFields } from "../core/validate.js";
+import { keyText } from "../core/host/text.js";
+import { trackApplies } from "../core/model/contract.js";
+import { isComponent, specOf } from "../core/model/spec.js";
+import { findInvalid, messageIssues } from "../core/model/validate.js";
 import { idOf } from "../tree/identity.js";
 
 // The writes from prev to next, the component a task (or host.apply) handled before and after,
 // that changed another component's own data, as { path, owner, field }: a component under it
 // whose fields changed though no pure message was applied to it (ids). Only what changed is
-// walked, as findInvalidFields does. Replacing, adding or removing a child changes the parent's
+// walked, as findInvalid does. Replacing, adding or removing a child changes the parent's
 // field, so it's the parent's; a child that is the same one (by identity) but changed is its own.
 // A version of a child that was already in prev (a snapshot an undo restores, a history entry
 // that moved) was put there, not written: the parent's too. Only when there is a candidate is
@@ -77,9 +77,9 @@ const messageIssuesOf = (message, reasons, writes) => [
 		write,
 	})),
 ];
-// The issues of a state: each invalid field or broken invariant findInvalidFields finds.
+// The issues of a state: each invalid field or broken invariant findInvalid finds.
 const stateIssuesOf = (root, prevRoot, check) =>
-	findInvalidFields(root, prevRoot, check).map((issue) => ({ check: "state", ...issue }));
+	findInvalid(root, prevRoot, check).map((issue) => ({ check: "state", ...issue }));
 
 // What each check finds it returns, as issues: { check: "state", path, component, field, value,
 // reason } for the state, { check: "message", message, reason, write? } for a message. The host

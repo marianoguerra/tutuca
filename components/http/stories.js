@@ -1,4 +1,4 @@
-import { step, stories } from "../../src/storybook/index.js";
+import { book, step } from "../../src/storybook/index.js";
 import { $if, component, field, pushView, render, send, t, tag } from "../../src/tutuca.js";
 import { TASKS } from "./fixtures.js";
 import {
@@ -57,7 +57,7 @@ const failing = (s) => s.content.checks.filter((c) => !c.ok).map((c) => c.text);
 const fails = (name, pattern) =>
 	step.check(name, (s) => failing(s).some((text) => pattern.test(text)));
 
-export default stories({
+export default book({
 	title: "HTTP",
 	components: { ...httpComponents, HttpEditable: Editable },
 	stories: {

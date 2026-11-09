@@ -1,5 +1,5 @@
 // The canvas's own agent (the agent bundle): it adds a component, gives it an agent, prompts
-// that agent and waits for it (a settle scope, src/tree/settle.js), then ejects it. The models
+// that agent and waits for it (a watch, src/tree/watch.js), then ejects it. The models
 // are scripted and answer later, as a server would.
 import assert from "node:assert/strict";
 import test from "node:test";

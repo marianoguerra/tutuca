@@ -1,5 +1,5 @@
 import { withSample } from "../../src/meta/index.js";
-import { step, stories } from "../../src/storybook/index.js";
+import { book, step } from "../../src/storybook/index.js";
 import { canvas, canvasKitComponents } from "../canvas/index.js";
 import { kindHandlers, layoutComponents } from "../canvas/layout.js";
 import { kanbanComponents } from "../kanban/index.js";
@@ -37,7 +37,7 @@ const keyCommand = (key, ctrlKey) => ({
 	toString: () => `keydown ${ctrlKey ? "Ctrl+" : ""}${key}`,
 });
 
-export default stories({
+export default book({
 	title: "Agent",
 	components: {
 		...agentComponents,
@@ -109,7 +109,7 @@ export default stories({
 						(s) => s.items["item-1"].content.target.columns.length === 3,
 					),
 					step.send("ask", ['/remove_card {"id": "c00"}'], {
-						at: (b) => b.item("items", "item-1").field("content"),
+						to: (b) => b.item("items", "item-1").field("content"),
 					}),
 					step.check("the agent changed the board", (s) =>
 						s.items["item-1"].content.target.columns[0].cards.every((c) => c.id !== "c00"),

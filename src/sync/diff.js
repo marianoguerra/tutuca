@@ -1,7 +1,7 @@
 // The ops that turn prev into next, guided by their components' schemas. Works on states and on
 // plain projections alike (an engine's stored copy), and skips subtrees the two share, so after
 // a task it only walks what the task changed.
-import { isRecord, StringType } from "../core/schema.js";
+import { isRecord, StringType } from "../core/model/types.js";
 import { componentOf, keysOf, keyType, narrow, project } from "./codec.js";
 
 // Past this many cells an array's middle is replaced instead of matched item by item.

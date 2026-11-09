@@ -1,11 +1,12 @@
 // State from another version of the components, made to fit this one: a projection stored or
 // sent by an older or newer app (rebuild), the live state of the code before an edit (carry,
-// hot reload), and ops from a peer on another version (fitOp). The rules are hydrate's: fields
+// hot reload), and ops from a peer on another version (applyFitting). The rules are hydrate's: fields
 // a component doesn't declare are dropped, values their type rejects take its default; each
 // says what it changed.
-import { isRecord, typeText, unlessNoDefault } from "../core/schema.js";
-import { isComponent, specOf } from "../core/spec.js";
-import { findInvalidFields } from "../core/validate.js";
+
+import { isComponent, specOf } from "../core/model/spec.js";
+import { isRecord, typeText, unlessNoDefault } from "../core/model/types.js";
+import { findInvalid } from "../core/model/validate.js";
 import { componentOf, getIn, hydrate, keyType, project, typeAt } from "./codec.js";
 import { diff } from "./diff.js";
 import { applyOps, opFits } from "./ops.js";
@@ -14,7 +15,7 @@ import { applyOps, opFits } from "./ops.js";
 // come through: { root, added: [path], reset: [{ path, before, after }], dropped: [path],
 // broken: [issue] }. added are fields plain lacks that level sees, now at their default; reset
 // values their type rejects, now at their default; dropped fields the components don't
-// declare; broken the issues findInvalidFields finds in root, invariants included. Throws when
+// declare; broken the issues findInvalid finds in root, invariants included. Throws when
 // plain can't be made: a component that's gone, a new field without a default.
 // type is the type plain has where it goes, for a value that isn't the whole state.
 export const rebuild = (plain, scope, { level = "none", type = undefined } = {}) => {
@@ -29,7 +30,7 @@ export const rebuild = (plain, scope, { level = "none", type = undefined } = {})
 		else reset.push({ path, before: getIn(plain, path), after: getIn(after, path) });
 	}
 	const dropped = droppedFields(plain, type, scope.root);
-	return { root, added, reset, dropped, broken: findInvalidFields(root, null) };
+	return { root, added, reset, dropped, broken: findInvalid(root, null) };
 };
 // The state prev holds, made again through scope's components: hot reload. rebuild of its
 // projection with every field; throws as rebuild does, and for values a projection can't hold.

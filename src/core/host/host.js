@@ -2,7 +2,7 @@
 // Everything from outside the tree comes in through send: DOM events, and the messages of
 // whatever drives the app (an agent, a test, a bar). Without a document it is headless: it
 // renders nothing and listens to no events, and the tree runs the same.
-import { current, isDraft, produce } from "../../deps/immer.js";
+import { current, isDraft, produce } from "../../../deps/immer.js";
 import {
 	Address,
 	DispatchPath,
@@ -11,17 +11,17 @@ import {
 	selectorFrom,
 	Target,
 	Transition,
-} from "../tree/index.js";
-import { apply, checkInvariants, query } from "./contract.js";
-import { DROP_EVENTS, DragTracker } from "./drag.js";
+} from "../../tree/index.js";
+import { morph, toVChildren } from "../../vdom/index.js";
+import { apply, checkInvariants, query } from "../model/contract.js";
+import { Scope } from "../model/scope.js";
+import { specOf } from "../model/spec.js";
+import { RenderContext, renderView } from "../view/view.js";
+import { DRAG_EVENTS, DROP_EVENTS, DragTracker } from "./drag.js";
 import { eventSend } from "./events.js";
-import { engineName, Lifecycle } from "./lifecycle.js";
-import { Scope } from "./scope.js";
-import { specOf } from "./spec.js";
-import { SyncEngines } from "./sync-engines.js";
+import { HostEvent } from "./host-event.js";
+import { engineName, SyncEngines } from "./sync-engines.js";
 import { HostTask, schedulerFor } from "./tree-binding.js";
-import { morph, toVChilds } from "./vdom.js";
-import { RenderContext, renderView } from "./view.js";
 
 // What handlers read from the world, through ctx.now(), ctx.random() and ctx.uuid(): the
 // clock in ms since the epoch, a number in [0, 1) and a new id. Each mirrors the global it
@@ -32,11 +32,29 @@ export const browserEnv = {
 	uuid: () => globalThis.crypto.randomUUID(),
 };
 
+// How a host runs its next tick of tasks: later, in a task of the event loop. Returns what
+// cancels it.
+const inNextTask = (fn) => {
+	const id = setTimeout(fn, 0);
+	return () => clearTimeout(id);
+};
+
 export class Host {
 	// checks is what dev mode runs: DevChecks from tutuca/dev (src/dev/checks.js) checks the state
 	// against the schemas on start and after each task, and what it finds is in the issues of
 	// what the host reports. Null outside dev mode, so the core doesn't carry them.
-	constructor({ document = null, rootNode = null, checks = null, env = browserEnv } = {}) {
+	// publish(record) gets each record the host reports as it reports it, instead of the
+	// listeners getting it after the current task; schedule(fn) runs the next tick of tasks and
+	// returns what cancels it. A Driver (tutuca/testing) gives both, to keep the records and run
+	// the tasks itself.
+	constructor({
+		document = null,
+		rootNode = null,
+		checks = null,
+		env = browserEnv,
+		publish = null,
+		schedule = inNextTask,
+	} = {}) {
 		this.document = document;
 		this.rootNode = rootNode;
 		this.checks = checks === null ? null : new checks();
@@ -44,24 +62,26 @@ export class Host {
 		this.root = null;
 		// Delivers the tasks against the root (src/tree): this host renders, listens and syncs.
 		this.scheduler = schedulerFor(this);
-		this.scope = new Scope((spec) => this.addEventListeners(spec.eventNames));
+		this.scope = new Scope((spec) => this.addEventListeners(spec.eventTypes));
 		this._listeners = new Set();
 		this.pushTask = this.pushTask.bind(this);
 		this.handleTasks = this.handleTasks.bind(this);
 		this._curVDom = null;
-		this._taskTickTimeoutId = null;
+		this._publish = publish;
+		this._schedule = schedule;
+		this._cancelTick = null; // Cancels the tick scheduled, if one is.
 		this._handlingTasks = false;
 		this._eventsAdded = new Set();
 		this._idleWaiters = [];
-		this._scopeTimers = new Map();
+		this._watchTimers = new Map();
 		this.drags = new DragTracker(rootNode);
-		this.engines = new SyncEngines((phase, fields) => this.report(phase, fields));
+		this.engines = new SyncEngines((type, fields) => this.report(type, fields));
 		this._reported = 0; // How many reports were made, to number the next one.
 		this._lastSeq = null; // The seq of the last task the scheduler was done with.
 		this._settledRoot = null; // The root as of the last settled report.
 	}
 	// What the scheduler tells the host (tree-binding.js's schedulerFor): what became of a task,
-	// there are tasks to run, and a settle scope opened or settled.
+	// there are tasks to run, and a watch opened or settled.
 	// A task whose handler ran (ctx) is checked in dev mode, and what's wrong is in its issues.
 	transitioned(record, ctx) {
 		if (record.seq !== null) this._lastSeq = record.seq;
@@ -72,33 +92,33 @@ export class Host {
 				...this.checks.message(ctx, instance, record.to.keyPath.getIn(after)),
 			);
 		}
-		this.notify(record);
+		this.announce(record);
 	}
 	wake() {
 		if (!this._handlingTasks) this.scheduleNextTaskTick();
 	}
-	scopeOpened(scope) {
-		this.startScopeTimer(scope);
-		const { id, watcher, timeout } = scope;
-		this.report("scopeOpened", { scope: id, watcher, timeout });
+	watchOpened(watch) {
+		this.startWatchTimer(watch);
+		const { id, watcher, timeout } = watch;
+		this.report("watchOpened", { watch: id, watcher, timeout });
 	}
-	scopeSettled(scope) {
-		this.stopScopeTimer(scope);
-		const { id, ...report } = scope.report();
-		this.report("scopeSettled", { scope: id, ...report });
+	watchSettled(watch) {
+		this.stopWatchTimer(watch);
+		const { id, ...report } = watch.report();
+		this.report("watchSettled", { watch: id, ...report });
 	}
-	// A settle scope with a timeout is cancelled with timeout once it's up.
-	startScopeTimer(scope) {
-		if (scope.timeout === null) return;
+	// A watch with a timeout is cancelled with timeout once it's up.
+	startWatchTimer(watch) {
+		if (watch.timeout === null) return;
 		const timer = setTimeout(() => {
-			this._scopeTimers.delete(scope.id);
-			if (this.scheduler.cancelScope(scope.id, "timeout")) this.scheduleNextTaskTick();
-		}, scope.timeout);
-		this._scopeTimers.set(scope.id, timer);
+			this._watchTimers.delete(watch.id);
+			if (this.scheduler.cancelWatch(watch.id, "timeout")) this.scheduleNextTaskTick();
+		}, watch.timeout);
+		this._watchTimers.set(watch.id, timer);
 	}
-	stopScopeTimer(scope) {
-		clearTimeout(this._scopeTimers.get(scope.id));
-		this._scopeTimers.delete(scope.id);
+	stopWatchTimer(watch) {
+		clearTimeout(this._watchTimers.get(watch.id));
+		this._watchTimers.delete(watch.id);
 	}
 	// The element being dragged, from dragstart to dragend.
 	get drag() {
@@ -114,7 +134,7 @@ export class Host {
 		if (this.document === null) return;
 		const ctx = RenderContext.root(this.root);
 		const curVDom = this._curVDom;
-		const newVDom = toVChilds(renderView(this.root, ctx));
+		const newVDom = toVChildren(renderView(this.root, ctx));
 		morph(this.document, this.rootNode, newVDom, curVDom);
 		this._curVDom = newVDom;
 		this.report("rendered", { upTo: this._lastSeq }, { ctx, newVDom, curVDom });
@@ -182,7 +202,7 @@ export class Host {
 			const record = new Transition(fields, { before: curRoot, after: newRoot, instance });
 			record.issues.push(...writeIssues, ...stateIssues);
 			this._lastSeq = seq;
-			this.notify(record);
+			this.announce(record);
 		};
 		const producer = (root) => {
 			const target = at.getIn(root);
@@ -191,10 +211,10 @@ export class Host {
 			return at.setIn(root, next);
 		};
 		try {
-			this.applyExternal(producer, { produceWith, report });
+			this.applyChange(producer, { produceWith, report });
 		} catch (error) {
 			const failed = { ...fields, outcome: "failed", error };
-			this.notify(new Transition(failed, { before, after: before, instance: at.getIn(before) }));
+			this.announce(new Transition(failed, { before, after: before, instance: at.getIn(before) }));
 			throw error;
 		}
 	}
@@ -219,12 +239,15 @@ export class Host {
 		this._idleWaiters = [];
 		for (const resolve of waiters) resolve();
 	}
-	addEventListeners(eventNames) {
+	// Listens on the root node to the events of eventTypes. A drop target needs the drag from
+	// its start, which the host tracks: with drop, to all the drag events.
+	addEventListeners(eventTypes) {
 		if (this.rootNode === null) return;
-		for (const eventName of eventNames) {
-			if (this._eventsAdded.has(eventName)) continue;
-			this._eventsAdded.add(eventName);
-			this.rootNode.addEventListener(eventName, this);
+		const types = eventTypes.has("drop") ? [...eventTypes, ...DRAG_EVENTS] : eventTypes;
+		for (const type of types) {
+			if (this._eventsAdded.has(type)) continue;
+			this._eventsAdded.add(type);
+			this.rootNode.addEventListener(type, this);
 		}
 	}
 	get tasks() {
@@ -234,20 +257,20 @@ export class Host {
 		this.scheduler.push(task);
 	}
 	scheduleNextTaskTick() {
-		if (this._taskTickTimeoutId !== null) return;
-		this._taskTickTimeoutId = setTimeout(this.handleTasks, 0);
+		if (this._cancelTick !== null) return;
+		this._cancelTick = this._schedule(this.handleTasks);
 	}
 	// Drops the queued tasks and the pending tick. An async ask reply in flight still arrives;
 	// a stopped host drops it.
 	clearTasks() {
 		this.scheduler.clear();
-		for (const timer of this._scopeTimers.values()) clearTimeout(timer);
-		this._scopeTimers.clear();
+		for (const timer of this._watchTimers.values()) clearTimeout(timer);
+		this._watchTimers.clear();
 		this.cancelTick();
 	}
 	cancelTick() {
-		clearTimeout(this._taskTickTimeoutId);
-		this._taskTickTimeoutId = null;
+		this._cancelTick?.();
+		this._cancelTick = null;
 	}
 	// Stops handling events and tasks: handleEvent ignores events without a root.
 	stop() {
@@ -263,7 +286,7 @@ export class Host {
 			this.engines.attach(engine, {
 				host: this,
 				root: () => this.root,
-				apply: (producer, info = null) => this.applyExternal(producer, { source: engine, info }),
+				apply: (producer, info = null) => this.applyChange(producer, { source: engine, info }),
 			});
 		}
 	}
@@ -276,11 +299,8 @@ export class Host {
 	// produceWith makes the new root (host.apply's records who wrote what in dev). It's reported
 	// as an externalChange, unless report(curRoot, newRoot, issues) reports it (host.apply's,
 	// which hears about a producer that changed nothing too).
-	applyExternal(
-		producer,
-		{ source = null, info = null, produceWith = produce, report = null } = {},
-	) {
-		const again = () => this.applyExternal(producer, { source, info, produceWith, report });
+	applyChange(producer, { source = null, info = null, produceWith = produce, report = null } = {}) {
+		const again = () => this.applyChange(producer, { source, info, produceWith, report });
 		if (this.engines.deferWhileCommitting(again)) return;
 		const curRoot = this.root;
 		if (curRoot === null) return;
@@ -340,27 +360,29 @@ export class Host {
 	}
 	// fn(record) hears what the host reports, each after what caused it, in the order they were
 	// added: a Transition (src/tree/transition.js) for what became of each task and each
-	// host.apply, a Lifecycle (lifecycle.js) for the rest (started, rendered, settled, a sync
+	// host.apply, a HostEvent (host-event.js) for the rest (started, rendered, settled, a sync
 	// engine that failed, ...). Returns a function that stops it.
 	listen(fn) {
 		this._listeners.add(fn);
 		return () => this._listeners.delete(fn);
 	}
-	// Reports a Lifecycle of phase: fields plain, heavy hidden, issues what dev checks found.
-	report(phase, fields = {}, heavy = {}, issues = []) {
-		const record = new Lifecycle(phase, fields, heavy);
+	// Reports a HostEvent of type: fields plain, heavy hidden, issues what dev checks found.
+	report(type, fields = {}, heavy = {}, issues = []) {
+		const record = new HostEvent(type, fields, heavy);
 		record.issues.push(...issues);
-		this.notify(record);
+		this.announce(record);
 		return record;
 	}
 	// Numbers record, stamps it with the clock and publishes it.
-	notify(record) {
+	announce(record) {
 		record.n = ++this._reported;
 		record.at = this.env.now();
 		this.publish(record);
 	}
-	// Tells the listeners, after the current task: a Driver hears it at once instead.
+	// Tells the listeners, after the current task; the publish the host was made with hears it at
+	// once instead.
 	publish(record) {
+		if (this._publish !== null) return this._publish(record);
 		if (this._listeners.size === 0) return;
 		setTimeout(() => {
 			for (const fn of this._listeners) fn(record);

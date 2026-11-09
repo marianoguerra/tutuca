@@ -1,5 +1,7 @@
 // The plain projection of a state that sync engines store and send: JSON data where a component
 // is { $: ref, ...fields }, its ref naming the scope it was made in and its name there.
+
+import { isComponent, scopeOf, specOf } from "../core/model/spec.js";
 import {
 	AnyType,
 	ArrayType,
@@ -10,8 +12,7 @@ import {
 	RecordType,
 	syncsAt,
 	unlessNoDefault,
-} from "../core/schema.js";
-import { isComponent, scopeOf, specOf } from "../core/spec.js";
+} from "../core/model/types.js";
 import { setOwn } from "./ops.js";
 
 const ANY = new AnyType(null);
@@ -34,7 +35,7 @@ export const componentOf = (v, rootScope, type = ANY) => {
 	const ref = holdsData(type, v) ? null : refOf(v);
 	if (ref === null) return null;
 	const { scope, name } = rootScope.resolveRef(ref);
-	const spec = scope.lookupByName(name);
+	const spec = scope.lookupSpec(name);
 	if (spec === null) throw new Error(`No component ${ref}`);
 	return { spec, scope };
 };

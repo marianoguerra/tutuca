@@ -48,7 +48,7 @@ Rendering a component means entering it from somewhere. That can be a field
 one **frame**, and each frame is one render depth.
 
 ```js
-new Frame(keys, item, provider, isComponent)
+new Frame(keys, item, provider, isNode)
 ```
 
 - **`keys`**: the properties the frame reads.
@@ -57,7 +57,7 @@ new Frame(keys, item, provider, isComponent)
 - **`provider`**: when set, `{ name, depth, keys }`. The frame doesn't start from the
   previous frame's value. It starts from the value captured by the provider at `depth`,
   reached by its `keys`.
-- **`isComponent`**: a component boundary follows the frame. Loop items whose bodies are
+- **`isNode`**: a component boundary follows the frame. Loop items whose bodies are
   part of the enclosing component's own view are not component frames. Items rendered
   with `renderEach` or `renderIt` are.
 
@@ -88,7 +88,7 @@ comment before the nodes it covers, and a closing comment after them:
 §{"t":"component"}§ … §/§
 ```
 
-`isComponent` is not written. When an event is routed, the frame just before a component
+`isNode` is not written. When an event is routed, the frame just before a component
 comment becomes a component frame.
 
 ### Event routing
@@ -106,7 +106,7 @@ To route an event, the runtime walks from the event target up to the root node:
 
 ### Component paths and parent paths
 
-`toComponentPath()` drops trailing frames that are not component frames. A click inside a
+`toNodePath()` drops trailing frames that are not component frames. A click inside a
 loop item of a component's own view belongs to that component, not to the item. A
 `MessageContext`'s path (`ctx.path`) is always a component path.
 
@@ -133,8 +133,8 @@ is reported the same way.
   followed by the provider's `keys`.
 - Either way, the frame then appends its `accessKeys`.
 
-`toComponentKeyPath()` is `toComponentPath().toKeyPath()`. `Address.at(path, root)` fixes a dispatch
-path's address: `{ path, keyPath: path.toComponentKeyPath(), id }`, `id` that of the component
+`toNodeKeyPath()` is `toNodePath().toKeyPath()`. `Address.at(path, root)` fixes a dispatch
+path's address: `{ path, keyPath: path.toNodeKeyPath(), id }`, `id` that of the component
 at the key path in `root`.
 
 Depth is what ties providers to frames. The root component is entered at depth 0 and every
@@ -261,7 +261,7 @@ Each entry is a handler or a handler spec, as in `on`, so it has args, contracts
 answer says which it is. Answers aren't messages: a `send` or `sendAt` named `load.ok` reaches
 `on`, not `answers`. An answer with no handler is reported `unhandled`, named `load.ok`; lint
 warns when a message's `emits.ask` names an ask with no `answers` entry. Stories deliver one
-with `step.answer("load", "ok", value)`, tests with `driver.answer(path, "load", "ok", [value])`.
+with `step.answer("load", "ok", value)`, tests with `driver.answer("load", "ok", [value], { to: path })`.
 
 An ask doesn't run in the transaction that asks: it's a task of its own, queued when that
 transaction commits, so an ask from a transaction that fails never starts. The ask task runs no

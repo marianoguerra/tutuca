@@ -1,12 +1,10 @@
-import { engineName } from "./lifecycle.js";
-
 // Sync engines: told about each committed change, and able to apply their own.
 // An engine sees every committed change through prepare(change) and commit(change, prepared),
 // change being { prev, next, task }, and applies changes from elsewhere through the link attach
 // gets. A throwing prepare fails the task, before any engine wrote the change; a throwing
 // commit is reported as syncFailed and the change stands.
 export class SyncEngines {
-	// report(phase, fields) reports what failed, as a Lifecycle (lifecycle.js).
+	// report(type, fields) reports what failed, as a HostEvent (host-event.js).
 	constructor(report) {
 		this.report = report;
 		this.list = [];
@@ -66,3 +64,8 @@ export class SyncEngines {
 		};
 	}
 }
+// An engine as records name it: its name, else its place among the host's engines.
+export const engineName = (engine, engines) =>
+	engine === null || engine === undefined
+		? null
+		: (engine.name ?? `engine ${Math.max(0, engines.indexOf(engine))}`);

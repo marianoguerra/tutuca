@@ -3,7 +3,7 @@
 // and press Ctrl+Enter. Sending a message with args of the wrong type is caught when it
 // happens: Steps shows it as a problem.
 import { component, field, send, t, tag } from "tutuca";
-import { step, stories } from "tutuca/storybook";
+import { book, step } from "tutuca/storybook";
 
 const { button, div, h3, p } = tag;
 
@@ -37,7 +37,7 @@ export const Greeting = component({
 	},
 });
 
-export default stories({
+export default book({
 	title: "Mistakes",
 	components: { Greeting },
 	stories: {

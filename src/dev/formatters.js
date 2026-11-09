@@ -1,15 +1,21 @@
 // DevTools custom formatters for tutuca values (Chrome/Firefox).
 
-import { isMarkerOpen, MARKER_CLOSE, parseMarker } from "../core/markers.js";
-import { truncate } from "../core/text.js";
+import { truncate } from "../core/host/text.js";
 import {
-	AstNode,
+	frameOfMarker,
+	isComponentMarker,
+	isFrameMarker,
+	isMarkerOpen,
+	MARKER_CLOSE,
+	parseMarker,
+} from "../core/view/markers.js";
+import {
 	ComponentSpec,
 	DispatchPath,
-	Element,
+	ElementNode,
 	Frame,
+	HostEvent,
 	KeyPath,
-	Lifecycle,
 	MessageContext,
 	RenderContext,
 	Scope,
@@ -21,6 +27,7 @@ import {
 	Transition,
 	Type,
 	typeText,
+	ViewNode,
 	Walker,
 } from "../tutuca.js";
 import { install, join, makeFormatter, objectRef, span } from "./jsonml.js";
@@ -38,7 +45,7 @@ export const STYLES = {
 const MAX_STR = 30;
 const MAX_INLINE_FIELDS = 3;
 const MAX_AST_DEPTH = 2;
-const MAX_AST_CHILDS = 3;
+const MAX_AST_CHILDREN = 3;
 
 export const isObject = (v) => (v !== null && typeof v === "object") || typeof v === "function";
 const ref = (v) => (isObject(v) ? objectRef(v) : prim(v));
@@ -64,7 +71,7 @@ class Printer extends Walker {
 		this.out.push(...parts);
 	}
 	arg(v) {
-		if (!(v instanceof AstNode)) return this.emit(prim(v));
+		if (!(v instanceof ViewNode)) return this.emit(prim(v));
 		if (this.depth >= MAX_AST_DEPTH) return this.emit(span(STYLES.muted, "…"));
 		this.depth++;
 		this.visit(v);
@@ -107,10 +114,10 @@ class Printer extends Walker {
 		this.call("renderIt", [node.viewName]);
 	}
 	cond(node) {
-		this.call("$if", [node.source, node.thenVal, node.elseVal]);
+		this.call("$if", [node.test, node.thenVal, node.elseVal]);
 	}
 	pushView(node) {
-		this.call("pushView", [node.viewNameVal, node.child]);
+		this.call("pushView", [node.source, node.child]);
 	}
 	each(node) {
 		this.call("each", [node.source, node.child, node.loopName]);
@@ -126,7 +133,7 @@ class Printer extends Walker {
 	}
 	element(node) {
 		this.emit(span(STYLES.fn, "h"), "(", prim(node.tagName));
-		const attrs = [...node.attrs, ...node.handlers.map((h) => [`on:${h.name}`, h.action])];
+		const attrs = [...node.attrs, ...node.handlers.map((h) => [`on:${h.type}`, h.action])];
 		if (attrs.length > 0) {
 			this.emit(", {");
 			attrs.forEach(([name, value], i) => {
@@ -135,11 +142,11 @@ class Printer extends Walker {
 			});
 			this.emit("}");
 		}
-		node.childs.slice(0, MAX_AST_CHILDS).forEach((c) => {
+		node.children.slice(0, MAX_AST_CHILDREN).forEach((c) => {
 			this.emit(", ");
 			this.arg(c);
 		});
-		const rest = node.childs.length - MAX_AST_CHILDS;
+		const rest = node.children.length - MAX_AST_CHILDREN;
 		if (rest > 0) this.emit(", ", span(STYLES.muted, `…+${rest}`));
 		this.emit(")");
 	}
@@ -178,14 +185,9 @@ const targetParts = (target) =>
 
 // Labels the §{marker}§ comments tutuca wraps rendered components and loop items in.
 const markerParts = (marker) => {
-	switch (marker.t) {
-		case "component":
-			return [span(STYLES.name, "component")];
-		case "frame":
-			return frameParts(Frame.fromMarker(marker));
-		default:
-			return [span(STYLES.muted, JSON.stringify(marker))];
-	}
+	if (isComponentMarker(marker)) return [span(STYLES.name, "component")];
+	if (isFrameMarker(marker)) return frameParts(frameOfMarker(marker));
+	return [span(STYLES.muted, JSON.stringify(marker))];
 };
 const markerComment = (text) => {
 	if (text === MARKER_CLOSE) return [span(STYLES.muted, "⟨/⟩")];
@@ -232,7 +234,7 @@ const KINDS = [
 			for (const k of ["on", "loops", "binds", "provides"]) {
 				if (Object.keys(spec[k]).length > 0) rows.push([k, ref(spec[k])]);
 			}
-			if (spec.eventNames.size > 0) rows.push(["eventNames", ref(spec.eventNames)]);
+			if (spec.eventTypes.size > 0) rows.push(["eventTypes", ref(spec.eventTypes)]);
 			return rows;
 		},
 	},
@@ -242,14 +244,14 @@ const KINDS = [
 		rows: () => [],
 	},
 	{
-		test: (v) => v instanceof AstNode,
+		test: (v) => v instanceof ViewNode,
 		header: astHeader,
 		rows(node) {
-			if (!(node instanceof Element)) return node.childNodes().map((c) => [null, ref(c)]);
+			if (!(node instanceof ElementNode)) return node.childNodes().map((c) => [null, ref(c)]);
 			return [
 				...node.attrs.map(([name, value]) => [name, ref(value)]),
-				...node.handlers.map((h) => [`on:${h.name}`, ref(h.action)]),
-				...node.childs.map((c) => [null, ref(c)]),
+				...node.handlers.map((h) => [`on:${h.type}`, ref(h.action)]),
+				...node.children.map((c) => [null, ref(c)]),
 			];
 		},
 	},
@@ -266,7 +268,7 @@ const KINDS = [
 	{
 		test: (v) => v instanceof Frame,
 		header: (frame) => [
-			span(STYLES.muted, frame.isComponent ? "Frame (component) " : "Frame "),
+			span(STYLES.muted, frame.isNode ? "Frame (component) " : "Frame "),
 			...orRoot(frameParts(frame)),
 		],
 		rows: () => [],
@@ -334,10 +336,10 @@ const KINDS = [
 		},
 	},
 	{
-		test: (v) => v instanceof Lifecycle,
+		test: (v) => v instanceof HostEvent,
 		header: (record) => [
-			span(STYLES.muted, "lifecycle "),
-			span(STYLES.name, record.phase),
+			span(STYLES.muted, "host event "),
+			span(STYLES.name, record.type),
 			...(record.issues.length > 0 ? [span(STYLES.muted, ` ${record.issues.length} issues`)] : []),
 		],
 		rows: (record) => Object.entries(record).map(([key, value]) => [key, ref(value)]),
@@ -363,12 +365,12 @@ const KINDS = [
 		header: (scope) => [
 			span(STYLES.muted, "Scope "),
 			"[",
-			...join(Object.keys(scope.byName).map((name) => [span(STYLES.name, name)])),
+			...join(Object.keys(scope.specs).map((name) => [span(STYLES.name, name)])),
 			"]",
 			scope.parent === null ? "" : span(STYLES.muted, " ↑"),
 		],
 		rows: (scope) => [
-			...objectRows(scope.byName),
+			...objectRows(scope.specs),
 			["askHandlers", ref(scope.askHandlers)],
 			["parent", ref(scope.parent)],
 		],

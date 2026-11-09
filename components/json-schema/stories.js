@@ -1,4 +1,4 @@
-import { step, stories } from "../../src/storybook/index.js";
+import { book, step } from "../../src/storybook/index.js";
 import { scopeOf } from "../../src/tutuca.js";
 import { jsonComponents } from "../json/index.js";
 import { allOpen, schemaComponents } from "./index.js";
@@ -100,7 +100,7 @@ const leaf = (schema) => ({
 	},
 });
 
-export default stories({
+export default book({
 	title: "JSON Schema",
 	components: { ...jsonComponents, ...schemaComponents },
 	stories: {
@@ -116,7 +116,7 @@ export default stories({
 				"close a node": [
 					step.event("click", ".disclosure"),
 					step.check("the object closed", (s) => !s.node.open),
-					step.send("toggle", [], { at: atNode }),
+					step.send("toggle", [], { to: atNode }),
 					step.check("and open again", (s) => s.node.open),
 				],
 				"read it as keywords": [
@@ -127,11 +127,11 @@ export default stories({
 				],
 				"read the schema back": [step.check("same schema", roundTrips(sample))],
 			},
-			pbt: { include: messages, maxCommands: 12 },
+			stress: { include: messages, maxCommands: 12 },
 		},
 		"Episode (format)": {
 			make: tree(sample, { view: "format" }),
-			pbt: { events: true, maxCommands: 10 },
+			stress: { events: true, maxCommands: 10 },
 		},
 		Collapsed: {
 			make: tree(sample, { open: false }),
@@ -148,7 +148,7 @@ export default stories({
 			sequences: {
 				"ctrl: close a node and its siblings": [
 					// What a ctrl click on a's disclosure raises.
-					step.send("openSiblings", [false], { at: atNode }),
+					step.send("openSiblings", [false], { to: atNode }),
 					step.check("a and e closed", (s) => s.node.properties.every((p) => !p.schema.open)),
 					step.check(
 						"the nodes below did not",
@@ -156,14 +156,14 @@ export default stories({
 					),
 				],
 				"ctrl+alt: close a node and everything below": [
-					step.send("setOpenDeep", [false], { at: atProp(0) }),
+					step.send("setOpenDeep", [false], { to: atProp(0) }),
 					step.check("a and below closed", (s) =>
 						allOpen(s.node.properties[0].schema).every((o) => !o),
 					),
 					step.check("e did not", (s) => s.node.properties[1].schema.open),
 				],
 			},
-			pbt: { include: messages, maxCommands: 12 },
+			stress: { include: messages, maxCommands: 12 },
 		},
 		String: leaf({
 			type: "string",
@@ -199,17 +199,17 @@ export default stories({
 					step.check("page 2", (s) => s.node.pager.page === 1),
 					step.event("click", ".pager .last"),
 					step.check("the last page", (s) => s.node.pager.first === 111),
-					step.send("setPerPage", [25], { at: atPager }),
+					step.send("setPerPage", [25], { to: atPager }),
 					step.check("item 111 still shown", (s) => s.node.pager.shows(110)),
-					step.send("showAll", [], { at: atPager }),
+					step.send("showAll", [], { to: atPager }),
 					step.check("one page", (s) => !s.node.pager.isMany),
 				],
 			},
-			pbt: { include: pagerMessages, maxCommands: 12 },
+			stress: { include: pagerMessages, maxCommands: 12 },
 		},
 		"A long enum, paginated": {
 			make: tree({ enum: Array.from({ length: 30 }, (_, i) => `v${i}`) }, { perPage: 8 }),
-			pbt: { events: true, maxCommands: 10 },
+			stress: { events: true, maxCommands: 10 },
 		},
 		"Drop a schema file": {
 			make: tree({ type: "string" }, { allowDrop: true }),
@@ -233,13 +233,13 @@ export default stories({
 		},
 		"Generated tree": {
 			arbitrary: (A) => A.instance("SchemaRoot"),
-			pbt: { include: messages, maxCommands: 10 },
+			stress: { include: messages, maxCommands: 10 },
 		},
 	},
 });
 
 // The studio has its own book: its components join the generated trees' candidates otherwise.
-export const studioBook = stories({
+export const studioBook = book({
 	title: "JSON Schema studio",
 	components: studioComponents,
 	stories: {

@@ -1,10 +1,10 @@
-import { step, stories } from "../../src/storybook/index.js";
+import { book, step } from "../../src/storybook/index.js";
 import { mathComponents } from "./index.js";
 import { matrixLabel, quadraticLabel, workbenchComponents } from "./workbench.js";
 
 const quadraticMessages = ["Quadratic.setCoefficient", "Quadratic.preset"];
 
-export default stories({
+export default book({
 	title: "Math",
 	components: mathComponents,
 	stories: {
@@ -32,7 +32,7 @@ export default stories({
 					step.check("still quadratic", (s) => s.a === 1),
 				],
 			},
-			pbt: { include: quadraticMessages, maxCommands: 10 },
+			stress: { include: quadraticMessages, maxCommands: 10 },
 		},
 		"Quadratic/Double root": { make: (C) => C.Quadratic({ a: 1, b: -4, c: 4 }) },
 		"Quadratic/Complex roots": {
@@ -63,11 +63,11 @@ export default stories({
 					step.check("double", (s) => s.isDouble),
 				],
 			},
-			pbt: { events: true, maxCommands: 10 },
+			stress: { events: true, maxCommands: 10 },
 		},
 		"Quadratic/Generated": {
 			arbitrary: (A) => A.instance("Quadratic"),
-			pbt: { include: quadraticMessages },
+			stress: { include: quadraticMessages },
 		},
 		"Matrix/Invertible": {
 			make: (C) => C.Matrix2(),
@@ -79,7 +79,7 @@ export default stories({
 					step.check("det = 0", (s) => s.det === 0 && !s.isInvertible),
 				],
 			},
-			pbt: { events: true, maxCommands: 10 },
+			stress: { events: true, maxCommands: 10 },
 		},
 		"Matrix/Singular": { make: (C) => C.Matrix2({ a: 2, b: 4, c: 1, d: 2 }) },
 		"Formula gallery": { make: (C) => C.FormulaGallery() },
@@ -87,7 +87,7 @@ export default stories({
 });
 
 // The workbench has its own book, as the demo puts it together.
-export const workbenchBook = stories({
+export const workbenchBook = book({
 	title: "Math workbench",
 	components: workbenchComponents,
 	stories: {

@@ -151,7 +151,7 @@ const setup = ({ components, askHandlers, metaSchemas = {}, document }) => {
 	host.scope.registerAskHandlers(askHandlers);
 	const styleNode = document.getElementById("margaui");
 	host.listen((record) => {
-		if (isProblem(record)) console.error(record.outcome ?? record.phase, record);
+		if (isProblem(record)) console.error(record.outcome ?? record.type, record);
 	});
 	// The components' classes, computed ones included, which their classes meta lists.
 	const watch = () => {

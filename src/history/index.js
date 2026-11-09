@@ -2,7 +2,7 @@
 // live Host as a sync engine and travels by applying a recorded state as a change from
 // elsewhere, so the other engines (storage, peers) follow.
 
-import { transitionLabel } from "../core/text.js";
+import { transitionLabel } from "../core/host/records.js";
 
 // The icon of each origin of a timeline entry.
 export const ORIGINS = { initial: "◆", reload: "↻", step: "▸", user: "☝", external: "⇅" };

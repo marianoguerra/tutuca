@@ -10,8 +10,8 @@
 import { defineTutucaApp } from "../embed/element.js";
 import { TimeTravel } from "../history/bar.js";
 import { bookClasses, startPanelHost, uiClasses, watchPanelHost } from "../panels/host.js";
-import { StoryRegistry } from "../panels/runner.js";
 import { panelComponents } from "../panels/ui/panels.js";
+import { StoryRegistry } from "../stories/live.js";
 import { booksOf, linkSources, loadSources } from "./sources.js";
 import { makePlayground, Playground, storyChoices } from "./ui/playground.js";
 
@@ -302,7 +302,7 @@ export const definePlayground = (
 				const books = booksOf(mod);
 				if (books.length === 0) {
 					throw new Error(
-						"the module exports no books: export default stories({ title, components, stories })",
+						"the module exports no books: export default book({ title, components, stories })",
 					);
 				}
 				const known = bookClasses(books);

@@ -2,6 +2,7 @@
 // (from) and where it goes (to). Each kind says which handler key it is for (hkey, spec/tree's
 // (send n), (notify n), (ok n), ...) and what it does with the handler the scheduler found for it.
 import { Address, HOST } from "./address.js";
+import { hidden } from "./record.js";
 
 // A handler returns a replacement for the node, or undefined to keep next. A pure one gets no
 // ctx: what it does depends on the node and the args alone.
@@ -14,13 +15,6 @@ export const call = (handler, instance, next, args, ctx) => {
 		? handler.run.call(instance, next, args)
 		: handler.run.call(instance, next, args, ctx);
 	return result === undefined ? next : result;
-};
-// Sets props on obj as non-enumerable: back-references (a task's parent, a DOM event's event
-// and node), so inspecting or deep-comparing a task doesn't walk into the tree or the document.
-export const hidden = (obj, props) => {
-	for (const key in props) {
-		Object.defineProperty(obj, key, { value: props[key], writable: true, configurable: true });
-	}
 };
 export class Task {
 	// from is the sender's Address. where is where it goes: an Address when that is known as it
@@ -40,8 +34,21 @@ export class Task {
 		this.target = fixed ? null : where;
 		/** @type {Address | null} */
 		this.to = fixed ? where : null;
-		// Its settle scope (settle.js) is its parent's, unless it opens one or is detached.
-		hidden(this, { parent, scope: parent?.scope ?? null });
+		// What the scheduler keeps on it, out of sight: its parent, the task that sent it; its watch
+		// (watch.js), its parent's unless it opens one or is detached; its number, seq, and the one
+		// its chain started with, origin, given as it's queued; whether, an ask, it was handed to
+		// its handler (asked), with the controller that aborts it; whether its watch was cancelled
+		// before it ran (dropped); and, a progress message, the watch it tells about (progressOf).
+		hidden(this, {
+			parent,
+			watch: parent?.watch ?? null,
+			seq: null,
+			origin: null,
+			asked: false,
+			controller: null,
+			dropped: false,
+			progressOf: null,
+		});
 	}
 	get hkey() {
 		return { mode: "send", name: this.name };

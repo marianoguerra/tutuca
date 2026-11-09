@@ -2,7 +2,6 @@ import assert from "node:assert/strict";
 import test from "node:test";
 import {
 	$if,
-	AstNode,
 	component,
 	each,
 	field,
@@ -15,6 +14,7 @@ import {
 	seqItem,
 	sourceKey,
 	t,
+	ViewNode,
 } from "../../src/tutuca.js";
 import { vcomment as comment, setupHost } from "../helpers.js";
 
@@ -31,7 +31,7 @@ function setup(specs) {
 }
 
 // Custom view nodes can return several roots, just as collection nodes do.
-class Roots extends AstNode {
+class Roots extends ViewNode {
 	constructor(children) {
 		super();
 		this.children = children;
@@ -44,7 +44,7 @@ class Roots extends AstNode {
 	}
 }
 const roots = (...children) => new Roots(children);
-class Leaf extends AstNode {
+class Leaf extends ViewNode {
 	constructor(fn) {
 		super();
 		this.eval = fn;

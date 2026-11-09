@@ -1,7 +1,7 @@
 // The agent meta convention: what a component says to an LLM agent that drives it. Its tools,
 // each one of its own messages or queries, named and described for the model; a prompt on its
 // domain; the query the agent reads (summary, in every system prompt); and skills, a read-only fs
-// of texts the model can read. What its whole content is as data (DATA_META, src/data.js) gives
+// of texts the model can read. What its whole content is as data (DATA_META, meta/data.js) gives
 // the agent get_state, set_state and samples. A generic agent takes any component that says
 // this and drives it, knowing nothing of its domain.
 //
@@ -22,9 +22,9 @@ import {
 	metaShapeProblems,
 	QuerySpec,
 	query,
-	SCOPE_OUTCOMES,
 	specOf,
 	t,
+	WATCH_OUTCOMES,
 } from "../tutuca.js";
 import { dataOf, dataSchema, hasDataMeta, isZeroArgQuery, loadData, withSample } from "./data.js";
 import { displayOf } from "./display.js";
@@ -322,15 +322,15 @@ const runShared = (c, meta, data, call, done) => {
 	}
 	return done(`There's no tool ${name}.`, true);
 };
-// What a settle scope (src/tree/settle.js) tells its watcher: a tool's message and everything it
+// What a watch (src/tree/watch.js) tells its watcher: a tool's message and everything it
 // caused ran (ok), some of it threw (failed), or it was stopped (cancelled, timeout).
 export const reportType = t.record({
 	id: t.number(),
-	outcome: t.enum(...SCOPE_OUTCOMES),
+	outcome: t.enum(...WATCH_OUTCOMES),
 	tasks: t.number().int().min(0),
 	failed: t.number().int().min(0),
 });
-// What answers a message tool's call once its settle scope settled with report: what c looks
+// What answers a message tool's call once its watch settled with report: what c looks
 // like after (its result query) and, when it didn't go well, why; and whether it's an error.
 export const settledText = (c, result, report) => {
 	const now = resultText(c, result);

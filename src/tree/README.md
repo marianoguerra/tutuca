@@ -13,10 +13,11 @@ the four interfaces in `scheduler.js`. It ships as `tutuca/tree`.
 | `path.js` | `KeyPath` (keys into the state), `Frame` and `DispatchPath` (π, the frames a message went through), `Selector`/`selectorFrom` and `Target` (a written path, before it is fixed) |
 | `address.js` | `Address` (`(at π ι)`), `HOST` (`host`) |
 | `messages.js` | the envelope: `Task`, `NotifyTask`, `AskTask`, `AnswerTask` |
-| `settle.js` | `SettleScope`: what a watched `sendAt` caused, counted until it settles |
+| `watch.js` | `Watch`: what a watched `sendAt` caused, and `Watches`, which counts it until it settles |
 | `context.js` | `MessageContext`: what a handler sends with |
 | `scheduler.js` | `Scheduler`: the queue and `tree->` |
 | `transition.js` | `Transition`: what became of a task, one per task the scheduler is done with |
+| `record.js` | `hidden` and `plainOf`: what tasks and their records keep out of sight, and a record as data |
 | `text.js` | how keys and values print |
 
 ## From spec/tree to the code
@@ -30,9 +31,9 @@ the four interfaces in `scheduler.js`. It ships as `tutuca/tree`.
 | address `(at π ι)` | `Address`: `path` (a `DispatchPath`) and `id` |
 | `host` | `HOST`: the `from` of env events and of ask answers |
 | envelope `(msg mode m from to)` | `Task`: `name`, `args`, `from`, `to`; `mode` is the class |
-| `hkey`: `(send n)`, `(notify n)`, `(ok n)`, ... | `task.hkey`: `{ mode, name, outcome }`, looked up through `Kinds.handler` |
+| `hkey`: `(send n)`, `(notify n)`, `(ok n)`, ... | `task.hkey`: `{ mode, name, outcome }`, looked up through `Handlers.handler` |
 | `(notify n e ...)` | `ctx.notify`. The hops are fixed by `Address.ancestors` when the bubble starts |
-| `(request n e ...)` | `ctx.ask`. Its handler is `Kinds.askHandler` (the host answering) |
+| `(request n e ...)` | `ctx.ask`. Its handler is `Handlers.askHandler` (the host answering) |
 | `(send-at pp n e ...)` | `ctx.sendAt(name, args, (p) => p.field(...))`, fixed against the committed tree |
 | `(reply n e ...)` | `ctx.reply`: a `Task` to `task.from` |
 | `stop`, `pass` | `ctx.stopNext()`; a hop with no handler passes |
@@ -56,7 +57,7 @@ still differ from `core.rkt`.
 
 ```js
 new Scheduler({
-	kinds: {
+	handlers: {                            // spec/tree's kinds
 		handler(instance, hkey) {},        // the handler a node has for hkey, or undefined
 		askHandler(instance, name) {},     // what answers an ask made from instance, or null
 	},
@@ -67,12 +68,14 @@ new Scheduler({
 		beforeCommit(prev, next, task) {},       // optional: returns what to call after commit
 		transition(record, ctx) {},              // what became of a task (transition.js)
 		wake() {},                               // optional: something was queued
+		watchOpened(watch) {},                   // optional: a watch started counting
+		watchSettled(watch) {},                  // optional: it settled
 	},
 });
 ```
 
-Tutuca's own bindings are `componentKinds`, `TutucaContext` and `HostTask` in `src/tasks.js`,
-plus immer's `produce` and the hooks in `Host` (`src/core/host.js`).
+Tutuca's own bindings are `componentHandlers`, `HandlerContext` and `HostTask` in `src/core/host/tree-binding.js`,
+plus immer's `produce` and the hooks in `Host` (`src/core/host/host.js`).
 
 ## What became of a task
 
@@ -86,7 +89,7 @@ there when its handler ran. Its `outcome` is one of `TRANSITION_OUTCOMES`:
 | `unhandled` | nobody handles it |
 | `failed` | its handler, or what it sent, threw: the root is as it was (`error`) |
 | `stale`, `orphaned`, `lost` | the node it was for is gone (spec/tree's observations) |
-| `dropped` | its settle scope was cancelled before it ran, or, an ask, before its answer came |
+| `dropped` | its watch was cancelled before it ran, or, an ask, before its answer came |
 | `asked` | an ask, handed to its handler; its answer is a transition of its own |
 
 `seq` numbers the task as it is queued (per scheduler, so runs repeat), `cause` is its sender's

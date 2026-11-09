@@ -239,11 +239,11 @@ test("the driver runs messages headless and records what they report", () => {
 	const driver = new Driver({ root: tabs });
 	assert.deepEqual(driver.problems, []);
 	const last = tabs.tabs.length - 1;
-	driver.send(new DispatchPath([new Frame(["tabs"], last, null, true)]), "selected");
+	driver.send("selected", [], { to: new DispatchPath([new Frame(["tabs"], last, null, true)]) });
 	assert.equal(driver.state.selectedTabIndex, last);
 	assert.equal(driver.state.tabs[last].isSelected, true);
 	assert.deepEqual(driver.problems, []);
-	driver.send(new DispatchPath(), "tabSelected", [], [new Frame(["tabs"], 99, null, true)]);
+	driver.send("tabSelected", [], { from: [new Frame(["tabs"], 99, null, true)] });
 	assert.deepEqual(
 		driver.problems.map((p) => p.outcome),
 		["failed"],

@@ -10,7 +10,7 @@ export const DRAG_EVENTS = ["dragstart", "dragend", ...DROP_EVENTS];
 // The element being dragged: where it was rendered, its data-dragtype and the value there
 // when the drag started.
 export class Drag {
-	/** @param {import("../tree/path.js").DispatchPath} path */
+	/** @param {import("../../tree/path.js").DispatchPath} path */
 	constructor(path, type, node, value) {
 		this.path = path;
 		this.type = type;

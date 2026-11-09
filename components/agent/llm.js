@@ -97,7 +97,7 @@ export const agentAskHandlers = ({ api = "http://127.0.0.1:8003/api/" } = {}) =>
 		models: () => http.models(),
 		// Whether there's a model to ask: a canvas offers agents only then.
 		inferenceAvailable: async () => (await http.models()).length > 0,
-		// In a settle scope (an agent another one prompted), its signal aborts it when stopped.
+		// In a watch (an agent another one prompted), its signal aborts it when stopped.
 		infer: ([request], read) =>
 			request.model.startsWith("echo/") ? echoStep(request) : http.complete(request, read?.signal),
 	};

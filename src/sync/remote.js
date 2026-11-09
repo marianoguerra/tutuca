@@ -25,8 +25,8 @@ export const remoteEngine = ({ transport, level = "shared", clientId = newId() }
 	let flushing = false; // a flush is queued for the end of this run of tasks
 	let resyncs = 0; // the resync in flight, 0 for none; a newer one supersedes it
 	let held = []; // messages that arrived during a resync, or between load and attach
-	const report = (phase, fields) =>
-		link?.host.report(phase, { engine: link.host.engineName(engine), ...fields });
+	const report = (type, fields) =>
+		link?.host.report(type, { engine: link.host.engineName(engine), ...fields });
 	const onMigrate = (migration) => report("migrated", migration);
 
 	// Pushes the pending ops as one batch, made to fit the remote's copy, unless one is in flight.

@@ -118,7 +118,7 @@ test("markdown on a canvas: ⤓ downloads it as a .md file, and a dropped one lo
 	d.drain();
 	await tick();
 	assert.deepEqual(saved, [["notes.md", "# Notes\n\n- one\n", "text/markdown"]]);
-	d.answer(itemAt("item-1"), "readText", "ok", ["# Dropped\n"]);
+	d.answer("readText", "ok", ["# Dropped\n"], { to: itemAt("item-1") });
 	assert.equal(d.state.items["item-1"].content.text, "# Dropped\n");
 	assert.equal(d.state.items["item-1"].dropError, "");
 	assert.deepEqual(d.problems, []);

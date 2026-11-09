@@ -1,4 +1,4 @@
-import { step, stories } from "../../src/storybook/index.js";
+import { book, step } from "../../src/storybook/index.js";
 import { readText, saveFile } from "../common/files.js";
 import { drink, habit, NOW, sample, trackerAppArb } from "./fixtures.js";
 import { trackerApp, trackerComponents } from "./index.js";
@@ -44,7 +44,7 @@ const appMessages = [
 	"EntryList.remove",
 ];
 
-export default stories({
+export default book({
 	title: "Thing tracker",
 	components: trackerComponents,
 	askHandlers: {
@@ -95,7 +95,7 @@ export default stories({
 					step.check("never below zero", (s) => s.base === 0),
 				],
 			},
-			pbt: { events: true, maxCommands: 12 },
+			stress: { events: true, maxCommands: 12 },
 		},
 		"Prompt/Temperature (field view)": {
 			make: (C) =>
@@ -123,7 +123,7 @@ export default stories({
 					step.check("pasted", (s) => s.value === "🦆"),
 				],
 			},
-			pbt: { events: true, maxCommands: 10 },
+			stress: { events: true, maxCommands: 10 },
 		},
 		// Panels alone; what they'd tell the app goes nowhere at the root.
 		"Panel/Measurement wizard": {
@@ -148,7 +148,7 @@ export default stories({
 					step.check("1 of 2", (s) => s.stepText === "1 of 2" && s.primaryLabel === "Next"),
 					step.send("next"),
 					step.check("can't log nothing", (s) => s.cannotGo),
-					step.send("setText", ["28"], { at: (b) => b.item("prompts", 1) }),
+					step.send("setText", ["28"], { to: (b) => b.item("prompts", 1) }),
 					step.check("logs 28m", (s) => s.primaryLabel === "Log 28m"),
 					step.send("back"),
 					step.check("back to distance", (s) => s.step === 0),
@@ -158,7 +158,7 @@ export default stories({
 					step.check("kept", (s) => !s.confirming),
 				],
 			},
-			pbt: { events: true, maxCommands: 12 },
+			stress: { events: true, maxCommands: 12 },
 		},
 		"Panel/Event editor": {
 			make: (C) =>
@@ -186,7 +186,7 @@ export default stories({
 				"create a thing in three steps": [
 					step.check("needs a name", (s) => s.cannotGo),
 					step.event("input", '[aria-label="Name"]', { value: "Swim" }),
-					step.send("pick", ["🏊"], { at: (b) => b.field("picker") }),
+					step.send("pick", ["🏊"], { to: (b) => b.field("picker") }),
 					step.check("picked, picker closed", (s) => s.emoji === "🏊" && !s.pickerOpen),
 					step.send("next"),
 					step.event("change", 'input[value="distance"]', { value: true }),
@@ -198,7 +198,7 @@ export default stories({
 					step.check("ready to create", (s) => s.primaryLabel === "Create"),
 				],
 			},
-			pbt: { events: true, maxCommands: 12 },
+			stress: { events: true, maxCommands: 12 },
 		},
 		"Panel/Tag editor": {
 			make: (C) => {
@@ -291,8 +291,8 @@ export default stories({
 					step.check("undone", (s) => s.events.length === 9 && s.toast === null),
 					step.event("click", '[aria-label^="Log Run,"]'),
 					step.check("asks for distance, last time's", (s) => s.panel.prompts[0].base === 5000),
-					step.send("next", [], { at: atPanel }),
-					step.send("next", [], { at: atPanel }),
+					step.send("next", [], { to: atPanel }),
+					step.send("next", [], { to: atPanel }),
 					step.check(
 						"logged 5km and 28m",
 						(s) => lastEvent(s).measurements.length === 2 && s.panel === null,
@@ -321,12 +321,12 @@ export default stories({
 				"backdate with a long press": [
 					step.event("contextmenu", '[aria-label^="Log Run,"]'),
 					step.check("an unsaved entry", (s) => s.panel.mode === "create" && s.events.length === 9),
-					step.send("setWhen", ["2026-10-16T07:00"], { at: atPanel }),
-					step.send("save", [], { at: atPanel }),
+					step.send("setWhen", ["2026-10-16T07:00"], { to: atPanel }),
+					step.send("save", [], { to: atPanel }),
 					step.check("logged at 7", (s) => lastEvent(s).actualAt === Date.UTC(2026, 9, 16, 7)),
 				],
 			},
-			pbt: { include: appMessages, maxCommands: 15 },
+			stress: { include: appMessages, maxCommands: 15 },
 		},
 		"App/Insights by day": {
 			make: (C) => sample(C, { tab: "insights" }),
@@ -341,10 +341,10 @@ export default stories({
 						"water today",
 						(s) => s.panel.heading === "💧 Water" && s.panel.rows.length === 1,
 					),
-					step.send("open", [0], { at: atPanel }),
+					step.send("open", [0], { to: atPanel }),
 					step.check("editing it", (s) => s.panel.mode === "edit"),
-					step.send("setNotes", ["Big glass"], { at: atPanel }),
-					step.send("save", [], { at: atPanel }),
+					step.send("setNotes", ["Big glass"], { to: atPanel }),
+					step.send("save", [], { to: atPanel }),
 					step.check(
 						"saved",
 						(s) => s.events.find((e) => e.id === "event-3").notes === "Big glass",
@@ -354,7 +354,7 @@ export default stories({
 						"all, newest first",
 						(s) => s.panel.rows.length === 9 && s.panel.subtitle === "9 of 9, newest first",
 					),
-					step.send("remove", [0], { at: atPanel }),
+					step.send("remove", [0], { to: atPanel }),
 					step.check("one less", (s) => s.events.length === 8 && s.panel.rows.length === 8),
 				],
 			},
@@ -382,15 +382,15 @@ export default stories({
 					step.event("input", '[aria-label="Search things…"]', { value: "run" }),
 					step.event("click", "li button"),
 					step.check("editing Run", (s) => s.panel.title === "Run" && s.panel.mode === "edit"),
-					step.send("setTitle", ["Jog"], { at: atPanel }),
-					step.send("next", [], { at: atPanel }),
-					step.send("next", [], { at: atPanel }),
-					step.send("next", [], { at: atPanel }),
+					step.send("setTitle", ["Jog"], { to: atPanel }),
+					step.send("next", [], { to: atPanel }),
+					step.send("next", [], { to: atPanel }),
+					step.send("next", [], { to: atPanel }),
 					step.check("renamed", (s) => s.things.some((t) => t.title === "Jog")),
 				],
 				"delete a thing and its entries": [
 					step.send("editThing", [habit("run")]),
-					step.send("remove", [], { at: atPanel }),
+					step.send("remove", [], { to: atPanel }),
 					step.check(
 						"gone with its entries",
 						(s) => !s.events.some((e) => e.thingId === habit("run")),
@@ -407,9 +407,9 @@ export default stories({
 			sequences: {
 				"make a tag": [
 					step.send("newTag"),
-					step.send("setTitle", ["Morning"], { at: atPanel }),
-					step.send("toggleMember", [0], { at: atPanel }),
-					step.send("save", [], { at: atPanel }),
+					step.send("setTitle", ["Morning"], { to: atPanel }),
+					step.send("toggleMember", [0], { to: atPanel }),
+					step.send("save", [], { to: atPanel }),
 					step.check(
 						"last tag",
 						(s) => s.groups.at(-1).title === "Morning" && s.groups.at(-1).thingIds.length === 1,
@@ -473,8 +473,8 @@ export default stories({
 		},
 		"App/Generated": {
 			arbitrary: (A) => A.instance("TrackerApp"),
-			pbt: { include: appMessages, maxCommands: 15 },
+			stress: { include: appMessages, maxCommands: 15 },
 		},
-		"App/DOM events": { make: (C) => sample(C), pbt: { events: true, maxCommands: 15 } },
+		"App/DOM events": { make: (C) => sample(C), stress: { events: true, maxCommands: 15 } },
 	},
 });

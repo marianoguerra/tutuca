@@ -7,12 +7,12 @@ export {
 	ANSWER_OUTCOMES,
 	AnswerTask,
 	AskTask,
-	hidden,
 	NotifyTask,
 	Task,
 } from "./messages.js";
 export { DispatchPath, Frame, KeyPath, Selector, selectorFrom, Target } from "./path.js";
+export { hidden, plainOf } from "./record.js";
 export { Scheduler } from "./scheduler.js";
-export { SCOPE_OUTCOMES, SettleScope } from "./settle.js";
 export { errorMessage, jsonText, keyText } from "./text.js";
-export { plainOf, TRANSITION_OUTCOMES, Transition } from "./transition.js";
+export { TRANSITION_OUTCOMES, Transition } from "./transition.js";
+export { WATCH_OUTCOMES, Watch } from "./watch.js";

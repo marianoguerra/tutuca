@@ -1,11 +1,15 @@
-// How tools print values in labels, logs and messages: the tree's (tree/text.js) and a few more.
-import { jsonText } from "../tree/text.js";
+// The records a host reports, of two kinds: a Transition (tree/transition.js) for what became of
+// each task and each host.apply, a HostEvent (host-event.js) for the rest. What both share is
+// here: whether one is a problem, and what it says in words. A record's issues are what dev
+// checks found, as codes ({ check, reason, ... }); the problems of a spec or a meta (elsewhere)
+// are sentences.
+import { FAILED_TYPES } from "./host-event.js";
+import { argsLabel } from "./text.js";
 
-export { errorMessage, jsonText, keyText } from "../tree/text.js";
-// s cut to max characters, with an ellipsis when it was longer.
-export const truncate = (s, max) => (s.length > max ? `${s.slice(0, max)}…` : s);
-// A message's args as a short label: their JSON, comma separated, cut to 80 characters.
-export const argsLabel = (args) => truncate(args.map(jsonText).join(", "), 80);
+// Whether a record is a problem: a task that failed, a host event that is a failure, or
+// anything dev checks found something wrong with.
+export const isProblem = (record) =>
+	record.issues.length > 0 || record.outcome === "failed" || FAILED_TYPES.has(record.type);
 
 // A task, or the transition of one, as a timeline shows it: "toggle()", or "click → toggle()"
 // for one a DOM event sent.
@@ -14,7 +18,7 @@ export const transitionLabel = (record) => {
 	const event = (record.task ?? record).event ?? null;
 	return event === null ? call : `${event.type} → ${call}`;
 };
-// What is wrong with a report (a Transition or a Lifecycle), in words: one line for what failed,
+// What is wrong with a record, in words: one line for what failed,
 // one for the invalid state it left and one per message that broke its spec. Empty for one that
 // is no problem.
 export const problemLines = (record) => {
@@ -42,7 +46,7 @@ const failureText = (record) => {
 			? `${transitionLabel(record)} failed: ${why(record.error)}`
 			: null;
 	}
-	switch (record.phase) {
+	switch (record.type) {
 		case "renderFailed":
 			return `render failed: ${why(record.error)}`;
 		case "eventFailed":

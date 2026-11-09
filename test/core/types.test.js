@@ -4,7 +4,7 @@ import { produce } from "../../deps/immer.js";
 import {
 	component,
 	field,
-	findInvalidFields,
+	findInvalid,
 	h,
 	isComponent,
 	NumberType,
@@ -197,7 +197,7 @@ test("index fields are keys of a sibling collection", () => {
 	assert.throws(() => Sel.make({ items: [] }), /Sel.selected: items has no key/);
 	const invalid = Object.assign(Sel.make(), { selected: 2 });
 	assert.deepEqual(
-		findInvalidFields(invalid, null).map((i) => i.field),
+		findInvalid(invalid, null).map((i) => i.field),
 		["selected"],
 	);
 });
@@ -217,8 +217,8 @@ test("broken invariants are reported on the component", () => {
 		},
 		view: "range",
 	});
-	assert.deepEqual(findInvalidFields(Range.make({ lo: 1, hi: 2 }), null), []);
-	const issues = findInvalidFields({ r: Object.assign(Range.make(), { lo: 300, hi: 200 }) }, null);
+	assert.deepEqual(findInvalid(Range.make({ lo: 1, hi: 2 }), null), []);
+	const issues = findInvalid({ r: Object.assign(Range.make(), { lo: 300, hi: 200 }) }, null);
 	assert.deepEqual(
 		issues.map(({ path, field, reason }) => [path, field, reason]),
 		[

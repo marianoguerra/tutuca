@@ -15,9 +15,9 @@ import {
 	h,
 	iface,
 	implementsIface,
+	interfaceGaps,
 	query,
 	Scope,
-	supports,
 	t,
 } from "../../src/tutuca.js";
 
@@ -214,7 +214,7 @@ test("views read get queries as fields and call queries with args", () => {
 	const { makeCard } = setup();
 	const card = makeCard({ text: "a cat", done: true });
 	assert.equal(card.label, "✓ a cat");
-	assert.equal(Card.views.main.childs[2].eval({ it: card }), true);
+	assert.equal(Card.views.main.children[2].eval({ it: card }), true);
 });
 
 test("interfaces are resolved in the scope a component is registered in", () => {
@@ -228,7 +228,7 @@ test("interfaces are resolved in the scope a component is registered in", () => 
 	const card = makeCard({});
 	assert.equal(implementsIface(card, TodoItem), true);
 	assert.equal(implementsIface(card, Other), false);
-	assert.deepEqual(supports(card, "TodoItem"), []);
+	assert.deepEqual(interfaceGaps(card, "TodoItem"), []);
 });
 
 test("an Interface instance in implements needs no registration", () => {

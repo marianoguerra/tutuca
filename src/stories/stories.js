@@ -1,21 +1,21 @@
 // Stories without a UI: books of stories, their sequences of steps and stress tests, run on a
 // headless Driver. fast-check is passed in, as in pbt.js.
 
-import { argsLabel } from "../core/text.js";
+import { argsLabel } from "../core/host/text.js";
 import { Driver, describeProblems } from "../testing/driver.js";
 import { arbitraries, eventCommands, messageCommands, runCommands } from "../testing/pbt.js";
 import { DispatchPath, errorMessage, Scope, selectorFrom, specOf } from "../tutuca.js";
 
-// Steps of a sequence, as plain data. at and from are selector functions relative to
+// Steps of a sequence, as plain data. to and from are selector functions relative to
 // the story root, as in ctx.sendAt; from is the child the message comes through.
 export const step = {
-	send: (name, args = [], { at, from, label } = {}) => ({
+	send: (name, args = [], { to, from, label } = {}) => ({
 		kind: "send",
 		name,
 		args,
-		at,
+		to,
 		from,
-		label: label ?? `${at ? selectorFrom(at) : "·"}.${name}(${argsLabel(args)})`,
+		label: label ?? `${to ? selectorFrom(to) : "·"}.${name}(${argsLabel(args)})`,
 	}),
 	// value, when given, is set on the form field first, as targetValue() reads it.
 	event: (type, selector, { value, label } = {}) => ({
@@ -32,17 +32,17 @@ export const step = {
 		to,
 		label: label ?? `drag ${from} onto ${to}`,
 	}),
-	// The answer to an ask, delivered to the component at (the root without one): for its
+	// The answer to an ask, delivered to the component at to (the root without one): for its
 	// answers[ask][outcome], with value as the answer's argument (none for unhandled).
-	answer: (ask, outcome, value, { at, label } = {}) => ({
+	answer: (ask, outcome, value, { to, label } = {}) => ({
 		kind: "answer",
 		ask,
 		outcome,
 		args: outcome === "unhandled" ? [] : [value],
-		at,
+		to,
 		label:
 			label ??
-			`${at ? selectorFrom(at) : "·"} ← ${ask}.${outcome}(${argsLabel(outcome === "unhandled" ? [] : [value])})`,
+			`${to ? selectorFrom(to) : "·"} ← ${ask}.${outcome}(${argsLabel(outcome === "unhandled" ? [] : [value])})`,
 	}),
 	check: (label, pred) => ({ kind: "check", label, pred }),
 	// A MessageCommand or EventCommand from pbt.js.
@@ -51,19 +51,19 @@ export const step = {
 export const stepText = (s) => s.label ?? (s.kind === "command" ? String(s.cmd) : s.kind);
 
 // A book of stories. Each story has make(C) or arbitrary(A) for its initial state, and
-// optionally sequences ({ name: steps }) and pbt ({ include, exclude, afterEach,
-// maxCommands, numRuns, events }) for stress tests. components and askHandlers are
+// optionally sequences ({ name: steps }) and stress ({ include, exclude, afterEach,
+// maxCommands, numRuns, events }) for its stress test. components and askHandlers are
 // registered in each story's scope; overrides go to arbitraries.
-export const stories = ({ title, components, askHandlers = {}, overrides = {}, stories }) => {
-	const book = { title, components, askHandlers, overrides, stories: [] };
+export const book = ({ title, components, askHandlers = {}, overrides = {}, stories }) => {
+	const made = { title, components, askHandlers, overrides, stories: [] };
 	for (const [name, story] of Object.entries(stories)) {
 		const id = `${title}/${name}`;
 		if ((story.make === undefined) === (story.arbitrary === undefined)) {
 			throw new Error(`story ${id} needs one of make or arbitrary`);
 		}
-		book.stories.push({ sequences: {}, pbt: null, ...story, id, name, book });
+		made.stories.push({ sequences: {}, stress: null, ...story, id, name, book: made });
 	}
-	return book;
+	return made;
 };
 
 // A story's scope, arbitraries and initial state; seed picks the state of arbitrary stories.
@@ -91,14 +91,14 @@ export const runStep = (driver, s) => {
 	try {
 		switch (s.kind) {
 			case "send": {
-				const path = s.path ?? (s.at ? selectorFrom(s.at) : new DispatchPath());
+				const to = s.path ?? (s.to ? selectorFrom(s.to) : new DispatchPath());
 				const from = s.fromFrames ?? (s.from ? selectorFrom(s.from) : []);
-				driver.send(path, s.name, s.args, from);
+				driver.send(s.name, s.args, { to, from });
 				break;
 			}
 			case "answer": {
-				const path = s.at ? selectorFrom(s.at) : new DispatchPath();
-				driver.answer(path, s.ask, s.outcome, s.args);
+				const to = s.to ? selectorFrom(s.to) : new DispatchPath();
+				driver.answer(s.ask, s.outcome, s.args, { to });
 				break;
 			}
 			case "event": {
@@ -166,8 +166,8 @@ export const stressProperty = (
 		A,
 		root,
 		from = "story",
-		events = story.pbt?.events ?? false,
-		maxCommands = story.pbt?.maxCommands ?? 20,
+		events = story.stress?.events ?? false,
+		maxCommands = story.stress?.maxCommands ?? 20,
 		document = null,
 		onRun = null,
 	},
@@ -176,7 +176,7 @@ export const stressProperty = (
 	const roots = from === "generated" ? A.instance(specOf(root)) : fc.constant(root);
 	const cmds = events
 		? eventCommands(A, { maxCommands })
-		: messageCommands(A, { ...story.pbt, maxCommands });
+		: messageCommands(A, { ...story.stress, maxCommands });
 	const options = events ? { document } : {};
 	if (onRun === null) return fc.property(roots, cmds, (r, c) => runCommands(A, r, c, options));
 	const ran = (c) => [...c].filter((w) => w.hasRan).map((w) => String(w.cmd));
@@ -191,9 +191,9 @@ export const stressProperty = (
 	});
 };
 
-// fc.assert of story's stress test, with its pbt config.
+// fc.assert of story's stress test, with its stress config.
 export const stressStory = (story, { fc, document = null, numRuns, seed, ...options } = {}) => {
 	const { A, root } = prepareStory(story, { fc });
 	const property = stressProperty(story, { fc, A, root, document, ...options });
-	fc.assert(property, { numRuns: numRuns ?? story.pbt?.numRuns ?? 50, seed });
+	fc.assert(property, { numRuns: numRuns ?? story.stress?.numRuns ?? 50, seed });
 };

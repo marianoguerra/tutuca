@@ -5,7 +5,7 @@ import { addDays, dayHeader, dueLabel, dueTone, isIso } from "../../components/t
 import { TODAY, todoAppArb } from "../../components/todo/fixtures.js";
 import { todoComponents } from "../../components/todo/index.js";
 import { parseQuickAdd } from "../../components/todo/quickadd.js";
-import { devComponents } from "../../src/dev/panel.js";
+import { devComponents } from "../../src/panels/ui/dev-panel.js";
 import { apply, ContractError } from "../../src/tutuca.js";
 import { scopeWith, testGenericProperties } from "../helpers.js";
 

@@ -189,7 +189,7 @@ export const Item = component({
 		},
 		// Whether its content says agent meta and an agent can be made here to wrap it.
 		get canWrap() {
-			return hasAgentMeta(this.content) && Boolean(scopeOf(this).lookupByName("Agent"));
+			return hasAgentMeta(this.content) && Boolean(scopeOf(this).lookupSpec("Agent"));
 		},
 		// Whether its content is an agent wrapping something, which it can eject.
 		get isWrapped() {

@@ -1,7 +1,7 @@
 import assert from "node:assert/strict";
 import test from "node:test";
-import { morph } from "../../src/core/vdom.js";
-import { dom, vh as h, mutationsOf, vchilds, vfrag } from "../helpers.js";
+import { morph } from "../../src/vdom/index.js";
+import { dom, vh as h, mutationsOf, vchildren, vfrag } from "../helpers.js";
 
 const SVG = "http://www.w3.org/2000/svg";
 const MATH = "http://www.w3.org/1998/Math/MathML";
@@ -9,9 +9,9 @@ const HTML = "http://www.w3.org/1999/xhtml";
 
 // Renders root and returns the flat list to pass as prev next time.
 const draw = (document, container, root, prev) => {
-	const childs = vchilds(root);
-	morph(document, container, childs, prev);
-	return childs;
+	const children = vchildren(root);
+	morph(document, container, children, prev);
+	return children;
 };
 
 function setup() {

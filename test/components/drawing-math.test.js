@@ -3,7 +3,6 @@ import test from "node:test";
 import { drawingComponents } from "../../components/drawing/index.js";
 import { fmt, mathComponents } from "../../components/math/index.js";
 import { Driver } from "../../src/testing/driver.js";
-import { DispatchPath } from "../../src/tutuca.js";
 import { document, scopeWith, testGenericProperties } from "../helpers.js";
 
 const SVG = "http://www.w3.org/2000/svg";
@@ -73,7 +72,7 @@ test("duplicating and moving shapes at the edge keeps them in range", () => {
 	const C = scopeWith(drawingComponents).components;
 	const shapes = [C.Rect({ id: "a", x0: 9990, y0: 0, x1: 10000, y1: 20 })];
 	const driver = new Driver({ root: C.Drawing({ shapes, selected: "a" }), document });
-	const send = (name, args = []) => driver.send(new DispatchPath(), name, args);
+	const send = (name, args = []) => driver.send(name, args);
 	send("duplicate");
 	const corners = (s) => [s.x0, s.y0, s.x1, s.y1];
 	assert.deepEqual(corners(driver.state.shapes[1]), [9980, 10, 9990, 30]);

@@ -174,12 +174,12 @@ const editsOf = new Map([
 	],
 ]);
 const edits = fc.array(editArb, { maxLength: 12 });
-const edit = (host, fn) => host.applyExternal((next) => void fn(next, host.scope));
+const edit = (host, fn) => host.applyChange((next) => void fn(next, host.scope));
 const peer = async (engine, specs = V1) => {
 	const failures = [];
 	const s = setupHost(specs, {
 		sync: true,
-		onReport: (r) => r.phase === "syncFailed" && failures.push(r.error),
+		onReport: (r) => r.type === "syncFailed" && failures.push(r.error),
 	});
 	await startSynced(s.host, { make: (C) => C.Root(), engines: [engine] });
 	s.host.syncFailures = failures;

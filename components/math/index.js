@@ -389,11 +389,11 @@ export const Quadratic = component({
 		},
 	},
 });
-function section(title, ...childs) {
+function section(title, ...children) {
 	return div(
 		{ class: "flex flex-col gap-1" },
 		h3({ class: "text-xs font-semibold uppercase tracking-wider opacity-60" }, title),
-		...childs,
+		...children,
 	);
 }
 function mspace() {

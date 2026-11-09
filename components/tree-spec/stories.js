@@ -1,4 +1,4 @@
-import { step, stories } from "../../src/storybook/index.js";
+import { book, step } from "../../src/storybook/index.js";
 import {
 	at,
 	field,
@@ -87,7 +87,7 @@ const pingPong = {
 	],
 };
 
-export default stories({
+export default book({
 	title: "Tree spec",
 	components: treeSpecComponents,
 	stories: {

@@ -28,39 +28,31 @@ export class KeyPath {
 // One step of a DispatchPath: keys into the value, then the item of a collection there, if any.
 // A frame with a provider starts from the frame at the provider's depth, plus its keys, instead
 // of from the frame before it: what a node reads from an ancestor that provides it.
-// isComponent marks the frames that reach a node.
+// isNode marks the frames that reach a node.
 export class Frame {
-	constructor(keys, item = null, provider = null, isComponent = false) {
+	constructor(keys, item = null, provider = null, isNode = false) {
 		this.keys = keys;
 		this.item = item;
 		this.provider = provider;
-		this.isComponent = isComponent;
+		this.isNode = isNode;
 	}
 	get accessKeys() {
 		return this.item === null ? this.keys : [...this.keys, this.item];
 	}
-	asComponent() {
+	asNode() {
 		return new Frame(this.keys, this.item, this.provider, true);
 	}
 	forItem(key) {
 		return new Frame(this.accessKeys, key, this.provider, false);
-	}
-	// The short form the DOM's marker comments carry, and back.
-	toMarker() {
-		const { provider: p } = this;
-		const base = p === null ? null : { v: p.name, d: p.depth, k: p.keys };
-		return { t: "frame", p: base, k: this.keys, i: this.item };
-	}
-	static fromMarker({ p, k, i }) {
-		const provider = p === null ? null : { name: p.v, depth: p.d, keys: p.k };
-		return new Frame(k, i, provider);
 	}
 	// The keys and item, without the provider.
 	toString() {
 		return `${this.keys.map(keyText).join("")}${this.item === null ? "" : `[${jsonText(this.item)}]`}`;
 	}
 }
-const frameText = (frame) => JSON.stringify(frame.toMarker());
+// What tells two frames apart: where each starts, its keys and its item.
+const frameText = ({ provider: p, keys, item }) =>
+	JSON.stringify([p === null ? null : [p.name, p.depth, p.keys], keys, item]);
 // The frames a message went through from the root: spec/tree's π.
 export class DispatchPath {
 	/** @param {Frame[]} frames */
@@ -77,9 +69,9 @@ export class DispatchPath {
 		return new DispatchPath(this.frames.slice(0, -1));
 	}
 	// Up to the last frame that reaches a node.
-	toComponentPath() {
+	toNodePath() {
 		let end = this.frames.length;
-		while (end > 0 && !this.frames[end - 1].isComponent) end--;
+		while (end > 0 && !this.frames[end - 1].isNode) end--;
 		return new DispatchPath(this.frames.slice(0, end));
 	}
 	// The keys to where the last frame leads, its item included.
@@ -94,8 +86,8 @@ export class DispatchPath {
 		return new KeyPath(prefixes.at(-1));
 	}
 	// The keys to the node the path reaches: what an address checks.
-	toComponentKeyPath() {
-		return this.toComponentPath().toKeyPath();
+	toNodeKeyPath() {
+		return this.toNodePath().toKeyPath();
 	}
 	toString() {
 		return this.frames.join("") || "·";
@@ -111,7 +103,7 @@ export class DispatchPath {
 	sourceKeyIn(receiver) {
 		let i = receiver.frames.length;
 		if (i >= this.frames.length || !this.startsWith(receiver)) return null;
-		while (i < this.frames.length - 1 && !this.frames[i].isComponent) i++;
+		while (i < this.frames.length - 1 && !this.frames[i].isNode) i++;
 		return this.frames[i].item;
 	}
 }

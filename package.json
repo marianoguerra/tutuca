@@ -16,7 +16,7 @@
 	"sideEffects": false,
 	"exports": {
 		".": "./src/tutuca.js",
-		"./vdom": "./src/core/vdom.js",
+		"./vdom": "./src/vdom/index.js",
 		"./tree": "./src/tree/index.js",
 		"./meta": "./src/meta/index.js",
 		"./dev": "./src/tutuca.dev.js",

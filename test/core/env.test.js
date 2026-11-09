@@ -1,7 +1,7 @@
 import assert from "node:assert/strict";
 import test from "node:test";
 import { Driver, testEnv } from "../../src/testing/driver.js";
-import { component, DispatchPath, t } from "../../src/tutuca.js";
+import { component, t } from "../../src/tutuca.js";
 import { scopeWith } from "../helpers.js";
 
 const Stamp = component({
@@ -18,7 +18,7 @@ const Stamp = component({
 });
 const stamped = (env) => {
 	const driver = new Driver({ root: scopeWith({ Stamp }).components.Stamp(), env });
-	driver.send(new DispatchPath(), "stamp", []);
+	driver.send("stamp", []);
 	return driver;
 };
 
@@ -37,7 +37,7 @@ test("a test env's clock only moves when advanced", () => {
 	const driver = stamped(env);
 	assert.equal(driver.state.at, 1000);
 	env.advance(250);
-	driver.send(new DispatchPath(), "stamp", []);
+	driver.send("stamp", []);
 	assert.equal(driver.state.at, 1250);
 	assert.equal(driver.state.id, "00000000-0000-4000-8000-000000000002");
 });

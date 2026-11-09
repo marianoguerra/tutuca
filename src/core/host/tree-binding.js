@@ -1,21 +1,21 @@
 // How tutuca binds src/tree: how a component's spec gives the tree its handlers, the context
 // they get (the world, the scope and the DOM event), messages from the host (DOM events among
 // them), and the Scheduler a Host runs its tasks with.
-import { produce } from "../../deps/immer.js";
-import { HOST, hidden, MessageContext, Scheduler, Task } from "../tree/index.js";
-import { scopeOf, specOf } from "./spec.js";
+import { produce } from "../../../deps/immer.js";
+import { HOST, hidden, MessageContext, Scheduler, Task } from "../../tree/index.js";
+import { scopeOf, specOf } from "../model/spec.js";
 
 // The handlers of a component: its spec's on (sends and notifications) and answers, and its
 // scope's ask handlers.
-export const componentKinds = {
+export const componentHandlers = {
 	handler(instance, { mode, name, outcome }) {
 		const spec = specOf(instance);
 		return mode === "answer" ? spec.answers[name]?.[outcome] : spec.on[name];
 	},
 	askHandler: (instance, name) => scopeOf(instance)?.lookupAskHandler(name) ?? null,
 };
-export class TutucaContext extends MessageContext {
-	/** @param {import("./scope.js").Scope | null} scope */
+export class HandlerContext extends MessageContext {
+	/** @param {import("../model/scope.js").Scope | null} scope */
 	constructor(task, nextRequest, env, scope) {
 		super(task, nextRequest);
 		this.env = env;
@@ -73,7 +73,7 @@ export class HostTask extends Task {
 // host hears what happens through its hooks.
 export const schedulerFor = (host) =>
 	new Scheduler({
-		kinds: componentKinds,
+		handlers: componentHandlers,
 		store: { get: () => host.root, set: (root) => (host.root = root) },
 		transact: (root, path, fn) =>
 			host.checks !== null
@@ -81,11 +81,11 @@ export const schedulerFor = (host) =>
 				: produce(root, (rootDraft) => path.setIn(rootDraft, fn(path.getIn(rootDraft)))),
 		hooks: {
 			context: (task, instance, nextRequest) =>
-				new TutucaContext(task, nextRequest, host.env, scopeOf(instance)),
+				new HandlerContext(task, nextRequest, host.env, scopeOf(instance)),
 			beforeCommit: (prev, next, task) => host.engines.prepare(prev, next, task),
 			transition: (record, ctx) => host.transitioned(record, ctx),
 			wake: () => host.wake(),
-			scopeOpened: (scope) => host.scopeOpened(scope),
-			scopeSettled: (scope) => host.scopeSettled(scope),
+			watchOpened: (watch) => host.watchOpened(watch),
+			watchSettled: (watch) => host.watchSettled(watch),
 		},
 	});

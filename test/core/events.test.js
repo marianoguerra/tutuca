@@ -3,7 +3,6 @@ import test from "node:test";
 import {
 	$if,
 	Address,
-	AstNode,
 	component,
 	DispatchPath,
 	each,
@@ -22,6 +21,7 @@ import {
 	Task,
 	t,
 	targetValue,
+	ViewNode,
 	Walker,
 	withBinds,
 } from "../../src/tutuca.js";
@@ -60,25 +60,25 @@ test("the default walker walks parents first, attributes before children and han
 	const seen = [];
 	recordVisits(seen).visit(v);
 	assert.deepEqual(seen, [
-		"Element",
-		"Cond",
-		"Field",
-		"Constant",
-		"Constant",
-		"Each",
-		"Field",
-		"WithBinds",
-		"PushView",
-		"Constant",
-		"Element",
-		"Field",
-		"Send",
-		"Field",
+		"ElementNode",
+		"CondNode",
+		"FieldNode",
+		"ConstantNode",
+		"ConstantNode",
+		"EachNode",
+		"FieldNode",
+		"WithBindsNode",
+		"PushViewNode",
+		"ConstantNode",
+		"ElementNode",
+		"FieldNode",
+		"SendNode",
+		"FieldNode",
 	]);
 });
 
 test("Walker reads children of custom nodes through childNodes", () => {
-	class Listed extends AstNode {
+	class Listed extends ViewNode {
 		constructor(child) {
 			super();
 			this.child = child;
@@ -87,10 +87,10 @@ test("Walker reads children of custom nodes through childNodes", () => {
 			return [this.child];
 		}
 	}
-	class Opaque extends AstNode {}
+	class Opaque extends ViewNode {}
 	const seen = [];
 	recordVisits(seen).visit(h("p", {}, new Listed(new Opaque()), new Listed(field("name"))));
-	assert.deepEqual(seen, ["Element", "Listed", "Opaque", "Listed", "Field"]);
+	assert.deepEqual(seen, ["ElementNode", "Listed", "Opaque", "Listed", "FieldNode"]);
 });
 
 test("elements with handlers get unique IDs, and the spec maps them without copying", () => {
@@ -101,7 +101,7 @@ test("elements with handlers get unique IDs, and the spec maps them without copy
 		h("li", {}),
 		h("li", { "on:input": send("c"), "on:blur": send("d") }),
 	);
-	const [a, plain, cd] = source.childs;
+	const [a, plain, cd] = source.children;
 	assert.equal(plain.eid, null);
 	assert.equal(new Set([source.eid, a.eid, cd.eid]).size, 3);
 	const spec = component({ name: "C", view: source });
@@ -110,7 +110,7 @@ test("elements with handlers get unique IDs, and the spec maps them without copy
 	assert.deepEqual(actionNames(spec, a), ["a"]);
 	assert.deepEqual(actionNames(spec, cd), ["c", "d"]);
 	assert.equal(spec.eventHandlers.size, 3);
-	assert.deepEqual(spec.eventNames, new Set(["click", "input", "blur"]));
+	assert.deepEqual(spec.eventTypes, new Set(["click", "input", "blur"]));
 	assert.equal(spec.eventHandlers.get(source.eid), source.handlers);
 });
 
@@ -152,7 +152,7 @@ test("rendering adds data-eid only to elements with handlers", () => {
 	const Root = component({ name: "Root", view });
 	const { host, rootNode, C } = setup({ Root });
 	host.start(C.Root());
-	assert.equal(rootNode.querySelector("button").dataset.eid, String(view.childs[0].eid));
+	assert.equal(rootNode.querySelector("button").dataset.eid, String(view.children[0].eid));
 	assert.equal(rootNode.querySelector("p").hasAttribute("data-eid"), false);
 	assert.equal(rootNode.querySelector("div").hasAttribute("data-eid"), false);
 });

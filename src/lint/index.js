@@ -3,7 +3,6 @@ import { agentProblems, classesProblems, dataProblems, hasClassesMeta } from "..
 import {
 	ANSWER_OUTCOMES,
 	ArrayType,
-	AstNode,
 	ComponentType,
 	DRAG_EVENTS,
 	HandlerSpec,
@@ -14,11 +13,12 @@ import {
 	QuerySpec,
 	Type,
 	unwrapOption,
+	ViewNode,
 	Walker,
 } from "../tutuca.js";
 
 // The kind of a node: the name of the Walker callback it dispatches to.
-const kindOf = (node) => (node instanceof AstNode ? node.constructor.kind : null);
+const kindOf = (node) => (node instanceof ViewNode ? node.constructor.kind : null);
 const SOURCE_KINDS = new Set(["field", "seqItem", "provided"]);
 // Nodes that read the component state or render, so they need a RenderContext.
 const RENDER_KINDS = new Set([
@@ -47,9 +47,9 @@ const EVENT_ARG_RULES = {
 	dragKey: {
 		code: "drag-key",
 		check: (lint) =>
-			!DRAG_EVENTS.includes(lint.eventName) && [
+			!DRAG_EVENTS.includes(lint.eventType) && [
 				"drag-key-outside-drag-event",
-				`dragKey is only set in drag events, not in on:${lint.eventName}`,
+				`dragKey is only set in drag events, not in on:${lint.eventType}`,
 			],
 	},
 };
@@ -363,10 +363,10 @@ export class Lint extends Walker {
 		this.labels.pop();
 	}
 	element(node) {
-		for (const { name } of node.handlers) {
+		for (const { type } of node.handlers) {
 			// Custom elements' events are often kebab-case, like emoji-click.
-			if (!/^[a-z]+(-[a-z0-9]+)*$/.test(name)) {
-				this.report("warning", "unknown-event", node, `"${name}" is not a lower-case event type`);
+			if (!/^[a-z]+(-[a-z0-9]+)*$/.test(type)) {
+				this.report("warning", "unknown-event", node, `"${type}" is not a lower-case event type`);
 			}
 		}
 		super.element(node);
@@ -386,10 +386,10 @@ export class Lint extends Walker {
 			this.report("warning", "undeclared-dynamic-class", node, message);
 		}
 	}
-	handler(_node, { name, action }) {
-		this.labels.push(`[on:${name}]`);
+	handler(_node, { type, action }) {
+		this.labels.push(`[on:${type}]`);
 		if (kindOf(action) !== "send") {
-			this.report("error", "event-needs-send", action, `on:${name} needs a send action`);
+			this.report("error", "event-needs-send", action, `on:${type} needs a send action`);
 		} else {
 			const message = this.spec.on[action.name];
 			if (typeof message?.run !== "function") {
@@ -399,7 +399,7 @@ export class Lint extends Walker {
 			}
 			this.labels.push(labelOf(action, "send"));
 			this.inAction = true;
-			this.eventName = name;
+			this.eventType = type;
 			for (const arg of action.args) this.visit(arg);
 			this.inAction = false;
 			this.labels.pop();
@@ -509,7 +509,7 @@ export class Lint extends Walker {
 		this.checkViewName(node, node.viewName);
 	}
 	pushView(node) {
-		if (kindOf(node.viewNameVal) === "constant") this.checkViewName(node, node.viewNameVal.value);
+		if (kindOf(node.source) === "constant") this.checkViewName(node, node.source.value);
 		super.node(node);
 	}
 	each(node) {
@@ -540,7 +540,7 @@ export const lint = (registrations, componentNames = null) =>
 // The specs registered in scope and the scopes below it, and the names they're registered
 // under, aliases included: { specs, names }.
 export const registeredIn = (scope) => {
-	const entries = [...scope.descendants()].flatMap((s) => Object.entries(s.byName));
+	const entries = [...scope.descendants()].flatMap((s) => Object.entries(s.specs));
 	return {
 		specs: new Set(entries.map(([, spec]) => spec)),
 		names: new Set(entries.map(([name]) => name)),

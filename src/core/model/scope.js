@@ -3,7 +3,7 @@
 
 import { metaProblems } from "./component-meta.js";
 import { Interface, interfaceProblems, resolveImplements } from "./interface.js";
-import { Type } from "./schema.js";
+import { Type } from "./types.js";
 
 // A component ref is its scope's path and its name there: "Item" at the root, "editor/Item" below.
 const refSep = "/";
@@ -15,7 +15,7 @@ export class Scope {
 		this.name = name;
 		this.path = parent === null ? [] : [...parent.path, name];
 		this.children = Object.create(null);
-		this.byName = Object.create(null);
+		this.specs = Object.create(null);
 		this.askHandlers = Object.create(null);
 		this.interfaces = Object.create(null); // name -> Interface, looked up as components are.
 		this.metaSchemas = Object.create(null); // meta URI -> shape (key -> Type), looked up so too.
@@ -49,8 +49,8 @@ export class Scope {
 	// The ref of a component made in this scope: this path and a name it's looked up by here.
 	refFor(spec) {
 		for (const s of this.ancestors()) {
-			for (const name in s.byName) {
-				if (s.byName[name] === spec && this.lookupByName(name) === spec) {
+			for (const name in s.specs) {
+				if (s.specs[name] === spec && this.lookupSpec(name) === spec) {
 					return [...this.path, name].join(refSep);
 				}
 			}
@@ -73,7 +73,7 @@ export class Scope {
 		for (const name in comps) {
 			const spec = comps[name];
 			this.check(spec, name);
-			this.byName[name] = spec;
+			this.specs[name] = spec;
 			this.onRegister(spec, name);
 			factories[name] = this.factory(name);
 		}
@@ -95,8 +95,8 @@ export class Scope {
 	lookupAskHandler(name) {
 		return this.lookup((scope) => scope.askHandlers[name]);
 	}
-	lookupByName(name) {
-		return this.lookup((scope) => scope.byName[name]);
+	lookupSpec(name) {
+		return this.lookup((scope) => scope.specs[name]);
 	}
 	// Interfaces by name, for components here and below to implement and fields to hold. One
 	// registered after a component is checked as the component is made.
@@ -172,7 +172,7 @@ export class Scope {
 	allSpecs() {
 		const specs = {};
 		for (const s of this.ancestors()) {
-			for (const name in s.byName) specs[name] ??= s.byName[name];
+			for (const name in s.specs) specs[name] ??= s.specs[name];
 		}
 		return specs;
 	}
@@ -180,12 +180,12 @@ export class Scope {
 	specsByRef() {
 		const specs = new Map();
 		for (const s of this.descendants()) {
-			for (const name in s.byName) specs.set([...s.path, name].join(refSep), s.byName[name]);
+			for (const name in s.specs) specs.set([...s.path, name].join(refSep), s.specs[name]);
 		}
 		return specs;
 	}
 	make(name, args) {
-		const spec = this.lookupByName(name);
+		const spec = this.lookupSpec(name);
 		if (spec === null) throw new Error(`Component ${String(name)} is not registered`);
 		if (!this.checked.has(spec)) this.check(spec, name);
 		return spec.make(args, this);

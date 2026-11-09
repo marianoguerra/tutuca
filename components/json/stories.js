@@ -1,4 +1,4 @@
-import { step, stories } from "../../src/storybook/index.js";
+import { book, step } from "../../src/storybook/index.js";
 import { fromJson, jsonComponents } from "./index.js";
 
 const sample = {
@@ -30,7 +30,7 @@ const valueMessages = [
 	"JsonObject.moveUp",
 ];
 
-export default stories({
+export default book({
 	title: "JSON",
 	components: jsonComponents,
 	stories: {
@@ -42,11 +42,11 @@ export default stories({
 				toggle: [
 					step.event("click", '[aria-label="boolean value"]'),
 					step.check("true", toJsonIs(true)),
-					step.send("toggle", [], { at: atValue }),
+					step.send("toggle", [], { to: atValue }),
 					step.check("false again", toJsonIs(false)),
 				],
 			},
-			pbt: { events: true, maxCommands: 8 },
+			stress: { events: true, maxCommands: 8 },
 		},
 		Number: { make: (C) => C.JsonNumber({ value: 42, text: "42" }) },
 		"Number (edit)": {
@@ -59,7 +59,7 @@ export default stories({
 					step.check("keeps the last number", toJsonIs(3.14)),
 				],
 			},
-			pbt: { events: true, maxCommands: 8 },
+			stress: { events: true, maxCommands: 8 },
 		},
 		String: { make: (C) => C.JsonString({ value: "hello" }) },
 		"String (edit)": {
@@ -70,7 +70,7 @@ export default stories({
 					step.check("tutuca", toJsonIs("tutuca")),
 				],
 			},
-			pbt: { events: true, maxCommands: 8 },
+			stress: { events: true, maxCommands: 8 },
 		},
 		"Selector (edit)": {
 			make: (C) => edit(C, C.JsonSelector()),
@@ -86,20 +86,20 @@ export default stories({
 			make: (C) => edit(C, C.JsonArray()),
 			sequences: {
 				"build [true, 5]": [
-					step.send("add", [], { at: atValue }),
-					step.send("setTo", ["bool"], { at: atItem(0) }),
-					step.send("toggle", [], { at: atItem(0) }),
-					step.send("add", [], { at: atValue }),
-					step.send("setTo", ["number"], { at: atItem(1) }),
-					step.send("setText", ["5"], { at: atItem(1) }),
+					step.send("add", [], { to: atValue }),
+					step.send("setTo", ["bool"], { to: atItem(0) }),
+					step.send("toggle", [], { to: atItem(0) }),
+					step.send("add", [], { to: atValue }),
+					step.send("setTo", ["number"], { to: atItem(1) }),
+					step.send("setText", ["5"], { to: atItem(1) }),
 					step.check("[true, 5]", toJsonIs([true, 5])),
-					step.send("moveUp", [1], { at: atValue }),
+					step.send("moveUp", [1], { to: atValue }),
 					step.check("[5, true]", toJsonIs([5, true])),
-					step.send("removeAt", [0], { at: atValue }),
+					step.send("removeAt", [0], { to: atValue }),
 					step.check("[true]", toJsonIs([true])),
 				],
 			},
-			pbt: { include: valueMessages, maxCommands: 15 },
+			stress: { include: valueMessages, maxCommands: 15 },
 		},
 		Object: { make: (C) => fromJson(C, sample) },
 		"Object (edit)": {
@@ -107,14 +107,14 @@ export default stories({
 			sequences: {
 				"add and rename an entry": [
 					step.event("click", "button[class*='cursor-pointer self-start']"),
-					step.send("setKey", ["b"], { at: (b) => b.field("value").item("entries", 1) }),
+					step.send("setKey", ["b"], { to: (b) => b.field("value").item("entries", 1) }),
 					step.send("setTo", ["string"], {
-						at: (b) => b.field("value").item("entries", 1).field("value"),
+						to: (b) => b.field("value").item("entries", 1).field("value"),
 					}),
 					step.check("{ a: 1, b: '' }", toJsonIs({ a: 1, b: "" })),
 				],
 			},
-			pbt: { include: valueMessages, maxCommands: 15 },
+			stress: { include: valueMessages, maxCommands: 15 },
 		},
 		Document: {
 			make: (C) => C.JsonEditor({ value: fromJson(C, sample), showText: true }),
@@ -126,7 +126,7 @@ export default stories({
 					step.check("renamed", (s) => "title" in s.toJson()),
 				],
 			},
-			pbt: { events: true, maxCommands: 10 },
+			stress: { events: true, maxCommands: 10 },
 		},
 		"Drop a JSON file": {
 			make: (C) => C.JsonRoot({ value: fromJson(C, { a: 1 }), allowDrop: true }),
@@ -159,7 +159,7 @@ export default stories({
 		},
 		"Generated document": {
 			arbitrary: (A) => A.instance("JsonEditor"),
-			pbt: { include: valueMessages, maxCommands: 10 },
+			stress: { include: valueMessages, maxCommands: 10 },
 		},
 	},
 });

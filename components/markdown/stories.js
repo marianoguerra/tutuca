@@ -1,12 +1,12 @@
 import { withSample } from "../../src/meta/index.js";
-import { step, stories } from "../../src/storybook/index.js";
+import { book, step } from "../../src/storybook/index.js";
 import { canvas, canvasKitComponents } from "../canvas/index.js";
 
 const markdown = (C, sample) => withSample(C.Markdown({}), sample);
 // The markdown document on the canvas the story makes.
 const doc = (s) => s.items["item-1"].content;
 
-export default stories({
+export default book({
 	title: "Markdown",
 	components: canvasKitComponents,
 	stories: {

@@ -1,24 +1,18 @@
 // Runs stories live in <tutuca-app>s for the UI: a StoryRunner per mounted app, with a timeline
 // of states, and the StoryRegistry that answers the UI's "story" asks.
 
-import { argsLabel, jsonText } from "../core/text.js";
+import { argsLabel, jsonText } from "../core/host/text.js";
 import { ClassCompiler } from "../css/classes.js";
 import { Timeline } from "../history/index.js";
 import { lint } from "../lint/index.js";
-import { prepareStory, runStep, step, stepText } from "../stories/stories.js";
-import { runStress } from "../stories/stress.js";
 import { diff } from "../sync/diff.js";
 import { carry, specChanges } from "../sync/migrate.js";
 import { opText } from "../sync/ops.js";
-import {
-	componentPaths,
-	Driver,
-	describeProblems,
-	isProblem,
-	snapshot,
-} from "../testing/driver.js";
+import { componentPaths, Driver, describeProblems, snapshot } from "../testing/driver.js";
 import { drivableMessages, messageCommand, resolveRefs, sourceFrames } from "../testing/pbt.js";
-import { specOf } from "../tutuca.js";
+import { isProblem, specOf } from "../tutuca.js";
+import { prepareStory, runStep, step, stepText } from "./stories.js";
+import { runStress } from "./stress.js";
 
 // Runs a story live in a <tutuca-app>: the controller passed to mount. Keeps a timeline of
 // states, one entry per step and per user interaction, to go back and forth through.
@@ -232,7 +226,7 @@ class StoryRunner {
 	}
 	// A generated message that applies to the current state, run as a single step.
 	randomStep(seed) {
-		const arb = messageCommand(this.A, this.story.pbt ?? {});
+		const arb = messageCommand(this.A, this.story.stress ?? {});
 		const cmds = this.fc.sample(arb, { seed: Number(seed), numRuns: 30 });
 		const cmd = cmds.find((c) => c.check({ state: this.driver.state }));
 		if (cmd === undefined) throw new Error("no generated message applies to the current state");

@@ -197,6 +197,42 @@
 
 ### Breaking
 
+- **Names follow their concepts, and `src/` its layers.** No aliases are kept. Entries of this
+  release above and below use the names before these renames.
+  - **Watches**, not settle scopes, so `scope` only means a registry `Scope`: `SettleScope` →
+    `Watch`, `SCOPE_OUTCOMES` → `WATCH_OUTCOMES`, `scheduler.cancelScope` → `cancelWatch`,
+    `Transition.scope` → `watch`, `src/tree/settle.js` → `watch.js` (with `Watches`, which
+    does the counting the `Scheduler` did).
+  - **`HostEvent`**, not `Lifecycle`, told apart by `type`, not `phase`: `kind` is
+    `"hostEvent"`, `LIFECYCLE_PHASES` → `HOST_EVENT_TYPES`, `FAILED_PHASES` → `FAILED_TYPES`,
+    `scopeOpened`/`scopeSettled` → `watchOpened`/`watchSettled` (their `scope` → `watch`),
+    `driver.lifecycle` → `driver.hostEvents`. `isProblem`, `problemLines` and
+    `transitionLabel` are exported from `tutuca` (`src/core/host/records.js`), and
+    `tutuca/testing` no longer exports `isProblem`.
+  - **The tree says node:** `Frame.isComponent` → `isNode`, `asComponent()` → `asNode()`,
+    `toComponentPath()` → `toNodePath()`, `toComponentKeyPath()` → `toNodeKeyPath()`.
+    `Frame.toMarker`/`fromMarker` are `frameMarker(frame)`/`frameOfMarker(marker)` in
+    `src/core/view/markers.js`. `Scheduler({ kinds })` → `{ handlers }`, `componentKinds` →
+    `componentHandlers`, `TutucaContext` → `HandlerContext`.
+  - **Host:** `host.applyExternal` → `host.applyChange`; `new Host({ publish, schedule })`
+    replaces assigning `host.publish` and `host.scheduleNextTaskTick`.
+  - **Model:** `supports` → `interfaceGaps`, `findInvalidFields` → `findInvalid`,
+    `scope.byName` → `scope.specs`, `scope.lookupByName` → `lookupSpec`. `spec.eventNames` →
+    `eventTypes`, without the drag events a drop target adds (the host adds them).
+  - **Views:** `AstNode` → `ViewNode`, and its subclasses end in `Node` (`ElementNode`,
+    `FieldNode`, `CondNode`, ...); the builders (`h`, `field`, `$if`, ...) are the same.
+    `CondNode.source` → `test`, `PushViewNode.viewNameVal` → `source`, an element's handlers
+    are `{ type, action }`, and `childs` is `children` everywhere (`toVChilds` →
+    `toVChildren`).
+  - **Stories and tests:** `stories({...})` → `book({...})`, a story's `pbt` → `stress`,
+    `step.send`/`step.answer`'s `at` → `to`, `driver.send(path, name, args, from)` →
+    `driver.send(name, args, { to, from })`, `driver.answer(path, ask, outcome, args, request)`
+    → `driver.answer(ask, outcome, args, { to, request })`.
+  - **Files:** `src/core/` is `model/` (specs, types, contracts, scopes), `view/` and `host/`;
+    `core/vdom.js` → `src/vdom/index.js`, `core/schema.js` → `core/model/types.js`,
+    `core/optimize.js` → `core/view/element-plan.js`, `core/lifecycle.js` →
+    `core/host/host-event.js`, `panels/runner.js` → `stories/live.js`, `dev/panel.js` →
+    `panels/ui/dev-panel.js`. The package's exports are the same.
 - **`ClassCompiler` compiles what components declare, and no longer scans the DOM.** It used
   to read every `[class]` under the root after each render. Now `watch(style)` takes only the
   `<style>` (and compiles the known classes if it hasn't yet), `add(specs)` adds the classes of

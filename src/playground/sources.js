@@ -99,7 +99,7 @@ export const linkSources = (
 
 const blobUrl = (code) => URL.createObjectURL(new Blob([code], { type: "text/javascript" }));
 
-// The books a module exports: values made with stories(), default first.
+// The books a module exports: values made with book(), default first.
 export const booksOf = (mod) =>
 	Object.entries(mod)
 		.sort(([a], [b]) => (a === "default" ? -1 : b === "default" ? 1 : 0))

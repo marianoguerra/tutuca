@@ -174,7 +174,7 @@ test("other events stay in the component they happen in", () => {
 });
 
 test("Drag.sourceKeyIn is the child of the receiver the drag came from, null from elsewhere", () => {
-	const item = (keys, key, isComponent = true) => new Frame(keys, key, null, isComponent);
+	const item = (keys, key, isNode = true) => new Frame(keys, key, null, isNode);
 	const drag = new Drag(
 		new DispatchPath([item(["columns"], 0), item(["cards"], 1)]),
 		null,

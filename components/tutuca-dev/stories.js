@@ -1,6 +1,11 @@
-import { devComponents, devNode, lintRecords, makeDevPanel } from "../../src/dev/panel.js";
 import { lint } from "../../src/lint/index.js";
-import { step, stories } from "../../src/storybook/index.js";
+import {
+	devComponents,
+	devNode,
+	lintRecords,
+	makeDevPanel,
+} from "../../src/panels/ui/dev-panel.js";
+import { book, step } from "../../src/storybook/index.js";
 import {
 	Address,
 	apply,
@@ -24,7 +29,7 @@ const specs = Object.values(jsonComponents);
 
 const opened = (node) => node.isOpen && node.rows.length > 0;
 
-export default stories({
+export default book({
 	title: "Dev",
 	components: devComponents,
 	stories: {
@@ -37,15 +42,15 @@ export default stories({
 						"shows the fields (items, open) and spec",
 						(s) => opened(s) && s.rows.length === 4,
 					),
-					step.send("toggle", [], { at: (b) => b.item("rows", 0) }),
+					step.send("toggle", [], { to: (b) => b.item("rows", 0) }),
 					step.check("the items array opens", (s) => opened(s.rows[0])),
-					step.send("toggle", [], { at: (b) => b.item("rows", 0).item("rows", 0) }),
+					step.send("toggle", [], { to: (b) => b.item("rows", 0).item("rows", 0) }),
 					step.check("an item opens", (s) => opened(s.rows[0].rows[0])),
 					step.send("toggle"),
 					step.check("closing keeps the rows", (s) => !s.isOpen && s.rows.length === 4),
 				],
 			},
-			pbt: { maxCommands: 8 },
+			stress: { maxCommands: 8 },
 		},
 		"Node/Component spec": {
 			make: (C) => devNode(C, "", todoComponents.TodoTask),

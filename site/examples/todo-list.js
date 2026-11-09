@@ -1,7 +1,7 @@
 // 2. A todo list: arrays of records, loops, form inputs and computed values.
 // Methods are getters the view reads like fields; each() repeats a view per item.
 import { $if, component, each, field, send, sourceKey, t, tag, targetValue } from "tutuca";
-import { step, stories } from "tutuca/storybook";
+import { book, step } from "tutuca/storybook";
 
 const { button, div, form, input, label, li, p, span, ul } = tag;
 
@@ -79,7 +79,7 @@ export const TodoList = component({
 	},
 });
 
-export default stories({
+export default book({
 	title: "Todo list",
 	components: { TodoList },
 	stories: {

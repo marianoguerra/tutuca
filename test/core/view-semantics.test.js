@@ -1,6 +1,6 @@
 import assert from "node:assert/strict";
 import test from "node:test";
-import { $if, AstNode, component, field, h, pushView, t } from "../../src/tutuca.js";
+import { $if, component, field, h, pushView, t, ViewNode } from "../../src/tutuca.js";
 import { setupHost } from "../helpers.js";
 
 const setup = (specs) => setupHost(specs);
@@ -25,13 +25,13 @@ for (const value of ["hello", 42, false, null, undefined]) {
 test("literal condition uses JS truthiness and only evaluates the selected branch", () => {
 	for (const value of [false, 0, "", null, undefined, NaN, true, 1, "false", {}]) {
 		let calls = 0;
-		const selected = new (class extends AstNode {
+		const selected = new (class extends ViewNode {
 			eval() {
 				calls++;
 				return "selected";
 			}
 		})();
-		const rejected = new (class extends AstNode {
+		const rejected = new (class extends ViewNode {
 			eval() {
 				throw new Error("unselected branch evaluated");
 			}

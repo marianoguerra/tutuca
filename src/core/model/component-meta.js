@@ -2,8 +2,9 @@
 // title, an icon), static and plain data. Each key is a URI, a namespace so conventions don't
 // clash; a scope can register a schema for one, a shape of field types (key -> Type), against
 // which the components registered there are checked and from which metaOf fills defaults.
-import { isRecord } from "./schema.js";
+
 import { scopeOf, specOf } from "./spec.js";
+import { isRecord } from "./types.js";
 
 const emptyMeta = Object.freeze(Object.create(null));
 const noMeta = Object.freeze({});

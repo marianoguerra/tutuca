@@ -1,5 +1,5 @@
-// Settle scopes (src/tree/settle.js): a message sent with a watch tells its sender once it and
-// everything it caused ran, across asks answered later, inside other scopes, cancelled or not.
+// Watches (src/tree/watch.js): a message sent with a watch tells its sender once it and
+// everything it caused ran, across asks answered later, inside other watches, cancelled or not.
 import assert from "node:assert/strict";
 import test from "node:test";
 import { HOST, mint, Target, Task } from "../../src/tree/index.js";
@@ -59,7 +59,7 @@ test("a send settles after the messages it causes and a notification it bubbles"
 	assert.deepEqual(log(), ["heard", "w:ok:3"]);
 });
 
-test("a scope waits for an ask answered later, and one answered at once", async () => {
+test("a watch waits for an ask answered later, and one answered at once", async () => {
 	const { send, settle, log, store } = setup(
 		{
 			root: starter("work"),
@@ -82,13 +82,13 @@ test("a scope waits for an ask answered later, and one answered at once", async 
 	assert.deepEqual(log(), ["w:ok:5"]);
 });
 
-test("a scope inside another settles first, and the outer waits for it", () => {
+test("a watch inside another settles first, and the outer waits for it", () => {
 	const { send, log } = setup({
 		root: {
 			start: (_n, _a, ctx) => {
 				ctx.sendAt("outer", [], worker, { settled: ["done", ["outer"]] });
 			},
-			// The worker as it is when the outer scope settles: the inner one's settled ran.
+			// The worker as it is when the outer watch settles: the inner one's settled ran.
 			done: (n, [tag, report]) => logged(n, `${tag}:${report.outcome}:${n.worker.n}`),
 		},
 		worker: {
@@ -105,11 +105,11 @@ test("a scope inside another settles first, and the outer waits for it", () => {
 		},
 	});
 	send("start");
-	// leaf's 1, then innerDone's 100 and the inner scope's 2 tasks (inner, leaf).
+	// leaf's 1, then innerDone's 100 and the inner watch's 2 tasks (inner, leaf).
 	assert.deepEqual(log(), ["outer:ok:103"]);
 });
 
-test("a handler that throws in the scope makes it failed, and it still settles", () => {
+test("a handler that throws in the watch makes it failed, and it still settles", () => {
 	const { send, log } = setup({
 		root: starter("work"),
 		worker: {
@@ -125,7 +125,7 @@ test("a handler that throws in the scope makes it failed, and it still settles",
 	assert.deepEqual(log(), ["w:failed:2"]);
 });
 
-test("a message to a node that was replaced is dropped and releases its scope", () => {
+test("a message to a node that was replaced is dropped and releases its watch", () => {
 	const { send, log } = setup({
 		root: {
 			...starter("work"),
@@ -180,7 +180,7 @@ test("cancelling drops what's queued, aborts what's asked and ignores its answer
 	assert.equal(store.get().worker.n, 0); // The answer came, and nothing waited for it.
 });
 
-test("a scope cancelled by its timeout says timeout", () => {
+test("a watch cancelled by its timeout says timeout", () => {
 	const { send, scheduler, log } = setup(
 		{
 			root: starter("work", [], { timeout: 10 }),
@@ -193,16 +193,16 @@ test("a scope cancelled by its timeout says timeout", () => {
 		{ never: () => new Promise(() => {}) },
 	);
 	let opened = null;
-	scheduler.hooks.scopeOpened = (s) => (opened = s);
+	scheduler.hooks.watchOpened = (s) => (opened = s);
 	send("start");
 	assert.equal(opened.timeout, 10);
 	// What the host's timer does once the time is up.
-	scheduler.cancelScope(opened.id, "timeout");
+	scheduler.cancelWatch(opened.id, "timeout");
 	while (!scheduler.isEmpty) scheduler.step();
 	assert.deepEqual(log(), ["w:timeout:2"]);
 });
 
-test("a detached ask doesn't hold its scope open", () => {
+test("a detached ask doesn't hold its watch open", () => {
 	const { send, log } = setup(
 		{
 			root: starter("work"),
@@ -218,7 +218,7 @@ test("a detached ask doesn't hold its scope open", () => {
 	assert.deepEqual(log(), ["w:ok:1"]);
 });
 
-test("progress is told after what runs in the scope, one at a time", () => {
+test("progress is told after what runs in the watch, one at a time", () => {
 	const { send, log } = setup({
 		root: {
 			start: (_n, _a, ctx) => {

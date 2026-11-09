@@ -7,7 +7,7 @@
 // A prompt asks the host to infer (one model step, the ask's answer the model's message). The
 // tools it calls run here: a query or a pure message at once, through query and apply, its
 // ContractError told to the model in words; a message that needs a context is checked, then
-// sent to the target in a settle scope (src/tree/settle.js), and toolSettled, once that message
+// sent to the target in a watch (src/tree/watch.js), and toolSettled, once that message
 // and everything it caused ran (the asks it made answered, the messages it sent handled, other
 // agents it prompted done), answers the call with what the target looks like after, and with
 // how many of its steps failed if any did. Once every call has its result it infers again,
@@ -248,7 +248,7 @@ const usesModel = (target) => specOf(target)?.on?.useModel?.pure === true;
 // Whether the target holds agents of its own, which stopping this one stops too.
 const holdsAgents = (target) => specOf(target)?.on?.stopAgents !== undefined;
 
-// What a tool's settle scope says while it runs.
+// What a tool's watch says while it runs.
 const progressType = t.record({
 	id: t.number(),
 	tasks: t.number().int().min(0),
@@ -291,7 +291,7 @@ export const Agent = component({
 		// idle, thinking while the model is asked, running while a sent tool runs. Not kept:
 		// after a reload nothing is running.
 		status: t.enum("idle", "thinking", "running").sync("none"),
-		// The settle scope of the tool running (0 when none) and how many tasks it ran so far.
+		// The watch of the tool running (0 when none) and how many tasks it ran so far.
 		job: t.number().int().min(0).sync("none"),
 		jobTasks: t.number().int().min(0).sync("none"),
 		// split: the target and the chat side by side, halves; side: the chat a narrow column

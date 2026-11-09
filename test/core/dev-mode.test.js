@@ -1,6 +1,6 @@
 import assert from "node:assert/strict";
 import test from "node:test";
-import { component, field, findInvalidFields, h, renderEach, send, t } from "../../src/tutuca.js";
+import { component, field, findInvalid, h, renderEach, send, t } from "../../src/tutuca.js";
 import { setupHost } from "../helpers.js";
 
 const Item = component({
@@ -45,10 +45,10 @@ function setup(dev) {
 const summary = (issues) =>
 	issues.map(({ path, component, reason }) => `${component} ${path.join(".")} ${reason}`);
 
-test("findInvalidFields reports invalid and undeclared fields with their paths", () => {
+test("findInvalid reports invalid and undeclared fields with their paths", () => {
 	const { C } = setup(false);
 	const list = C.List({ items: [C.Item(), C.Item()] });
-	assert.deepEqual(findInvalidFields(list, null), []);
+	assert.deepEqual(findInvalid(list, null), []);
 	const broken = Object.assign(
 		C.List({ items: [C.Item(), Object.assign(C.Item(), { count: "x" })] }),
 		{
@@ -56,21 +56,21 @@ test("findInvalidFields reports invalid and undeclared fields with their paths",
 			extra: 2,
 		},
 	);
-	assert.deepEqual(summary(findInvalidFields(broken, null)), [
+	assert.deepEqual(summary(findInvalid(broken, null)), [
 		"List extra undeclared",
 		"Item items.1.count invalid",
 		"List title invalid",
 	]);
 });
 
-test("findInvalidFields skips subtrees shared with the previous state", () => {
+test("findInvalid skips subtrees shared with the previous state", () => {
 	const { C } = setup(false);
 	const bad = Object.assign(C.Item(), { count: "x" });
 	const prev = C.List({ items: [C.Item()] });
 	prev.items.push(bad);
 	const next = Object.assign(C.List(), { items: prev.items });
-	assert.deepEqual(findInvalidFields(next, prev), []);
-	assert.equal(findInvalidFields(next, null).length, 1);
+	assert.deepEqual(findInvalid(next, prev), []);
+	assert.equal(findInvalid(next, null).length, 1);
 });
 
 test("dev mode checks the root on start and the state after each task", () => {

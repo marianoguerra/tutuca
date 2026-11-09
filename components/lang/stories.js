@@ -1,4 +1,4 @@
-import { step, stories } from "../../src/storybook/index.js";
+import { book, step } from "../../src/storybook/index.js";
 import { langComponents, sample } from "./index.js";
 
 const editor =
@@ -7,7 +7,7 @@ const editor =
 		C.Editor({ mode, notation, program: sample(C) });
 const outputIs = (expected) => (s) => s.output === expected;
 
-export default stories({
+export default book({
 	title: "Lang",
 	components: langComponents,
 	stories: {
@@ -58,11 +58,11 @@ export default stories({
 					),
 				],
 				"add a statement": [
-					step.send("add", [], { at: (b) => b.field("program") }),
+					step.send("add", [], { to: (b) => b.field("program") }),
 					step.check("its value is a hole", (s) => s.isError),
 				],
 			},
-			pbt: { events: true, maxCommands: 10 },
+			stress: { events: true, maxCommands: 10 },
 		},
 		"Editor/Empty": { make: (C) => C.Editor({ mode: "edit" }) },
 	},

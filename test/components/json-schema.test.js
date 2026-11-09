@@ -7,7 +7,6 @@ import { fromSchema, readKind, schemaTree } from "../../components/json-schema/r
 import { sample } from "../../components/json-schema/stories.js";
 import { Driver } from "../../src/testing/driver.js";
 import { arbitraries } from "../../src/testing/pbt.js";
-import { selectorFrom } from "../../src/tutuca.js";
 import { document, scopeWith, testGenericProperties, testLintsClean, textOf } from "../helpers.js";
 
 const setup = () => {
@@ -213,11 +212,7 @@ test("expand all and collapse all reach every node", () => {
 test("a property passes setOpen to its schema", () => {
 	const { C } = setup();
 	const driver = new Driver({ root: schemaTree(C, nested), document });
-	driver.send(
-		selectorFrom((b) => b.field("node").item("properties", 0)),
-		"setOpen",
-		[false],
-	);
+	driver.send("setOpen", [false], { to: (b) => b.field("node").item("properties", 0) });
 	assert.equal(driver.state.node.properties[0].schema.open, false);
 });
 

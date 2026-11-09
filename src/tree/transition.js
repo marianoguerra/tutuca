@@ -1,14 +1,15 @@
 // What happened to a task: one Transition per task the scheduler is done with, whether its
-// handler ran, it had none, it failed, its node was gone (stale, orphaned, lost), its scope was
+// handler ran, it had none, it failed, its node was gone (stale, orphaned, lost), its watch was
 // cancelled (dropped) or, an ask, it was handed to its handler (asked). The host reports it as
 // is, with what its dev checks found (issues). Heavy references (the task, the roots and the
 // node it reached) are hidden, so inspecting or comparing one doesn't walk the tree, and toJSON
 // gives what can be written down.
-import { AskTask, hidden } from "./messages.js";
+import { AskTask } from "./messages.js";
+import { hidden, plainOf } from "./record.js";
 
 // handled: its handler ran. passed: a notification's hop with no handler, which passes it on.
 // unhandled: nobody handles it. asked: an ask, handed to its handler (its answer is a
-// transition of its own). dropped: its settle scope was cancelled before it ran (or, an ask,
+// transition of its own). dropped: its watch was cancelled before it ran (or, an ask,
 // before it was answered).
 export const TRANSITION_OUTCOMES = [
 	"handled",
@@ -25,7 +26,7 @@ export const TRANSITION_OUTCOMES = [
 export class Transition {
 	/**
 	 * @param {object} fields what happened, plain: seq, cause, origin, mode, name, args, from,
-	 *   to, outcome, error, emitted, unhandled, scope
+	 *   to, outcome, error, emitted, unhandled, watch
 	 * @param {object} heavy what it refers to, hidden: task, before, after, instance
 	 */
 	constructor(fields, heavy = {}) {
@@ -44,7 +45,7 @@ export class Transition {
 		this.error = null; // What it threw, when it failed.
 		this.emitted = []; // What its handler sent, as { kind, name, args }.
 		this.unhandled = []; // Messages it made that nobody handles.
-		this.scope = null; // The id of the settle scope it ran in.
+		this.watch = null; // The id of the watch it ran in.
 		this.issues = []; // What the host's dev checks found.
 		Object.assign(this, fields);
 		hidden(this, { task: null, before: null, after: null, instance: null, ...heavy });
@@ -58,9 +59,9 @@ export class Transition {
 	) {
 		return new Transition(
 			{
-				seq: task.seq ?? null,
+				seq: task.seq,
 				cause: task.parent?.seq ?? null,
-				origin: task.origin ?? task.seq ?? null,
+				origin: task.origin ?? task.seq,
 				mode: modeOf(task),
 				name: task.name,
 				args: task.args,
@@ -70,7 +71,7 @@ export class Transition {
 				error,
 				emitted: ctx?.emitted ?? [],
 				unhandled: ctx?.unhandled ?? [],
-				scope: task.scope?.id ?? null,
+				watch: task.watch?.id ?? null,
 			},
 			{ task, before, after: after ?? before, instance },
 		);
@@ -84,22 +85,3 @@ export class Transition {
 	}
 }
 const modeOf = (task) => (task instanceof AskTask ? "ask" : task.hkey.mode);
-
-// value as data: its own enumerable fields, an Address as its path, an Error as its name and
-// message, and no functions. What reports are written down as.
-export const plainOf = (value) => {
-	if (value === null || value === undefined) return value ?? null;
-	if (typeof value === "function") return undefined;
-	if (typeof value !== "object") return value;
-	if (value instanceof Error) return { name: value.name, message: value.message };
-	if (typeof value.keyPath === "object" && typeof value.isHost === "boolean") {
-		return value.isHost ? "host" : String(value.keyPath);
-	}
-	if (Array.isArray(value)) return value.map(plainOf);
-	const out = {};
-	for (const key of Object.keys(value)) {
-		const v = plainOf(value[key]);
-		if (v !== undefined) out[key] = v;
-	}
-	return out;
-};

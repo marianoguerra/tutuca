@@ -22,7 +22,7 @@ Handlers keep changing immer drafts. **Sync engines** sit beside the host:
    task before any engine wrote anything: the root stays as it was and the task's child messages
    are dropped, as for any failed handler. Then, with the new root in place,
    `commit(change, prepared)` writes what prepare returned. A commit that throws (a full
-   storage, a closed connection) is reported as a `syncFailed` lifecycle with the engine's name
+   storage, a closed connection) is reported as a `syncFailed` host event with the engine's name
    and the error, and the change stands for the host and the other engines.
 2. A change made elsewhere (by a peer, a server, a reload) reaches the host through the engine's
    link: `link.apply(producer)` runs `producer` on a draft of the current root, commits it at
@@ -300,10 +300,10 @@ takes its default and the others stay, whether it came in a stored projection or
 - `dropped`: paths of fields the components don't declare, and of values that can't be made.
 
 `rebuild(plain, scope, { level })` makes a projection into a state this way and returns
-`{ root, added, reset, dropped, broken }`, `broken` being what `findInvalidFields` finds in
+`{ root, added, reset, dropped, broken }`, `broken` being what `findInvalid` finds in
 `root`, invariants included. It throws when a component the data holds is gone or a field has no
 default. `startSynced` and `remoteEngine`'s reload use it; when the stored data didn't fit as is,
-the host reports a `migrated` lifecycle with the report (`engine` is `null` for `startSynced`).
+the host reports a `migrated` host event with the report (`engine` is `null` for `startSynced`).
 
 `applyStateOps` applies a peer's ops the same way, op by op (`applyFitting`): an op under a field
 this version doesn't declare is dropped (Automerge's diff already skips those fields, and they

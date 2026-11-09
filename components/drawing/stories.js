@@ -1,4 +1,4 @@
-import { step, stories } from "../../src/storybook/index.js";
+import { book, step } from "../../src/storybook/index.js";
 import { saveFile } from "../common/files.js";
 import { drawingComponents } from "./index.js";
 
@@ -74,7 +74,7 @@ const messages = [
 	"Drawing.clear",
 ];
 
-export default stories({
+export default book({
 	title: "Drawing",
 	components: drawingComponents,
 	askHandlers: {
@@ -186,7 +186,7 @@ export default stories({
 					step.check("cancelled", (s) => s.current === null),
 				],
 			},
-			pbt: { include: messages, maxCommands: 20 },
+			stress: { include: messages, maxCommands: 20 },
 		},
 		"Drawing/House": {
 			make: (C) => houseDrawing(C),
@@ -250,13 +250,16 @@ export default stories({
 					step.send("exportSvg"),
 				],
 			},
-			pbt: { include: messages, maxCommands: 20 },
+			stress: { include: messages, maxCommands: 20 },
 		},
 		"Drawing/Selected": { make: (C) => houseDrawing(C, { selected: "s1", tool: "select" }) },
 		"Drawing/Generated": {
 			arbitrary: (A) => A.instance("Drawing"),
-			pbt: { include: messages, maxCommands: 15 },
+			stress: { include: messages, maxCommands: 15 },
 		},
-		"Drawing/DOM events": { make: (C) => houseDrawing(C), pbt: { events: true, maxCommands: 15 } },
+		"Drawing/DOM events": {
+			make: (C) => houseDrawing(C),
+			stress: { events: true, maxCommands: 15 },
+		},
 	},
 });

@@ -1,7 +1,7 @@
 import assert from "node:assert/strict";
 import test from "node:test";
-import { Shape, VNode } from "../../src/core/vdom.js";
 import { $if, component, field, h, send, t } from "../../src/tutuca.js";
+import { Shape, VNode } from "../../src/vdom/index.js";
 import { mutationsOf, startHost } from "../helpers.js";
 
 const SVG = "http://www.w3.org/2000/svg";
@@ -136,6 +136,6 @@ test("tutuca normalizes child values: null, iterables, nested arrays and primiti
 	];
 	const { host, rootNode } = setup(Comp, { items });
 	assert.equal(rootNode.querySelector("p").innerHTML, "a1bcfalse<i>x</i>");
-	const p = host._curVDom.flatMap((c) => c.childs ?? []).find((c) => c instanceof VNode);
-	assert.ok(p.childs.every((c) => !Array.isArray(c)));
+	const p = host._curVDom.flatMap((c) => c.children ?? []).find((c) => c instanceof VNode);
+	assert.ok(p.children.every((c) => !Array.isArray(c)));
 });

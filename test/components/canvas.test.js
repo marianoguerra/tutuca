@@ -126,13 +126,13 @@ test("an item whose content says its data downloads it as JSON", async () => {
 test("a JSON file dropped on an item's content loads into it, or says why not", () => {
 	const d = start();
 	const board = { columns: [{ title: "Only", cards: [{ id: "x", title: "One" }] }] };
-	d.answer(itemAt("item-1"), "readText", "ok", [JSON.stringify(board)]);
+	d.answer("readText", "ok", [JSON.stringify(board)], { to: itemAt("item-1") });
 	assert.equal(d.state.items["item-1"].content.columns[0].title, "Only");
 	assert.equal(d.state.items["item-1"].dropError, "");
-	d.answer(itemAt("item-1"), "readText", "ok", ['{ "columns": 3 }']);
+	d.answer("readText", "ok", ['{ "columns": 3 }'], { to: itemAt("item-1") });
 	assert.match(d.state.items["item-1"].dropError, /isn't/);
 	assert.equal(d.state.items["item-1"].content.columns[0].title, "Only", "the board kept");
-	d.answer(itemAt("item-1"), "readText", "ok", ["nope"]);
+	d.answer("readText", "ok", ["nope"], { to: itemAt("item-1") });
 	assert.match(d.state.items["item-1"].dropError, /is not JSON/);
 	assert.deepEqual(d.problems, []);
 });
@@ -147,8 +147,8 @@ test("an item whose content says no data has no download button", () => {
 test("its agent's add_shape and add_text draw shapes, growing the canvas to reach them", () => {
 	const d = start();
 	const width = d.state.width;
-	d.send(new Selector(), "add_shape", ["arrow", 10, 10, width + 100, 20, "none", "#22c55e", 2]);
-	d.send(new Selector(), "add_text", [30, 60, "Seedlings", "#1f2937"]);
+	d.send("add_shape", ["arrow", 10, 10, width + 100, 20, "none", "#22c55e", 2]);
+	d.send("add_text", [30, 60, "Seedlings", "#1f2937"]);
 	const [arrow, text] = d.state.shapes;
 	assert.equal(arrow.x1, width + 100);
 	assert.equal(text.text, "Seedlings");

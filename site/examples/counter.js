@@ -1,7 +1,7 @@
 // 1. A counter: a component is a name, typed fields, a view and the messages it handles.
 // Click the buttons in Preview, then open Steps to replay the "count to three" sequence.
 import { component, field, send, t, tag } from "tutuca";
-import { step, stories } from "tutuca/storybook";
+import { book, step } from "tutuca/storybook";
 
 const { button, div, span } = tag;
 
@@ -28,7 +28,7 @@ export const Counter = component({
 });
 
 // A book of stories: initial states to show, sequences of steps to replay and check.
-export default stories({
+export default book({
 	title: "Counter",
 	components: { Counter },
 	stories: {

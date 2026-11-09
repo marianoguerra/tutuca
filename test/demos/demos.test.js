@@ -704,13 +704,13 @@ test("?sync=worker: tabs sync through the backend, and a new tab starts from it"
 	const a = await open();
 	await settle();
 	const b = await open();
-	a.applyExternal((d) => void d.notes.push(a.scope.make("Note", { text: "buy milk" })));
+	a.applyChange((d) => void d.notes.push(a.scope.make("Note", { text: "buy milk" })));
 	await settle();
 	assert.deepEqual(
 		b.root.notes.map((n) => n.text),
 		["buy milk"],
 	);
-	a.applyExternal((d) => {
+	a.applyChange((d) => {
 		d.filter = "open";
 		d.draft = "unsaved";
 	});
@@ -754,8 +754,8 @@ test("?sync=automerge: tabs on the same document merge", async () => {
 	const a = await open(handle);
 	const other = docHandle(clone(handle.doc()));
 	const b = await open(other);
-	a.applyExternal((d) => void d.notes.push(a.scope.make("Note", { text: "from a" })));
-	b.applyExternal((d) => {
+	a.applyChange((d) => void d.notes.push(a.scope.make("Note", { text: "from a" })));
+	b.applyChange((d) => {
 		d.title = "Merged";
 	});
 	handle.merge(other.doc());

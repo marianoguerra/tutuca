@@ -4,7 +4,7 @@ import { component, h, provided, render, send, seqItem, t } from "../../src/tutu
 import { setupHost } from "../helpers.js";
 
 // A report of a task, a render, an event or a sync engine that failed.
-const isFailure = ({ outcome, phase }) => outcome === "failed" || phase?.endsWith("Failed");
+const isFailure = ({ outcome, type }) => outcome === "failed" || type?.endsWith("Failed");
 
 // itemHandlers holds Item's messages, and its replies under replies.
 function setup(rootHandlers, { answers = {}, ...itemHandlers } = {}, useProvided = false) {
@@ -120,7 +120,7 @@ test("failed producers discard drafts and children but preserve older tasks", ()
 	);
 	assert.equal(notices.find(({ outcome }) => outcome === "failed").error, error);
 	const failedAt = notices.findIndex(({ outcome }) => outcome === "failed");
-	assert.ok(notices.findLastIndex(({ phase }) => phase === "rendered") > failedAt);
+	assert.ok(notices.findLastIndex(({ type }) => type === "rendered") > failedAt);
 	assert.ok(rootNode.querySelector("#item"));
 	assert.equal(host._handlingTasks, false);
 });
@@ -281,11 +281,11 @@ for (const renderThrows of [false, true]) {
 		};
 		// A render that throws is reported as renderFailed, not thrown out of the tick.
 		const reported = [];
-		const notify = host.notify;
-		host.notify = (record) =>
-			record.phase === "renderFailed" ? reported.push(record.error) : notify.call(host, record);
+		const announce = host.announce;
+		host.announce = (record) =>
+			record.type === "renderFailed" ? reported.push(record.error) : announce.call(host, record);
 		host.handleTasks();
-		host.notify = notify;
+		host.announce = announce;
 		assert.deepEqual(reported, renderThrows ? [error] : []);
 		assert.equal(host._handlingTasks, false);
 		assert.equal(scheduled, 1);

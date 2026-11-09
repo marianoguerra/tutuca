@@ -1,4 +1,4 @@
-import { step, stories } from "../../src/storybook/index.js";
+import { book, step } from "../../src/storybook/index.js";
 import { $if, component, field, pushView, render, send, t, tag } from "../../src/tutuca.js";
 import { schemaEditor } from "../json-schema/editor.js";
 import { WEATHER } from "./fixtures.js";
@@ -59,14 +59,14 @@ const sameJson = (a, b) => JSON.stringify(a) === JSON.stringify(b);
 const addRequired = (at, name) => {
 	const list = (b) => at(b).field("json").item("entries", 2).field("value");
 	return [
-		step.send("add", [], { at: list }),
-		step.send("setTo", ["string"], { at: (b) => list(b).item("items", 1) }),
-		step.send("setValue", [name], { at: (b) => list(b).item("items", 1) }),
+		step.send("add", [], { to: list }),
+		step.send("setTo", ["string"], { to: (b) => list(b).item("items", 1) }),
+		step.send("setValue", [name], { to: (b) => list(b).item("items", 1) }),
 	];
 };
 const type = (label, value) => step.event("input", `[aria-label="${label}"]`, { value });
 
-export default stories({
+export default book({
 	title: "LLM",
 	components: { ...llmComponents, Editable },
 	stories: {
@@ -150,7 +150,7 @@ export default stories({
 					step.check("no tokens when empty", (s) => s.content.tokens === 0),
 				],
 			},
-			pbt: { events: true, maxCommands: 8 },
+			stress: { events: true, maxCommands: 8 },
 		},
 		"User message": { make: editable((C) => userMessage(C)) },
 		"Assistant message": { make: editable((C) => assistantMessage(C)) },
@@ -185,7 +185,7 @@ export default stories({
 				],
 				"drop a JSON file on its input": [
 					step.answer("readText", "ok", '{ "city": "Lima" }', {
-						at: (b) => b.field("content").field("input"),
+						to: (b) => b.field("content").field("input"),
 					}),
 					step.check("the dropped input", (s) =>
 						sameJson(s.content.toJson().input, { city: "Lima" }),
@@ -285,7 +285,7 @@ export default stories({
 					step.check("the others stay open", (s) => s.content.systemOpen && s.content.toolsOpen),
 					step.event("click", '.llm-request > section > h3 > button[value="transcript"]'),
 					step.check("open again", (s) => s.content.transcriptOpen),
-					step.send("setSectionsOpen", [false], { at: (b) => b.field("content") }),
+					step.send("setSectionsOpen", [false], { to: (b) => b.field("content") }),
 					step.check("every section is closed", (s) =>
 						["system", "transcript", "tools"].every((n) => !s.content[`${n}Open`]),
 					),
@@ -294,7 +294,7 @@ export default stories({
 						return !call.inputOpen && !result.contentOpen && !s.content.tools[0].schemaOpen;
 					}),
 					step.check("and their JSON", (s) => !s.content.messages[1].input.value.open),
-					step.send("setSectionsOpen", [true], { at: (b) => b.field("content") }),
+					step.send("setSectionsOpen", [true], { to: (b) => b.field("content") }),
 					step.check("everything opens", (s) => {
 						const [, call] = s.content.messages;
 						return s.content.transcriptOpen && call.inputOpen && call.input.value.open;

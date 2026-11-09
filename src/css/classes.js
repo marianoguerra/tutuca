@@ -27,7 +27,7 @@ class ClassNames extends Walker {
 	}
 	// A condition picks a class, it isn't one.
 	cond(node) {
-		this.within(false, node.source);
+		this.within(false, node.test);
 		this.visit(node.thenVal);
 		this.visit(node.elseVal);
 	}
@@ -38,7 +38,7 @@ class ClassNames extends Walker {
 }
 
 // The constant class names in a tree, including every $if branch, and the nodes that compute a
-// class (classes: Set, dynamic: [AstNode]), whose classes are only known at render time.
+// class (classes: Set, dynamic: [ViewNode]), whose classes are only known at render time.
 export const classUsesOf = (tree, classes = new Set()) => {
 	const walker = new ClassNames(classes);
 	walker.visit(tree);

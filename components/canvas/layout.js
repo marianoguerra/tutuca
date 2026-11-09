@@ -144,7 +144,7 @@ const saysMeta = (spec, uri) => spec !== null && Object.hasOwn(spec.meta ?? {}, 
 export const kindHandlers = (kinds) => {
 	const all = withBuiltins(kinds);
 	const specOfKind = (kind, scope) =>
-		kind.component ? (scope.lookupByName(kind.component) ?? null) : null;
+		kind.component ? (scope.lookupSpec(kind.component) ?? null) : null;
 	return {
 		// [meta?] → [{ id, label, blurb, choices, agent, samples }], from the meta of the component each names;
 		// with meta, a URI, only the kinds whose component says something under it.

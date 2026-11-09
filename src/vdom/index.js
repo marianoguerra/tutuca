@@ -52,12 +52,12 @@ export class Shape {
 	}
 }
 export class VNode extends VBase {
-	/** @param {Shape} shape @param {VBase[]} childs */
-	constructor(shape, values, childs, key) {
+	/** @param {Shape} shape @param {VBase[]} children */
+	constructor(shape, values, children, key) {
 		super();
 		this.shape = shape;
 		this.values = values; // Aligned with shape.names.
-		this.childs = childs;
+		this.children = children;
 		this.key = key != null ? String(key) : undefined;
 	}
 	get tag() {
@@ -82,45 +82,47 @@ export class VNode extends VBase {
 		if (
 			!(other instanceof VNode) ||
 			!this.isSameKind(other) ||
-			this.childs.length !== other.childs.length
+			this.children.length !== other.children.length
 		) {
 			return false;
 		}
 		const a = this.values;
 		const b = other.values;
 		for (let i = 0; i < a.length; i++) if (a[i] !== b[i]) return false;
-		return childsEqual(this.childs, other.childs);
+		return childrenEqual(this.children, other.children);
 	}
 }
-// Childs are already normalized: a flat array of vnodes.
+// Children are already normalized: a flat array of vnodes.
 export class VFragment extends VBase {
-	/** @param {VBase[]} childs */
-	constructor(childs, key) {
+	/** @param {VBase[]} children */
+	constructor(children, key) {
 		super();
 		this.key = key != null ? String(key) : undefined;
-		this.childs = childs;
+		this.children = children;
 	}
 	isEqualTo(other) {
 		return (
-			other instanceof VFragment && this.key === other.key && childsEqual(this.childs, other.childs)
+			other instanceof VFragment &&
+			this.key === other.key &&
+			childrenEqual(this.children, other.children)
 		);
 	}
 }
 // Any iterable is spliced into its parent, null and undefined render nothing, other values as text.
-export function addChild(childs, child) {
+export function addChild(children, child) {
 	if (child == null) return;
 	if (typeof child !== "string" && typeof child[Symbol.iterator] === "function") {
-		for (const c of child) addChild(childs, c);
-	} else if (child instanceof VBase) childs.push(child);
-	else childs.push(new VText(child));
+		for (const c of child) addChild(children, c);
+	} else if (child instanceof VBase) children.push(child);
+	else children.push(new VText(child));
 }
-export const toVChilds = (value) => {
-	const childs = [];
-	addChild(childs, value);
-	return childs;
+export const toVChildren = (value) => {
+	const children = [];
+	addChild(children, value);
+	return children;
 };
 // A pure vnode walk: much cheaper than morphing, which has to read the DOM at every element.
-function childsEqual(a, b) {
+function childrenEqual(a, b) {
 	if (a.length !== b.length) return false;
 	for (let i = 0; i < a.length; i++) if (a[i] !== b[i] && !a[i].isEqualTo(b[i])) return false;
 	return true;
@@ -184,7 +186,7 @@ function nextOwnedSibling(node) {
 function toDom(vnode, doc, ns) {
 	if (vnode instanceof VFragment) {
 		const node = doc.createDocumentFragment();
-		appendChildNodes(node, vnode.childs, doc, ns);
+		appendChildNodes(node, vnode.children, doc, ns);
 		return node;
 	}
 	if (vnode instanceof VText) return own(doc.createTextNode(vnode.text));
@@ -204,15 +206,15 @@ function toDom(vnode, doc, ns) {
 	for (let i = 0; i < names.length; i++) {
 		if (i !== valueIdx && i !== checkedIdx) setProp(node, names[i], values[i], namespaced);
 	}
-	appendChildNodes(node, vnode.childs, doc, childNs(shape, elNs));
+	appendChildNodes(node, vnode.children, doc, childNs(shape, elNs));
 	// After the children, so a select's options exist before its value picks one.
 	if (valueIdx !== -1 && values[valueIdx] !== undefined) applyValueLast(node, values[valueIdx]);
 	if (checkedIdx !== -1 && values[checkedIdx] !== undefined)
 		setProp(node, "checked", values[checkedIdx], false);
 	return node;
 }
-function appendChildNodes(parent, childs, doc, ns) {
-	for (const child of childs) parent.appendChild(toDom(child, doc, ns));
+function appendChildNodes(parent, children, doc, ns) {
+	for (const child of children) parent.appendChild(toDom(child, doc, ns));
 }
 // A shared vnode skips by identity, an equal one by the cheaper vnode walk.
 function morphNode(domNode, source, target, doc, ns) {
@@ -236,7 +238,7 @@ function morphNode(domNode, source, target, doc, ns) {
 		}
 		if (htmlIdx === -1 || !b[htmlIdx]) {
 			const elNs = shape.namespace ?? ns;
-			morphChildren(domNode, source.childs, target.childs, doc, childNs(shape, elNs));
+			morphChildren(domNode, source.children, target.children, doc, childNs(shape, elNs));
 		}
 		if (valueIdx !== -1) {
 			// A select reapplies its value whenever it changed, since its options may have.
@@ -254,7 +256,9 @@ function morphNode(domNode, source, target, doc, ns) {
 // A fragment contributes the sum of its children's DOM widths, including zero.
 // Snapshot references before editing; virtual indices need not equal DOM indices.
 function domWidth(vnode) {
-	return vnode instanceof VFragment ? vnode.childs.reduce((n, child) => n + domWidth(child), 0) : 1;
+	return vnode instanceof VFragment
+		? vnode.children.reduce((n, child) => n + domWidth(child), 0)
+		: 1;
 }
 function mountBefore(parent, vnode, doc, ns, before) {
 	const dom = toDom(vnode, doc, ns);
@@ -264,8 +268,8 @@ function mountBefore(parent, vnode, doc, ns, before) {
 }
 function morphChildren(
 	parentDom,
-	oldChilds,
-	newChilds,
+	oldChildren,
+	newChildren,
 	doc,
 	ns,
 	domNodes = ownedChildNodes(parentDom),
@@ -274,20 +278,20 @@ function morphChildren(
 	const oldGroups = [];
 	const oldKeyMap = new Map();
 	let offset = 0;
-	for (let i = 0; i < oldChilds.length; i++) {
-		const width = domWidth(oldChilds[i]);
+	for (let i = 0; i < oldChildren.length; i++) {
+		const width = domWidth(oldChildren[i]);
 		oldGroups.push(domNodes.slice(offset, offset + width));
 		offset += width;
-		const key = oldChilds[i].key;
+		const key = oldChildren[i].key;
 		if (key != null) {
 			if (oldKeyMap.has(key)) throw new Error(`Duplicate sibling key: ${key}`);
 			oldKeyMap.set(key, i);
 		}
 	}
-	const used = new Uint8Array(oldChilds.length);
+	const used = new Uint8Array(oldChildren.length);
 	let unkeyedCursor = 0;
 	// Match unkeyed children in forward order, independently of placement order.
-	const matches = newChilds.map((child) => {
+	const matches = newChildren.map((child) => {
 		const key = child.key;
 		let index = -1;
 		if (key != null) {
@@ -299,9 +303,9 @@ function morphChildren(
 			// Remember newly introduced keys in the map we already use for matching.
 			if (previous === undefined) oldKeyMap.set(key, -1);
 		} else {
-			while (unkeyedCursor < oldChilds.length) {
+			while (unkeyedCursor < oldChildren.length) {
 				const candidate = unkeyedCursor++;
-				if (oldChilds[candidate].key == null) {
+				if (oldChildren[candidate].key == null) {
 					index = candidate;
 					break;
 				}
@@ -310,17 +314,17 @@ function morphChildren(
 		if (index >= 0) used[index] = 1;
 		return index;
 	});
-	const newGroups = new Array(newChilds.length);
+	const newGroups = new Array(newChildren.length);
 	// The next already-placed group provides a real insertion reference. Empty
 	// groups leave it unchanged, including through arbitrarily nested fragments.
-	for (let j = newChilds.length - 1; j >= 0; j--) {
-		const target = newChilds[j];
+	for (let j = newChildren.length - 1; j >= 0; j--) {
+		const target = newChildren[j];
 		const index = matches[j];
-		const source = oldChilds[index];
+		const source = oldChildren[index];
 		const oldNodes = oldGroups[index];
 		let nodes;
 		if (source instanceof VFragment && target instanceof VFragment) {
-			nodes = morphChildren(parentDom, source.childs, target.childs, doc, ns, oldNodes, before);
+			nodes = morphChildren(parentDom, source.children, target.children, doc, ns, oldNodes, before);
 		} else if (source && !(source instanceof VFragment) && !(target instanceof VFragment)) {
 			const node = morphNode(oldNodes[0], source, target, doc, ns);
 			if (nextOwnedSibling(node) !== before) {
@@ -334,18 +338,18 @@ function morphChildren(
 		newGroups[j] = nodes;
 		if (nodes.length) before = nodes[0];
 	}
-	for (let i = 0; i < oldChilds.length; i++) {
+	for (let i = 0; i < oldChildren.length; i++) {
 		if (used[i]) continue;
 		for (const node of oldGroups[i]) parentDom.removeChild(node);
 	}
 	return newGroups.flat();
 }
-// Puts childs (a flat array of vnodes) in container: morphs what prev rendered there into them,
+// Puts children (a flat array of vnodes) in container: morphs what prev rendered there into them,
 // or, without prev, replaces what container holds.
-export function morph(doc, container, childs, prev) {
-	if (prev) morphChildren(container, prev, childs, doc, null);
+export function morph(doc, container, children, prev) {
+	if (prev) morphChildren(container, prev, children, doc, null);
 	else {
 		container.replaceChildren();
-		appendChildNodes(container, childs, doc, null);
+		appendChildNodes(container, children, doc, null);
 	}
 }

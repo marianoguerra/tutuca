@@ -18,7 +18,7 @@ export class Walker {
 	}
 	element(node) {
 		for (const [name, value] of node.attrs) this.attr(node, name, value);
-		for (const c of node.childs) this.child(node, c);
+		for (const c of node.children) this.child(node, c);
 		for (const h of node.handlers) this.handler(node, h);
 	}
 	attr(_node, _name, value) {

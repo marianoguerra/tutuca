@@ -73,13 +73,13 @@ const SAMPLE_IDS = Object.keys(SAMPLES);
 const schemaFor = (json, title) => schemaDocument(inferSchema(json), title);
 const textOf = (json) => JSON.stringify(json);
 
-const card = (...childs) =>
+const card = (...children) =>
 	div(
 		{
 			class:
 				"card flex min-w-0 flex-1 flex-col gap-3 border border-base-300 bg-base-100 p-4 shadow-sm",
 		},
-		...childs,
+		...children,
 	);
 const cardTitle = (text) =>
 	h2({ class: "text-sm font-semibold uppercase tracking-wider opacity-60" }, text);

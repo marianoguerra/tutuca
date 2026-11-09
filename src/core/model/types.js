@@ -1,5 +1,5 @@
 // Field types of components: t's builders, the checks their constraints run, and how they
-// make and validate values. Component specs are in spec.js, their contracts in contract.js.
+// make and validate values. Component specs are in component.js, their contracts in contract.js.
 import { Interface, implementsIface } from "./interface.js";
 import { isComponent, specOf } from "./spec.js";
 
@@ -324,7 +324,7 @@ export class ComponentType extends Type {
 			if (scope === null) return true;
 			const iface = scope.lookupInterface(name);
 			if (iface !== null) return implementsIface(value, iface);
-			return scope.lookupByName(name) === specOf(value);
+			return scope.lookupSpec(name) === specOf(value);
 		});
 	}
 }

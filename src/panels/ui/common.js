@@ -14,12 +14,12 @@ export const BADGES = {
 export const askStory = (ctx, self, op, ...args) => ctx.ask("story", [self.appKey, op, ...args]);
 
 // A small daisyUI button; class adds to btn btn-sm unless attrs replace it.
-export const smallButton = (attrs, ...childs) =>
-	button({ class: "btn btn-sm", ...attrs }, ...childs);
+export const smallButton = (attrs, ...children) =>
+	button({ class: "btn btn-sm", ...attrs }, ...children);
 
 // A daisyUI tab for name that sends message with name; it's active while the component's
 // is<Name> getter is true.
-export const tabButton = (message, name, label, ...childs) =>
+export const tabButton = (message, name, label, ...children) =>
 	button(
 		{
 			role: "tab",
@@ -27,5 +27,5 @@ export const tabButton = (message, name, label, ...childs) =>
 			"on:click": send(message, name),
 		},
 		label,
-		...childs,
+		...children,
 	);

@@ -4,7 +4,7 @@
 // swappable: these stories answer from a table, an app would call fetch.
 import { $if, component, field, send, t, tag, targetValue } from "tutuca";
 import { CLASSES_META } from "tutuca/meta";
-import { step, stories } from "tutuca/storybook";
+import { book, step } from "tutuca/storybook";
 
 const { button, div, form, input, p, span } = tag;
 
@@ -74,7 +74,7 @@ export const Weather = component({
 const FORECASTS = { lisbon: "☀️ 24°C", oslo: "🌧️ 9°C", tokyo: "⛅ 18°C" };
 const wait = (ms) => new Promise((resolve) => setTimeout(resolve, ms));
 
-export default stories({
+export default book({
 	title: "Weather",
 	components: { Weather },
 	askHandlers: {

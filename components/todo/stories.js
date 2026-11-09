@@ -1,4 +1,4 @@
-import { step, stories } from "../../src/storybook/index.js";
+import { book, step } from "../../src/storybook/index.js";
 import { sampleApp, TODAY, todoAppArb } from "./fixtures.js";
 import { todoApp, todoComponents, todoTask } from "./index.js";
 
@@ -26,7 +26,7 @@ const appMessages = [
 	"QuickAdd.submit",
 ];
 
-export default stories({
+export default book({
 	title: "Todo",
 	components: todoComponents,
 	askHandlers: { today: () => "2026-12-24" },
@@ -72,7 +72,7 @@ export default stories({
 					),
 				],
 			},
-			pbt: { events: true, maxCommands: 10 },
+			stress: { events: true, maxCommands: 10 },
 		},
 		// A task with subtasks: messages from subtasks reach their parent.
 		"Task/With subtasks": {
@@ -88,11 +88,11 @@ export default stories({
 				}),
 			sequences: {
 				"complete, reorder and remove subtasks": [
-					step.send("toggle", [], { at: (b) => b.item("subtasks", 0) }),
+					step.send("toggle", [], { to: (b) => b.item("subtasks", 0) }),
 					step.check("2/3 done", (s) => s.subtaskProgress === "▾ 2/3"),
 					step.send("moveTask", [1], { from: (b) => b.item("subtasks", 0) }),
 					step.check("Pack books second", (s) => s.subtasks[1].title === "Pack books"),
-					step.send("remove", [], { at: (b) => b.item("subtasks", 2) }),
+					step.send("remove", [], { to: (b) => b.item("subtasks", 2) }),
 					step.check("two left", (s) => s.subtasks.length === 2),
 					step.send("toggle"),
 					step.check("completing completes all", (s) => s.subtasks.every((x) => x.isCompleted)),
@@ -110,7 +110,7 @@ export default stories({
 					),
 				],
 			},
-			pbt: {
+			stress: {
 				include: [
 					"TodoTask.toggle",
 					"TodoTask.toggleExpand",
@@ -138,7 +138,7 @@ export default stories({
 					step.check("renamed and red", (s) => s.name === "Office" && s.color === "red"),
 				],
 			},
-			pbt: { events: true },
+			stress: { events: true },
 		},
 		"Quick add/Empty": { make: (C) => C.QuickAdd() },
 		"Quick add/Preview": {
@@ -160,14 +160,14 @@ export default stories({
 			sequences: {
 				"complete and add for today": [
 					step.check("overdue and today", (s) => s.pageBinds().todayCount === 3),
-					step.send("toggle", [], { at: atTask(0) }),
+					step.send("toggle", [], { to: atTask(0) }),
 					step.check("one less", (s) => s.pageBinds().todayCount === 2),
-					step.send("setText", ["Stretch"], { at: (b) => b.field("quickAdd") }),
-					step.send("submit", [], { at: (b) => b.field("quickAdd") }),
+					step.send("setText", ["Stretch"], { to: (b) => b.field("quickAdd") }),
+					step.send("submit", [], { to: (b) => b.field("quickAdd") }),
 					step.check("due today", (s) => s.tasks.at(-1).due === TODAY),
 				],
 			},
-			pbt: { include: appMessages, maxCommands: 15 },
+			stress: { include: appMessages, maxCommands: 15 },
 		},
 		"App/Upcoming": { make: (C) => sampleApp(C, { view: "upcoming" }) },
 		"App/Project": {
@@ -176,9 +176,9 @@ export default stories({
 				"rename, then delete the project": [
 					step.event("dblclick", 'h2[title="Double-click to rename"]'),
 					step.event("input", '[aria-label="Project name"]', { value: "Job" }),
-					step.send("endRename", [], { at: (b) => b.item("projects", 1) }),
+					step.send("endRename", [], { to: (b) => b.item("projects", 1) }),
 					step.check("renamed", (s) => s.projects[1].name === "Job"),
-					step.send("remove", [], { at: (b) => b.item("projects", 1) }),
+					step.send("remove", [], { to: (b) => b.item("projects", 1) }),
 					step.check("gone", (s) => s.projects.length === 2 && s.view === "inbox"),
 					step.check("its tasks in the inbox", (s) => s.tasks[2].projectId === "inbox"),
 				],
@@ -217,17 +217,17 @@ export default stories({
 					step.check("opened", (s) => s.view === "project" && s.currentProject.name === "Garden"),
 				],
 				"edit a task's labels": [
-					step.send("beginEdit", [], { at: atTask(5) }),
-					step.send("setLabelsText", ["@deep @work"], { at: atTask(5) }),
+					step.send("beginEdit", [], { to: atTask(5) }),
+					step.send("setLabelsText", ["@deep @work"], { to: atTask(5) }),
 					step.check(
 						"labels listed",
 						(s) => s.labels.includes("deep") && s.labels.includes("work"),
 					),
-					step.send("setProject", ["p2"], { at: atTask(5) }),
+					step.send("setProject", ["p2"], { to: atTask(5) }),
 					step.check("moved to Home", (s) => s.tasks[5].projectId === "p2"),
 				],
 			},
-			pbt: { include: appMessages, maxCommands: 15 },
+			stress: { include: appMessages, maxCommands: 15 },
 		},
 		"App/Sync date": {
 			make: (C) => sampleApp(C),
@@ -241,11 +241,11 @@ export default stories({
 		},
 		"App/Generated": {
 			arbitrary: (A) => A.instance("TodoApp"),
-			pbt: { include: appMessages, maxCommands: 15 },
+			stress: { include: appMessages, maxCommands: 15 },
 		},
 		"App/DOM events": {
 			make: (C) => sampleApp(C),
-			pbt: { events: true, maxCommands: 15 },
+			stress: { events: true, maxCommands: 15 },
 		},
 	},
 });

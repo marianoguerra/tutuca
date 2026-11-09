@@ -190,7 +190,7 @@ export const Picker = component({
 		get kinds() {
 			const scope = scopeOf(this);
 			return Object.entries(KINDS).map(([id, name]) => {
-				const spec = scope?.lookupByName(name) ?? null;
+				const spec = scope?.lookupSpec(name) ?? null;
 				const { title, icon, description } = spec ? displayOf(spec, scope) : {};
 				return {
 					id,
@@ -365,7 +365,7 @@ const gap = (drop, add, title) =>
 // Whether the drag is of one of this notebook's own cells, not of one in a notebook inside it.
 const isOwnCell = (ctx) =>
 	ctx.drag?.type === "cell" &&
-	String(ctx.drag.path.toComponentPath().toParentPath()) === String(ctx.path);
+	String(ctx.drag.path.toNodePath().toParentPath()) === String(ctx.path);
 
 export const Notebook = component({
 	name: "Notebook",

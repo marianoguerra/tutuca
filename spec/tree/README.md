@@ -266,7 +266,7 @@ Where the JS still differs from `core.rkt`:
   urgent response does; one answered by a promise is appended, as a normal one is.
 - **Requests don't bubble:** a scope ask handler is the host answering; components can't
   `answer` on the way up.
-- **Settle scopes aren't modeled:** `src/tree/settle.js` counts what a watched `sendAt` caused
+- **Watches aren't modeled:** `src/tree/watch.js` counts what a watched `sendAt` caused
   (sends, hops, asks and their answers, recursively, scopes inside scopes) and tells the sender
   once none of it is left, cancelled or timed out included. The core has no counterpart yet:
   they observe the queue, they don't change delivery, except that a cancelled scope's tasks are

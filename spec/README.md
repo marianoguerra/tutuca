@@ -10,7 +10,7 @@ A PLT Redex model of tutuca. It has two sides, joined by a binding layer:
 - **The virtual DOM** (`vdom.js`). It covers normalized vnodes, the DOM they render to, and reconciliation with node identity. It knows nothing about tutuca.
 - **The binding** lowers the semantic tree to vnodes, writing metadata comments and `data-eid` attributes. It also decodes events back from the DOM. The comments are an implementation detail of this layer.
 
-The optimizations in `src/core/optimize.js` and the fast paths in `vdom.js` are not part of the
+The optimizations in `src/core/view/element-plan.js` and the fast paths in `vdom.js` are not part of the
 model. The model defines the meaning those optimizations must preserve.
 
 ```sh
@@ -39,14 +39,14 @@ Each directory requires only the ones above it in this table, plus `data.rkt`.
 | | `dom.rkt` | `toDom`, namespaces | `vdom.js` |
 | | `keys.rkt` | sibling matching | `morphChildren`, first half |
 | | `morph.rkt` | reconciliation over labeled DOM nodes, among the ones render made | `morphNode`, `morphChildren`, `mountBefore`, `owned` |
-| `component/` | `paths.rkt` | update paths, dispatch frames, selectors, routes: `getIn`/`setIn`, `resolve`, `toComponentPath`, `sourceKeyIn`, freezing | `KeyPath`, `Frame`, `DispatchPath`, `Selector`, `Target` |
+| `component/` | `paths.rkt` | update paths, dispatch frames, selectors, routes: `getIn`/`setIn`, `resolve`, `toNodePath`, `sourceKeyIn`, freezing | `KeyPath`, `Frame`, `DispatchPath`, `Selector`, `Target` |
 | | `expr.rkt` | the expression language user functions are written in | the functions passed to `component()` |
-| | `types.rkt` | field types, `valid`, defaults, `make` | `t.*`, `Type` and its subclasses in `schema.js` |
+| | `types.rkt` | field types, `valid`, defaults, `make` | `t.*`, `Type` and its subclasses in `types.js` |
 | | `class.rkt` | classes: fields, invariants, handlers with contracts and actions | `fields`, `invariants`, `on`, `HandlerSpec` |
-| | `action.rkt` | `act` (one message on one instance), `message-issues`, `invalid-in` | `call`/`run` in `tree/messages.js`, `messageIssues`, `findInvalidFields` |
+| | `action.rkt` | `act` (one message on one instance), `message-issues`, `invalid-in` | `call`/`run` in `tree/messages.js`, `messageIssues`, `findInvalid` |
 | `view/` | `sem.rkt` | the semantic tree | (what `renderView` means) |
-| | `normalize.rkt` | `addChild`/`toVChilds`, keys | `view.js` |
-| | `view.rkt` | view definitions, expressions, registration, `RenderContext`, `eval`, `renderView` | the `AstNode` subclasses, `ComponentSpec`, `RenderContext` |
+| | `normalize.rkt` | `addChild`/`toVChildren`, keys | `view.js` |
+| | `view.rkt` | view definitions, expressions, registration, `RenderContext`, `eval`, `renderView` | the `ViewNode` subclasses, `ComponentSpec`, `RenderContext` |
 | | `route.rkt` | routing on the semantic tree | (what `handlerFor` means) |
 | | `wf.rkt` | well-formed views | lint's `unknown-handler`, `send-arity`, `send-arg-type` |
 | `bind/` | `meta.rkt` | metadata comment text | `wrapMarkers`'s objects, `parseMarker` |
@@ -316,7 +316,7 @@ after the rendered node it followed.
 Two of these are equivalent only when other code doesn't edit or remove the nodes render made:
 - The identity skip leaves externally edited nodes alone. The model would overwrite them.
 - Comparing the root by reference (`oldRoot !== this.root`) is modeled as
-  structural inequality. The same holds for `findInvalidFields`'s `value === prev` skip.
+  structural inequality. The same holds for `findInvalid`'s `value === prev` skip.
 
 ## Out of scope
 
@@ -346,7 +346,7 @@ Two of these are equivalent only when other code doesn't edit or remove the node
   it had (`ctx.drag`), the `data-dragging` and `data-draggingover` marks, and
   `preventDefault`/`dropEffect` over a drop target.
 - Sync engines (`src/sync/`).
-- `src/core/tag.js`, `src/dev/`, `src/css/`, `src/embed/`, `src/playground/`, the storybook, the
+- `src/core/view/tag.js`, `src/dev/`, `src/css/`, `src/embed/`, `src/playground/`, the storybook, the
   test driver and pbt, and the lint modules (beyond `wf.rkt`).
 
 ## What the tests check

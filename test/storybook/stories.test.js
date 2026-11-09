@@ -5,11 +5,11 @@ import jsonBook from "../../components/json/stories.js";
 import mathBook from "../../components/math/stories.js";
 import { defineTutucaApp, REPORT, REQUEST } from "../../src/embed/element.js";
 import {
+	book,
 	checkStory,
 	prepareStory,
 	StoryRegistry,
 	step,
-	stories,
 	stressStory,
 } from "../../src/storybook/index.js";
 import { Driver, describeProblems } from "../../src/testing/driver.js";
@@ -31,7 +31,7 @@ for (const story of books.flatMap((book) => book.stories)) {
 	if (Object.keys(story.sequences).length > 0) {
 		test(`${story.id} sequences pass`, () => checkStory(story, { fc, document }));
 	}
-	if (story.pbt !== null) {
+	if (story.stress !== null) {
 		test(`${story.id} stress test passes`, () =>
 			stressStory(story, { fc, document, numRuns: 20, seed: 1 }));
 	}
@@ -57,7 +57,7 @@ const Counter = component({
 		},
 	},
 });
-const counterBook = stories({
+const counterBook = book({
 	title: "Bugs",
 	components: { Counter },
 	stories: {
@@ -68,7 +68,7 @@ const counterBook = stories({
 				"wrong check": [step.send("inc"), step.check("two", (s) => s.count === 2)],
 				"missing element": [step.event("click", "a")],
 			},
-			pbt: { maxCommands: 6 },
+			stress: { maxCommands: 6 },
 		},
 	},
 });
@@ -275,7 +275,7 @@ test("a new registry carries each mounted story's state over to the new componen
 			},
 		},
 	});
-	const book2 = stories({
+	const book2 = book({
 		title: "Bugs",
 		components: { Counter: Counter2 },
 		stories: { Counter: { make: (C) => C.Counter(), sequences: counterStory.sequences } },

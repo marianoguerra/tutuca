@@ -85,7 +85,7 @@ const quietly = (fn) => {
 
 test("a handled task's transition says what it sent and where its chain started", () => {
 	const driver = start();
-	driver.send(childPath, "ping");
+	driver.send("ping", [], { to: childPath });
 	const [ping, pinged] = driver.transitions;
 	assert.ok(ping instanceof Transition);
 	assert.deepEqual(
@@ -119,7 +119,7 @@ test("a notification's hops without a handler pass it on, in the same chain", ()
 		new Frame(["middle"], null, null, true),
 		new Frame(["child"], null, null, true),
 	]);
-	driver.send(leaf, "ping");
+	driver.send("ping", [], { to: leaf });
 	const [ping, ...hops] = driver.transitions;
 	assert.deepEqual(
 		hops.map((r) => [r.name, r.outcome, r.origin]),
@@ -134,8 +134,8 @@ test("a notification's hops without a handler pass it on, in the same chain", ()
 test("a task nobody handles, and one that throws, keep the state", () => {
 	const driver = start();
 	const before = driver.state;
-	quietly(() => driver.send(new DispatchPath(), "nope"));
-	driver.send(childPath, "boom");
+	quietly(() => driver.send("nope"));
+	driver.send("boom", [], { to: childPath });
 	const [nope, boom] = driver.transitions;
 	assert.deepEqual([nope.outcome, nope.unhandled], ["unhandled", ["nope"]]);
 	assert.deepEqual([boom.outcome, boom.error.message], ["failed", "boom"]);
@@ -167,7 +167,7 @@ test("a task for a node that's gone is stale, or orphaned when nothing is there"
 
 test("an ask is asked, and its answer is a transition caused by it", () => {
 	const driver = start();
-	driver.send(new DispatchPath(), "load");
+	driver.send("load");
 	const [load, ask, answer] = driver.transitions;
 	assert.deepEqual(
 		[ask.mode, ask.outcome, ask.cause, answer.name, answer.mode, answer.outcome, answer.cause],
@@ -177,9 +177,9 @@ test("an ask is asked, and its answer is a transition caused by it", () => {
 	assert.equal(driver.state.got, 42);
 });
 
-test("a task whose settle scope is cancelled before it runs is dropped", () => {
+test("a task whose watch is cancelled before it runs is dropped", () => {
 	const driver = start();
-	driver.send(new DispatchPath(), "startAndCancel");
+	driver.send("startAndCancel");
 	const outcomes = driver.transitions.map((r) => [r.name, r.outcome]);
 	assert.deepEqual(outcomes, [
 		["startAndCancel", "handled"],
@@ -205,7 +205,7 @@ test("host.apply is a transition of mode apply, failed when it throws", () => {
 
 test("what dev checks find is in the issues of the task that caused it", () => {
 	const driver = start();
-	driver.send(new DispatchPath(), "writeChild");
+	driver.send("writeChild");
 	const [write] = driver.transitions;
 	assert.deepEqual(
 		write.issues.map((i) => [i.check, i.message, i.reason]),
@@ -216,8 +216,8 @@ test("what dev checks find is in the issues of the task that caused it", () => {
 
 test("a transition as data has no roots, nodes or tasks in it", () => {
 	const driver = start();
-	driver.send(childPath, "ping");
-	driver.send(childPath, "boom");
+	driver.send("ping", [], { to: childPath });
+	driver.send("boom", [], { to: childPath });
 	for (const record of driver.reports) {
 		const json = JSON.parse(JSON.stringify(record));
 		for (const key of ["before", "after", "instance", "task", "root"])

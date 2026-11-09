@@ -1,4 +1,4 @@
-import { step, stories } from "../../src/storybook/index.js";
+import { book, step } from "../../src/storybook/index.js";
 import { $if, component, field, pushView, render, send, t, tag } from "../../src/tutuca.js";
 import {
 	chordExplorer,
@@ -54,7 +54,7 @@ const type = (label, value) => step.event("input", `[aria-label="${label}"]`, { 
 const click = (selector) => step.event("click", selector);
 const same = (a, b) => JSON.stringify(a) === JSON.stringify(b);
 
-export default stories({
+export default book({
 	title: "Music",
 	components: { ...musicComponents, MusicEditable: Editable },
 	stories: {

@@ -1,7 +1,7 @@
 // DevTools custom formatters for vdom trees (Chrome/Firefox), shown like the Elements panel.
 
-import { truncate } from "../core/text.js";
-import { HTML_NS, VBase, VComment, VFragment, VNode, VText } from "../core/vdom.js";
+import { truncate } from "../core/host/text.js";
+import { HTML_NS, VBase, VComment, VFragment, VNode, VText } from "../vdom/index.js";
 import { install, makeFormatter, objectRef as ref, span } from "./jsonml.js";
 
 const STYLES = {
@@ -49,8 +49,8 @@ const openTag = (node) => {
 const closeTag = (node) => span(STYLES.tag, `</${tagName(node)}>`);
 // A lone short text child renders inline, like the Elements panel does.
 const inlineText = (node) => {
-	const [child] = node.childs;
-	return node.childs.length === 1 && child instanceof VText && child.text.length <= MAX_STR
+	const [child] = node.children;
+	return node.children.length === 1 && child instanceof VText && child.text.length <= MAX_STR
 		? child
 		: null;
 };
@@ -63,32 +63,32 @@ const vdomFormatter = () => {
 	const describe = (v) => {
 		if (v instanceof VNode) {
 			const text = inlineText(v);
-			if (v.childs.length === 0 || text !== null) {
+			if (v.children.length === 0 || text !== null) {
 				const inner = text === null ? [] : [text.text];
-				return { header: [...openTag(v), ...inner, closeTag(v)], childs: [] };
+				return { header: [...openTag(v), ...inner, closeTag(v)], children: [] };
 			}
 			return {
 				header: [...openTag(v), span(STYLES.muted, "…"), closeTag(v)],
-				childs: v.childs,
+				children: v.children,
 				close: closeTag(v),
 			};
 		}
-		if (v instanceof VText) return { header: [quoted(v.text)], childs: [] };
-		if (v instanceof VComment) return { header: commentParts(v), childs: [] };
+		if (v instanceof VText) return { header: [quoted(v.text)], children: [] };
+		if (v instanceof VComment) return { header: commentParts(v), children: [] };
 		if (v instanceof VFragment) {
 			return {
 				header: [
 					span(STYLES.tag, "<>"),
 					...keyParts(v.key),
-					span(STYLES.muted, ` (${v.childs.length})`),
+					span(STYLES.muted, ` (${v.children.length})`),
 				],
-				childs: v.childs,
+				children: v.children,
 				close: span(STYLES.tag, "</>"),
 			};
 		}
 		if (isVdomArray(v)) {
 			const noun = v.length === 1 ? "vnode" : "vnodes";
-			return { header: [span(STYLES.muted, `[${v.length} ${noun}]`)], childs: v };
+			return { header: [span(STYLES.muted, `[${v.length} ${noun}]`)], children: v };
 		}
 		return null;
 	};
@@ -96,8 +96,8 @@ const vdomFormatter = () => {
 		header: (v) => describe(v)?.header ?? null,
 		rows(v) {
 			const d = describe(v);
-			if (d === null || d.childs.length === 0) return [];
-			const rows = d.childs.map((c) => ["li", {}, ref(c)]);
+			if (d === null || d.children.length === 0) return [];
+			const rows = d.children.map((c) => ["li", {}, ref(c)]);
 			if (d.close !== undefined) rows.push(["li", {}, d.close]);
 			return rows;
 		},
