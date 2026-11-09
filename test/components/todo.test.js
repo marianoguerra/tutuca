@@ -6,7 +6,8 @@ import { TODAY, todoAppArb } from "../../components/todo/fixtures.js";
 import { todoComponents } from "../../components/todo/index.js";
 import { parseQuickAdd } from "../../components/todo/quickadd.js";
 import { devComponents } from "../../src/dev/panel.js";
-import { testGenericProperties } from "../helpers.js";
+import { apply, ContractError } from "../../src/tutuca.js";
+import { scopeWith, testGenericProperties } from "../helpers.js";
 
 test("due labels are relative to today", () => {
 	const at = (n) => dueLabel(addDays(TODAY, n), TODAY);
@@ -80,3 +81,22 @@ test("quick add never loses words", () => {
 
 testGenericProperties(todoComponents, { overrides: { TodoApp: todoAppArb }, numRuns: 25 });
 testGenericProperties(devComponents, { numRuns: 25 });
+
+test("applyDeep takes only a call its subtask takes: a pure message of its with fitting args", () => {
+	const { TodoTask } = scopeWith(todoComponents).components;
+	const leaf = TodoTask({ id: "leaf", title: "old" });
+	const task = TodoTask({ id: "top", subtasks: [TodoTask({ id: "mid", subtasks: [leaf] })] });
+	const renamed = apply(task, "applyDeep", "leaf", "setTitle", ["new"]);
+	assert.equal(renamed.subtasks[0].subtasks[0].title, "new");
+	// No subtask with the id: nothing to do.
+	assert.equal(apply(task, "applyDeep", "nowhere", "", []), task);
+	for (const [name, args] of [
+		["", []],
+		["setTitle", [1]],
+	]) {
+		assert.throws(
+			() => apply(task, "applyDeep", "leaf", name, args),
+			(e) => e instanceof ContractError && e.issues[0] === "pre",
+		);
+	}
+});

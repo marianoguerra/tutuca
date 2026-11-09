@@ -18,6 +18,7 @@ import {
 } from "../../src/tutuca.js";
 import { setField } from "../common/card.js";
 import {
+	allTasks,
 	applyEach,
 	CHECKS,
 	DUES,
@@ -26,6 +27,7 @@ import {
 	ICON_BTN,
 	labelsOf,
 	swap,
+	takesCall,
 	todayType,
 } from "./common.js";
 import { dueLabel, dueTone } from "./dates.js";
@@ -289,6 +291,14 @@ export const TodoTask = component({
 		applyDeep: {
 			pure: true,
 			args: [t.string(), t.string(), t.array(t.any())],
+			// The subtask id, when there's one, takes the call.
+			pre(self, [id, name, args]) {
+				const sub = allTasks(self.subtasks).find((task) => task.id === id);
+				return sub === undefined || takesCall(sub, name, args);
+			},
+			why(_self, [id, name]) {
+				return `subtask ${id} takes no pure message ${name} with these args`;
+			},
 			run(next, [id, name, args]) {
 				this.subtasks.forEach((sub, i) => {
 					if (sub.id === id) next.subtasks[i] = apply(next.subtasks[i], name, ...args);
