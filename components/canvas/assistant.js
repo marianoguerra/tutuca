@@ -14,7 +14,11 @@ agent with a self-contained task and answers once it's done, with what it said; 
 item_tools say what an item is and what its agent can do, to prompt it well; eject_agent takes
 the agent away, leaving the component as its agent left it, once it's done. Delegate one task at
 a time, check the result, and eject the agents when you're finished. Place items so they don't
-overlap: each is as wide as it says.`,
+overlap: each is as wide as it says. Under the items are shapes, from back to front, each with an
+id, in canvas coordinates (x right, y down): rectangles and ellipses fill the box between two
+corners, lines and arrows go from one point to the other (an arrow's head at the second), texts
+start at x, y (their baseline). Colors are #rrggbb (lowercase) or none; stroke widths are 1, 2, 4
+or 8.`,
 	summary: "summary",
 	maxSteps: 40,
 	tools: [
@@ -44,6 +48,34 @@ overlap: each is as wide as it says.`,
 			"Title an item; empty, it says what it holds.",
 		),
 		agentTool("remove_item", "message", ["key"], "Remove an item."),
+		agentTool(
+			"add_shape",
+			"message",
+			["kind", "x0", "y0", "x1", "y1", "fill", "stroke", "width"],
+			"Add a rect, ellipse, line or arrow between two points, in front of the other shapes.",
+		),
+		agentTool(
+			"add_text",
+			"message",
+			["x", "y", "text", "color"],
+			"Add a line of text, in front of the other shapes.",
+		),
+		agentTool("set_text", "message", ["id", "text"], "Change a text's words."),
+		agentTool("move_shape", "message", ["id", "dx", "dy"], "Move a shape by dx, dy."),
+		agentTool(
+			"style_shape",
+			"message",
+			["id", "fill", "stroke", "width"],
+			"Change a shape's colors and stroke width (a text shows in its stroke).",
+		),
+		agentTool(
+			"layer_shape",
+			"message",
+			["id", "to"],
+			"Move a shape to the front or back, or one step up or down.",
+		),
+		agentTool("remove_shape", "message", ["id"], "Remove a shape."),
+		agentTool("clear_shapes", "message", [], "Remove every shape."),
 		agentTool("enable_agent", "message", ["key"], "Give an item's component an agent of its own."),
 		agentTool(
 			"delegate",
@@ -88,6 +120,17 @@ export const itemLine = (key, item) => {
 			: "no agent";
 	return `${key} "${title}" (${specOf(targetOf(item)).name}) at ${item.x},${item.y} ${size}, ${agent}`;
 };
+// A shape's line in the summary: id, kind, where it is and its paint.
+export const shapeLine = (s) => {
+	const kind = specOf(s).name;
+	const where =
+		kind === "Text"
+			? `"${s.text}" at ${s.x},${s.y}`
+			: kind === "Line" || kind === "Arrow"
+				? `from ${s.x0},${s.y0} to ${s.x1},${s.y1}`
+				: `at ${s.left},${s.top} ${s.boxWidth}×${s.boxHeight}`;
+	return `shape ${s.id} (${kind}) ${where}, fill ${s.fill}, stroke ${s.stroke} ${s.width}px`;
+};
 
 // What the canvas's agent reads it with: merge them into its queries with mix, getters kept.
 export const assistantQueries = {
@@ -96,6 +139,8 @@ export const assistantQueries = {
 		const lines = [`Canvas ${this.width}×${this.height}.`];
 		if (this.order.length === 0) lines.push("No items.");
 		for (const key of this.order) lines.push(itemLine(key, this.items[key]));
+		if (this.shapes.length === 0) lines.push("No shapes.");
+		for (const shape of this.shapes) lines.push(shapeLine(shape));
 		const kinds = this.kinds.map((k) => k.id).join(", ");
 		lines.push(kinds === "" ? "No kinds known." : `Kinds you can add: ${kinds}.`);
 		return lines.join("\n");

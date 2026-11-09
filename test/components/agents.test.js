@@ -3,6 +3,7 @@
 // do what they say, run as an agent runs them (planToolCall).
 import assert from "node:assert/strict";
 import test from "node:test";
+import { canvas, canvasComponents } from "../../components/canvas/index.js";
 import { drawingComponents } from "../../components/drawing/index.js";
 import { HTTP_KINDS, httpComponents } from "../../components/http/index.js";
 import { LLM_KINDS, llmComponents } from "../../components/llm/index.js";
@@ -116,6 +117,38 @@ test("drawing: shapes made by message, then moved, styled, layered and removed b
 	d = ranTool(d, "remove_shape", { id: "b" });
 	d = ranTool(d, "undo");
 	assert.equal(d.shapes.length, 2, "undone");
+});
+
+test("canvas: its agent draws, changes and removes the shapes on it by id", () => {
+	const C = scopeWith(canvasComponents).components;
+	const shapes = [
+		C.Rect({ id: "r", x0: 0, y0: 0, x1: 40, y1: 20 }),
+		C.Text({ id: "t", x: 10, y: 50, text: "Seedlings" }),
+	];
+	let c = canvas(C, [], { shapes, selected: "t" });
+	assert.match(summaryOf(c), /shape r \(Rect\) at 0,0 40×20, fill none/);
+	assert.match(summaryOf(c), /shape t \(Text\) "Seedlings" at 10,50/);
+	const arrow = { kind: "arrow", x0: 0, y0: 0, x1: 2900, y1: 10 };
+	const plan = callTool(c, "add_shape", { ...arrow, fill: "none", stroke: "#22c55e", width: 2 });
+	assert.equal(plan.send.name, "add_shape");
+	const add = ["add_text", { x: 5, y: 5, text: "Path", color: "#000000" }];
+	assert.equal(callTool(c, ...add).send.name, "add_text");
+	failsWith(c, "set_text", { id: "r", text: "x" }, /r isn't a text/);
+	c = ranTool(c, "set_text", { id: "t", text: "Sprouts" });
+	c = ranTool(c, "move_shape", { id: "r", dx: 5, dy: 5 });
+	c = ranTool(c, "style_shape", { id: "r", fill: "#ff0000", stroke: "none", width: 4 });
+	c = ranTool(c, "layer_shape", { id: "r", to: "front" });
+	assert.deepEqual(
+		c.shapes.map((s) => s.id),
+		["t", "r"],
+	);
+	assert.match(summaryOf(c), /shape r \(Rect\) at 5,5 40×20, fill #ff0000, stroke none 4px/);
+	assert.match(summaryOf(c), /"Sprouts"/);
+	failsWith(c, "remove_shape", { id: "nope" }, /there's no shape nope/);
+	c = ranTool(c, "remove_shape", { id: "t" });
+	assert.equal(c.selected, "");
+	c = ranTool(c, "clear_shapes");
+	assert.match(summaryOf(c), /No shapes\./);
 });
 
 test("http: headers and bodies by name, operations' responses by status, exchanges fixed", () => {

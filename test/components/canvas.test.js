@@ -143,3 +143,16 @@ test("an item whose content says no data has no download button", () => {
 	assert.notEqual(d.rootNode.querySelector('[aria-label="Clone"]'), null);
 	assert.equal(d.rootNode.querySelector('[aria-label="Download as JSON"]'), null);
 });
+
+test("its agent's add_shape and add_text draw shapes, growing the canvas to reach them", () => {
+	const d = start();
+	const width = d.state.width;
+	d.send(new Selector(), "add_shape", ["arrow", 10, 10, width + 100, 20, "none", "#22c55e", 2]);
+	d.send(new Selector(), "add_text", [30, 60, "Seedlings", "#1f2937"]);
+	const [arrow, text] = d.state.shapes;
+	assert.equal(arrow.x1, width + 100);
+	assert.equal(text.text, "Seedlings");
+	assert.notEqual(arrow.id, text.id);
+	assert.ok(d.state.width > width + 100, "grown to reach the arrow");
+	assert.equal(d.rootNode.querySelectorAll("polygon").length, 1, "the arrow's head shows");
+});

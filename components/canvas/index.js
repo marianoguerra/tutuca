@@ -84,6 +84,14 @@ const TOOLS = [
 	["text", "T", "Text (T)", "Text"],
 ];
 const TOOL_IDS = TOOLS.map(([id]) => id);
+// What its agent draws with: shapes by id.
+const newShapeId = (ctx) => `s-${ctx.uuid()}`;
+const shapeAt = (self, id) => self.shapes.findIndex((s) => s.id === id);
+const hasShape = (self, id) => shapeAt(self, id) !== -1;
+const noShape = (_self, [id]) => `there's no shape ${id}`;
+const widthType = () => t.enum(2, 1, 4, 8);
+const growToShape = (self, next, s) => growTo(self, next, s.left + s.boxWidth, s.top + s.boxHeight);
+
 // Whether a tool draws a shape: the ones the ✏ button shows and hides.
 const isDrawingTool = (tool) => TOOLS.find(([id]) => id === tool)?.[3] != null;
 const TOOL_KEYS = {
@@ -582,6 +590,110 @@ export const Canvas = component({
 				if (this.maximized === key) next.maximized = "";
 			},
 		},
+		// Shapes by id, in canvas coordinates, colors as #rrggbb or none.
+		add_shape: {
+			args: [
+				t.enum("rect", "ellipse", "line", "arrow"),
+				coord(),
+				coord(),
+				coord(),
+				coord(),
+				paintType("none"),
+				paintType("#1f2937"),
+				widthType(),
+			],
+			run(next, [kind, x0, y0, x1, y1, fill, stroke, width], ctx) {
+				const name = { rect: "Rect", ellipse: "Ellipse", line: "Line", arrow: "Arrow" }[kind];
+				const shape = ctx.scope.make(name, {
+					id: newShapeId(ctx),
+					x0,
+					y0,
+					x1,
+					y1,
+					fill,
+					stroke,
+					width,
+				});
+				next.shapes.push(shape);
+				growToShape(this, next, shape);
+			},
+		},
+		add_text: {
+			args: [coord(), coord(), t.string(), paintType("#1f2937")],
+			run(next, [x, y, text, color], ctx) {
+				const shape = ctx.scope.make("Text", { id: newShapeId(ctx), x, y, text, stroke: color });
+				next.shapes.push(shape);
+				growToShape(this, next, shape);
+			},
+		},
+		set_text: {
+			pure: true,
+			args: [t.string(), t.string()],
+			pre: (self, [id]) => {
+				const shape = self.shapes[shapeAt(self, id)];
+				return shape !== undefined && specOf(shape).name === "Text";
+			},
+			why: (self, [id]) => (hasShape(self, id) ? `${id} isn't a text` : `there's no shape ${id}`),
+			run(next, [id, text]) {
+				const i = shapeAt(this, id);
+				next.shapes[i] = apply(this.shapes[i], "setText", text);
+			},
+		},
+		move_shape: {
+			pure: true,
+			args: [t.string(), t.number(), t.number()],
+			pre: (self, [id]) => hasShape(self, id),
+			why: noShape,
+			run(next, [id, dx, dy]) {
+				const i = shapeAt(this, id);
+				next.shapes[i] = apply(this.shapes[i], "moveBy", dx, dy);
+				growToShape(this, next, next.shapes[i]);
+			},
+		},
+		style_shape: {
+			pure: true,
+			args: [t.string(), paintType("none"), paintType("#1f2937"), widthType()],
+			pre: (self, [id]) => hasShape(self, id),
+			why: noShape,
+			run(next, [id, fill, stroke, width]) {
+				const i = shapeAt(this, id);
+				next.shapes[i] = apply(this.shapes[i], "setStyle", fill, stroke, width);
+			},
+		},
+		layer_shape: {
+			pure: true,
+			args: [t.string(), t.enum("front", "back", "up", "down")],
+			pre: (self, [id]) => hasShape(self, id),
+			why: noShape,
+			run(next, [id, to]) {
+				const i = shapeAt(this, id);
+				const last = this.shapes.length - 1;
+				const j = { front: last, back: 0, up: Math.min(i + 1, last), down: Math.max(i - 1, 0) }[to];
+				const shapes = [...this.shapes];
+				const [shape] = shapes.splice(i, 1);
+				shapes.splice(j, 0, shape);
+				next.shapes = shapes;
+			},
+		},
+		remove_shape: {
+			pure: true,
+			args: [t.string()],
+			pre: (self, [id]) => hasShape(self, id),
+			why: noShape,
+			run(next, [id]) {
+				next.shapes = this.shapes.filter((s) => s.id !== id);
+				if (this.selected === id) next.selected = "";
+			},
+		},
+		clear_shapes: {
+			pure: true,
+			args: [],
+			post: (_prev, next) => next.shapes.length === 0,
+			run(next) {
+				next.shapes = [];
+				next.selected = "";
+			},
+		},
 		// Its component in an agent of its own, which delegate prompts.
 		enable_agent: {
 			args: [t.string()],
@@ -910,7 +1022,7 @@ export const Canvas = component({
 function startAt(self, next, [x, y], ctx) {
 	const kind = TOOLS.find(([id]) => id === self.tool)[3];
 	const C = ctx.scope.components;
-	const style = { id: `s-${ctx.uuid()}`, fill: self.fill, stroke: self.stroke };
+	const style = { id: newShapeId(ctx), fill: self.fill, stroke: self.stroke };
 	if (self.tool === "hole") next.pressed = [x, y];
 	else if (kind === "Text") {
 		next.shapes.push(C.Text({ ...style, x, y }));
