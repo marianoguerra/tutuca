@@ -14,7 +14,7 @@ import {
 	Task,
 	t,
 } from "../../src/tutuca.js";
-import { setupHost } from "../helpers.js";
+import { setupHost, unhandledNames } from "../helpers.js";
 
 const setup = () => {
 	let C = null;
@@ -79,7 +79,7 @@ const setup = () => {
 		},
 	});
 	const reports = [];
-	const onReport = (type, info) => reports.push({ type, ...info });
+	const onReport = (record) => reports.push(record);
 	const s = setupHost({ Leaf, Middle, Top }, { sync: true, onReport });
 	C = s.C;
 	const warn = console.warn;
@@ -91,7 +91,10 @@ const setup = () => {
 			console.warn = warn;
 		}
 	};
-	const of = (type) => reports.filter((r) => r.type === type).map((r) => r.message ?? r.task.name);
+	const of = (type) =>
+		type === "unhandled"
+			? reports.flatMap(unhandledNames)
+			: reports.filter((r) => r.outcome === type).map((r) => r.name);
 	return { ...s, click, of, reports };
 };
 

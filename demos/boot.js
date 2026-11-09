@@ -10,7 +10,7 @@ import { ClassCompiler, classNamesOf } from "../src/css/classes.js";
 import { mountTimeTravel, TimeTravel } from "../src/history/bar.js";
 import { startSynced } from "../src/sync/index.js";
 import { DevChecks } from "../src/tutuca.dev.js";
-import { DispatchPath, HOST, Host, Target, Task } from "../src/tutuca.js";
+import { DispatchPath, HOST, Host, isProblem, Target, Task } from "../src/tutuca.js";
 import { SYNC_MODES, syncFromQuery, syncModeOf } from "./sync/engines.js";
 
 export const boot = ({
@@ -150,10 +150,8 @@ const setup = ({ components, askHandlers, metaSchemas = {}, document }) => {
 	host.scope.register(components);
 	host.scope.registerAskHandlers(askHandlers);
 	const styleNode = document.getElementById("margaui");
-	host.listen((type, info) => {
-		if (type === "taskFailed" || type === "stateInvalid" || type === "syncFailed") {
-			console.error(type, info);
-		}
+	host.listen((record) => {
+		if (isProblem(record)) console.error(record.outcome ?? record.phase, record);
 	});
 	// Classes computed in methods escape classNamesOf; the compiler adds them as they render.
 	const watch = () => {

@@ -1,7 +1,16 @@
 import { devComponents, devNode, lintRecords, makeDevPanel } from "../../src/dev/panel.js";
 import { lint } from "../../src/lint/index.js";
 import { step, stories } from "../../src/storybook/index.js";
-import { Address, apply, DispatchPath, Frame, Scope, Target, Task } from "../../src/tutuca.js";
+import {
+	Address,
+	apply,
+	DispatchPath,
+	Frame,
+	Scope,
+	Target,
+	Task,
+	Transition,
+} from "../../src/tutuca.js";
 import { fromJson, jsonComponents } from "../json/index.js";
 import { todoComponents } from "../todo/index.js";
 
@@ -90,7 +99,8 @@ export default stories({
 		"Panel/JSON app": {
 			make: (C) => {
 				const issues = lint(specs, Object.keys(jsonComponents));
-				const data = { state: doc, tasks: [{ label: "", value: task }], specs, issues };
+				const transitions = [{ label: "", value: Transition.of(task, "handled") }];
+				const data = { state: doc, transitions, specs, issues };
 				return apply(makeDevPanel(C), "showApp", data);
 			},
 			sequences: {

@@ -14,7 +14,7 @@ import {
 	scopeOf,
 	t,
 } from "../../src/tutuca.js";
-import { devHost, Leaf } from "../helpers.js";
+import { devHost, Leaf, messageReasons } from "../helpers.js";
 
 const Mid = component({
 	name: "Mid",
@@ -53,7 +53,7 @@ const setup = () => {
 	const send = (name) => {
 		reports.length = 0;
 		host.send(name, [], { now: true });
-		return reports.filter((r) => r.type === "messageInvalid").flatMap((r) => r.issues);
+		return messageReasons(reports);
 	};
 	return { host, send };
 };

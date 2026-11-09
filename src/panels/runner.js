@@ -10,7 +10,13 @@ import { runStress } from "../stories/stress.js";
 import { diff } from "../sync/diff.js";
 import { carry, specChanges } from "../sync/migrate.js";
 import { opText } from "../sync/ops.js";
-import { componentPaths, Driver, describeProblems, PROBLEMS, snapshot } from "../testing/driver.js";
+import {
+	componentPaths,
+	Driver,
+	describeProblems,
+	isProblem,
+	snapshot,
+} from "../testing/driver.js";
 import { drivableMessages, messageCommand, resolveRefs, sourceFrames } from "../testing/pbt.js";
 import { specOf } from "../tutuca.js";
 
@@ -23,7 +29,6 @@ class StoryRunner {
 		this.detail = null;
 		this.driver = null;
 		this.busy = false; // Reports during our own steps are recorded by the step.
-		this.pending = []; // Problems of user tasks, until their taskHandled.
 		this.publishQueued = false;
 		this.stressToken = null;
 		this.lastStress = null; // { root, commands } of the last failed stress run.
@@ -110,16 +115,23 @@ class StoryRunner {
 		const before = this.driver.reports.length;
 		if (problems === null) this.act(() => this.driver.restart(root));
 		const initial = problems ?? describeProblems(this.driver.problemsSince(before));
-		this.timeline.begin({ label, origin, state: root, problems: initial, nextStep, tasks: [] });
+		this.timeline.begin({
+			label,
+			origin,
+			state: root,
+			problems: initial,
+			nextStep,
+			transitions: [],
+		});
 		this.publish();
 	}
 	runAt(s, stepIndex, nextStep) {
-		this.tasks = [];
+		this.transitions = [];
 		const result = this.act(() => runStep(this.driver, s));
 		const { status, error, problems } = result;
 		const label = stepText(s);
 		const { state } = this.driver;
-		const { tasks } = this;
+		const { transitions } = this;
 		this.timeline.record({
 			label,
 			origin: "step",
@@ -129,7 +141,7 @@ class StoryRunner {
 			status,
 			stepIndex,
 			nextStep,
-			tasks,
+			transitions,
 		});
 		this.publish();
 		return result;
@@ -266,29 +278,25 @@ class StoryRunner {
 		this.steps = commands.map((c) => step.command(c.clone(), String(c)));
 		this.begin(root);
 	}
-	// Tasks from the user or from async replies; problems precede their taskHandled.
-	onReport(report) {
-		const { type } = report;
-		if (type === "taskHandled") this.tasks?.push(report.task); // For the entry that records them.
-		if (type === "render" && this.detail !== null) this.classes?.scan(this.detail.rootNode);
-		if (this.driver === null || this.busy) return;
-		if (PROBLEMS.has(type)) {
-			this.pending.push(report);
-			if (type === "taskFailed" || report.settled) this.addProblems(this.current);
-			return;
+	// What the host reports: the transitions of tasks from the user or from async replies, each
+	// with its own problems, and the rest, whose problems go to the current entry.
+	onReport(record) {
+		if (record.kind === "transition") this.transitions?.push(record); // For the entry of a step.
+		if (record.phase === "rendered" && this.detail !== null) {
+			this.classes?.scan(this.detail.rootNode);
 		}
-		if (type !== "taskHandled") return;
-		const { task, newRoot } = report;
-		const extra = { problems: [], status: "ok", nextStep: this.nextStep };
-		const entry = this.timeline.recordTask(task, newRoot, extra);
-		this.tasks = [];
-		this.addProblems(entry);
+		if (this.driver === null || this.busy) return;
+		if (record.kind === "transition" && record.committed) {
+			const extra = { problems: [], status: "ok", nextStep: this.nextStep };
+			const entry = this.timeline.recordTask(record, record.after, extra);
+			this.transitions = [];
+			this.addProblems(entry, record);
+		} else if (isProblem(record)) this.addProblems(this.current, record);
 	}
-	addProblems(entry) {
-		if (this.pending.length > 0) {
-			entry.problems = [...entry.problems, ...describeProblems(this.pending)];
+	addProblems(entry, record) {
+		if (isProblem(record)) {
+			entry.problems = [...entry.problems, ...describeProblems([record])];
 			entry.status = "failed";
-			this.pending = [];
 		}
 		if (this.publishQueued) return;
 		this.publishQueued = true;
@@ -339,7 +347,7 @@ class StoryRunner {
 			// Live values for the dev panel, which keeps refs to them, not the values.
 			dev: {
 				state: current.state,
-				tasks: current.tasks.map((task) => ({ label: "", value: task })),
+				transitions: current.transitions.map((record) => ({ label: "", value: record })),
 				specs: this.specs,
 				issues: this.issues,
 			},

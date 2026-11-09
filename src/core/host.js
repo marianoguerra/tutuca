@@ -3,10 +3,19 @@
 // whatever drives the app (an agent, a test, a bar). Without a document it is headless: it
 // renders nothing and listens to no events, and the tree runs the same.
 import { current, isDraft, produce } from "../../deps/immer.js";
-import { Address, DispatchPath, Selector, selectorFrom, Target } from "../tree/index.js";
+import {
+	Address,
+	DispatchPath,
+	HOST,
+	Selector,
+	selectorFrom,
+	Target,
+	Transition,
+} from "../tree/index.js";
 import { apply, checkInvariants, query } from "./contract.js";
 import { DROP_EVENTS, DragTracker } from "./drag.js";
 import { eventSend } from "./events.js";
+import { engineName, Lifecycle } from "./lifecycle.js";
 import { Scope } from "./scope.js";
 import { specOf } from "./spec.js";
 import { SyncEngines } from "./sync-engines.js";
@@ -24,13 +33,13 @@ export const browserEnv = {
 };
 
 export class Host {
-	// checks is what dev mode runs, made with notify: DevChecks from tutuca/dev (src/dev/checks.js)
-	// checks the state against the schemas on start and after each task. Null outside dev mode,
-	// so the core doesn't carry them.
+	// checks is what dev mode runs: DevChecks from tutuca/dev (src/dev/checks.js) checks the state
+	// against the schemas on start and after each task, and what it finds is in the issues of
+	// what the host reports. Null outside dev mode, so the core doesn't carry them.
 	constructor({ document = null, rootNode = null, checks = null, env = browserEnv } = {}) {
 		this.document = document;
 		this.rootNode = rootNode;
-		this.checks = checks === null ? null : new checks((type, info) => this.notify(type, info));
+		this.checks = checks === null ? null : new checks();
 		this.env = env; // What handlers read from the world, through ctx.
 		this.root = null;
 		// Delivers the tasks against the root (src/tree): this host renders, listens and syncs.
@@ -46,17 +55,37 @@ export class Host {
 		this._idleWaiters = [];
 		this._scopeTimers = new Map();
 		this.drags = new DragTracker(rootNode);
-		this.engines = new SyncEngines((type, info) => this.notify(type, info));
+		this.engines = new SyncEngines((phase, fields) => this.report(phase, fields));
+		this._reported = 0; // How many reports were made, to number the next one.
+		this._lastSeq = null; // The seq of the last task the scheduler was done with.
+		this._settledRoot = null; // The root as of the last settled report.
 	}
-	// What the scheduler tells the host (tree-binding.js's schedulerFor): a task committed, there
-	// are tasks to run, and a settle scope opened or settled.
-	taskCommitted(task, ctx, info) {
-		this.checks?.state(task, info.curRoot, this.root);
-		this.checks?.message(task, ctx, info.instance, info.path.getIn(info.newRoot));
-		this.notify("taskHandled", { task, ...info });
+	// What the scheduler tells the host (tree-binding.js's schedulerFor): what became of a task,
+	// there are tasks to run, and a settle scope opened or settled.
+	// A task whose handler ran (ctx) is checked in dev mode, and what's wrong is in its issues.
+	transitioned(record, ctx) {
+		if (record.seq !== null) this._lastSeq = record.seq;
+		if (this.checks !== null && ctx !== undefined && record.committed) {
+			const { task, before, after, instance } = record;
+			record.issues.push(
+				...this.checks.state(task, before, after),
+				...this.checks.message(ctx, instance, record.to.keyPath.getIn(after)),
+			);
+		}
+		this.notify(record);
 	}
 	wake() {
 		if (!this._handlingTasks) this.scheduleNextTaskTick();
+	}
+	scopeOpened(scope) {
+		this.startScopeTimer(scope);
+		const { id, watcher, timeout } = scope;
+		this.report("scopeOpened", { scope: id, watcher, timeout });
+	}
+	scopeSettled(scope) {
+		this.stopScopeTimer(scope);
+		const { id, ...report } = scope.report();
+		this.report("scopeSettled", { scope: id, ...report });
 	}
 	// A settle scope with a timeout is cancelled with timeout once it's up.
 	startScopeTimer(scope) {
@@ -77,7 +106,8 @@ export class Host {
 	}
 	start(root) {
 		this.root = root;
-		this.checks?.start(root);
+		this._settledRoot = root;
+		this.report("started", {}, { root }, this.checks?.start(root) ?? []);
 		this.render();
 	}
 	render() {
@@ -87,7 +117,7 @@ export class Host {
 		const newVDom = toVChilds(renderView(this.root, ctx));
 		morph(this.document, this.rootNode, newVDom, curVDom);
 		this._curVDom = newVDom;
-		this.notify("render", { ctx, newVDom, curVDom });
+		this.report("rendered", { upTo: this._lastSeq }, { ctx, newVDom, curVDom });
 	}
 	handleEvent(e) {
 		if (this.root === null) return;
@@ -100,7 +130,7 @@ export class Host {
 		} catch (error) {
 			// The DOM doesn't match the root it routes against (a render that failed), or an event
 			// arg failed: reported, as a failed task is, instead of escaping the listener.
-			this.notify("eventFailed", { event: e, error });
+			this.report("eventFailed", { eventType: type, error }, { event: e });
 		}
 		if (sent !== null) {
 			const { name, args, to, node } = sent;
@@ -131,21 +161,42 @@ export class Host {
 	// as an external change: no task, no queue, rendered when it returns. Throws a ContractError
 	// if the component there doesn't support it.
 	// Nothing changes if it breaks the component's invariants.
+	// It's reported as a transition (mode apply), failed when it throws.
 	apply(name, args = [], { to = new DispatchPath() } = {}) {
-		const at = this.addressOf(to).keyPath;
+		const address = this.addressOf(to);
+		const at = address.keyPath;
+		const seq = this.scheduler.nextSeq();
+		const fields = { seq, origin: seq, mode: "apply", name, args, from: HOST, to: address };
+		const before = this.root;
+		let writeIssues = [];
 		const produceWith =
-			this.checks === null ? produce : (root, fn) => this.checks.applied(name, root, at, fn);
-		this.applyExternal(
-			(root) => {
-				const target = at.getIn(root);
-				const next = apply(target, name, ...args);
-				checkInvariants(specOf(target), name, isDraft(next) ? current(next) : next);
-				return at.setIn(root, next);
-			},
-			null,
-			null,
-			produceWith,
-		);
+			this.checks === null
+				? produce
+				: (root, fn) => {
+						const [next, issues] = this.checks.applied(name, root, at, fn);
+						writeIssues = issues;
+						return next;
+					};
+		const report = (curRoot, newRoot, stateIssues) => {
+			const instance = at.getIn(curRoot);
+			const record = new Transition(fields, { before: curRoot, after: newRoot, instance });
+			record.issues.push(...writeIssues, ...stateIssues);
+			this._lastSeq = seq;
+			this.notify(record);
+		};
+		const producer = (root) => {
+			const target = at.getIn(root);
+			const next = apply(target, name, ...args);
+			checkInvariants(specOf(target), name, isDraft(next) ? current(next) : next);
+			return at.setIn(root, next);
+		};
+		try {
+			this.applyExternal(producer, { produceWith, report });
+		} catch (error) {
+			const failed = { ...fields, outcome: "failed", error };
+			this.notify(new Transition(failed, { before, after: before, instance: at.getIn(before) }));
+			throw error;
+		}
 	}
 	// What the query name(...args) of the component at to returns, read from the current root.
 	query(name, args = [], { to = new DispatchPath() } = {}) {
@@ -203,6 +254,7 @@ export class Host {
 		this.clearTasks();
 		this.detachSync();
 		this.root = null;
+		this.report("stopped");
 		this.resolveIdle(true);
 	}
 	// Engines see every committed change and can apply changes from elsewhere (see sync-engines.js).
@@ -211,7 +263,7 @@ export class Host {
 			this.engines.attach(engine, {
 				host: this,
 				root: () => this.root,
-				apply: (producer, info = null) => this.applyExternal(producer, engine, info),
+				apply: (producer, info = null) => this.applyExternal(producer, { source: engine, info }),
 			});
 		}
 	}
@@ -221,22 +273,42 @@ export class Host {
 	// Applies a change made elsewhere (by source, an engine) as a producer on the root, at once,
 	// so it applies to the state it was made against. Renders unless a task run will. During
 	// the engines' commit it waits for them to finish, so every engine sees changes in order.
-	// produceWith makes the new root (host.apply's records who wrote what in dev).
-	applyExternal(producer, source = null, info = null, produceWith = produce) {
-		const again = () => this.applyExternal(producer, source, info, produceWith);
+	// produceWith makes the new root (host.apply's records who wrote what in dev). It's reported
+	// as an externalChange, unless report(curRoot, newRoot, issues) reports it (host.apply's,
+	// which hears about a producer that changed nothing too).
+	applyExternal(
+		producer,
+		{ source = null, info = null, produceWith = produce, report = null } = {},
+	) {
+		const again = () => this.applyExternal(producer, { source, info, produceWith, report });
 		if (this.engines.deferWhileCommitting(again)) return;
 		const curRoot = this.root;
 		if (curRoot === null) return;
 		const newRoot = produceWith(curRoot, producer);
-		if (newRoot === curRoot) return;
+		if (newRoot === curRoot) return report?.(curRoot, newRoot, []);
 		const commit = this.engines.prepare(curRoot, newRoot, null, source);
 		this.root = newRoot;
 		commit();
-		this.checks?.state(null, curRoot, newRoot);
-		this.notify("externalApplied", { source, info, curRoot, newRoot });
+		const issues = this.checks?.state(null, curRoot, newRoot) ?? [];
+		if (report !== null) report(curRoot, newRoot, issues);
+		else {
+			const fields = { source: this.engineName(source) };
+			this.report("externalChange", fields, { info, before: curRoot, after: newRoot }, issues);
+		}
 		if (this._handlingTasks) return;
 		this.render();
-		this.checks?.settled(this.root);
+		this.reportSettled();
+	}
+	// The root settled: nothing is left to run. Reported, with the invariants it breaks, once per
+	// root that settles.
+	reportSettled() {
+		if (this.root === this._settledRoot) return;
+		this._settledRoot = this.root;
+		this.report("settled", { upTo: this._lastSeq }, {}, this.checks?.settled(this.root) ?? []);
+	}
+	// An engine as reports name it.
+	engineName(engine) {
+		return engineName(engine, this.engines.list);
 	}
 	handleTasks() {
 		if (this._handlingTasks) return;
@@ -255,28 +327,43 @@ export class Host {
 				if (oldRoot !== this.root) this.render();
 			} catch (error) {
 				// Reported as a failed task is, instead of escaping the tick that rendered.
-				this.notify("renderFailed", { error });
+				this.report("renderFailed", { error, upTo: this._lastSeq });
 			} finally {
 				this._handlingTasks = false;
 				if (this.tasks.length > 0) this.scheduleNextTaskTick();
 				else {
-					this.checks?.settled(this.root);
+					this.reportSettled();
 					this.resolveIdle();
 				}
 			}
 		}
 	}
-	// fn(type, info) hears what the host reports (render, taskHandled, taskFailed, stateInvalid,
-	// …), each after the task that caused it, in the order they were added. Returns a function
-	// that stops it.
+	// fn(record) hears what the host reports, each after what caused it, in the order they were
+	// added: a Transition (src/tree/transition.js) for what became of each task and each
+	// host.apply, a Lifecycle (lifecycle.js) for the rest (started, rendered, settled, a sync
+	// engine that failed, ...). Returns a function that stops it.
 	listen(fn) {
 		this._listeners.add(fn);
 		return () => this._listeners.delete(fn);
 	}
-	notify(type, info) {
+	// Reports a Lifecycle of phase: fields plain, heavy hidden, issues what dev checks found.
+	report(phase, fields = {}, heavy = {}, issues = []) {
+		const record = new Lifecycle(phase, fields, heavy);
+		record.issues.push(...issues);
+		this.notify(record);
+		return record;
+	}
+	// Numbers record, stamps it with the clock and publishes it.
+	notify(record) {
+		record.n = ++this._reported;
+		record.at = this.env.now();
+		this.publish(record);
+	}
+	// Tells the listeners, after the current task: a Driver hears it at once instead.
+	publish(record) {
 		if (this._listeners.size === 0) return;
 		setTimeout(() => {
-			for (const fn of this._listeners) fn(type, info);
+			for (const fn of this._listeners) fn(record);
 		}, 0);
 	}
 }

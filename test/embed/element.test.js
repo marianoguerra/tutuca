@@ -65,7 +65,7 @@ const setup = () => {
 	const host = new Host({ document, rootNode });
 	host.scheduleNextTaskTick = () => {};
 	const failures = [];
-	host.notify = (type, info) => type === "taskFailed" && failures.push(info.error);
+	host.publish = (record) => record.outcome === "failed" && failures.push(record.error);
 	host.scope.register({ Outer });
 	host.start(host.scope.components.Outer());
 	const element = rootNode.querySelector("tutuca-app");

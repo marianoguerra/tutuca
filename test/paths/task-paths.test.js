@@ -3,6 +3,9 @@ import test from "node:test";
 import { component, h, provided, render, send, seqItem, t } from "../../src/tutuca.js";
 import { setupHost } from "../helpers.js";
 
+// A report of a task, a render, an event or a sync engine that failed.
+const isFailure = ({ outcome, phase }) => outcome === "failed" || phase?.endsWith("Failed");
+
 // itemHandlers holds Item's messages, and its replies under replies.
 function setup(rootHandlers, { answers = {}, ...itemHandlers } = {}, useProvided = false) {
 	const Item = component({
@@ -41,7 +44,7 @@ function setup(rootHandlers, { answers = {}, ...itemHandlers } = {}, useProvided
 		on: rootHandlers,
 	});
 	const notices = [];
-	const onReport = (type, info) => notices.push({ type, ...info });
+	const onReport = (record) => notices.push(record);
 	const { host, rootNode, C, drain } = setupHost({ Root, Item }, { sync: true, onReport });
 	host.start(C.Root({ items: [C.Item(), C.Item()] }));
 	function queueEvents(...ids) {
@@ -78,7 +81,7 @@ test("generated paths capture producer commit before intervening tasks run", () 
 		[0, 1],
 	);
 	assert.equal(host.root.selected, 0);
-	assert.equal(notices.filter(({ type }) => type.endsWith("Failed")).length, 0);
+	assert.equal(notices.filter(isFailure).length, 0);
 });
 
 test("DOM event paths retain event-time selection behind older queued work", () => {
@@ -115,8 +118,9 @@ test("failed producers discard drafts and children but preserve older tasks", ()
 		host.root.items.map((item) => item.count),
 		[0, 0],
 	);
-	assert.equal(notices.find(({ type }) => type === "taskFailed").error, error);
-	assert.equal(notices.at(-1).type, "render");
+	assert.equal(notices.find(({ outcome }) => outcome === "failed").error, error);
+	const failedAt = notices.findIndex(({ outcome }) => outcome === "failed");
+	assert.ok(notices.findLastIndex(({ phase }) => phase === "rendered") > failedAt);
 	assert.ok(rootNode.querySelector("#item"));
 	assert.equal(host._handlingTasks, false);
 });
@@ -143,8 +147,8 @@ test("child path preparation failure rolls back the producer and all its childre
 		[0, 0],
 	);
 	assert.deepEqual(
-		notices.filter(({ task }) => task?.name === "fail").map(({ type }) => type),
-		["taskFailed"],
+		notices.filter(({ task }) => task?.name === "fail").map(({ outcome }) => outcome),
+		["failed"],
 	);
 	// A retained context must not revive children of an aborted transaction.
 	failedContext.sendAt("inc", [], (pb) => pb.item("items", 0));
@@ -185,7 +189,7 @@ test("a throwing sync ok reply fails its own reply task, not the ask, and doesn'
 	drain();
 	assert.equal(host.root.items[0].reply, null);
 	assert.equal(host.root.items[0].count, 0);
-	const failed = notices.find(({ type }) => type === "taskFailed");
+	const failed = notices.find(({ outcome }) => outcome === "failed");
 	assert.equal(failed.error, error);
 	assert.equal(failed.task.name, "load.ok");
 });
@@ -235,7 +239,7 @@ for (const rejected of [false, true]) {
 			host.root.items.map((item) => item.count),
 			[0, 1],
 		);
-		assert.equal(notices.filter(({ type }) => type.endsWith("Failed")).length, 0);
+		assert.equal(notices.filter(isFailure).length, 0);
 	});
 }
 
@@ -278,8 +282,8 @@ for (const renderThrows of [false, true]) {
 		// A render that throws is reported as renderFailed, not thrown out of the tick.
 		const reported = [];
 		const notify = host.notify;
-		host.notify = (type, info) =>
-			type === "renderFailed" ? reported.push(info.error) : notify.call(host, type, info);
+		host.notify = (record) =>
+			record.phase === "renderFailed" ? reported.push(record.error) : notify.call(host, record);
 		host.handleTasks();
 		host.notify = notify;
 		assert.deepEqual(reported, renderThrows ? [error] : []);
@@ -329,7 +333,7 @@ test("dynamic selectors below provided frames capture commit and retain bubbling
 		[0, 1],
 	);
 	assert.deepEqual(seen, ["item", "root"]);
-	assert.equal(notices.filter(({ type }) => type.endsWith("Failed")).length, 0);
+	assert.equal(notices.filter(isFailure).length, 0);
 });
 
 // The tree spec's races (spec/tree, M4 and M5): a route records the identity of the
@@ -375,7 +379,7 @@ test("a reply to an asker that a list shift replaced at its index is dropped as 
 	assert.equal(newcomer.reply, null, "the item now at index 0 doesn't get it");
 	assert.equal(asker.reply, null, "by path, the moved asker isn't found either");
 	assert.deepEqual(
-		notices.filter(({ type }) => type === "stale").map(({ task }) => task.name),
+		notices.filter(({ outcome }) => outcome === "stale").map(({ task }) => task.name),
 		["load.ok"],
 	);
 });
@@ -394,7 +398,7 @@ test("a send queued to a component that is replaced before it runs is dropped as
 	// renew's event ran after poke's, before the inc poke queued: the new item keeps its count.
 	assert.equal(host.root.items[0].count, 50);
 	assert.deepEqual(
-		notices.filter(({ type }) => type === "stale").map(({ task }) => task.name),
+		notices.filter(({ outcome }) => outcome === "stale").map(({ task }) => task.name),
 		["inc"],
 	);
 });
@@ -412,7 +416,7 @@ test("updating a component keeps its identity: a send queued before still reache
 	drain();
 	assert.equal(host.root.items[0].count, 1);
 	assert.deepEqual(
-		notices.filter(({ type }) => type === "stale"),
+		notices.filter(({ outcome }) => outcome === "stale"),
 		[],
 	);
 });
@@ -479,5 +483,5 @@ test("an answer handler reads the request it answers; a message named like it is
 		console.warn = warn;
 	}
 	assert.equal(host.root.items[0].reply, "result");
-	assert.ok(notices.some(({ type, message }) => type === "unhandled" && message === "load.ok"));
+	assert.ok(notices.some(({ outcome, name }) => outcome === "unhandled" && name === "load.ok"));
 });

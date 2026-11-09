@@ -3,6 +3,7 @@
 // response; one answered later is appended, as a normal one), and step its run rule (the head of
 // the queue runs, as one transaction). receiver is the routing policy: by-path-checked.
 import { AskTask, hidden, NotifyTask, Task } from "./messages.js";
+import { Transition } from "./transition.js";
 
 /**
  * Which handler key a message is for: spec/tree's hkey.
@@ -26,16 +27,16 @@ import { AskTask, hidden, NotifyTask, Task } from "./messages.js";
  * - context: the MessageContext a handler gets (a host's extends the tree's)
  * - beforeCommit: called with a task's change before it's the root; returns what to call once it
  *   is. Throwing fails the task.
- * - committed: after a task's change is the root and what it sent is queued
- * - observe: what happened (stale, orphaned, lost, unhandled, taskFailed, taskHandled)
+ * - transition: what happened to a task, once the scheduler is done with it (transition.js): its
+ *   handler ran (with the ctx it ran with, after its change is the root and what it sent is
+ *   queued), it failed, it had nowhere to go, it was dropped or, an ask, it was asked
  * - wake: something was queued by arrive or push
  * - scopeOpened, scopeSettled: a settle scope (settle.js) started counting, and settled; the host
  *   arms and clears its timeout
  * @typedef {{
  *   context(task: object, instance: object, nextRequest: () => number): import("./context.js").MessageContext,
  *   beforeCommit?(prev: object, next: object, task: object): () => void,
- *   committed?(task: object, ctx: object, info: object): void,
- *   observe(type: string, info: object): void,
+ *   transition(record: Transition, ctx?: import("./context.js").MessageContext): void,
  *   wake?(): void,
  * }} Hooks
  */
@@ -51,6 +52,8 @@ export class Scheduler {
 		this.requests = 0; // The ids of the asks made, counted per scheduler so runs repeat.
 		this.nextRequest = () => ++this.requests;
 		this.scopes = new Map(); // The settle scopes that haven't settled, by id.
+		this.seqs = 0; // The numbers of the tasks queued, counted per scheduler so runs repeat.
+		this.nextSeq = () => ++this.seqs;
 	}
 	get isEmpty() {
 		return this.tasks.length === 0;
@@ -94,17 +97,20 @@ export class Scheduler {
 			of.progressQueued = false;
 			task.args = [...of.progressArgs, of.progressReport()];
 		}
+		const before = this.store.get();
+		const ran = { ctx: null };
 		try {
-			this.deliver(task);
+			this.deliver(task, ran);
 		} catch (error) {
 			for (let s = task.scope; s != null; s = s.outer) s.failed++;
-			this.hooks.observe("taskFailed", { task, error });
+			this.hooks.transition(Transition.of(task, "failed", { error, ctx: ran.ctx, before }));
 		} finally {
 			// An ask leaves its scope once its answer is queued (startAsk).
 			if (!task.asked) this.leave(task);
 		}
 	}
-	deliver(task) {
+	// ran.ctx is the context its handler got, for the transition of a task that fails.
+	deliver(task, ran = { ctx: null }) {
 		const { kinds, hooks } = this;
 		const curRoot = this.store.get();
 		// A notification starts from its sender, found as any address is, and visits the ancestors
@@ -119,44 +125,48 @@ export class Scheduler {
 		if (instance === null) return;
 		if (task instanceof AskTask) return this.startAsk(task, instance);
 		let ctx;
-		let newRoot;
-		try {
-			newRoot = this.transact(curRoot, path, (leafDraft) => {
-				ctx = hooks.context(task, instance, this.nextRequest);
-				return task.run(kinds.handler(instance, task.hkey), instance, leafDraft, ctx);
-			});
-		} catch (error) {
-			// What went unhandled before the failure is reported, as the spec and tutuca-wax do.
-			for (const message of ctx?.unhandled ?? []) hooks.observe("unhandled", { task, message });
-			throw error;
-		}
+		// What went unhandled before a failure is in its transition, as the spec and tutuca-wax
+		// report it.
+		const newRoot = this.transact(curRoot, path, (leafDraft) => {
+			ctx = hooks.context(task, instance, this.nextRequest);
+			ran.ctx = ctx;
+			return task.run(kinds.handler(instance, task.hkey), instance, leafDraft, ctx);
+		});
 		// Where what it sends goes is fixed against the tree it committed.
 		for (const child of ctx.tasks) child.prepare(newRoot);
 		const commit = hooks.beforeCommit?.(curRoot, newRoot, task);
 		this.store.set(newRoot);
 		commit?.();
+		// Reported before what it sent is queued, so what that causes (a scope it opens, a task it
+		// drops) is reported after it.
+		hooks.transition(
+			Transition.of(task, outcomeOf(task, ctx), { ctx, before: curRoot, after: newRoot, instance }),
+			ctx,
+		);
 		for (const child of ctx.tasks) if (this.enter(child)) this.tasks.push(child);
 		// A bubble's hops run back to back; what each hop sends waits behind them.
 		if (ctx.nextHop !== null) this.urgent(ctx.nextHop);
 		for (const id of ctx.cancels) this.cancelScope(id);
 		for (let s = task.scope; s != null; s = s.outer) this.queueProgress(s);
-		for (const message of ctx.unhandled) hooks.observe("unhandled", { task, message });
-		hooks.committed?.(task, ctx, { path, instance, curRoot, newRoot });
 	}
 	// The node address names in root, or null when there is none to deliver task to: the one it
 	// recorded is gone (orphaned), or another took its place (stale: it was replaced, or a list
 	// shifted), so the message, for the one before, is dropped and reported. A notification's
 	// hops can't move while it bubbles, so one that can't find its next hop is a bug (lost).
 	receiver(task, address, root) {
-		const path = address.keyPath;
 		const found = address.resolve(root);
 		if (found.instance !== undefined) return found.instance;
-		const { observe } = this.hooks;
-		if (task instanceof NotifyTask && address === task.to) {
-			console.assert(false, "a notification lost its hop", task);
-			observe("lost", { task, path });
-		} else if (found.orphaned) observe("orphaned", { task, path });
-		else observe("stale", { task, path, id: address.id, found: found.stale });
+		const outcome =
+			task instanceof NotifyTask && address === task.to
+				? "lost"
+				: found.orphaned
+					? "orphaned"
+					: "stale";
+		if (outcome === "lost") console.assert(false, "a notification lost its hop", task);
+		const record = Transition.of(task, outcome, { before: root });
+		record.to = address;
+		if (outcome === "stale") hidden(record, { found: found.stale ?? null });
+		this.hooks.transition(record);
 		return null;
 	}
 	// An ask starts here, after what asked committed, outside any transaction: nothing can undo
@@ -190,13 +200,16 @@ export class Scheduler {
 				this.leave(task);
 			});
 		}
-		const root = this.store.get();
-		const info = { task, path: task.to.keyPath, instance, curRoot: root, newRoot: root };
-		this.hooks.observe("taskHandled", info);
+		const before = this.store.get();
+		this.hooks.transition(Transition.of(task, "asked", { ctx, before, instance }));
 	}
 
 	// Counts task in its scope as it's queued; false when the scope was cancelled, so it isn't.
 	enter(task) {
+		if (task.seq === undefined) {
+			const seq = this.nextSeq();
+			hidden(task, { seq, origin: task.parent?.origin ?? seq });
+		}
 		const s = task.scope;
 		if (s == null) return true;
 		if (s.done) {
@@ -205,6 +218,7 @@ export class Scheduler {
 		}
 		if (s.isCancelled) {
 			hidden(task, { dropped: true });
+			this.dropped(task);
 			return false;
 		}
 		if (!s.registered) this.register(s);
@@ -281,6 +295,15 @@ export class Scheduler {
 		for (const t of dropped) {
 			this.leave(t);
 			hidden(t, { dropped: true });
+			this.dropped(t);
 		}
 	}
+	// task won't run (or, an ask, its answer won't): its scope was cancelled.
+	dropped(task) {
+		this.hooks.transition(Transition.of(task, "dropped", { before: this.store.get() }));
+	}
 }
+// What became of a task whose handler ran, or that had none: handled, unhandled, or a
+// notification's hop without a handler, which passes it on.
+const outcomeOf = (task, ctx) =>
+	ctx.ran !== null ? "handled" : ctx.unhandled.includes(task.name) ? "unhandled" : "passed";

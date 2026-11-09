@@ -2,20 +2,14 @@
 // live Host as a sync engine and travels by applying a recorded state as a change from
 // elsewhere, so the other engines (storage, peers) follow.
 
-import { argsLabel } from "../core/text.js";
-import { HostTask } from "../core/tree-binding.js";
+import { transitionLabel } from "../core/text.js";
 
 // The icon of each origin of a timeline entry.
 export const ORIGINS = { initial: "◆", reload: "↻", step: "▸", user: "☝", external: "⇅" };
 // The task a task's chain started with: an event, or a message sent from outside.
 const rootTask = (task) => {
-	while (task.parent !== null) task = task.parent;
+	while (task.parent != null) task = task.parent;
 	return task;
-};
-// A task as a timeline shows it, like "click → toggle()".
-const taskLabel = (task) => {
-	const call = `${task.name}(${argsLabel(task.args)})`;
-	return task instanceof HostTask && task.event !== null ? `${task.event.type} → ${call}` : call;
 };
 
 // The left entry of the two closest in time, the one to drop to keep the rest spread out,
@@ -73,24 +67,32 @@ export class Timeline {
 		}
 		return this.current;
 	}
-	// Folds task into the current entry when it's the last one and task continues the chain
-	// that made it, as async replies do; false when task starts an entry of its own.
-	merge(task, state) {
+	// Folds transition into the current entry when it's the last one and continues the chain
+	// that made it (the same origin), as async replies do; false when it starts an entry of its
+	// own. transition is a Transition, or the task one is about.
+	merge(transition, state) {
 		const entry = this.current;
-		if (!this.atEnd || entry?.rootTask === undefined || entry.rootTask !== rootTask(task)) {
+		if (!this.atEnd || entry?.chain === undefined || entry.chain !== transition.origin) {
 			return false;
 		}
 		entry.state = state;
-		entry.tasks = [...(entry.tasks ?? []), task];
+		entry.transitions = [...(entry.transitions ?? []), transition];
 		return true;
 	}
-	// Records the state task made: merged into the current entry when it continues its chain,
-	// else a new user entry labeled by the task the chain started with, extra added to it.
-	recordTask(task, state, extra = {}) {
-		if (this.merge(task, state)) return this.current;
-		const root = rootTask(task);
-		const label = taskLabel(root);
-		return this.record({ state, label, origin: "user", rootTask: root, tasks: [task], ...extra });
+	// Records the state transition made: merged into the current entry when it continues its
+	// chain, else a new user entry labeled by the task the chain started with, extra added to it.
+	recordTask(transition, state, extra = {}) {
+		if (this.merge(transition, state)) return this.current;
+		const label = transitionLabel(rootTask(transition.task ?? transition));
+		const chain = transition.origin;
+		return this.record({
+			state,
+			label,
+			origin: "user",
+			chain,
+			transitions: [transition],
+			...extra,
+		});
 	}
 	goto(i) {
 		this.cursor = Math.max(0, Math.min(Number(i), this.entries.length - 1));
@@ -131,6 +133,7 @@ export const historyEngine = ({ max = 1000, now = Date.now, onChange = () => {} 
 		onChange(timeline);
 	};
 	return {
+		name: "history",
 		timeline,
 		attach(l) {
 			link = l;

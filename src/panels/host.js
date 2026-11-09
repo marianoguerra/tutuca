@@ -1,7 +1,9 @@
 // The Host of a UI of panels over story apps, shared by the storybook and the playground.
+
+import { problemLines } from "../core/text.js";
 import { ClassCompiler, classNamesOf } from "../css/classes.js";
 import { REQUEST } from "../embed/element.js";
-import { Host } from "../tutuca.js";
+import { Host, isProblem } from "../tutuca.js";
 import { storyAskHandlers } from "./runner.js";
 import { panelClassNames } from "./ui/panels.js";
 
@@ -21,11 +23,11 @@ export const startPanelHost = ({
 	host.scope.registerAskHandlers({ ...storyAskHandlers(registryOf), ...askHandlers });
 	return host;
 };
-// Logs host's failed tasks and invalid states, and compiles the classes its views compute as
-// they render into style.
+// Logs what goes wrong in host (failed tasks, invalid states, ...), and compiles the classes
+// its views compute as they render into style.
 export const watchPanelHost = (host, { rootNode, compile, classes, style }) => {
-	host.listen((type, info) => {
-		if (type === "taskFailed" || type === "stateInvalid") console.error(type, info);
+	host.listen((record) => {
+		if (isProblem(record)) console.error(problemLines(record).join("\n"), record);
 	});
 	new ClassCompiler(compile, classes).attach(host, rootNode, style);
 };

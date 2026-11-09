@@ -327,7 +327,7 @@ export const DevLint = component({
 export const lintRecords = (issues) =>
 	issues.map(({ level, code, path, message }) => ({ level, code, path, message }));
 
-// Dev information about a running app: its state, the tasks that made it, its components
+// Dev information about a running app: its state, the transitions that made it, its components
 // and their lint issues. update() keeps the nodes whose values didn't change, so what is
 // open stays open.
 const card = (name) =>
@@ -338,7 +338,7 @@ export const DevPanel = component({
 	fields: {
 		view: t.enum("main", "code"),
 		state: t.component("DevSection"),
-		tasks: t.component("DevSection"),
+		transitions: t.component("DevSection"),
 		specs: t.component("DevSection"),
 		lint: t.component("DevLint"),
 	},
@@ -373,7 +373,7 @@ export const DevPanel = component({
 			field("view"),
 			div(
 				{ class: "grid gap-4 xl:grid-cols-2" },
-				div({ class: "flex min-w-0 flex-col gap-4" }, card("state"), card("tasks")),
+				div({ class: "flex min-w-0 flex-col gap-4" }, card("state"), card("transitions")),
 				div({ class: "flex min-w-0 flex-col gap-4" }, card("specs"), card("lint")),
 			),
 		),
@@ -385,12 +385,12 @@ export const DevPanel = component({
 				next.view = view;
 			},
 		},
-		// data: { state, tasks: [{ label, value }], specs: [spec], issues }, a running app's.
+		// data: { state, transitions: [{ label, value }], specs: [spec], issues }, a running app's.
 		showApp: {
 			pure: true,
-			run(next, [{ state, tasks, specs, issues }]) {
+			run(next, [{ state, transitions, specs, issues }]) {
 				next.state = apply(next.state, "showItems", [{ label: "", value: state }]);
-				next.tasks = apply(next.tasks, "showItems", tasks);
+				next.transitions = apply(next.transitions, "showItems", transitions);
 				const specItems = specs.map((spec) => ({ label: "", value: spec }));
 				next.specs = apply(next.specs, "showItems", specItems);
 				next.lint = apply(next.lint, "setIssues", issues);
@@ -402,7 +402,10 @@ export const DevPanel = component({
 export const makeDevPanel = (C) =>
 	C.DevPanel({
 		state: C.DevSection({ title: "State" }),
-		tasks: C.DevSection({ title: "Tasks", emptyText: "No tasks made this state." }),
+		transitions: C.DevSection({
+			title: "Transitions",
+			emptyText: "No task made this state.",
+		}),
 		specs: C.DevSection({ title: "Components" }),
 		lint: C.DevLint(),
 	});

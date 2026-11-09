@@ -9,6 +9,7 @@ import {
 	Element,
 	Frame,
 	KeyPath,
+	Lifecycle,
 	MessageContext,
 	RenderContext,
 	Scope,
@@ -17,6 +18,7 @@ import {
 	specOf,
 	Target,
 	Task,
+	Transition,
 	Type,
 	typeText,
 	Walker,
@@ -309,6 +311,36 @@ const KINDS = [
 			if (task.parent !== null) rows.push(["parent", ref(task.parent)]);
 			return rows;
 		},
+	},
+	{
+		test: (v) => v instanceof Transition,
+		header: (record) => [
+			span(
+				record.issues.length > 0 || record.outcome === "failed" ? STYLES.name : STYLES.muted,
+				`${record.outcome} `,
+			),
+			span(STYLES.name, record.name),
+			"(",
+			...join(record.args.map((a) => [prim(a)])),
+			") ",
+			...(record.to !== null ? pathParts(record.to.path) : [span(STYLES.muted, "nowhere")]),
+		],
+		rows(record) {
+			const rows = Object.entries(record).map(([key, value]) => [key, ref(value)]);
+			for (const key of ["task", "before", "after", "instance"]) {
+				if (record[key] != null) rows.push([key, ref(record[key])]);
+			}
+			return rows;
+		},
+	},
+	{
+		test: (v) => v instanceof Lifecycle,
+		header: (record) => [
+			span(STYLES.muted, "lifecycle "),
+			span(STYLES.name, record.phase),
+			...(record.issues.length > 0 ? [span(STYLES.muted, ` ${record.issues.length} issues`)] : []),
+		],
+		rows: (record) => Object.entries(record).map(([key, value]) => [key, ref(value)]),
 	},
 	{
 		test: (v) => v instanceof MessageContext,

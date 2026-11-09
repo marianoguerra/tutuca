@@ -9,8 +9,10 @@ export const start = (document = globalThis.document) => {
 	});
 	// Edits happen inside the editor, which doesn't tell the studio: infer after each one. Making
 	// the editor notify would take a handler on every json component a notify bubbles through.
-	host.listen((type) => {
-		if (type === "taskHandled" && host.root.isStale) sendRoot(host, "regenerate");
+	host.listen((record) => {
+		if (record.kind === "transition" && record.committed && host.root.isStale) {
+			sendRoot(host, "regenerate");
+		}
 	});
 	return host;
 };

@@ -4,6 +4,38 @@
 
 ### Added
 
+- **Two kinds of report: `Transition` and `Lifecycle`.** `host.listen(fn)` calls `fn(record)`,
+  as XState's inspection has `@xstate.transition` and `@xstate.actor`. Every record has `kind`,
+  `n` (its place in the order the host reported), `at` (the host's clock), `issues` (what dev
+  checks found) and `toJSON()`. `toJSON()` leaves out roots, nodes, tasks, DOM events and vdom,
+  which are hidden on the record.
+  - A **`Transition`** (`tutuca/tree`, `src/tree/transition.js`) is reported once per task the
+    scheduler is done with, and once per `host.apply` (mode `apply`).
+    - Its fields are `seq`, `cause`, `origin` (the task's number, its sender's, the chain's
+      first), `mode`, `name`, `args`, `from`, `to`, `outcome`, `error`, `emitted`, `unhandled`
+      and `scope`.
+    - `outcome` is one of `TRANSITION_OUTCOMES`: `handled`, `passed` (a hop without a handler),
+      `unhandled`, `failed`, `stale`, `orphaned`, `lost`, `dropped` (its settle scope was
+      cancelled, which wasn't reported before) or `asked`.
+    - It also has `before` and `after`, the roots, and `instance`.
+  - A **`Lifecycle`** (`src/core/lifecycle.js`) is the rest, told apart by `phase`:
+    - `started` and `stopped` (both new)
+    - `rendered` and `renderFailed`, with `upTo`, the last task rendered
+    - `eventFailed`
+    - `externalChange`, with its `source` engine
+    - `syncFailed` and `syncRejected`
+    - `migrated`
+    - `scopeOpened` and `scopeSettled` (both new), with the scope's report
+    - `settled`: the queue emptied on a new root. It carries the invariants that root breaks.
+  - `isProblem(record)` says whether a record is a problem: a failed task, a failed phase, or
+    dev-check issues. `problemLines(record)` (`src/core/text.js`) says what's wrong in words.
+  - `Driver` keeps records. It has `transitions` and `lifecycle`, and `problems` uses
+    `isProblem`.
+  - Sync engines can have a `name`, which reports use (`storage`, `automerge`, `remote` and
+    `history` do). An engine without one is named by its place.
+  - The DevTools formatters show both kinds of record, and the dev panel lists the transitions
+    that made a state.
+
 - **Markdown, a builtin canvas kind.** `components/markdown` has a `Markdown` component that
   shows GitHub flavored markdown rendered by markdownrswasm's `<md-view>` element: wasm, raw
   HTML escaped, in a shadow DOM. Its edit view is a textarea next to a live preview. Every
@@ -153,6 +185,37 @@
 
 ### Breaking
 
+- **`host.listen(fn)` calls `fn(record)`, not `fn(type, info)`.** The per-task types are now
+  the record's outcome or issues:
+  - `taskHandled` is a `Transition` whose outcome is `handled`, `passed` or `unhandled`. An
+    ask's is `asked`.
+  - `taskFailed` is outcome `failed`.
+  - `stale`, `orphaned` and `lost` are outcomes too.
+  - `unhandled` is a name in a transition's `unhandled`.
+  - `messageInvalid` and `stateInvalid` are `issues` on the record that caused them: the task's
+    transition, `started`, `externalChange` or `settled`. A state issue is
+    `{ check: "state", path, component, field, value, reason }` and a message issue is
+    `{ check: "message", message, reason, write? }`.
+
+  The other types are `Lifecycle` phases:
+  - `render` is `rendered`.
+  - `externalApplied` is `externalChange`, whose `source` is the engine's name.
+  - `stateMigrated` is `migrated`.
+  - `renderFailed`, `eventFailed`, `syncFailed` and `syncRejected` keep their names. A sync
+    report's `engine` is now the engine's name.
+
+  Other API changes:
+  - `host.notify(record)` numbers and stamps a record, and `host.publish(record)` tells the
+    listeners, so a test that needs reports at once replaces `publish`.
+  - `host.report(phase, fields)` reports a lifecycle, as sync engines do.
+  - The tree's `Hooks` take `transition(record, ctx)` instead of `committed` and `observe`.
+  - `DevChecks` returns what it finds instead of notifying.
+  - `applyExternal(producer, { source, info, produceWith, report })` takes options.
+  - `Driver`'s `PROBLEMS` is gone: use `isProblem`.
+  - `Timeline` entries keep `transitions` and `chain` (the origin `seq`) instead of `tasks` and
+    `rootTask`.
+  - `describeProblems` says `invalid state: …`, `<message> broke its spec: …` and
+    `<call> failed: …`.
 - **The meta conventions are `tutuca/meta`, not the core.** What a component says to whoever
   displays it (`DISPLAY_META`, `displayOf`, …), its content as JSON (`DATA_META`, `dataOf`,
   `loadData`, `typeSchema`, …) and what it says to an LLM agent (`AGENT_META`, `agentTool`,

@@ -42,16 +42,18 @@ test("past max a burst thins out, keeping the first and the current state", () =
 	assert.deepEqual(states(tight), ["first", "b"]);
 });
 
-test("merge folds a task into the entry its chain started, only at the end", () => {
-	const root = { parent: null };
-	const reply = { parent: { parent: root } };
+test("merge folds a transition into the entry its chain started, only at the end", () => {
+	const first = { origin: 1 };
+	const reply = { origin: 1 };
+	const other = { origin: 4 };
 	const timeline = new Timeline();
 	timeline.begin({ state: 0 });
-	assert.equal(timeline.merge(root, 1), false);
-	timeline.record({ state: 1, rootTask: root, tasks: [root] });
+	assert.equal(timeline.merge(first, 1), false);
+	timeline.record({ state: 1, chain: 1, transitions: [first] });
+	assert.equal(timeline.merge(other, 2), false);
 	assert.equal(timeline.merge(reply, 2), true);
 	assert.deepEqual(states(timeline), [0, 2]);
-	assert.equal(timeline.current.tasks.length, 2);
+	assert.equal(timeline.current.transitions.length, 2);
 	timeline.back();
 	assert.equal(timeline.merge(reply, 3), false);
 });

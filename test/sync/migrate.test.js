@@ -186,7 +186,8 @@ test("startSynced reports what a projection stored by another version lost", asy
 		{ List: List(), Item: Item({ label: t.string(), done: t.enum("open", "done") }) },
 		{
 			sync: true,
-			onReport: (type, info) => type === "stateMigrated" && reports.push(info),
+			onReport: ({ phase, engine, added, reset, dropped }) =>
+				phase === "migrated" && reports.push({ engine, added, reset, dropped }),
 		},
 	);
 	const stored = { $: "List", title: "old", items: [{ $: "Item", label: "a", done: true, x: 1 }] };

@@ -1,6 +1,8 @@
 // The Driver (tutuca/testing): runs a component tree through a dev-mode Host with no timers,
 // headless or rendered, and keeps what it reports. Tests, stress runs and the live storybook
 // drive apps through it: it sends messages, answers asks and fires DOM events as a user would.
+import { isProblem } from "../core/lifecycle.js";
+import { problemLines } from "../core/text.js";
 import { DevChecks } from "../dev/checks.js";
 import {
 	Address,
@@ -48,12 +50,13 @@ export const snapshot = (v) => {
 	return out;
 };
 
-export const PROBLEMS = new Set(["taskFailed", "stateInvalid", "messageInvalid"]);
+export { isProblem };
 
 // Runs messages on a component tree through Host's task handling in dev mode, with no
-// timers. With a document it renders too; otherwise it is headless. Live keeps the timers,
-// for async ask replies and events from a user, and only keeps problems in reports;
-// onReport gets every report as it happens.
+// timers. With a document it renders too; otherwise it is headless. It keeps what the host
+// reports (Transitions and Lifecycles), as it reports them. Live keeps the timers, for async
+// ask replies and events from a user, and only keeps problems in reports; onReport gets every
+// report as it happens.
 const specsOf = (root) => Object.values(scopeOf(root)?.allSpecs() ?? {});
 export class Driver {
 	constructor({
@@ -68,10 +71,9 @@ export class Driver {
 		this.env = env; // Its clock moves with env.advance(ms).
 		this.host = new Host({ document, rootNode: node, checks: DevChecks, env });
 		this.reports = [];
-		this.host.notify = (type, info) => {
-			const report = { type, ...info };
-			if (!live || PROBLEMS.has(type)) this.reports.push(report);
-			onReport?.(report);
+		this.host.publish = (record) => {
+			if (!live || isProblem(record)) this.reports.push(record);
+			onReport?.(record);
 		};
 		if (!live) this.host.scheduleNextTaskTick = () => {};
 		for (const spec of specsOf(root)) this.host.addEventListeners(spec.eventNames);
@@ -89,11 +91,19 @@ export class Driver {
 	}
 	// Problems reported since start: failed tasks, invalid state, broken handler specs.
 	get problems() {
-		return this.reports.filter((r) => PROBLEMS.has(r.type));
+		return this.reports.filter(isProblem);
 	}
 	// The problems reported after the first before reports.
 	problemsSince(before) {
-		return this.reports.slice(before).filter((r) => PROBLEMS.has(r.type));
+		return this.reports.slice(before).filter(isProblem);
+	}
+	// What became of the tasks run (and the pure messages applied) since start.
+	get transitions() {
+		return this.reports.filter((r) => r.kind === "transition");
+	}
+	// The rest of what the host reported: started, rendered, settled, ...
+	get lifecycle() {
+		return this.reports.filter((r) => r.kind === "lifecycle");
 	}
 	// Send name to the component at path, a DispatchPath or a Selector from the root, as the
 	// host does. from is the frames (or a Selector) from it to the child the message comes
@@ -185,14 +195,8 @@ export const componentPaths = (state) => {
 	return found;
 };
 
-// One line per problem a Driver reported, for errors and logs.
-export const describeProblems = (problems) =>
-	problems.map((p) => {
-		if (p.type === "taskFailed") return `taskFailed: ${p.error?.stack ?? p.error}`;
-		if (p.type === "messageInvalid") return `messageInvalid ${p.message}: ${p.issues.join(", ")}`;
-		const issues = p.issues.map((i) => `${i.component} ${i.path.join(".")} ${i.reason}`);
-		return `stateInvalid: ${issues.join("; ")}`;
-	});
+// The lines that say what is wrong with the problems a Driver reported, for errors and logs.
+export const describeProblems = (problems) => problems.flatMap(problemLines);
 const FORM_FIELDS = new Set(["INPUT", "TEXTAREA", "SELECT"]);
 // Sets a form field to value: a checkbox checked or not, a select to the option value names
 // (or, when none does, one picked by it, as a select only takes one of its options).

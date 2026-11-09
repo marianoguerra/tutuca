@@ -26,9 +26,19 @@ const List = component({
 	},
 });
 
+// The message issues of record, as { message, issues: [reason] }, pushed on reports.
+const messageReports = (record, reports) => {
+	const issues = record.issues.filter((i) => i.check === "message");
+	if (issues.length > 0)
+		reports.push({ message: issues[0].message, issues: issues.map((i) => i.reason) });
+};
+
 function setup(dev) {
 	const reports = [];
-	const onReport = (type, info) => type === "stateInvalid" && reports.push(info);
+	const onReport = (record) => {
+		const issues = record.issues.filter((i) => i.check === "state");
+		if (issues.length > 0) reports.push({ task: record.task ?? null, issues });
+	};
 	return { ...setupHost({ List, Item }, { dev, sync: true, onReport }), reports };
 }
 
@@ -128,7 +138,7 @@ const Picker = component({
 
 test("dev mode reports messages that break their spec", () => {
 	const reports = [];
-	const onReport = (type, info) => type === "messageInvalid" && reports.push(info);
+	const onReport = (record) => messageReports(record, reports);
 	const { host, rootNode, C } = setupHost({ Picker, Item }, { dev: true, sync: true, onReport });
 	host.start(C.Picker({ items: [C.Item()] }));
 	const click = (tag) => rootNode.querySelector(tag).click();
@@ -156,7 +166,7 @@ test("dev mode reports messages that break their spec", () => {
 // reply's handler emits, and nothing else.
 test("an ask handler reads the asker's context, can't send, and the reply's contract is its own", () => {
 	const reports = [];
-	const onReport = (type, info) => type === "messageInvalid" && reports.push(info);
+	const onReport = (record) => messageReports(record, reports);
 	const Asker = component({
 		name: "Asker",
 		fields: { got: t.number() },

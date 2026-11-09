@@ -83,10 +83,9 @@ export const schedulerFor = (host) =>
 			context: (task, instance, nextRequest) =>
 				new TutucaContext(task, nextRequest, host.env, scopeOf(instance)),
 			beforeCommit: (prev, next, task) => host.engines.prepare(prev, next, task),
-			committed: (task, ctx, info) => host.taskCommitted(task, ctx, info),
-			observe: (type, info) => host.notify(type, info),
+			transition: (record, ctx) => host.transitioned(record, ctx),
 			wake: () => host.wake(),
-			scopeOpened: (scope) => host.startScopeTimer(scope),
-			scopeSettled: (scope) => host.stopScopeTimer(scope),
+			scopeOpened: (scope) => host.scopeOpened(scope),
+			scopeSettled: (scope) => host.scopeSettled(scope),
 		},
 	});

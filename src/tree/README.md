@@ -16,6 +16,7 @@ the four interfaces in `scheduler.js`. It ships as `tutuca/tree`.
 | `settle.js` | `SettleScope`: what a watched `sendAt` caused, counted until it settles |
 | `context.js` | `MessageContext`: what a handler sends with |
 | `scheduler.js` | `Scheduler`: the queue and `tree->` |
+| `transition.js` | `Transition`: what became of a task, one per task the scheduler is done with |
 | `text.js` | how keys and values print |
 
 ## From spec/tree to the code
@@ -41,7 +42,7 @@ the four interfaces in `scheduler.js`. It ships as `tutuca/tree`.
 | rule `run` | `Scheduler.step` and `deliver` |
 | granularity `turn` | `NotifyTask.run` puts the next hop in `ctx.nextHop`, which runs next |
 | policy `by-path-checked` | `Address.resolve` and `Scheduler.receiver` |
-| observations `stale`, `orphaned`, `lost`, `unhandled` | `Hooks.observe(type, info)` |
+| observations `stale`, `orphaned`, `lost`, `unhandled` | a `Transition`'s `outcome`, through `Hooks.transition(record, ctx)` |
 
 `Frame.provider` has no counterpart in spec/tree. It is a frame that starts from an ancestor's
 frame (the one at `provider.depth`, plus `provider.keys`) instead of from the frame before it.
@@ -64,8 +65,7 @@ new Scheduler({
 	hooks: {
 		context(task, instance, nextRequest) {}, // a MessageContext, or a host's subclass
 		beforeCommit(prev, next, task) {},       // optional: returns what to call after commit
-		committed(task, ctx, info) {},           // optional
-		observe(type, info) {},
+		transition(record, ctx) {},              // what became of a task (transition.js)
 		wake() {},                               // optional: something was queued
 	},
 });
@@ -73,3 +73,23 @@ new Scheduler({
 
 Tutuca's own bindings are `componentKinds`, `TutucaContext` and `HostTask` in `src/tasks.js`,
 plus immer's `produce` and the hooks in `Host` (`src/core/host.js`).
+
+## What became of a task
+
+`hooks.transition(record, ctx)` hears one `Transition` per task the scheduler is done with. `ctx` is
+there when its handler ran. Its `outcome` is one of `TRANSITION_OUTCOMES`:
+
+| outcome | when |
+|---|---|
+| `handled` | its handler ran and its change is the root |
+| `passed` | a notification's hop without a handler, which passes it on |
+| `unhandled` | nobody handles it |
+| `failed` | its handler, or what it sent, threw: the root is as it was (`error`) |
+| `stale`, `orphaned`, `lost` | the node it was for is gone (spec/tree's observations) |
+| `dropped` | its settle scope was cancelled before it ran, or, an ask, before its answer came |
+| `asked` | an ask, handed to its handler; its answer is a transition of its own |
+
+`seq` numbers the task as it is queued (per scheduler, so runs repeat), `cause` is its sender's
+`seq` and `origin` the one its chain started with. `emitted` and `unhandled` are what its handler
+sent and what of that nobody handles. `before`, `after`, `instance` and `task` are hidden;
+`toJSON()` is the record as data.

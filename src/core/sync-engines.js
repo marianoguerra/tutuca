@@ -1,15 +1,20 @@
+import { engineName } from "./lifecycle.js";
+
 // Sync engines: told about each committed change, and able to apply their own.
 // An engine sees every committed change through prepare(change) and commit(change, prepared),
 // change being { prev, next, task }, and applies changes from elsewhere through the link attach
 // gets. A throwing prepare fails the task, before any engine wrote the change; a throwing
 // commit is reported as syncFailed and the change stands.
 export class SyncEngines {
-	// notify(type, info) reports what failed.
-	constructor(notify) {
-		this.notify = notify;
+	// report(phase, fields) reports what failed, as a Lifecycle (lifecycle.js).
+	constructor(report) {
+		this.report = report;
 		this.list = [];
 		this.committing = false; // Engines are writing a change: applies wait in deferred.
 		this.deferred = [];
+	}
+	failed(engine, error) {
+		this.report("syncFailed", { engine: engineName(engine, this.list), error });
 	}
 	get length() {
 		return this.list.length;
@@ -40,7 +45,7 @@ export class SyncEngines {
 				prepared.push([engine, engine.prepare?.(change)]);
 			} catch (error) {
 				if (task !== null) throw error;
-				this.notify("syncFailed", { engine, error });
+				this.failed(engine, error);
 			}
 		}
 		return () => {
@@ -50,7 +55,7 @@ export class SyncEngines {
 					try {
 						engine.commit(change, p);
 					} catch (error) {
-						this.notify("syncFailed", { engine, error });
+						this.failed(engine, error);
 					}
 				}
 			} finally {

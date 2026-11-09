@@ -3,7 +3,7 @@
 import assert from "node:assert/strict";
 import test from "node:test";
 import { apply, component, t } from "../../src/tutuca.js";
-import { devHost, Leaf } from "../helpers.js";
+import { devHost, Leaf, messageReasons } from "../helpers.js";
 
 const Mid = component({
 	name: "Mid",
@@ -61,7 +61,7 @@ const setup = () => {
 	const run = (name) => {
 		reports.length = 0;
 		host.send(name, [], { now: true });
-		return reports.filter((r) => r.type === "messageInvalid").flatMap((r) => r.issues);
+		return messageReasons(reports);
 	};
 	return { host, run };
 };
@@ -93,12 +93,9 @@ test("a component's own fields, and adding, moving or replacing children, are it
 test("host.apply is checked as a handler is", () => {
 	const { host } = setup();
 	const reports = [];
-	host.notify = (type, info) => reports.push({ type, ...info });
+	host.publish = (record) => reports.push(record);
 	host.apply("bumpLeafDirectly", [], { to: (p) => p.field("mids").item(0) });
-	assert.deepEqual(
-		reports.filter((r) => r.type === "messageInvalid").flatMap((r) => r.issues),
-		["foreign-write:Leaf.n"],
-	);
+	assert.deepEqual(messageReasons(reports), ["foreign-write:Leaf.n"]);
 });
 
 test("putting back a version of a child that was already there is the parent's write", () => {
@@ -125,8 +122,5 @@ test("putting back a version of a child that was already there is the parent's w
 	host.send("snapshot", [], { now: true });
 	host.send("undo", [], { now: true });
 	assert.equal(host.root.leaf.n, 1);
-	assert.deepEqual(
-		reports.filter((r) => r.type === "messageInvalid"),
-		[],
-	);
+	assert.deepEqual(messageReasons(reports), []);
 });

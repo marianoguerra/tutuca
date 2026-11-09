@@ -369,7 +369,7 @@ const elementText = (el) => `<${el.tagName.toLowerCase()} data-eid=${el.dataset.
 const checkAfter = (cmd, model, driver, before) => {
 	const problems = driver.problemsSince(before);
 	if (problems.length > 0) {
-		throw new Error(`${cmd} broke: ${problems.map((p) => p.type).join(", ")}`);
+		throw new Error(`${cmd} broke:\n  ${describeProblems(problems).join("\n  ")}`);
 	}
 	const fresh = new Driver({ root: driver.state, document: driver.rootNode.ownerDocument });
 	if (domSignature(fresh.rootNode) !== domSignature(driver.rootNode)) {
@@ -521,7 +521,7 @@ export const specProperties = (spec, A, { document = null } = {}) => {
 		props.viewsRender = fc.property(A.instance(spec), (made) => {
 			for (const [viewName, Shown] of hosts) {
 				const driver = new Driver({ root: Shown.make({ c: made }, scope), document });
-				const failed = driver.problems.find((p) => p.type === "taskFailed");
+				const failed = driver.problems.find((p) => p.outcome === "failed");
 				if (failed) throw new Error(`${spec.name} view ${viewName}: ${failed.error}`);
 			}
 		});

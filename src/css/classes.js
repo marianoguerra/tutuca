@@ -55,8 +55,8 @@ export class ClassCompiler {
 	// stops listening to host.
 	attach(host, rootNode, style) {
 		this.watch(rootNode, style);
-		return host.listen((type) => {
-			if (type === "render") this.scan(rootNode);
+		return host.listen((record) => {
+			if (record.phase === "rendered") this.scan(rootNode);
 		});
 	}
 	scan(rootNode) {

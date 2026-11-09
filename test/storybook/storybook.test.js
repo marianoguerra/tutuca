@@ -143,7 +143,7 @@ test("send a message from the step form", async () => {
 	assert.deepEqual(failures, []);
 });
 
-test("the dev tab inspects the story's state, tasks, components and lint", async () => {
+test("the dev tab inspects the story's state, transitions, components and lint", async () => {
 	const { host, rootNode, click, byText, failures } = start("JSON/Bool (edit)");
 	await settle();
 	click(rootNode.querySelector('[title="Step"]'));
@@ -152,7 +152,7 @@ test("the dev tab inspects the story's state, tasks, components and lint", async
 	await settle();
 	const { dev } = host.root;
 	assert.match(dev.state.nodes[0].tokens.map((t) => t.text).join(""), /^‹JsonEditor/);
-	assert.ok(dev.tasks.nodes.length > 0);
+	assert.ok(dev.transitions.nodes.length > 0);
 	assert.ok(dev.specs.nodes.some((n) => n.tokens.some((t) => t.text === "JsonEditor")));
 	const stateNode = rootNode.querySelector('[aria-label="Expand"]');
 	click(stateNode);

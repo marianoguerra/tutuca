@@ -32,6 +32,13 @@ export {
 	interfaceProblems,
 	resolveImplements,
 } from "./core/interface.js";
+export {
+	engineName,
+	FAILED_PHASES,
+	isProblem,
+	LIFECYCLE_PHASES,
+	Lifecycle,
+} from "./core/lifecycle.js";
 export * from "./core/schema.js";
 export { Scope } from "./core/scope.js";
 export {
@@ -102,6 +109,7 @@ export {
 	KeyPath,
 	MessageContext,
 	NotifyTask,
+	plainOf,
 	SCOPE_OUTCOMES,
 	Scheduler,
 	Selector,
@@ -109,4 +117,6 @@ export {
 	selectorFrom,
 	Target,
 	Task,
+	TRANSITION_OUTCOMES,
+	Transition,
 } from "./tree/index.js";

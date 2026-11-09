@@ -15,7 +15,7 @@ import {
 } from "../../src/sync/index.js";
 import { memoryRemote, relay, remoteEngine } from "../../src/sync/remote.js";
 import { component, scopeOf, specOf, t } from "../../src/tutuca.js";
-import { setupHost, tick } from "../helpers.js";
+import { reportType, setupHost, tick } from "../helpers.js";
 
 const Item = component({
 	name: "Item",
@@ -301,7 +301,7 @@ test("a throwing commit is reported and the change stands for every engine", () 
 	const reports = [];
 	const s = setupHost(
 		{ Root, Item },
-		{ sync: true, onReport: (type, info) => reports.push([type, info]) },
+		{ sync: true, onReport: (r) => reports.push([reportType(r), r]) },
 	);
 	s.host.start(s.C.Root());
 	const written = [];
@@ -317,7 +317,7 @@ test("a throwing commit is reported and the change stands for every engine", () 
 	assert.deepEqual(s.failures, []);
 	assert.equal(written.at(-1), s.host.root);
 	const [, info] = reports.find(([type]) => type === "syncFailed");
-	assert.equal(info.engine, failing);
+	assert.equal(info.engine, "engine 0"); // failing has no name: its place among the engines
 	assert.match(info.error.message, /quota/);
 });
 
@@ -469,7 +469,7 @@ const hub = (r) => {
 };
 const hubClient = async (h, specs = { Root, Item }) => {
 	const reports = [];
-	const s = setupHost(specs, { sync: true, onReport: (type, info) => reports.push([type, info]) });
+	const s = setupHost(specs, { sync: true, onReport: (r) => reports.push([reportType(r), r]) });
 	await startSynced(s.host, {
 		make: (C) => C.Root(),
 		engines: [remoteEngine({ transport: h.connect() })],
@@ -653,7 +653,7 @@ test("a field a newer version adds syncs through the relay, and older clients dr
 	assert.deepEqual(r.load().value, { $: "Root", title: "t", body: "hi!" });
 	assert.equal(h.loads, loads);
 	assert.equal(project(old.host.root).body, undefined);
-	assert.deepEqual(reportsOf(old, "stateMigrated").at(-1).dropped, [["body"]]);
+	assert.deepEqual(reportsOf(old, "migrated").at(-1).dropped, [["body"]]);
 });
 
 test("a field a newer version adds syncs through automerge, and older peers keep merging", async () => {
@@ -662,7 +662,7 @@ test("a field a newer version adds syncs through automerge, and older peers keep
 	const peer = async (specs, handle) => {
 		const s = setupHost(specs, {
 			sync: true,
-			onReport: (t, i) => t === "syncFailed" && failures.push(i),
+			onReport: (r) => r.phase === "syncFailed" && failures.push(r),
 		});
 		await startSynced(s.host, { make: (C) => C.Root(), engines: [automergeEngine({ handle })] });
 		return s.host;

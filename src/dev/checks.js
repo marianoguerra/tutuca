@@ -1,7 +1,7 @@
 // Dev mode's checks: the state against the schemas and invariants, and each handled message
 // against its spec and against who may write what: a component's fields are written by its own
-// handlers and pure messages, not by its ancestors'. What breaks is reported through notify as
-// stateInvalid or messageInvalid.
+// handlers and pure messages, not by its ancestors'. What breaks is returned as issues, which
+// the host puts on the report (a Transition or a Lifecycle) of what caused them.
 import { produce } from "../../deps/immer.js";
 import { messageIssues, trackApplies } from "../core/contract.js";
 import { isComponent, specOf } from "../core/spec.js";
@@ -67,20 +67,31 @@ const objectsIn = (value, found = new Set()) => {
 	for (const key of Object.keys(value)) objectsIn(value[key], found);
 	return found;
 };
-// The issues foreign writes are, among a message's issues: one per component field.
-const writeIssues = (writes) => [
-	...new Set(writes.map(({ owner, field }) => `foreign-write:${owner}.${field}`)),
+// The issues of a message: what its spec says it broke (reasons), then one per foreign write.
+const messageIssuesOf = (message, reasons, writes) => [
+	...reasons.map((reason) => ({ check: "message", message, reason })),
+	...writes.map((write) => ({
+		check: "message",
+		message,
+		reason: `foreign-write:${write.owner}.${write.field}`,
+		write,
+	})),
 ];
+// The issues of a state: each invalid field or broken invariant findInvalidFields finds.
+const stateIssuesOf = (root, prevRoot, check) =>
+	findInvalidFields(root, prevRoot, check).map((issue) => ({ check: "state", ...issue }));
 
+// What each check finds it returns, as issues: { check: "state", path, component, field, value,
+// reason } for the state, { check: "message", message, reason, write? } for a message. The host
+// puts them on the report of what caused them.
 export class DevChecks {
-	constructor(notify) {
-		this.notify = notify;
+	constructor() {
 		this.settledRoot = null; // The root as of the last empty queue, for settled.
 		this.writes = []; // The foreign writes of the last transaction, for message.
 	}
 	start(root) {
 		this.settledRoot = root;
-		this.state(null, null, root);
+		return this.state(null, null, root);
 	}
 	// A task's transaction, as the host's, recording the foreign writes it makes.
 	transact(root, path, fn) {
@@ -91,48 +102,32 @@ export class DevChecks {
 		return next;
 	}
 	// A pure message applied from outside the tree (host.apply): the writes of producer, under the
-	// component at path. Returns the new root.
+	// component at path. Returns [the new root, its issues].
 	applied(name, root, path, producer) {
 		const [next, ids] = trackApplies(() => produce(root, producer));
 		const writes = foreignWrites(path.getIn(root), path.getIn(next), ids);
-		if (writes.length > 0) {
-			this.notify("messageInvalid", {
-				task: null,
-				message: name,
-				issues: writeIssues(writes),
-				writes,
-			});
-		}
-		return next;
+		return [next, messageIssuesOf(name, [], writes)];
 	}
 	// The fields that changed from prevRoot to root. A task can leave invariants broken for the
 	// tasks it queued, so after one they wait for settled.
 	state(task, prevRoot, root) {
-		this.report(root, prevRoot, { fields: true, invariants: task === null }, { task });
+		return stateIssuesOf(root, prevRoot, { fields: true, invariants: task === null });
 	}
-	// Once the queue is empty, the invariants of what changed since it last was.
+	// Once the queue is empty, the invariants of what changed since it last was; null when the
+	// root is the one it checked last time.
 	settled(root) {
-		if (this.settledRoot === root) return;
+		if (this.settledRoot === root) return null;
 		const prevRoot = this.settledRoot;
 		this.settledRoot = root;
-		this.report(root, prevRoot, { fields: false, invariants: true }, { task: null, settled: true });
-	}
-	report(root, prevRoot, check, info) {
-		const issues = findInvalidFields(root, prevRoot, check);
-		if (issues.length > 0) this.notify("stateInvalid", { ...info, issues });
+		return stateIssuesOf(root, prevRoot, { fields: false, invariants: true });
 	}
 	// The message the task's handler ran, against its spec, from prev to next, and the foreign
 	// writes its transaction made.
-	message(task, ctx, prev, next) {
+	message(ctx, prev, next) {
 		const writes = this.writes;
 		this.writes = [];
-		if (ctx.ran === null) return;
+		if (ctx.ran === null) return [];
 		const { message, args } = ctx.ran;
-		const issues = [...messageIssues(message, prev, next, args, ctx), ...writeIssues(writes)];
-		if (issues.length > 0) {
-			const info = { task, message: message.name, issues };
-			if (writes.length > 0) info.writes = writes;
-			this.notify("messageInvalid", info);
-		}
+		return messageIssuesOf(message.name, messageIssues(message, prev, next, args, ctx), writes);
 	}
 }

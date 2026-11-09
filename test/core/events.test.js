@@ -25,7 +25,7 @@ import {
 	Walker,
 	withBinds,
 } from "../../src/tutuca.js";
-import { dom, setupHost } from "../helpers.js";
+import { dom, reportType, setupHost, unhandledNames } from "../helpers.js";
 
 const setup = (specs) => setupHost(specs, { sync: true });
 
@@ -195,7 +195,10 @@ test("a message with no handler, sent by an event or otherwise, is a no-op that'
 	const reports = [];
 	const { host, rootNode, C, click, failures, drain } = setupHost(
 		{ Mute },
-		{ sync: true, onReport: (type, info) => reports.push([type, info.message]) },
+		{
+			sync: true,
+			onReport: (r) => reports.push(...unhandledNames(r).map((name) => ["unhandled", name])),
+		},
 	);
 	host.start(C.Mute());
 	const before = host.root;
@@ -257,7 +260,7 @@ const runNotify = (topHandles) => {
 	const warnings = [];
 	const { host, rootNode, C, click } = setupHost(notifyTree(topHandles), {
 		sync: true,
-		onReport: (type, info) => type === "unhandled" && reports.push(info.message),
+		onReport: (r) => reports.push(...unhandledNames(r)),
 	});
 	host.start(C.Top());
 	const warn = console.warn;
@@ -296,7 +299,7 @@ test("a notification from the root goes nowhere, and is reported unhandled", () 
 	const reports = [];
 	const { host, rootNode, C, click } = setupHost(
 		{ Lonely },
-		{ sync: true, onReport: (type, info) => type === "unhandled" && reports.push(info.message) },
+		{ sync: true, onReport: (r) => reports.push(...unhandledNames(r)) },
 	);
 	host.start(C.Lonely());
 	const warn = console.warn;
@@ -355,7 +358,7 @@ test("a task whose address reaches no component is dropped and reported orphaned
 	const reports = [];
 	const { host, C, failures, drain } = setupHost(
 		{ Leaf, Middle, Top },
-		{ sync: true, onReport: (type, info) => reports.push([type, String(info.path)]) },
+		{ sync: true, onReport: (r) => reports.push([reportType(r), String(r.to?.keyPath)]) },
 	);
 	host.start(C.Top());
 	const gone = new Address(new DispatchPath([new Frame(["gone"], null, null, true)]), 1);
@@ -383,7 +386,10 @@ test("what went unhandled before a task failed is still reported", () => {
 	const reports = [];
 	const { host, rootNode, C, click, failures } = setupHost(
 		{ Boom },
-		{ sync: true, onReport: (type, info) => reports.push([type, info.message]) },
+		{
+			sync: true,
+			onReport: (r) => reports.push(...unhandledNames(r).map((name) => ["unhandled", name])),
+		},
 	);
 	host.start(C.Boom());
 	const warn = console.warn;
@@ -417,7 +423,7 @@ test("an event the DOM can't route, as after a root replaced without rendering, 
 	const reports = [];
 	const { host, rootNode, C } = setupHost(
 		{ Leaf, Middle, Top },
-		{ sync: true, onReport: (type) => reports.push(type) },
+		{ sync: true, onReport: (r) => reports.push(reportType(r)) },
 	);
 	host.start(C.Top());
 	host.root = C.Leaf();
@@ -500,7 +506,7 @@ test("a throwing handler keeps the state and reports taskFailed", () => {
 test("only own message handlers run: an inherited name is unhandled", () => {
 	const Root = component({ name: "Root", view: h("button", { "on:click": send("toString") }) });
 	const unhandled = [];
-	const onReport = (type, info) => type === "unhandled" && unhandled.push(info.message);
+	const onReport = (r) => unhandled.push(...unhandledNames(r));
 	const { host, rootNode, failures, C } = setupHost({ Root }, { sync: true, onReport });
 	const root = C.Root();
 	host.start(root);
@@ -770,7 +776,7 @@ test("a render that throws is reported, and the host goes on", () => {
 	const reports = [];
 	const { host, rootNode, C, click } = setupHost(
 		{ Boom },
-		{ sync: true, onReport: (type) => reports.push(type) },
+		{ sync: true, onReport: (r) => reports.push(reportType(r)) },
 	);
 	host.start(C.Boom());
 	click(rootNode.querySelector("button"));

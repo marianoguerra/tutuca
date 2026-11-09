@@ -84,7 +84,7 @@ test("checkStory names the step that fails", () => {
 test("stressStory finds the schema break", () => {
 	assert.throws(
 		() => stressStory(counterStory, { fc, numRuns: 100, seed: 1 }),
-		(error) => /stateInvalid: Counter count invalid/.test(error.cause?.message),
+		(error) => /invalid state: Counter count invalid/.test(error.cause?.message),
 	);
 });
 
@@ -186,7 +186,7 @@ test("stress finds a counterexample that replays in the stepper", async () => {
 	const { runner, last } = mountStory(counterStory);
 	const result = await runner.stress({ numRuns: 100, maxCommands: 6, seed: 1 });
 	assert.equal(result.status, "failed");
-	assert.match(result.error, /stateInvalid: Counter count invalid/);
+	assert.match(result.error, /invalid state: Counter count invalid/);
 	assert.ok(result.commands.length > 0);
 	assert.match(result.log[0], /^run 1, \d+ ops, (ok|failed)/);
 	assert.match(result.log.at(-2) ?? "", /^ {2}\d+\. Counter/);
@@ -297,7 +297,7 @@ test("a new registry carries each mounted story's state over to the new componen
 		'Counter.label added: string = "clicks"',
 		"/label added, at its default",
 	]);
-	assert.deepEqual(summary.problems, ["stateInvalid: Counter  invariant:belowOne"]);
+	assert.deepEqual(summary.problems, ["invalid state: Counter  invariant:belowOne"]);
 	assert.equal(runner.nextStep, 1); // Where the sequence was.
 	// Mounting the story again starts it fresh.
 	element.setAttribute("app-key", `r2/${counterStory.id}@1`);

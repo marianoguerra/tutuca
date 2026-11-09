@@ -333,9 +333,10 @@ Two of these are equivalent only when other code doesn't edit or remove the node
 - `null` and `undefined` are one value; an absent field is undefined.
 - JS coercions of property keys and values.
 - Malformed frame comments: the model skips any comment that is not a well-formed frame.
-- `Host.notify` (reports are observations instead, one per report type both runtimes use:
-  `(log v)` is `log`, `(failed name)` `taskFailed`, `(unhandled name)` `unhandled`, `rendered`
-  `render`, `(state-invalid …)` `stateInvalid` and `(message-invalid …)` `messageInvalid`;
+- `Host.notify` (reports are observations instead. In JS they are records: `(failed name)` is
+  a `Transition` with outcome `failed`, `(unhandled name)` a name in a transition's
+  `unhandled`, `rendered` the `rendered` lifecycle, and `(state-invalid …)` and
+  `(message-invalid …)` the `issues` of the report of what caused them; `(log v)` is `log`.
   `renderFailed` and `eventFailed` have none, since the model's renders don't throw and its DOM
   is always the render of the root it routes against),
   `Host.stop`, `clearTasks`, listener registration.

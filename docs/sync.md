@@ -22,8 +22,8 @@ Handlers keep changing immer drafts. **Sync engines** sit beside the host:
    task before any engine wrote anything: the root stays as it was and the task's child messages
    are dropped, as for any failed handler. Then, with the new root in place,
    `commit(change, prepared)` writes what prepare returned. A commit that throws (a full
-   storage, a closed connection) is reported as `syncFailed` with the engine and the error, and
-   the change stands for the host and the other engines.
+   storage, a closed connection) is reported as a `syncFailed` lifecycle with the engine's name
+   and the error, and the change stands for the host and the other engines.
 2. A change made elsewhere (by a peer, a server, a reload) reaches the host through the engine's
    link: `link.apply(producer)` runs `producer` on a draft of the current root, commits it at
    once, tells every *other* engine, checks the state in dev mode and renders. A prepare that
@@ -216,6 +216,7 @@ An engine is an object:
 
 ```js
 {
+	name: "storage",             // optional: what reports call it; else its place, "engine 0"
 	level: "shared" | "local",   // the fields it sees
 	load() {},                   // optional: its stored projection, or null
 	attach(link) {},             // optional: link.host, link.root(), link.apply(producer, info)
@@ -233,7 +234,8 @@ An engine is an object:
   `link.apply((draft) => applyStateOps(draft, ops, link.host.scope, { level, onMigrate }))`.
   Apply it **when it arrives**, not later: its ops are paths into the state as it is now.
   `onMigrate(report)` is called when ops from a peer on another version had to be changed to
-  fit; the included engines pass it on as `host.notify("stateMigrated", { engine, ...report })`.
+  fit; the included engines pass it on as
+  `host.report("migrated", { engine: host.engineName(engine), ...report })`.
 - An engine that keeps a copy of the state (a document, a server's projection) writes each
   change's ops with `writeFitting(copy, ops, next, { scope, level, write })`, so they fit the
   copy even where this version of the components made the state differ from it. To bring the
@@ -277,7 +279,8 @@ An app that syncs must:
   them in getters, or recompute them in the handler that changes their inputs.
 - **Keep invariants local to a component.** Merged concurrent edits are each valid but can
   combine into states no single task made. Dev mode checks the state after every applied change
-  and reports `stateInvalid`; invariants that span many components are the ones that break.
+  and reports what's invalid in the `issues` of the `externalChange` (and the `settled` after
+  it); invariants that span many components are the ones that break.
 - **Test with a `Driver`.** It uses `testEnv`, so handlers that use `ctx` repeat. The
   `test/sync` properties (generated edits on two peers, then convergence) show how to check an
   app's sync.
@@ -300,7 +303,7 @@ takes its default and the others stay, whether it came in a stored projection or
 `{ root, added, reset, dropped, broken }`, `broken` being what `findInvalidFields` finds in
 `root`, invariants included. It throws when a component the data holds is gone or a field has no
 default. `startSynced` and `remoteEngine`'s reload use it; when the stored data didn't fit as is,
-the host gets `stateMigrated` with the report (`engine` is `null` for `startSynced`).
+the host reports a `migrated` lifecycle with the report (`engine` is `null` for `startSynced`).
 
 `applyStateOps` applies a peer's ops the same way, op by op (`applyFitting`): an op under a field
 this version doesn't declare is dropped (Automerge's diff already skips those fields, and they

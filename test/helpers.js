@@ -21,8 +21,9 @@ export const dom = (html = "", options) => new JSDOM(html, options).window;
 export const { document } = dom();
 
 // A Host on a new <main> with specs registered, and C its components. sync stops the timer
-// tick and has notify run right away, collecting taskFailed errors in failures and passing
-// every report to onReport, so a test drives the queue with drain() and click(target).
+// tick and has the host publish its reports right away, collecting the errors of failed tasks
+// in failures and passing every report (a Transition or a Lifecycle) to onReport, so a test
+// drives the queue with drain() and click(target).
 export const setupHost = (specs, { dev = false, sync = false, onReport = null } = {}) => {
 	const window = dom();
 	const rootNode = window.document.createElement("main");
@@ -34,9 +35,9 @@ export const setupHost = (specs, { dev = false, sync = false, onReport = null } 
 	});
 	const failures = [];
 	if (sync) {
-		host.notify = (type, info) => {
-			if (type === "taskFailed") failures.push(info.error);
-			onReport?.(type, info);
+		host.publish = (record) => {
+			if (record.outcome === "failed") failures.push(record.error);
+			onReport?.(record);
 		};
 		host.scheduleNextTaskTick = () => {};
 	}
@@ -62,7 +63,7 @@ export const startHost = (Comp, args, options) => {
 export const devHost = (specs) => {
 	const host = new Host({ checks: DevChecks });
 	const reports = [];
-	host.notify = (type, info) => reports.push({ type, ...info });
+	host.publish = (record) => reports.push(record);
 	return { host, reports, C: host.scope.register(specs) };
 };
 // A leaf component with a pure bump, for tests of trees of components.
@@ -79,9 +80,9 @@ export const Leaf = component({
 	},
 });
 // src/tree's Scheduler over a store holding root, without components: handler(node, task) and
-// askHandler(node, name) find what runs, transactions write in place and observe(type, info)
-// hears what it reports. run() steps it until nothing is queued.
-export const treeHarness = ({ root, handler, askHandler = () => null, observe = () => {} }) => {
+// askHandler(node, name) find what runs, transactions write in place and transition(record)
+// hears what became of each task. run() steps it until nothing is queued.
+export const treeHarness = ({ root, handler, askHandler = () => null, transition = () => {} }) => {
 	const store = { root, get: () => store.root, set: (r) => (store.root = r) };
 	const scheduler = new Scheduler({
 		kinds: { handler, askHandler },
@@ -89,7 +90,7 @@ export const treeHarness = ({ root, handler, askHandler = () => null, observe = 
 		transact: (r, path, fn) => path.setIn(r, fn(path.getIn(r))),
 		hooks: {
 			context: (task, _node, nextRequest) => new MessageContext(task, nextRequest),
-			observe,
+			transition,
 		},
 	});
 	const run = () => {
@@ -128,11 +129,13 @@ export const textOf = (root) => {
 	return driver.rootNode.textContent.replace(/\s+/g, "");
 };
 
-// The taskFailed and stateInvalid reports host makes from now on, as { type, ...info }.
+// The reports host makes from now on of failed tasks and invalid states.
 export const collectProblems = (host) => {
 	const problems = [];
-	host.listen((type, info) => {
-		if (type === "taskFailed" || type === "stateInvalid") problems.push({ type, ...info });
+	host.listen((record) => {
+		if (record.outcome === "failed" || record.issues.some((i) => i.check === "state")) {
+			problems.push(record);
+		}
 	});
 	return problems;
 };
@@ -243,3 +246,10 @@ export function vh(tag, attrs = {}, children = null) {
 }
 export const vfrag = (children, key) => new VFragment(vchilds(children), key);
 export const vcomment = (text) => new VComment(text);
+// The messages a report says nobody handles: a transition's unhandled, none for the rest.
+export const unhandledNames = (record) => (record.kind === "transition" ? record.unhandled : []);
+// What a report says happened: a transition's outcome, a lifecycle's phase.
+export const reportType = (record) => record.outcome ?? record.phase;
+// The reasons of the message issues in reports: what broke a message's spec, in order.
+export const messageReasons = (reports) =>
+	reports.flatMap((r) => r.issues.filter((i) => i.check === "message").map((i) => i.reason));

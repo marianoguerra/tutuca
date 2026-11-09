@@ -15,3 +15,4 @@ export { DispatchPath, Frame, KeyPath, Selector, selectorFrom, Target } from "./
 export { Scheduler } from "./scheduler.js";
 export { SCOPE_OUTCOMES, SettleScope } from "./settle.js";
 export { errorMessage, jsonText, keyText } from "./text.js";
+export { plainOf, TRANSITION_OUTCOMES, Transition } from "./transition.js";

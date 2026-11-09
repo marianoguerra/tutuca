@@ -179,7 +179,7 @@ const peer = async (engine, specs = V1) => {
 	const failures = [];
 	const s = setupHost(specs, {
 		sync: true,
-		onReport: (type, info) => type === "syncFailed" && failures.push(info.error),
+		onReport: (r) => r.phase === "syncFailed" && failures.push(r.error),
 	});
 	await startSynced(s.host, { make: (C) => C.Root(), engines: [engine] });
 	s.host.syncFailures = failures;

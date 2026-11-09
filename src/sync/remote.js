@@ -25,8 +25,9 @@ export const remoteEngine = ({ transport, level = "shared", clientId = newId() }
 	let flushing = false; // a flush is queued for the end of this run of tasks
 	let resyncs = 0; // the resync in flight, 0 for none; a newer one supersedes it
 	let held = []; // messages that arrived during a resync, or between load and attach
-	const notify = (type, info) => link?.host.notify(type, { engine, ...info });
-	const onMigrate = (report) => notify("stateMigrated", report);
+	const report = (phase, fields) =>
+		link?.host.report(phase, { engine: link.host.engineName(engine), ...fields });
+	const onMigrate = (migration) => report("migrated", migration);
 
 	// Pushes the pending ops as one batch, made to fit the remote's copy, unless one is in flight.
 	const flush = () => {
@@ -57,7 +58,7 @@ export const remoteEngine = ({ transport, level = "shared", clientId = newId() }
 				resyncs = 0;
 				discarded.push(...pending);
 				pending = [];
-				if (discarded.length > 0) notify("syncRejected", { ops: discarded });
+				if (discarded.length > 0) report("syncRejected", { ops: discarded });
 				acked = state?.version ?? 0;
 				copy = state === null ? null : structuredClone(state.value);
 				if (copy === null) pushRoot();
@@ -69,7 +70,7 @@ export const remoteEngine = ({ transport, level = "shared", clientId = newId() }
 				if (resyncs !== id) return;
 				resyncs = 0;
 				held = [];
-				notify("syncFailed", { error });
+				report("syncFailed", { error });
 			});
 	};
 	const pushRoot = () => {
@@ -107,11 +108,12 @@ export const remoteEngine = ({ transport, level = "shared", clientId = newId() }
 			copy = applyOps(copy, message.ops);
 			link.apply((root) => applyStateOps(root, message.ops, scope, { level, onMigrate }), message);
 		} catch (error) {
-			notify("syncFailed", { error });
+			report("syncFailed", { error });
 			resync();
 		}
 	};
 	const engine = {
+		name: "remote",
 		level,
 		clientId,
 		async load() {

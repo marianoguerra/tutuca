@@ -24,7 +24,7 @@ const setup = (root) => {
 			const run = kinds[node.kind].on[name];
 			return run && { run };
 		},
-		observe: (type) => observed.push(type),
+		transition: (record) => record.outcome !== "handled" && observed.push(record.outcome),
 	});
 	return { ...harness, observed };
 };

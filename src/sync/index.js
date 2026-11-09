@@ -73,7 +73,7 @@ export const startSynced = async (host, { engines, make }) => {
 			: "shared";
 		const rebuilt = rebuild(plain, host.scope, { level });
 		host.start(rebuilt.root);
-		reportMigration(rebuilt, (report) => host.notify("stateMigrated", { engine: null, ...report }));
+		reportMigration(rebuilt, (report) => host.report("migrated", { engine: null, ...report }));
 	}
 	host.attachSync(...engines);
 	return host.root;
@@ -82,6 +82,7 @@ export const startSynced = async (host, { engines, make }) => {
 // The simplest engine: keeps the projection of every field but the "none" ones in storage (a
 // Storage such as localStorage) under key, replacing it after each change.
 export const storageEngine = (storage, key) => ({
+	name: "storage",
 	level: "local",
 	load() {
 		try {

@@ -76,7 +76,8 @@ export const automergeEngine = ({ handle }) => {
 	let link = null;
 	let writing = false;
 	let loaded = null; // the document load read, to catch what changed before attach
-	const onMigrate = (report) => link.host.notify("stateMigrated", { engine, ...report });
+	const onMigrate = (report) =>
+		link.host.report("migrated", { engine: link.host.engineName(engine), ...report });
 	const onChange = ({ patchInfo }) => {
 		if (writing || link === null) return;
 		const { scope } = link.host;
@@ -86,7 +87,7 @@ export const automergeEngine = ({ handle }) => {
 			link.apply((root) => applyStateOps(root, ops, scope, { onMigrate }), patchInfo);
 		} catch (error) {
 			// The state and the document parted ways: bring the state to the document whole.
-			link.host.notify("syncFailed", { engine, error });
+			link.host.report("syncFailed", { engine: link.host.engineName(engine), error });
 			applyProjection(link, fromDoc(patchInfo.after), { onMigrate, info: patchInfo });
 		}
 	};
@@ -104,6 +105,7 @@ export const automergeEngine = ({ handle }) => {
 		}
 	};
 	const engine = {
+		name: "automerge",
 		level: "shared",
 		handle,
 		load() {

@@ -70,10 +70,10 @@ export const preferModel = (models, id) => {
 const rememberModel = (document, host) => {
 	const window = document.defaultView;
 	if (!window?.history) return;
-	host.listen((type, info) => {
-		if (type !== "taskHandled" || info.task?.name !== "setModel") return;
-		if (specOf(info.instance)?.name !== "Agent") return;
-		const [model] = info.task.args;
+	host.listen((record) => {
+		if (record.outcome !== "handled" || record.name !== "setModel") return;
+		if (specOf(record.instance)?.name !== "Agent") return;
+		const [model] = record.args;
 		const url = new URL(window.location.href);
 		if (typeof model !== "string" || model === "" || model.startsWith("echo/")) {
 			url.searchParams.delete("model");

@@ -175,7 +175,7 @@ test("a handler that breaks the schema is found with a minimal sequence", () => 
 			{ seed: 1 },
 		),
 	);
-	assert.match(message, /Item at ·\.inc\(\) broke:\n {2}stateInvalid: Item count invalid/);
+	assert.match(message, /Item at ·\.inc\(\) broke:\n {2}invalid state: Item count invalid/);
 });
 
 test("a tab switch that forgets the old tab breaks the invariant", () => {
@@ -230,7 +230,7 @@ test("a post condition that doesn't hold is reported with the message", () => {
 			fc.property(A.instance(Counter), messageCommands(A), (c, cmds) => runCommands(A, c, cmds)),
 		),
 	);
-	assert.match(message, /messageInvalid add: post/);
+	assert.match(message, /add broke its spec: post/);
 });
 
 test("the driver runs messages headless and records what they report", () => {
@@ -245,7 +245,7 @@ test("the driver runs messages headless and records what they report", () => {
 	assert.deepEqual(driver.problems, []);
 	driver.send(new DispatchPath(), "tabSelected", [], [new Frame(["tabs"], 99, null, true)]);
 	assert.deepEqual(
-		driver.problems.map((p) => p.type),
-		["taskFailed"],
+		driver.problems.map((p) => p.outcome),
+		["failed"],
 	);
 });
