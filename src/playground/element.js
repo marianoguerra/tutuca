@@ -177,7 +177,6 @@ export const definePlayground = (
 			});
 			this.host = host;
 			watchPanelHost(host, {
-				rootNode,
 				compile,
 				classes: playgroundClasses(),
 				style: root.querySelector("style[data-ui-extra]"),

@@ -227,7 +227,7 @@ test("removing the element disposes the runner", async () => {
 	assert.equal(registry.runners.size, 0);
 });
 
-test("classes stories compute at render compile into their shadow roots", async () => {
+test("a story's classes compile into its shadow root when it mounts, not as it renders", async () => {
 	const window = dom("<body></body>");
 	defineTutucaApp(window);
 	const compiled = [];
@@ -243,11 +243,12 @@ test("classes stories compute at render compile into their shadow roots", async 
 	await tick();
 	const style = element.shadowRoot.querySelector("style");
 	assert.match(style.textContent, /\.btn-primary\{\}/);
-	assert.ok(!compiled.at(-1).includes("decoration-dashed"));
-	// Edit mode renders the value's edit view, with classes the view mode never showed.
+	// The edit view's classes, which the view mode never shows, are there before it renders.
+	assert.match(style.textContent, /\.decoration-dashed\{\}/);
+	const count = compiled.length;
 	element.shadowRoot.querySelector("button:nth-of-type(2)").click();
 	await tick();
-	assert.match(style.textContent, /\.decoration-dashed\{\}/);
+	assert.equal(compiled.length, count, "rendering compiles nothing new");
 });
 
 test("a new registry carries each mounted story's state over to the new components", async () => {

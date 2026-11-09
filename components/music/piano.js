@@ -1,7 +1,7 @@
 // A piano, as many octaves as its edit view says from the octave it says, that marks keys,
 // each in its color and with its note's name.
 
-import { AGENT_META, agentTool } from "../../src/meta/index.js";
+import { AGENT_META, agentTool, CLASSES_META } from "../../src/meta/index.js";
 import { $if, component, each, field, send, sourceKey, t, tag } from "../../src/tutuca.js";
 import { labeled, numberInput, setNumber } from "../common/card.js";
 import { metaFor } from "../common/meta.js";
@@ -15,6 +15,7 @@ import {
 	COLORS,
 	markFields,
 	markMessage,
+	PALETTE_CLASSES,
 	paintFields,
 	paintMessages,
 	paintQueries,
@@ -110,6 +111,7 @@ const keyboard = () =>
 export const Piano = component({
 	name: "Piano",
 	meta: metaFor("Piano", "🎹", "A piano that marks keys: pick its octaves in its edit view.", 420, {
+		[CLASSES_META]: { classes: PALETTE_CLASSES },
 		[AGENT_META]: {
 			prompt: `A piano keyboard that marks keys. Name notes with their octave (C4 is middle C; without one, octave 4). Colors: ${COLOR_NAMES}. The summary is its range and what's marked.`,
 			summary: "ariaLabel",

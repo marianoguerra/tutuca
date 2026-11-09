@@ -19,6 +19,7 @@
 import {
 	AGENT_META,
 	agentOf,
+	CLASSES_META,
 	displayLabel,
 	hasAgentMeta,
 	maxStepsOf,
@@ -264,6 +265,18 @@ export const Agent = component({
 		"🤖",
 		"An LLM agent for whatever component you give it, through its agent meta.",
 		1000,
+		{
+			// What rootClass, gridClass, chatClass, chatPanelClass and transcriptClass can be.
+			[CLASSES_META]: {
+				classes: [
+					"agent flex flex-col gap-3 md:h-[calc(100dvh-1rem)]",
+					"grid min-h-0 flex-1 gap-3 md:grid-cols-[minmax(0,1fr)_26rem] md:grid-rows-[minmax(0,1fr)] md:grid-cols-2",
+					"md:h-full",
+					"agent-chat min-w-0 gap-2 h-full",
+					"overflow-y-auto rounded-box border border-base-content/15 bg-base-100 p-3 flex-col-reverse min-h-24 max-h-[28rem]",
+				].join(" "),
+			},
+		},
 	),
 	fields: {
 		target: t.component(),

@@ -3,6 +3,8 @@
 // List holds component items to drag, page, add and remove; the pager's fields, queries,
 // handlers and view for any component that pages a list; and defineAttrElement for custom
 // elements that draw from one attribute.
+
+import { CLASSES_META } from "../../src/meta/index.js";
 import {
 	$if,
 	apply,
@@ -41,6 +43,8 @@ const TYPE_CLASS = {
 // component that owns the data keeps it.
 export const JsonView = component({
 	name: "JsonView",
+	// The cls of its tree's nodes.
+	meta: { [CLASSES_META]: { classes: Object.values(TYPE_CLASS).join(" ") } },
 	fields: {
 		id: t.string(),
 		label: t.string(),

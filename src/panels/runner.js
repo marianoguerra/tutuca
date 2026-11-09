@@ -39,13 +39,14 @@ class StoryRunner {
 		this.detail = detail;
 		for (const href of this.links) detail.adoptLink(href);
 		if (this.css !== "") detail.adoptCss(this.css);
-		this.classes?.watch(detail.rootNode, detail.adoptCss(""));
+		this.classes?.watch(detail.adoptCss(""));
 		const prepared = prepareStory(this.story, { fc: this.fc, seed: this.seed });
 		const { A, scope } = prepared;
 		this.A = A;
 		this.scope = scope;
 		const specs = scope.allSpecs();
 		this.specs = Object.values(specs);
+		this.classes?.add(this.specs); // The story's own registrations.
 		this.issues = lint(this.specs, Object.keys(specs));
 		const { root, lost } = this.carryOver(prepared.root);
 		const { document, rootNode } = detail;
@@ -282,9 +283,6 @@ class StoryRunner {
 	// with its own problems, and the rest, whose problems go to the current entry.
 	onReport(record) {
 		if (record.kind === "transition") this.transitions?.push(record); // For the entry of a step.
-		if (record.phase === "rendered" && this.detail !== null) {
-			this.classes?.scan(this.detail.rootNode);
-		}
 		if (this.driver === null || this.busy) return;
 		if (record.kind === "transition" && record.committed) {
 			const extra = { problems: [], status: "ok", nextStep: this.nextStep };

@@ -183,7 +183,28 @@
     `tutuca-wax/.env`.
   - `--no-inference` serves a demo without it, as does a missing tutuca-wax install.
 
+- **The classes meta: the classes a component's views compute.** A `class` that reads a field,
+  a query or a bind is built in code no walk of the views sees. A component with one lists every
+  class it can be in `meta: { [CLASSES_META]: { classes: "a b c" } }` (`tutuca/meta`), one
+  whitespace-separated string for all its views, loops and binds. `classNamesOf` adds them.
+  - Lint warns with `undeclared-dynamic-class` at each computed class of a component without
+    it, and errors with `classes-meta` when `classes` isn't a string.
+  - `classUsesOf(tree)` and `classValueUsesOf(value)` (`tutuca/classes`) return the constant
+    classes and the nodes that compute one.
+  - A `$if`'s condition is no longer collected as a class when it's a constant string.
+  - Every component in `components/`, the dev and story panels and the async site example
+    declare theirs.
+
 ### Breaking
+
+- **`ClassCompiler` compiles what components declare, and no longer scans the DOM.** It used
+  to read every `[class]` under the root after each render. Now `watch(style)` takes only the
+  `<style>` (and compiles the known classes if it hasn't yet), `add(specs)` adds the classes of
+  newly registered components and compiles again only when one is new, and `attach` and `scan`
+  are gone. A class a view computes that its component doesn't declare gets no CSS: run lint.
+  - `watchPanelHost` takes no `rootNode`.
+  - `panelClassNames` (`src/panels/ui/panels.js`) and `devClasses` (`src/dev/panel.js`) are
+    gone: `StoryPanel`, `DevNode` and `DevLint` declare those classes in their classes meta.
 
 - **`host.listen(fn)` calls `fn(record)`, not `fn(type, info)`.** The per-task types are now
   the record's outcome or issues:

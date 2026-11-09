@@ -4,6 +4,7 @@
 // words (summary.js); the code views print it as formatters.js does.
 
 import { truncate } from "../core/text.js";
+import { CLASSES_META } from "../meta/classes.js";
 import {
 	$if,
 	apply,
@@ -149,6 +150,7 @@ const expander = $if(
 );
 export const DevNode = component({
 	name: "DevNode",
+	meta: { [CLASSES_META]: { classes: Object.values(TONES).join(" ") } },
 	fields: {
 		label: t.string(),
 		title: t.string(),
@@ -269,6 +271,7 @@ const LEVELS = { error: `${BADGE} badge-error`, warning: `${BADGE} badge-warning
 // The issues of lint() from src/lint/index.js, as plain records.
 export const DevLint = component({
 	name: "DevLint",
+	meta: { [CLASSES_META]: { classes: Object.values(LEVELS).join(" ") } },
 	fields: {
 		issues: t.array(
 			t.record({
@@ -417,4 +420,3 @@ function sameRefs(nodes, values) {
 }
 
 export const devComponents = { DevNode, DevSection, DevLint, DevPanel };
-export const devClasses = [...Object.values(TONES), ...Object.values(LEVELS)];

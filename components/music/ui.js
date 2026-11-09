@@ -42,6 +42,12 @@ export const PALETTE = [
 	["Violet", COLORS.both],
 ];
 
+// A palette's swatch, and its border when it's the paint and when it isn't.
+const SWATCH = "size-5 cursor-pointer rounded-full border-2";
+const SWATCH_PAINT = "border-base-content";
+const SWATCH_OTHER = "border-transparent";
+// Every class palette()'s swatches can have.
+export const PALETTE_CLASSES = [SWATCH, SWATCH_PAINT, SWATCH_OTHER].join(" ");
 // An instrument's palette: paint is the color a click marks with.
 export const paintFields = () => ({ paint: t.string().default(COLORS.note) });
 export const paintQueries = {
@@ -50,7 +56,7 @@ export const paintQueries = {
 			return PALETTE.map(([name, hex]) => ({
 				name: `Paint ${name}`,
 				style: `background:${hex}`,
-				cls: `size-5 cursor-pointer rounded-full border-2 ${hex === this.paint ? "border-base-content" : "border-transparent"}`,
+				cls: `${SWATCH} ${hex === this.paint ? SWATCH_PAINT : SWATCH_OTHER}`,
 				pressed: hex === this.paint ? "true" : "false",
 			}));
 		},
@@ -156,6 +162,16 @@ export const outsideText = (piano, notes) => {
 		: `${out.map((n) => `${n.name}${octaveOf(n.midi)}`).join(" ")} ${out.length === 1 ? "is" : "are"} off the keyboard: edit it to widen it or move it.`;
 };
 
+// A root's button, and its look: picked, with an accidental (dark, like a piano's black keys)
+// or without (light).
+const ROOT_BUTTON = "btn btn-xs join-item flex-1 px-0";
+const ROOT_LOOKS = {
+	picked: "btn-primary",
+	accidental: "btn-soft btn-neutral",
+	natural: "bg-base-100",
+};
+// Every class rootPicker()'s buttons can have.
+export const ROOT_PICKER_CLASSES = [ROOT_BUTTON, ...Object.values(ROOT_LOOKS)].join(" ");
 // The twelve roots as buttons as wide as the card, the picked one (the root field, an index in ROOTS) highlighted.
 export const rootQueries = {
 	roots: {
@@ -164,13 +180,13 @@ export const rootQueries = {
 				// Like a piano's keys: the ones with an accidental dark, the others light.
 				const look =
 					i === this.root
-						? "btn-primary"
+						? ROOT_LOOKS.picked
 						: name.length > 1
-							? "btn-soft btn-neutral"
-							: "bg-base-100";
+							? ROOT_LOOKS.accidental
+							: ROOT_LOOKS.natural;
 				return {
 					name,
-					cls: `btn btn-xs join-item flex-1 px-0 ${look}`,
+					cls: `${ROOT_BUTTON} ${look}`,
 					pressed: i === this.root ? "true" : "false",
 				};
 			});
@@ -212,6 +228,12 @@ export const octaveStepper = () =>
 // A card that shows its notes on a piano or a guitar's neck, as its toggle says: it marks both,
 // so switching shows the other at once.
 export const INSTRUMENTS = ["piano", "guitar"];
+// A toggle's button, as a card's other pickers have it, and its look when picked and when not.
+export const TOGGLE_BUTTON = "btn btn-xs join-item flex-1";
+export const TOGGLE_PICKED = "btn-primary";
+export const TOGGLE_OTHER = "bg-base-100";
+// Every class instrumentToggle()'s buttons can have.
+export const INSTRUMENT_TOGGLE_CLASSES = [TOGGLE_BUTTON, TOGGLE_PICKED, TOGGLE_OTHER].join(" ");
 export const instrumentField = () => ({ instrument: t.enum(...INSTRUMENTS) });
 export const instrumentQueries = {
 	onPiano: {
@@ -223,7 +245,7 @@ export const instrumentQueries = {
 		get() {
 			return INSTRUMENTS.map((name) => ({
 				text: name === "piano" ? "🎹 Piano" : "🎸 Guitar",
-				cls: `btn btn-xs join-item flex-1 ${name === this.instrument ? "btn-primary" : "bg-base-100"}`,
+				cls: `${TOGGLE_BUTTON} ${name === this.instrument ? TOGGLE_PICKED : TOGGLE_OTHER}`,
 				pressed: name === this.instrument ? "true" : "false",
 			}));
 		},

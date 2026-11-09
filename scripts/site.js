@@ -92,6 +92,7 @@ const siteImportMap = (base) => ({
 		"tutuca/storybook": `${base}src/storybook/index.js`,
 		"tutuca/playground": `${base}src/playground/index.js`,
 		"tutuca/lint": `${base}src/lint/index.js`,
+		"tutuca/meta": `${base}src/meta/index.js`,
 		margaui: cdn("margaui", "dist/margaui.min.js"),
 		"fast-check": cdn("fast-check", "+esm"),
 	},

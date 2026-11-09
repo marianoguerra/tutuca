@@ -103,7 +103,6 @@ export const openStorybook = async ({
 	uiStyle.textContent = uiCss;
 	const started = startStorybook({ document, rootNode, fc, books, css, compile, known, initialId });
 	watchPanelHost(started.host, {
-		rootNode,
 		compile,
 		classes: storybookClasses(),
 		style: document.head.appendChild(document.createElement("style")),

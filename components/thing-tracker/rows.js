@@ -1,5 +1,6 @@
 // The small components the app lists: a thing, a tag, a section of Track and a bucket of Insights.
 
+import { CLASSES_META } from "../../src/meta/index.js";
 import {
 	$if,
 	button,
@@ -239,9 +240,12 @@ export const Tag = component({
 	},
 });
 
+const GRID_COMPACT = "grid grid-cols-6 gap-2 px-4 pt-1 pb-2 min-[480px]:grid-cols-8";
+const GRID = "grid grid-cols-4 gap-2 px-4 pt-1 pb-2 min-[480px]:grid-cols-6";
 // A collapsible section of Track; its members are the app's things it names.
 export const Section = component({
 	name: "Section",
+	meta: { [CLASSES_META]: { classes: `${GRID_COMPACT} ${GRID}` } },
 	fields: {
 		id: t.string(),
 		title: t.string(),
@@ -258,9 +262,7 @@ export const Section = component({
 			return this.isOpen ? "▾" : "▸";
 		},
 		get gridClass() {
-			return this.compact
-				? "grid grid-cols-6 gap-2 px-4 pt-1 pb-2 min-[480px]:grid-cols-8"
-				: "grid grid-cols-4 gap-2 px-4 pt-1 pb-2 min-[480px]:grid-cols-6";
+			return this.compact ? GRID_COMPACT : GRID;
 		},
 	},
 	loops: {

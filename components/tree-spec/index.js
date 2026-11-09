@@ -3,6 +3,8 @@
 // queue, the responses in flight, the script and the observations as HTML. An Explorer steps
 // through a scenario's state graph: at each state it lists what can happen next, and taking one
 // moves to the state it leads to. model.js turns the exported JSON into these.
+
+import { CLASSES_META } from "../../src/meta/index.js";
 import {
 	$if,
 	apply,
@@ -341,8 +343,17 @@ export const Item = component({
 });
 
 // ---- messages and observations, as HTML ---------------------------------------------
+// A message's note's class, by its status.
+const NOTE_CLASS = {
+	ok: "text-success",
+	host: "text-success",
+	misroute: "text-error font-bold",
+	stale: "text-warning",
+	orphaned: "text-warning",
+};
 export const Message = component({
 	name: "Message",
+	meta: { [CLASSES_META]: { classes: Object.values(NOTE_CLASS).join(" ") } },
 	fields: {
 		index: t.number().int().min(0), // its number among the state's messages, its arrows'
 		mode: t.enum("send", "notify", "request", "response"),
@@ -372,13 +383,7 @@ export const Message = component({
 			return this.hop ? `${this.from} ↑ (last hop ${this.to})` : `${this.from} → ${this.to}`;
 		},
 		get noteClass() {
-			return {
-				ok: "text-success",
-				host: "text-success",
-				misroute: "text-error font-bold",
-				stale: "text-warning",
-				orphaned: "text-warning",
-			}[this.status];
+			return NOTE_CLASS[this.status];
 		},
 		get border() {
 			return `border-left: 4px solid ${COLORS[this.mode]}`;

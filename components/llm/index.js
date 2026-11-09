@@ -5,7 +5,7 @@
 // toggle does), that edits it in place: the text in a textarea, the JSON values inline (the
 // json components' edit views) and the schemas as JSON text (JsonSchemaEditor).
 
-import { AGENT_META, agentTool } from "../../src/meta/index.js";
+import { AGENT_META, agentTool, CLASSES_META } from "../../src/meta/index.js";
 import {
 	$if,
 	component,
@@ -267,7 +267,9 @@ export const ToolCall = component({
 // What running a tool gave back, for the call with callId; isError when it failed.
 export const ToolResult = component({
 	name: "ToolResult",
-	meta: metaFor("Tool result", "📦", "What running the tool gave back.", 420),
+	meta: metaFor("Tool result", "📦", "What running the tool gave back.", 420, {
+		[CLASSES_META]: { classes: `${BADGE} badge-error badge-success` },
+	}),
 	fields: {
 		callId: t.string(),
 		isError: t.boolean(),
@@ -806,6 +808,11 @@ export const InferenceResponse = component({
 		"📥",
 		"What comes back from one call: the answer, why it stopped and the tokens it took.",
 		560,
+		{
+			[CLASSES_META]: {
+				classes: [BADGE, ...Object.values(STOP_REASONS).map((r) => r.badge)].join(" "),
+			},
+		},
 	),
 	fields: {
 		model: t.string(),

@@ -4,7 +4,7 @@
 // for stroke), stroke widths, undo and redo, and export as an .svg file. Pointer events turn
 // into messages with coordinates (startAt, moveTo, end), so drawing can be scripted and tested.
 
-import { AGENT_META, agentTool } from "../../src/meta/index.js";
+import { AGENT_META, agentTool, CLASSES_META } from "../../src/meta/index.js";
 import {
 	$if,
 	apply,
@@ -115,6 +115,8 @@ export const Drawing = component({
 	name: "Drawing",
 	meta: metaFor("Drawing", "🎨", "Shapes you draw, move and layer.", null, {
 		[AGENT_META]: AGENT,
+		// The cls of toolButtons and widthButtons.
+		[CLASSES_META]: { classes: [ON, OFF].join(" ") },
 	}),
 	fields: {
 		width: t.number(640).int().min(16).max(4000),

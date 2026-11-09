@@ -1,43 +1,70 @@
 // Class names for CSS compilers that need them listed: the constant ones a view tree holds, and
-// the computed ones as they show up in the DOM.
+// the ones a component declares its views compute (the classes meta, meta/classes.js).
+import { declaredClassesOf } from "../meta/classes.js";
 import { Walker } from "../tutuca.js";
 
-// Constants are class names only while inside a class attribute.
+// Constants are class names only while inside a class attribute; anything else there (a field,
+// a query, a bind) computes one, which is noted in dynamic.
 class ClassNames extends Walker {
 	inClass = false;
+	dynamic = [];
 	constructor(classes) {
 		super();
 		this.classes = classes;
 	}
-	attr(node, name, value) {
+	within(inClass, node) {
 		const outer = this.inClass;
-		this.inClass = name === "class";
-		super.attr(node, name, value);
+		this.inClass = inClass;
+		this.visit(node);
 		this.inClass = outer;
+	}
+	attr(_node, name, value) {
+		this.within(name === "class", value);
 	}
 	constant(node) {
 		if (!this.inClass || typeof node.value !== "string") return;
 		for (const c of node.value.split(/\s+/)) if (c) this.classes.add(c);
 	}
+	// A condition picks a class, it isn't one.
+	cond(node) {
+		this.within(false, node.source);
+		this.visit(node.thenVal);
+		this.visit(node.elseVal);
+	}
+	node(node) {
+		if (this.inClass) this.dynamic.push(node);
+		else super.node(node);
+	}
 }
 
-// The constant class names in a tree, including every $if branch; classes
-// read from the state are only known at render time.
-export const collectClasses = (tree, classes = new Set()) => {
-	new ClassNames(classes).visit(tree);
-	return classes;
+// The constant class names in a tree, including every $if branch, and the nodes that compute a
+// class (classes: Set, dynamic: [AstNode]), whose classes are only known at render time.
+export const classUsesOf = (tree, classes = new Set()) => {
+	const walker = new ClassNames(classes);
+	walker.visit(tree);
+	return { classes, dynamic: walker.dynamic };
 };
+// classUsesOf for the value of a class attribute.
+export const classValueUsesOf = (value, classes = new Set()) => {
+	const walker = new ClassNames(classes);
+	walker.within(true, value);
+	return { classes, dynamic: walker.dynamic };
+};
+// The constant class names in a tree, including every $if branch.
+export const collectClasses = (tree, classes = new Set()) => classUsesOf(tree, classes).classes;
 
-// The class names the components use: the constant ones in views and those loops bind.
+// The class names the components use: the constant ones in views and those they declare.
 export const classNamesOf = (specs, extra = []) => {
 	const classes = new Set(extra.flatMap((c) => c.split(/\s+/)));
-	for (const spec of specs)
+	for (const spec of specs) {
 		for (const name in spec.views) collectClasses(spec.views[name], classes);
+		for (const c of declaredClassesOf(spec)) classes.add(c);
+	}
 	return [...classes].filter(Boolean);
 };
 
-// Compiles the class names stories render that the static css lacks: views can compute
-// classes in methods and loops, which collectClasses can't see. compile(classes) → css.
+// Compiles the class names of the components it's given into the <style>s it watches:
+// compile(classes) → css. Compiles again only when components add class names it hasn't seen.
 export class ClassCompiler {
 	constructor(compile, known = []) {
 		this.compile = compile;
@@ -45,37 +72,35 @@ export class ClassCompiler {
 		this.styles = new Set();
 		this.css = "";
 		this.queued = false;
+		this.compiled = false;
 	}
-	watch(rootNode, style) {
+	// Fills style with the css, compiling it first if it hasn't been yet.
+	watch(style) {
 		this.styles.add(style);
 		style.textContent = this.css;
-		this.scan(rootNode);
+		if (!this.compiled) this.schedule();
+		return this;
 	}
-	// Watches rootNode, and scans it again after each render of host. Returns a function that
-	// stops listening to host.
-	attach(host, rootNode, style) {
-		this.watch(rootNode, style);
-		return host.listen((record) => {
-			if (record.phase === "rendered") this.scan(rootNode);
-		});
-	}
-	scan(rootNode) {
+	// Adds the class names of specs; compiles again, once per microtask, when any is new.
+	add(specs) {
 		let added = false;
-		for (const el of rootNode.querySelectorAll("[class]")) {
-			for (const c of el.getAttribute("class").split(/\s+/)) {
-				if (c !== "" && !this.seen.has(c)) {
-					this.seen.add(c);
-					added = true;
-				}
+		for (const c of classNamesOf(specs)) {
+			if (!this.seen.has(c)) {
+				this.seen.add(c);
+				added = true;
 			}
 		}
-		if (added && !this.queued) {
-			this.queued = true;
-			queueMicrotask(() => this.update());
-		}
+		if (added) this.schedule();
+		return added;
+	}
+	schedule() {
+		if (this.queued) return;
+		this.queued = true;
+		queueMicrotask(() => this.update());
 	}
 	async update() {
 		this.queued = false;
+		this.compiled = true;
 		this.css = await this.compile([...this.seen]);
 		for (const style of this.styles) {
 			if (style.isConnected) style.textContent = this.css;

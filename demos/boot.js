@@ -153,13 +153,13 @@ const setup = ({ components, askHandlers, metaSchemas = {}, document }) => {
 	host.listen((record) => {
 		if (isProblem(record)) console.error(record.outcome ?? record.phase, record);
 	});
-	// Classes computed in methods escape classNamesOf; the compiler adds them as they render.
+	// The components' classes, computed ones included, which their classes meta lists.
 	const watch = () => {
 		if (styleNode === null) return;
 		const known = classNamesOf([...Object.values(components), TimeTravel]);
 		const classes = new ClassCompiler(compile, known);
-		classes.attach(host, rootNode, styleNode);
 		classes.update().catch((error) => console.error("margaui compile failed", error));
+		classes.watch(styleNode);
 	};
 	return { host, watch };
 };

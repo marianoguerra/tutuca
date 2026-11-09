@@ -1,5 +1,6 @@
 // A task with its subtasks, due date, priority and labels, shown as a row or edited in place.
 
+import { CLASSES_META } from "../../src/meta/index.js";
 import {
 	$if,
 	apply,
@@ -31,8 +32,17 @@ import { dueLabel, dueTone } from "./dates.js";
 
 const { div, form, input, option, p, select, span, textarea } = tag;
 
+const DUE = "flex items-center gap-1";
+const TITLE = "break-words";
+const TITLE_DONE = `${TITLE} line-through opacity-50`;
+
 export const TodoTask = component({
 	name: "TodoTask",
+	meta: {
+		[CLASSES_META]: {
+			classes: [DUE, ...Object.values(DUES), ...Object.values(CHECKS), TITLE_DONE].join(" "),
+		},
+	},
 	fields: {
 		id: t.string(),
 		title: t.string(),
@@ -62,13 +72,13 @@ export const TodoTask = component({
 			return dueLabel(this.due, this.today);
 		},
 		get dueClass() {
-			return `flex items-center gap-1 ${DUES[dueTone(this.due, this.today)]}`;
+			return `${DUE} ${DUES[dueTone(this.due, this.today)]}`;
 		},
 		get checkClass() {
 			return CHECKS[this.priority];
 		},
 		get titleClass() {
-			return this.isCompleted ? "break-words line-through opacity-50" : "break-words";
+			return this.isCompleted ? TITLE_DONE : TITLE;
 		},
 		get hasDescription() {
 			return this.description !== "";

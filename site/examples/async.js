@@ -3,12 +3,15 @@
 // component's answers.lookup.ok, and a failure to answers.lookup.error. Handlers are
 // swappable: these stories answer from a table, an app would call fetch.
 import { $if, component, field, send, t, tag, targetValue } from "tutuca";
+import { CLASSES_META } from "tutuca/meta";
 import { step, stories } from "tutuca/storybook";
 
 const { button, div, form, input, p, span } = tag;
 
 export const Weather = component({
 	name: "Weather",
+	// reportClass computes the report's class: list what it can be for CSS compilers.
+	meta: { [CLASSES_META]: { classes: "alert alert-error alert-info" } },
 	fields: {
 		city: t.string("Lisbon"),
 		status: t.enum("idle", "loading", "done", "failed"),

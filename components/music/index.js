@@ -8,7 +8,7 @@
 // selectors and the explorer that shows them on either in select.js, and the theory in
 // theory.js, on plain numbers and names.
 
-import { AGENT_META, agentTool } from "../../src/meta/index.js";
+import { AGENT_META, agentTool, CLASSES_META } from "../../src/meta/index.js";
 import { $if, component, each, field, send, sourceKey, t, tag } from "../../src/tutuca.js";
 import { BADGE, cardClass, cardHeader, setField } from "../common/card.js";
 import { kind, metaFor } from "../common/meta.js";
@@ -45,6 +45,7 @@ import {
 } from "./theory.js";
 import {
 	COLORS,
+	INSTRUMENT_TOGGLE_CLASSES,
 	instrumentField,
 	instrumentMessages,
 	instrumentQueries,
@@ -59,9 +60,13 @@ import {
 	octaveTool,
 	outsideText,
 	pair,
+	ROOT_PICKER_CLASSES,
 	readout,
 	rootPicker,
 	rootQueries,
+	TOGGLE_BUTTON,
+	TOGGLE_OTHER,
+	TOGGLE_PICKED,
 } from "./ui.js";
 
 export {
@@ -135,6 +140,11 @@ export const intervalNotes = ({ root, octave, intervals }) => {
 	}));
 };
 
+// An interval's button, and its look when it's picked.
+const INTERVAL_BUTTON = "btn btn-xs join-item flex-1 px-0 font-mono";
+const INTERVAL_ON = "btn-secondary";
+// Every class a card with a root picker and an instrument toggle computes.
+const PICKER_CLASSES = `${ROOT_PICKER_CLASSES} ${INSTRUMENT_TOGGLE_CLASSES}`;
 // Picks a root and intervals above it, and builds the notes they make: spelled, marked on its
 // piano and its guitar's neck and, when they're a chord's, named.
 export const IntervalPicker = component({
@@ -145,6 +155,9 @@ export const IntervalPicker = component({
 		"Pick a root and intervals, and see the notes they make on a piano and a guitar.",
 		480,
 		{
+			[CLASSES_META]: {
+				classes: `${PICKER_CLASSES} ${INTERVAL_BUTTON} ${INTERVAL_ON}`,
+			},
 			[AGENT_META]: {
 				prompt: `Builds notes from a root and intervals above it (m2 M2 m3 M3 P4 A4 P5 m6 M6 m7 M7 P8), spelled by letter, and names the chord they make when they make one. ${MUSIC_PROMPT}`,
 				tools: [
@@ -188,7 +201,7 @@ export const IntervalPicker = component({
 				const on = this.intervals.includes(key);
 				return {
 					key,
-					cls: `btn btn-xs join-item flex-1 px-0 font-mono ${on ? "btn-secondary" : "bg-base-100"}`,
+					cls: `${INTERVAL_BUTTON} ${on ? INTERVAL_ON : TOGGLE_OTHER}`,
 					pressed: on ? "true" : "false",
 					title: `${INTERVALS[key].name} (${INTERVALS[key].semis} semitones)`,
 				};
@@ -288,6 +301,8 @@ export const ChordExplorer = component({
 		"Pick a chord, its root, octave and inversion, and see it on a piano and a guitar.",
 		520,
 		{
+			// Its inversions' buttons look like the instrument toggle's.
+			[CLASSES_META]: { classes: PICKER_CLASSES },
 			[AGENT_META]: {
 				prompt: `Shows a chord on a piano and a guitar's neck (wherever its notes are played): its root, kind (${Object.keys(CHORDS).join(", ")}), octave and inversion (0 for root position, 1 first, 2 second, 3 third for sevenths). ${MUSIC_PROMPT}`,
 				tools: [
@@ -342,7 +357,7 @@ export const ChordExplorer = component({
 			return CHORDS[this.kind].intervals.map((_, i) => ({
 				text: INVERSION_SHORT[i],
 				title: INVERSIONS[i],
-				cls: `btn btn-xs join-item flex-1 ${i === this.inversion ? "btn-primary" : "bg-base-100"}`,
+				cls: `${TOGGLE_BUTTON} ${i === this.inversion ? TOGGLE_PICKED : TOGGLE_OTHER}`,
 				pressed: i === this.inversion ? "true" : "false",
 			}));
 		},
@@ -444,6 +459,7 @@ export const ScaleExplorer = component({
 		"Pick a root and a scale, and see its notes on a piano and a guitar's neck.",
 		600,
 		{
+			[CLASSES_META]: { classes: PICKER_CLASSES },
 			[AGENT_META]: {
 				prompt: `Shows a scale on a piano, from its root up an octave, and on a guitar's neck, wherever its notes are played: its root and kind (${Object.keys(SCALES).join(", ")}). The root is in amber, the other notes in blue. ${MUSIC_PROMPT}`,
 				tools: [

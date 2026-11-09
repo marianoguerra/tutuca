@@ -4,6 +4,7 @@
 // each notation (Lisp, Python, JavaScript and Forth), named like viewLisp or editForth, and
 // Editor pushes the one its two toggles pick above the whole tree.
 
+import { CLASSES_META } from "../../src/meta/index.js";
 import {
 	$if,
 	apply,
@@ -285,6 +286,8 @@ export const Hole = component({
 const asNumber = (text) => (text.trim() === "" ? Number.NaN : Number(text));
 export const Num = component({
 	name: "Num",
+	// What textClass can be.
+	meta: { [CLASSES_META]: { classes: `${TEXT.number} ${INLINE} text-error` } },
 	fields: { value: t.number(), text: t.string("0") },
 	invariants: {
 		valueFollowsText() {

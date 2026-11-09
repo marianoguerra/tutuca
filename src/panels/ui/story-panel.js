@@ -1,6 +1,7 @@
 // The selected story: its sequences, timeline, targets and a form to send one message.
 
 import { ORIGINS } from "../../history/index.js";
+import { CLASSES_META } from "../../meta/classes.js";
 import {
 	$if,
 	component,
@@ -68,6 +69,7 @@ const TRANSPORT = [
 ];
 export const StoryPanel = component({
 	name: "StoryPanel",
+	meta: { [CLASSES_META]: { classes: Object.values(BADGES).join(" ") } },
 	fields: {
 		appKey: t.string(),
 		...summaryFields(),

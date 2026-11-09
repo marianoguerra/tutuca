@@ -2,7 +2,7 @@
 // an edit view, styled like main, that edits them in place. pushView("edit", ...) above a
 // tree, as JsonEditor does, switches the whole tree; values without an edit view keep main.
 
-import { DATA_META } from "../../src/meta/index.js";
+import { CLASSES_META, DATA_META } from "../../src/meta/index.js";
 import {
 	$if,
 	button,
@@ -128,6 +128,8 @@ export const JsonBool = component({
 const asNumber = (text) => (text.trim() === "" ? Number.NaN : Number(text));
 export const JsonNumber = component({
 	name: "JsonNumber",
+	// What textClass can be.
+	meta: { [CLASSES_META]: { classes: `${TEXT.number} ${INLINE} text-error` } },
 	fields: { value: t.number(), text: t.string("0") },
 	invariants: {
 		valueFollowsText() {

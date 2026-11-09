@@ -17,7 +17,7 @@
 // captures the pointer on the canvas's svg, so the moves and the release reach the canvas
 // wherever the pointer goes, and the components inside never see them.
 
-import { AGENT_META } from "../../src/meta/index.js";
+import { AGENT_META, CLASSES_META } from "../../src/meta/index.js";
 import {
 	$if,
 	apply,
@@ -118,13 +118,16 @@ export const COLORS = [
 ];
 const ON = TOOL_ON;
 const OFF = TOOL_OFF;
+const SWATCH = "size-5 rounded-sm border";
+const SWATCH_ON = "border-primary outline-2 outline-primary";
+const SWATCH_OFF = "border-base-content/30";
 const swatches = (current, message, what) =>
 	COLORS.map((color) => ({
 		color,
 		message,
 		label: `${what} ${color}`,
 		style: swatchStyle(color),
-		cls: `size-5 rounded-sm border ${color === current ? "border-primary outline-2 outline-primary" : "border-base-content/30"}`,
+		cls: `${SWATCH} ${color === current ? SWATCH_ON : SWATCH_OFF}`,
 	}));
 const typing = (target) =>
 	target?.isContentEditable || ["INPUT", "TEXTAREA", "SELECT"].includes(target?.tagName);
@@ -138,6 +141,17 @@ export const Canvas = component({
 		720,
 		{
 			[AGENT_META]: ASSISTANT,
+			// The cls of toolButtons and the swatches, drawingClass and bgClass.
+			[CLASSES_META]: {
+				classes: [
+					ON,
+					OFF,
+					SWATCH,
+					SWATCH_ON,
+					SWATCH_OFF,
+					"canvas-bg cursor-grabbing cursor-default cursor-crosshair",
+				].join(" "),
+			},
 		},
 	),
 	fields: {

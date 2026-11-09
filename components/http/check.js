@@ -94,12 +94,17 @@ export const STATUS_CLASSES = {
 		means: "The server failed: the same request may work later.",
 	},
 };
-export const statusClass = (status) =>
-	STATUS_CLASSES[Math.floor(status / 100)] ?? {
-		label: "Unknown",
-		badge: "badge-ghost",
-		means: "Not a status HTTP defines.",
-	};
+// The class of a status HTTP doesn't define.
+const UNKNOWN_STATUS = {
+	label: "Unknown",
+	badge: "badge-ghost",
+	means: "Not a status HTTP defines.",
+};
+export const statusClass = (status) => STATUS_CLASSES[Math.floor(status / 100)] ?? UNKNOWN_STATUS;
+// Every badge a status shows with, as statusClass gives them.
+export const STATUS_BADGES = [...Object.values(STATUS_CLASSES), UNKNOWN_STATUS]
+	.map((c) => c.badge)
+	.join(" ");
 
 // What some headers are for, to explain them where they show.
 export const HEADER_DOCS = {

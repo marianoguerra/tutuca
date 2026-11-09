@@ -1,6 +1,7 @@
 import assert from "node:assert/strict";
 import test from "node:test";
 import { lint, lintScope, registeredIn } from "../../src/lint/index.js";
+import { CLASSES_META } from "../../src/meta/index.js";
 import {
 	$if,
 	component,
@@ -521,4 +522,52 @@ test("a getter in methods is a query", () => {
 		view: field("area"),
 	});
 	assert.deepEqual(lintOf({ Box }), ["warning getter-in-methods Box"]);
+});
+
+test("a computed class needs the component's classes meta", () => {
+	const Computed = component({
+		name: "Computed",
+		fields: { items: t.array(t.string()) },
+		views: {
+			main: h(
+				"div",
+				{ class: field("rootClass") },
+				h("p", { class: $if(field("on"), "a", "b") }, "constant classes are seen"),
+				each(field("items"), h("b", { class: lookupBind("chip") }), "chips"),
+			),
+		},
+		queries: {
+			get rootClass() {
+				return "flex";
+			},
+			get on() {
+				return true;
+			},
+		},
+		loops: { chips: { enrich: (binds) => ({ ...binds, chip: "badge" }) } },
+	});
+	assert.deepEqual(lintOf([Computed]), [
+		"warning undeclared-dynamic-class Computed.main > div > [class]",
+		"warning undeclared-dynamic-class Computed.main > div > each(chips) > b > [class]",
+	]);
+	const Declared = component({
+		name: "Declared",
+		meta: { [CLASSES_META]: { classes: "flex badge" } },
+		views: { main: h("div", { class: field("rootClass") }) },
+		queries: {
+			get rootClass() {
+				return "flex";
+			},
+		},
+	});
+	assert.deepEqual(lintOf([Declared]), []);
+});
+
+test("a classes meta's classes is a string", () => {
+	const Bad = component({
+		name: "Bad",
+		meta: { [CLASSES_META]: { classes: ["a", "b"], extra: 1 } },
+		views: { main: h("div", { class: "a" }) },
+	});
+	assert.deepEqual(lintOf([Bad]), ["error classes-meta Bad", "error classes-meta Bad"]);
 });

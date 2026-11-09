@@ -1,4 +1,5 @@
-import { agentProblems, dataProblems } from "../meta/index.js";
+import { classValueUsesOf } from "../css/classes.js";
+import { agentProblems, classesProblems, dataProblems, hasClassesMeta } from "../meta/index.js";
 import {
 	ANSWER_OUTCOMES,
 	ArrayType,
@@ -75,6 +76,11 @@ const labelOf = (node, kind) => {
 			return kind;
 	}
 };
+// What a node a class attribute computes its class from reads, as a view writes it.
+const sourceText = (node) => {
+	const kind = kindOf(node);
+	return kind === "lookupBind" ? `lookupBind(${node.name})` : labelOf(node, kind);
+};
 // Bindings visible where an expression evaluates: inside a loop body (value and
 // key), and whether a withBinds or an enriching loop adds names only known at runtime.
 const viewEnv = Object.freeze({ loop: false, open: false });
@@ -141,6 +147,10 @@ export class Lint extends Walker {
 		for (const problem of agentProblems(spec)) this.report("error", "agent-meta", null, problem);
 		// What its data meta says it can't do: a load that isn't a pure one-arg message.
 		for (const problem of dataProblems(spec)) this.report("error", "data-meta", null, problem);
+		// What its classes meta says that isn't a string of class names.
+		for (const problem of classesProblems(spec)) {
+			this.report("error", "classes-meta", null, problem);
+		}
 		for (const [name, fn] of Object.entries(spec.provides)) {
 			if (typeof fn !== "function") {
 				this.report("error", "section-shape", null, `provides.${name} must be a function`);
@@ -363,8 +373,18 @@ export class Lint extends Walker {
 	}
 	attr(node, name, value) {
 		this.labels.push(`[${name}]`);
+		if (name === "class") this.checkClass(value);
 		super.attr(node, name, value);
 		this.labels.pop();
+	}
+	// A class computed from a field, a query or a bind is only known as it renders: unless the
+	// component lists the classes it can be, a CSS compiler that needs them listed misses them.
+	checkClass(value) {
+		if (hasClassesMeta(this.spec)) return;
+		for (const node of classValueUsesOf(value).dynamic) {
+			const message = `class reads ${sourceText(node)}, whose classes lint can't see: list every class it can be in meta[CLASSES_META].classes`;
+			this.report("warning", "undeclared-dynamic-class", node, message);
+		}
 	}
 	handler(_node, { name, action }) {
 		this.labels.push(`[on:${name}]`);

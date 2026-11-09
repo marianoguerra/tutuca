@@ -1,6 +1,8 @@
 // Picking notes to show: a note or chord selector, an offset selector that moves what the
 // selector picks by an interval, and an explorer that shows both, in different colors, on a
 // piano or a guitar's neck, as its toggle says.
+
+import { CLASSES_META } from "../../src/meta/index.js";
 import {
 	apply,
 	component,
@@ -28,6 +30,7 @@ import {
 } from "./theory.js";
 import {
 	COLORS,
+	INSTRUMENT_TOGGLE_CLASSES,
 	instrumentField,
 	instrumentMessages,
 	instrumentQueries,
@@ -35,6 +38,7 @@ import {
 	instrumentView,
 	kindSelect,
 	pair,
+	ROOT_PICKER_CLASSES,
 	rootPicker,
 	rootQueries,
 } from "./ui.js";
@@ -47,7 +51,9 @@ const CHANGED = { notify: ["selectionChanged"] };
 // selectionChanged, when that changes.
 export const NoteChordSelector = component({
 	name: "NoteChordSelector",
-	meta: metaFor("Note or chord", "🎵", "Pick a note, or a chord on it.", 420),
+	meta: metaFor("Note or chord", "🎵", "Pick a note, or a chord on it.", 420, {
+		[CLASSES_META]: { classes: ROOT_PICKER_CLASSES },
+	}),
 	fields: {
 		root: t.number().int().min(0).max(11),
 		kind: t.enum(...SELECTION_KINDS),
@@ -250,6 +256,7 @@ export const OffsetExplorer = component({
 		"🎚️",
 		"A note or chord and an interval offset, shown on a piano or a guitar in their colors.",
 		600,
+		{ [CLASSES_META]: { classes: INSTRUMENT_TOGGLE_CLASSES } },
 	),
 	fields: {
 		picker: t.component("OffsetSelector"),

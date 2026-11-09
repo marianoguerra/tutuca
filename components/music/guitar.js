@@ -1,7 +1,7 @@
 // A guitar's neck in standard tuning, from a start fret and as many frets as its edit view says,
 // that marks notes, each in its color, everywhere they are on the frets it shows.
 
-import { AGENT_META } from "../../src/meta/index.js";
+import { AGENT_META, CLASSES_META } from "../../src/meta/index.js";
 import { $if, component, each, field, send, sourceKey, t, tag } from "../../src/tutuca.js";
 import { labeled, numberInput, setNumber } from "../common/card.js";
 import { metaFor } from "../common/meta.js";
@@ -15,6 +15,7 @@ import {
 	COLORS,
 	markFields,
 	markMessage,
+	PALETTE_CLASSES,
 	paintFields,
 	paintMessages,
 	paintQueries,
@@ -197,6 +198,7 @@ export const GuitarNeck = component({
 		"A guitar's neck that marks notes: pick its first fret and how many it shows in its edit view.",
 		560,
 		{
+			[CLASSES_META]: { classes: PALETTE_CLASSES },
 			[AGENT_META]: {
 				prompt: `A guitar's neck in standard tuning that marks notes: a note marked shows wherever it's played on the frets shown. Name notes without octaves (C, F♯, Bb). Colors: ${COLOR_NAMES}. The summary is the frets shown and what's marked.`,
 				summary: "ariaLabel",

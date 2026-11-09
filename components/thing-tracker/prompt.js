@@ -1,6 +1,7 @@
 // The value of one measurement, as the measurement wizard asks it (main) or as the event
 // editor shows it (field).
 
+import { CLASSES_META } from "../../src/meta/index.js";
 import {
 	$if,
 	button,
@@ -27,11 +28,24 @@ import {
 const { div, h2, h3, input, label, p } = tag;
 
 const CHIP = "rounded-full border px-3 py-1.5 text-xs font-medium";
+const CHIP_ON = `${CHIP} border-transparent bg-primary text-primary-content`;
+const CHIP_OFF = `${CHIP} border-base-300 ${MUTED}`;
 const UNIT_BTN = "rounded px-2 py-1 text-xs font-medium";
+const UNIT_BTN_ON = `${UNIT_BTN} bg-primary text-primary-content`;
+const UNIT_BTN_OFF = `${UNIT_BTN} bg-base-200 ${MUTED}`;
+const USUAL_ON =
+	"min-h-11 rounded-xl border border-transparent bg-primary px-4 text-sm font-medium tabular-nums text-primary-content";
+const USUAL_OFF =
+	"min-h-11 rounded-xl border border-base-300 px-4 text-sm font-medium tabular-nums";
 const ADJUST =
 	"flex min-h-12 items-center justify-center gap-1 rounded-xl border border-base-300 text-sm font-medium tabular-nums disabled:opacity-40";
 export const Prompt = component({
 	name: "Prompt",
+	meta: {
+		[CLASSES_META]: {
+			classes: [CHIP_ON, CHIP_OFF, UNIT_BTN_ON, UNIT_BTN_OFF, USUAL_ON, USUAL_OFF].join(" "),
+		},
+	},
 	fields: {
 		measurementId: t.enum(...MEASUREMENTS.map((m) => m.id)),
 		unitId: t.string(),
@@ -68,12 +82,8 @@ export const Prompt = component({
 					value: u.id,
 					label: u.label,
 					symbol: u.symbol.trim() || u.label,
-					pill: on
-						? `${CHIP} border-transparent bg-primary text-primary-content`
-						: `${CHIP} border-base-300 ${MUTED}`,
-					button: on
-						? `${UNIT_BTN} bg-primary text-primary-content`
-						: `${UNIT_BTN} bg-base-200 ${MUTED}`,
+					pill: on ? CHIP_ON : CHIP_OFF,
+					button: on ? UNIT_BTN_ON : UNIT_BTN_OFF,
 				};
 			});
 		},
@@ -81,10 +91,7 @@ export const Prompt = component({
 			return commonValues(this.history).map((v) => ({
 				value: String(v),
 				label: formatMeasurement(this.measurement, v, this.unit.id),
-				cls:
-					v === this.base
-						? "min-h-11 rounded-xl border border-transparent bg-primary px-4 text-sm font-medium tabular-nums text-primary-content"
-						: "min-h-11 rounded-xl border border-base-300 px-4 text-sm font-medium tabular-nums",
+				cls: v === this.base ? USUAL_ON : USUAL_OFF,
 			}));
 		},
 		get hasUsual() {

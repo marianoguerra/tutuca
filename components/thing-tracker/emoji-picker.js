@@ -1,5 +1,6 @@
 // Picks an emoji by category or search, with the recently used first.
 
+import { CLASSES_META } from "../../src/meta/index.js";
 import {
 	$if,
 	button,
@@ -24,8 +25,13 @@ const CATEGORY_ICONS = [
 ];
 const CATEGORIES = ["Common", ...EMOJI_CATEGORIES];
 const MAX_RESULTS = 300;
+const CELL_ON = "emoji aspect-square rounded-md text-xl bg-primary/15 ring-2 ring-primary";
+const CELL_OFF = "emoji aspect-square rounded-md text-xl hover:bg-base-200";
+const CHIP_ON = "emoji size-9 rounded-lg text-lg bg-primary/20 ring-2 ring-primary";
+const CHIP_OFF = "emoji size-9 rounded-lg text-lg hover:bg-base-200";
 export const EmojiPicker = component({
 	name: "EmojiPicker",
+	meta: { [CLASSES_META]: { classes: [CELL_ON, CELL_OFF, CHIP_ON, CHIP_OFF].join(" ") } },
 	fields: {
 		query: t.string(),
 		category: t.enum(...CATEGORIES),
@@ -37,10 +43,7 @@ export const EmojiPicker = component({
 		cell(char) {
 			return {
 				char,
-				cls:
-					char === this.value
-						? "emoji aspect-square rounded-md text-xl bg-primary/15 ring-2 ring-primary"
-						: "emoji aspect-square rounded-md text-xl hover:bg-base-200",
+				cls: char === this.value ? CELL_ON : CELL_OFF,
 			};
 		},
 	},
@@ -52,10 +55,7 @@ export const EmojiPicker = component({
 			return CATEGORIES.map((name, i) => ({
 				name,
 				icon: CATEGORY_ICONS[i],
-				cls:
-					name === this.category
-						? "emoji size-9 rounded-lg text-lg bg-primary/20 ring-2 ring-primary"
-						: "emoji size-9 rounded-lg text-lg hover:bg-base-200",
+				cls: name === this.category ? CHIP_ON : CHIP_OFF,
 			}));
 		},
 		get matches() {

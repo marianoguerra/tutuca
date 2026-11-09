@@ -1,5 +1,6 @@
 // Creates or edits a thing in steps: name and emoji, what to record, notes.
 
+import { CLASSES_META } from "../../../src/meta/index.js";
 import {
 	$if,
 	button,
@@ -21,8 +22,12 @@ import { always, closing, panel } from "../panel.js";
 const { div, input, label, li, p, span, textarea, ul } = tag;
 
 const STEPS = ["Name & emoji", "What to record", "Notes"];
+const UNIT_ON =
+	"rounded-full border border-transparent bg-primary px-2 py-0.5 text-[0.6875rem] font-medium text-primary-content";
+const UNIT_OFF = `rounded-full border border-base-300 px-2 py-0.5 text-[0.6875rem] font-medium ${MUTED}`;
 export const ThingEditor = component({
 	name: "ThingEditor",
+	meta: { [CLASSES_META]: { classes: `${UNIT_ON} ${UNIT_OFF}` } },
 	fields: {
 		mode: t.enum("create", "edit"),
 		thingId: t.string(),
@@ -93,10 +98,7 @@ export const ThingEditor = component({
 						units: m.units.map((u) => ({
 							value: `${m.id}|${u.id}`,
 							label: u.label,
-							cls:
-								u.id === ref?.unit
-									? "rounded-full border border-transparent bg-primary px-2 py-0.5 text-[0.6875rem] font-medium text-primary-content"
-									: `rounded-full border border-base-300 px-2 py-0.5 text-[0.6875rem] font-medium ${MUTED}`,
+							cls: u.id === ref?.unit ? UNIT_ON : UNIT_OFF,
 						})),
 					};
 				});

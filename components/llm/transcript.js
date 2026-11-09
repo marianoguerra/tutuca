@@ -3,6 +3,8 @@
 // each tool call with its arguments and each result under it, a failed one in red. An agent
 // keeps its conversation in one and appends to it; its messages are plain JSON, so they can be
 // sent as is. Each message's rows are entries beside them, a tool call's arguments a JSON tree.
+
+import { CLASSES_META } from "../../src/meta/index.js";
 import {
 	$if,
 	apply,
@@ -57,6 +59,8 @@ const STYLE = {
 	error: `${ROW} border-error/60`,
 	group: `${ROW} border-info/60`,
 };
+// Every class an entry's or a group's card can have.
+const STYLE_CLASSES = Object.values(STYLE).join(" ");
 const TOGGLE = "btn btn-ghost btn-xs ml-auto h-5 min-h-0 px-1";
 // The rows a message shows as: one for its text, one per tool call.
 export const transcriptRows = (messages) =>
@@ -135,6 +139,7 @@ const MARKS = { none: "", running: "…", ok: "✓", failed: "✗" };
 // arguments, as a JSON tree, and what running it gave back.
 export const TranscriptEntry = component({
 	name: "TranscriptEntry",
+	meta: { [CLASSES_META]: { classes: STYLE_CLASSES } },
 	fields: {
 		kind: t.enum("user", "assistant", "call", "result", "error"),
 		label: t.string(),
@@ -220,6 +225,7 @@ export const TranscriptEntry = component({
 // Consecutive tool calls, as one card: collapsed, how many and which tools; expanded, each call.
 export const MessageGroup = component({
 	name: "MessageGroup",
+	meta: { [CLASSES_META]: { classes: STYLE_CLASSES } },
 	fields: {
 		entries: t.array(t.component("TranscriptEntry")),
 		open: t.boolean(false),

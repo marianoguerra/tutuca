@@ -3,6 +3,7 @@
 // backups. The app owns all data; panels and children notify it with what to change.
 // Time is state (now, tz) the host keeps current, so every view is a function of it.
 
+import { CLASSES_META } from "../../src/meta/index.js";
 import {
 	$if,
 	apply,
@@ -200,8 +201,47 @@ const openImport = (next, ctx, title, text) => {
 	next.showPreview = true;
 };
 
+const TAB_BUTTON =
+	"flex h-full w-full flex-col items-center justify-center gap-1 text-[0.6875rem] font-medium";
+const COMPACT_ON = `${ICON_TOGGLE} border-transparent bg-primary text-primary-content`;
+const COMPACT_OFF = `${ICON_TOGGLE} border-base-300 ${MUTED}`;
+const TOAST_INFO =
+	"flex items-start gap-3 rounded-lg border border-base-300 bg-base-100 p-3 text-sm shadow-lg";
+const TOAST_ERROR =
+	"flex items-start gap-3 rounded-lg border border-error/40 bg-base-100 p-3 text-sm shadow-lg";
+const GRANULARITY_ON = "flex-1 rounded-md px-3 py-1.5 bg-base-100 shadow-sm";
+const GRANULARITY_OFF = `flex-1 rounded-md px-3 py-1.5 ${MUTED}`;
+const BUNDLE_ADDED = "btn btn-outline btn-sm";
+const BUNDLE_ADD = "btn btn-primary btn-sm";
+const MODE_ON = "flex-1 rounded-md bg-primary px-3 py-1.5 text-sm font-medium text-primary-content";
+const MODE_OFF = "flex-1 rounded-md border border-base-300 px-3 py-1.5 text-sm font-medium";
+const CONFIRM_REPLACE = "btn btn-error btn-sm";
+const CONFIRM_IMPORT = "btn btn-primary btn-sm";
+// Every class the app's views compute.
+const APP_CLASSES = [
+	TAB_BUTTON,
+	MUTED,
+	COMPACT_ON,
+	COMPACT_OFF,
+	TOAST_INFO,
+	TOAST_ERROR,
+	GRANULARITY_ON,
+	GRANULARITY_OFF,
+	pick(true),
+	pick(false),
+	seg(true),
+	seg(false),
+	BUNDLE_ADDED,
+	BUNDLE_ADD,
+	MODE_ON,
+	MODE_OFF,
+	CONFIRM_REPLACE,
+	CONFIRM_IMPORT,
+].join(" ");
+
 export const TrackerApp = component({
 	name: "TrackerApp",
+	meta: { [CLASSES_META]: { classes: APP_CLASSES } },
 	fields: {
 		now: t.number().int().min(0),
 		tz: t.number().int().min(-840).max(840),
@@ -285,7 +325,7 @@ export const TrackerApp = component({
 				id,
 				icon,
 				text,
-				cls: `flex h-full w-full flex-col items-center justify-center gap-1 text-[0.6875rem] font-medium ${id === this.tab ? "" : MUTED}`,
+				cls: `${TAB_BUTTON} ${id === this.tab ? "" : MUTED}`,
 				current: id === this.tab ? "page" : "false",
 			}));
 		},
@@ -318,9 +358,7 @@ export const TrackerApp = component({
 			return this.anyOpen ? "⇡" : "⇣";
 		},
 		get compactClass() {
-			return this.compact
-				? `${ICON_TOGGLE} border-transparent bg-primary text-primary-content`
-				: `${ICON_TOGGLE} border-base-300 ${MUTED}`;
+			return this.compact ? COMPACT_ON : COMPACT_OFF;
 		},
 		get compactLabel() {
 			return this.compact ? "Show labels" : "Hide labels";
@@ -356,19 +394,14 @@ export const TrackerApp = component({
 			return this.toast?.text ?? "";
 		},
 		get toastClass() {
-			return this.toast?.kind === "error"
-				? "flex items-start gap-3 rounded-lg border border-error/40 bg-base-100 p-3 text-sm shadow-lg"
-				: "flex items-start gap-3 rounded-lg border border-base-300 bg-base-100 p-3 text-sm shadow-lg";
+			return this.toast?.kind === "error" ? TOAST_ERROR : TOAST_INFO;
 		},
 		// Insights.
 		get granularityButtons() {
 			return ["day", "week", "month"].map((g) => ({
 				value: g,
 				text: g[0].toUpperCase() + g.slice(1),
-				cls:
-					g === this.granularity
-						? "flex-1 rounded-md px-3 py-1.5 bg-base-100 shadow-sm"
-						: `flex-1 rounded-md px-3 py-1.5 ${MUTED}`,
+				cls: g === this.granularity ? GRANULARITY_ON : GRANULARITY_OFF,
 			}));
 		},
 		get hasUsedGroups() {
@@ -443,7 +476,7 @@ export const TrackerApp = component({
 					counts: `${b.thingCount} things · ${plural(b.groupCount, "tag")}`,
 					added,
 					action: added ? "Re-check" : "Add",
-					cls: added ? "btn btn-outline btn-sm" : "btn btn-primary btn-sm",
+					cls: added ? BUNDLE_ADDED : BUNDLE_ADD,
 				};
 			});
 		},
@@ -466,10 +499,7 @@ export const TrackerApp = component({
 			return ["merge", "replace"].map((mode) => ({
 				value: mode,
 				text: mode === "merge" ? "Merge" : "Replace",
-				cls:
-					mode === this.importMode
-						? "flex-1 rounded-md bg-primary px-3 py-1.5 text-sm font-medium text-primary-content"
-						: "flex-1 rounded-md border border-base-300 px-3 py-1.5 text-sm font-medium",
+				cls: mode === this.importMode ? MODE_ON : MODE_OFF,
 			}));
 		},
 		get modeText() {
@@ -520,7 +550,7 @@ export const TrackerApp = component({
 			return this.preview.replace ? "Replace everything" : "Import";
 		},
 		get confirmImportClass() {
-			return this.preview.replace ? "btn btn-error btn-sm" : "btn btn-primary btn-sm";
+			return this.preview.replace ? CONFIRM_REPLACE : CONFIRM_IMPORT;
 		},
 	},
 	loops: {

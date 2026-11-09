@@ -24,6 +24,7 @@
 
 import {
 	AGENT_META,
+	CLASSES_META,
 	dataMetaSchemas,
 	displayLabel,
 	displayMetaSchemas,
@@ -542,7 +543,11 @@ const PANEL = `tab-panel grid [:where(&)>*]:w-full [:where(&)>*]:h-full ${BACKED
 // edited, tabs are renamed and removed, and the + after the last adds one holding a hole.
 export const Tabs = component({
 	name: "Tabs",
-	meta: layoutMeta("Tabs", "🗂", "Components as tabs, one shown at a time.", 480),
+	meta: {
+		...layoutMeta("Tabs", "🗂", "Components as tabs, one shown at a time.", 480),
+		// The cls of tabHeaders.
+		[CLASSES_META]: { classes: "tab tab-active gap-1" },
+	},
 	fields: {
 		items: t.array(t.component()),
 		// The tabs' names, by item; a missing or empty one shows as "Tab n".

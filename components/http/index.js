@@ -5,7 +5,7 @@
 // shows in its main view as it reads, and has an edit view, pushed from above (as the canvas's
 // item toggle does), that edits it in place. The checking is in check.js, on plain JSON.
 
-import { AGENT_META, agentTool } from "../../src/meta/index.js";
+import { AGENT_META, agentTool, CLASSES_META } from "../../src/meta/index.js";
 import {
 	$if,
 	apply,
@@ -54,6 +54,7 @@ import {
 	REASONS,
 	rawRequest,
 	rawResponse,
+	STATUS_BADGES,
 	statusClass,
 } from "./check.js";
 import { TASK, TASKS } from "./fixtures.js";
@@ -317,6 +318,11 @@ const bodyFields = () => ({
 	body: t.option(t.component("JsonRoot")), // Kept while it's text, to switch back.
 	bodyText: t.string(),
 });
+// A body kind's button, and what it adds when it's the body's kind.
+const BODY_KIND_BUTTON = "btn btn-xs join-item";
+const BODY_KIND_PICKED = "btn-primary";
+// The classes a status's badge can have.
+const STATUS_BADGE_CLASSES = `${BADGE} ${STATUS_BADGES}`;
 const BODY_TEXT = "overflow-auto whitespace-pre-wrap rounded bg-base-200 p-2 font-mono text-xs";
 // The body, read: its JSON or its text, in a section, when there's one.
 const bodyView = () =>
@@ -366,7 +372,7 @@ const messageQueries = {
 			return BODY_KINDS.map(([kind, text]) => ({
 				text,
 				title: kind === "none" ? "No body" : `${text} body`,
-				cls: `btn btn-xs join-item ${kind === this.bodyKind ? "btn-primary" : ""}`,
+				cls: `${BODY_KIND_BUTTON} ${kind === this.bodyKind ? BODY_KIND_PICKED : ""}`,
 				pressed: kind === this.bodyKind ? "true" : "false",
 			}));
 		},
@@ -393,6 +399,7 @@ export const HttpRequest = component({
 		480,
 		{
 			...dataMeta(REQUEST_SCHEMA),
+			[CLASSES_META]: { classes: `${BODY_KIND_BUTTON} ${BODY_KIND_PICKED}` },
 			[AGENT_META]: {
 				prompt:
 					"An HTTP request. The outline is the request as it goes on the wire, and what its method promises.",
@@ -506,6 +513,9 @@ export const HttpResponse = component({
 		480,
 		{
 			...dataMeta(RESPONSE_SCHEMA),
+			[CLASSES_META]: {
+				classes: `${STATUS_BADGE_CLASSES} ${BODY_KIND_BUTTON} ${BODY_KIND_PICKED}`,
+			},
 			[AGENT_META]: {
 				prompt:
 					"An HTTP response. The outline is the response as it goes on the wire, what its status means and what caches may do with it.",
@@ -608,6 +618,7 @@ export const ApiResponse = component({
 		"📄",
 		"A response an API operation documents: its status, what it means and its body's schema.",
 		420,
+		{ [CLASSES_META]: { classes: `${STATUS_BADGE_CLASSES} font-mono` } },
 	),
 	fields: {
 		status: t.string(),
@@ -947,6 +958,11 @@ export const ApiOperation = component({
 	},
 });
 
+// A check's line, passed or failed, and the summary's badge, all passed or not.
+const CHECK_OK = "http-ok text-success";
+const CHECK_FAIL = "http-fail text-error";
+const SUMMARY_OK = "badge-success";
+const SUMMARY_FAIL = "badge-error";
 const EXCHANGE_SECTIONS = ["checks", "operation", "request", "response"];
 // A request and the response it got, checked against the operation they follow, if any.
 export const HttpExchange = component({
@@ -958,6 +974,9 @@ export const HttpExchange = component({
 		560,
 		{
 			...dataMeta(EXCHANGE_SCHEMA),
+			[CLASSES_META]: {
+				classes: [BADGE, SUMMARY_OK, SUMMARY_FAIL, CHECK_OK, CHECK_FAIL].join(" "),
+			},
 			[AGENT_META]: {
 				prompt:
 					"An HTTP exchange: a request, the response it got and, maybe, the OpenAPI operation they should follow. The outline lists every check, ✓ or ✗, then the request and response on the wire and the operation as JSON. Explain each ✗ in plain words; fix one only when asked, and check the outline after.",
@@ -1008,7 +1027,7 @@ export const HttpExchange = component({
 				ok,
 				text,
 				mark: ok ? "✓" : "✗",
-				cls: ok ? "http-ok text-success" : "http-fail text-error",
+				cls: ok ? CHECK_OK : CHECK_FAIL,
 			}));
 		},
 		get asJson() {
@@ -1027,7 +1046,7 @@ export const HttpExchange = component({
 			return `${this.summary}:\n${checks}\n\nRequest:\n${this.request.wire}\n\nResponse:\n${this.response.wire}\n\nOperation: ${operation}`;
 		},
 		get summaryClass() {
-			return `${BADGE} ${this.failures === 0 ? "badge-success" : "badge-error"}`;
+			return `${BADGE} ${this.failures === 0 ? SUMMARY_OK : SUMMARY_FAIL}`;
 		},
 		get hasOperation() {
 			return this.operation !== null;

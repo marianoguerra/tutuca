@@ -1,14 +1,12 @@
 // The panels of a story's app, shared by the storybook and the playground: the steps, the
 // stress test and the dev panel, fed by the reports of its <tutuca-app>.
-import { devClasses, devComponents, makeDevPanel } from "../../dev/panel.js";
+import { devComponents, makeDevPanel } from "../../dev/panel.js";
 import { apply, field, scopeOf, send, t, tag } from "../../tutuca.js";
-import { BADGES } from "./common.js";
 import { StoryPanel, SUMMARY_KEYS } from "./story-panel.js";
 import { StressPanel, stressResult } from "./stress-panel.js";
 
-// The panels' components, and the class names they build at runtime.
+// The panels' components.
 export const panelComponents = { StoryPanel, StressPanel, ...devComponents };
-export const panelClassNames = [...Object.values(BADGES), ...devClasses];
 
 // The panel fields of a component that shows them, and new panels for the app at appKey.
 export const panelFields = {

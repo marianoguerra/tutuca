@@ -53,7 +53,7 @@ host.start(host.scope.components.Counter());
 | `tutuca` | components, views, schemas, the host, the `tag` and `button` element builders |
 | `tutuca/dev` | Dev mode: the `DevChecks` a `Host` runs (`new Host({ checks: DevChecks })`) and DevTools formatters |
 | `tutuca/lint` | the linter |
-| `tutuca/classes` | `collectClasses`, `classNamesOf` and `ClassCompiler`, for CSS compilers that need class names listed |
+| `tutuca/classes` | `collectClasses`, `classUsesOf`, `classNamesOf` and `ClassCompiler`, for CSS compilers that need class names listed. A component whose views compute a class (a field, query or bind in `class`) lists every class it can be in its classes meta, `meta: { [CLASSES_META]: { classes: "a b c" } }` (`CLASSES_META` is in `tutuca/meta`); lint warns with `undeclared-dynamic-class` when it doesn't |
 | `tutuca/testing` | the headless driver: `Driver` (send, answer, fire, drag), `testEnv` |
 | `tutuca/pbt` | property-based testing on the driver (bring your own `fast-check`) |
 | `tutuca/storybook` | the storybook |

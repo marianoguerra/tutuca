@@ -2,7 +2,7 @@
 // subtasks; inbox, today, upcoming, project, label and search views; quick add that parses
 // "Buy milk tomorrow p1 #Errands @shop".
 
-import { AGENT_META, agentTool } from "../../src/meta/index.js";
+import { AGENT_META, agentTool, CLASSES_META } from "../../src/meta/index.js";
 import {
 	$if,
 	apply,
@@ -36,7 +36,7 @@ import {
 	todayType,
 } from "./common.js";
 import { addDays, dayHeader, isIso } from "./dates.js";
-import { TodoProject } from "./project.js";
+import { DOT_CLASSES, TodoProject } from "./project.js";
 import { parseQuickAdd } from "./quickadd.js";
 import { TodoTask } from "./task.js";
 
@@ -220,6 +220,7 @@ export const TodoApp = component({
 	name: "TodoApp",
 	meta: metaFor("Todos", "✅", "Projects, labels and due dates.", null, {
 		[AGENT_META]: AGENT,
+		[CLASSES_META]: { classes: [NAV, NAV_ACTIVE, DOT_CLASSES].join(" ") },
 	}),
 	fields: {
 		today: todayType(),

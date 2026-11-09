@@ -3,7 +3,14 @@
 // remove it, and a corner to resize it by. A content that says what its data is (DATA_META) can
 // be downloaded from the header, and a file of its format dropped on it is loaded into it.
 
-import { dataOf, fileFormatOf, hasAgentMeta, hasDataMeta, loadData } from "../../src/meta/index.js";
+import {
+	CLASSES_META,
+	dataOf,
+	fileFormatOf,
+	hasAgentMeta,
+	hasDataMeta,
+	loadData,
+} from "../../src/meta/index.js";
 import {
 	$if,
 	component,
@@ -96,6 +103,12 @@ const itemDrop = fileDrop({
 });
 export const Item = component({
 	name: "Item",
+	// What cardClass and headerClass can be.
+	meta: {
+		[CLASSES_META]: {
+			classes: [CARD_COLLAPSED, CARD_OPEN, CARD_BACKED, HEADER_COLLAPSED, HEADER_OPEN].join(" "),
+		},
+	},
 	fields: {
 		content: t.component(),
 		x: coord(),

@@ -1,13 +1,19 @@
 // A project: a named, colored list of tasks.
 
+import { CLASSES_META } from "../../src/meta/index.js";
 import { $if, button, component, field, send, t, tag, targetValue } from "../../src/tutuca.js";
 import { setField } from "../common/card.js";
 import { COLORS } from "./common.js";
 
 const { div, h2, input, option, select, span } = tag;
 
+const DOT = "size-3 shrink-0 rounded-full";
+// Every class a project's dot can have, one per color.
+export const DOT_CLASSES = [DOT, ...Object.values(COLORS)].join(" ");
+
 export const TodoProject = component({
 	name: "TodoProject",
+	meta: { [CLASSES_META]: { classes: DOT_CLASSES } },
 	fields: {
 		id: t.string("inbox"),
 		name: t.string("Inbox"),
@@ -16,7 +22,7 @@ export const TodoProject = component({
 	},
 	queries: {
 		get dotClass() {
-			return `size-3 shrink-0 rounded-full ${COLORS[this.color]}`;
+			return `${DOT} ${COLORS[this.color]}`;
 		},
 		get canEdit() {
 			return this.id !== "inbox";
