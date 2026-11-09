@@ -5,7 +5,7 @@ import assert from "node:assert/strict";
 import test from "node:test";
 import { assistantMessage } from "../../components/agent/llm.js";
 import { bundleOf } from "../../demos/canvas/bundles.js";
-import { start as startCanvas } from "../../demos/canvas/main.js";
+import { preferModel, start as startCanvas } from "../../demos/canvas/main.js";
 import { lintScope } from "../../src/lint/index.js";
 import { specOf } from "../../src/tutuca.js";
 import { issueLines, mountDemo } from "../helpers.js";
@@ -234,4 +234,14 @@ test("the canvas's agent adds a markdown document and has its agent write it; an
 	assert.ok(shown.includes("**Done**: the plan is in [the document](#)."), "the answer");
 	assert.ok(shown.includes("Wrote the plan."), "its agent's answer");
 	assert.deepEqual(app.problems, []);
+});
+
+test("?model= puts the model it names first, so a new agent starts with it", async () => {
+	const models = () => MODELS;
+	const ids = async (id) => (await preferModel(models, id)()).map((m) => m.id);
+	assert.deepEqual(await ids("p/small"), ["small", "big"]);
+	assert.deepEqual(await ids("p/big"), ["big", "small"]);
+	// One the host doesn't offer, or none, leaves them as they are.
+	assert.deepEqual(await ids("p/gone"), ["big", "small"]);
+	assert.equal(preferModel(models, null), models);
 });

@@ -23,13 +23,15 @@ export const start = (
 				? bundleOf(document.defaultView)
 				: bundleFrom(id, agent);
 	addBundleSwitcher(document, bundle);
+	const agentHandlers = agentAskHandlers({ api: apiOf(document) });
 	const host = boot({
 		document,
 		components: bundle.components,
 		// Agents ask the studio server (tutuca-wax/scripts/studio-server.mjs) at ?api=.
 		askHandlers: {
 			...browserHandlers,
-			...agentAskHandlers({ api: apiOf(document) }),
+			...agentHandlers,
+			models: preferModel(agentHandlers.models, modelOf(document)),
 			...bundle.askHandlers,
 			...handlers,
 		},
@@ -45,7 +47,43 @@ export const start = (
 		const to = held ? (s) => s.field("target") : undefined;
 		host.send("checkInference", [], { now: true, ...(to ? { to } : {}) });
 	});
+	rememberModel(document, host);
 	return host;
+};
+
+// The model ?model= names, "provider/id", or null.
+const modelOf = (document) =>
+	new URLSearchParams(document.defaultView?.location.search ?? "").get("model") || null;
+// models, with the one named first when it's among them: an agent that hasn't been given or
+// picked one starts with the first the host offers, so a new agent opens with it.
+export const preferModel = (models, id) => {
+	if (id === null) return models;
+	return async (...args) => {
+		const all = await models(...args);
+		if (!Array.isArray(all)) return all;
+		const at = all.findIndex((m) => `${m.provider}/${m.id}` === id || m.id === id);
+		return at <= 0 ? all : [all[at], ...all.slice(0, at), ...all.slice(at + 1)];
+	};
+};
+// The model picked in an agent's select goes in ?model=, for the agents the page opens next,
+// now and after a reload. Echo is no model to keep: picking it takes ?model= away.
+const rememberModel = (document, host) => {
+	const window = document.defaultView;
+	if (!window?.history) return;
+	host.listen((type, info) => {
+		if (type !== "taskHandled" || info.task?.name !== "setModel") return;
+		if (specOf(info.instance)?.name !== "Agent") return;
+		const [model] = info.task.args;
+		const url = new URL(window.location.href);
+		if (typeof model !== "string" || model === "" || model.startsWith("echo/")) {
+			url.searchParams.delete("model");
+		} else url.searchParams.set("model", model);
+		if (url.href === window.location.href) return;
+		// A page whose URL can't be rewritten (about:blank) keeps it.
+		try {
+			window.history.replaceState(null, "", url);
+		} catch {}
+	});
 };
 
 const DEFAULT_API = "http://127.0.0.1:8003/api/";
