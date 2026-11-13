@@ -32,7 +32,9 @@
         shows (renders.tui, the same app: use either), the JavaScript that makes it (renders.js),
         markdown about it (renders.md), what a model is told about it (renders.llmContext) and the
         tools a model is given to change it (renders.llmTools, which you can call here). Use it and
-        watch them follow: the tools offered change with the state.
+        watch them follow: the tools offered change with the state. The cart, the kanban board and
+        the JSON tree are components inside components: each renders its children's renders where
+        they go, as its view does, and a child's tools are its parent's, called on that child.
       </p>
     </header>
     <main class="renders">

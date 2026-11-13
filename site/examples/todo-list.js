@@ -35,11 +35,23 @@ import { tuiTarget } from "tutuca/tui/target";
 enableTargets(tuiTarget, jsTarget, mdTarget, llmContextTarget, llmToolsTarget);
 
 const { box, button, div, form, input, label, li, p, span, text, ul } = tag;
-const { ArrayExpression, ExpressionStatement, Identifier, Literal, NewExpression } = js;
-const { arguments: args, callee, elements, expression } = js;
+const { ArrayExpression, CallExpression, Identifier, Literal, MemberExpression } = js;
+const { ObjectExpression, Property } = js;
+const { arguments: args, callee, elements, key, object, properties, property, value } = js;
 const { Heading, List, ListItem, Paragraph, Root } = md;
 const { Fact, Hint, Item, Items, Section } = llmContext;
 const { Enum, Option, Str, Tool, Tools } = llmTools;
+
+// C.Name({ field: value, ... }): the code that makes a component in a state, with a scope's
+// components, as a story's make does.
+const make = (name, ...props) =>
+	CallExpression(
+		callee(MemberExpression(object(Identifier({ name: "C" })), property(Identifier({ name })))),
+		args(ObjectExpression(properties(...props))),
+	);
+const prop = (name, node) => Property({ kind: "init" }, key(Identifier({ name })), value(node));
+// A field that's a string, a boolean or a number that can't be negative.
+const literal = (name) => prop(name, Literal({ value: field(name) }));
 
 // Which task a tool is about: its index, each said with its title, so the model picks by what
 // the user calls it and can only pick one that's there.
@@ -147,24 +159,16 @@ export const TodoList = component({
 			),
 			text({ dim: "true" }, field("left"), " left"),
 		),
-		// new TodoList("", [new Task("Buy milk", false), ...]);
-		js: ExpressionStatement(
-			expression(
-				NewExpression(
-					callee(Identifier({ name: "TodoList" })),
-					args(
-						Literal({ value: field("text") }),
-						ArrayExpression(
-							elements(
-								each(
-									field("items"),
-									NewExpression(
-										callee(Identifier({ name: "Task" })),
-										args(Literal({ value: field("title") }), Literal({ value: field("done") })),
-									),
-								),
-							),
-						),
+		// C.TodoList({ text: "", items: [{ title: "Buy milk", done: false }, ...] }): an item is a
+		// record, an object in its array.
+		js: make(
+			"TodoList",
+			literal("text"),
+			prop(
+				"items",
+				ArrayExpression(
+					elements(
+						each(field("items"), ObjectExpression(properties(literal("title"), literal("done")))),
 					),
 				),
 			),

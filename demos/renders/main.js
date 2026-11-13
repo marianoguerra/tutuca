@@ -4,9 +4,13 @@
 // the code it prints (tutuca/jsast), renders.md as the markdown it prints (tutuca/mdast), raw and
 // through <md-view>, renders.llmContext as what a model is told (tutuca/llm) and renders.llmTools
 // as the tools it's given, which a form calls as a model would. The story is in the hash,
-// #Counter/From zero.
+// #Counter/From zero. The cart, the kanban board and the JSON tree nest: each component's
+// renders put its children's where they go, and a child's tools are its parent's.
 import { compile } from "margaui";
+import jsonBook from "../../components/json/stories.js";
+import kanbanBook from "../../components/kanban/stories.js";
 import "../../components/markdown/element.js";
+import cart from "../../site/examples/composed.js";
 import counter from "../../site/examples/counter.js";
 import todoList from "../../site/examples/todo-list.js";
 import { ClassCompiler, classNamesOf } from "../../src/css/classes.js";
@@ -17,8 +21,9 @@ import { defineTutucaTerminal } from "../../src/tui/element.js";
 import { DevChecks } from "../../src/tutuca.dev.js";
 import { Host, isProblem, specOf } from "../../src/tutuca.js";
 
-const books = [counter, todoList];
-const stories = books.flatMap((book) => book.stories);
+const books = [counter, todoList, cart, kanbanBook, jsonBook];
+// The ones that make their state: the rest generate it.
+const stories = books.flatMap((book) => book.stories.filter((story) => story.make !== undefined));
 
 const el = (document, tag, attrs = {}, ...children) => {
 	const node = document.createElement(tag);
@@ -61,7 +66,7 @@ const SHOWN = {
 	tui: {
 		title: "Terminal",
 		make: (document) => {
-			const terminal = el(document, "tutuca-terminal", { rows: "12" });
+			const terminal = el(document, "tutuca-terminal", { rows: "16" });
 			const hint = el(
 				document,
 				"p",
@@ -197,7 +202,14 @@ export const start = (document = globalThis.document) => {
 	const select = document.getElementById("story");
 	const app = document.getElementById("app");
 	const others = document.getElementById("others");
-	for (const story of stories) select.append(el(document, "option", { value: story.id }, story.id));
+	// A group per book, its stories by name.
+	for (const book of books) {
+		const group = el(document, "optgroup", { label: book.title });
+		for (const story of stories.filter((s) => s.book === book)) {
+			group.append(el(document, "option", { value: story.id }, story.name));
+		}
+		select.append(group);
+	}
 	const classes = new ClassCompiler(
 		compile,
 		classNamesOf(books.flatMap((b) => Object.values(b.components))),

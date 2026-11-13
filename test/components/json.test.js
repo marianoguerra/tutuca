@@ -4,7 +4,14 @@ import fc from "fast-check";
 import { fromJson, jsonComponents, jsonRoot } from "../../components/json/index.js";
 import { Driver } from "../../src/testing/driver.js";
 import { arbitraries } from "../../src/testing/pbt.js";
-import { document, scopeWith, testGenericProperties, testLintsClean, textOf } from "../helpers.js";
+import {
+	document,
+	scopeWith,
+	testGenericProperties,
+	testLintsClean,
+	testRendersItsCode,
+	textOf,
+} from "../helpers.js";
 
 const setup = () => {
 	const scope = scopeWith(jsonComponents);
@@ -12,6 +19,8 @@ const setup = () => {
 };
 
 testLintsClean("JSON", jsonComponents);
+
+testRendersItsCode(jsonComponents);
 
 testGenericProperties(jsonComponents);
 
@@ -77,4 +86,19 @@ test("a root around a scalar has nothing to expand", () => {
 	const { C } = setup();
 	const driver = new Driver({ root: jsonRoot(C, "text"), document });
 	assert.equal(driver.rootNode.querySelector(".expand-all"), null);
+});
+
+test("a JSON tree's renders.md lists it", async () => {
+	const { renderMd } = await import("../../src/mdast/index.js");
+	const C = scopeWith(jsonComponents).components;
+	fc.assert(
+		fc.property(fc.jsonValue({ maxDepth: 3 }), (v) => {
+			renderMd(fromJson(C, JSON.parse(JSON.stringify(v))));
+		}),
+		{ numRuns: 100 },
+	);
+	assert.equal(
+		renderMd(fromJson(C, { a: [1, { b: null }], c: {} })),
+		"- `a`: _2 items_\n\n  0. `1`\n  1. _1 key_\n     - `b`: `null`\n- `c`: `{}`\n",
+	);
 });

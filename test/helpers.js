@@ -2,13 +2,15 @@
 // the checks every component library runs (lint clean, generic properties) and raw vnodes.
 import assert from "node:assert/strict";
 import test from "node:test";
+import { compileFunction } from "node:vm";
 import fc from "fast-check";
 // biome-ignore lint/correctness/noUnresolvedImports: jsdom uses conditional exports that Node resolves.
 import { JSDOM } from "jsdom";
 import { DevChecks } from "../src/dev/checks.js";
+import { renderJs } from "../src/jsast/index.js";
 import { lint, lintScope } from "../src/lint/index.js";
 import { planToolCall } from "../src/meta/index.js";
-import { Driver, testEnv } from "../src/testing/driver.js";
+import { Driver, snapshot, testEnv } from "../src/testing/driver.js";
 import { arbitraries, specProperties } from "../src/testing/pbt.js";
 import { MessageContext, Scheduler } from "../src/tree/index.js";
 import { component, Host, Scope, t } from "../src/tutuca.js";
@@ -178,6 +180,27 @@ export const testLintsClean = (
 	test(`the ${title} components lint clean`, () => {
 		assert.deepEqual(issueLines(lint(Object.values(components), names), { errorsOnly }), []);
 	});
+
+// A test per component with a renders.js that it's the code that makes it in its state: run
+// with a scope's components as C, it makes an equal instance, of any state the arbitraries make.
+export const testRendersItsCode = (components, { numRuns = 50 } = {}) => {
+	for (const [name, spec] of Object.entries(components)) {
+		if (spec.renders.js === undefined) continue;
+		test(`${name}'s renders.js makes it in its state`, () => {
+			const scope = scopeWith(components);
+			const A = arbitraries({ fc, scope });
+			fc.assert(
+				fc.property(A.instance(name), (instance) => {
+					const code = renderJs(instance);
+					// In this realm: its objects and arrays have the prototypes the instance's have.
+					const made = compileFunction(`return (${code});`, ["C"])(scope.components);
+					assert.deepEqual(snapshot(made), snapshot(instance), code);
+				}),
+				{ numRuns },
+			);
+		});
+	}
+};
 
 // A test per component that it has pbt.js's generic properties, with arbitraries over a scope
 // of registered (the components, by default) and overrides.

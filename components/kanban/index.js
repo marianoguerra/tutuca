@@ -4,13 +4,33 @@
 // the board's wrapper around it. Either way the board moves the card by the id of the value
 // dragged. The host marks the target under the drag with data-draggingover, which the styles
 // highlight.
+//
+// Its other renders nest three levels down, as its views do: the board's renders.tui, js, md
+// and llmContext render each column's, which render each card's (the Renders demo shows them).
+// A terminal can't drag, so a card there has ← and → boxes that shift it a column; a model
+// moves cards with the board's tools, and adds them with each column's.
 
-import { AGENT_META, agentTool, DATA_META } from "../../src/meta/index.js";
+import { js, jsTarget } from "../../src/jsast/target.js";
 import {
+	llmContext,
+	llmContextTarget,
+	llmTools,
+	llmToolsTarget,
+	toolArg,
+	Unless,
+	When,
+} from "../../src/llm/target.js";
+import { md, mdTarget } from "../../src/mdast/target.js";
+import { AGENT_META, agentTool, DATA_META } from "../../src/meta/index.js";
+import { tuiTarget } from "../../src/tui/target.js";
+import {
+	$if,
 	apply,
 	component,
 	each,
+	enableTargets,
 	field,
+	lookupBind,
 	renderEach,
 	renderIt,
 	scopeOf,
@@ -23,7 +43,32 @@ import {
 import { setField } from "../common/card.js";
 import { metaFor } from "../common/meta.js";
 
-const { button, div, form, h2, input, section, span } = tag;
+enableTargets(tuiTarget, jsTarget, mdTarget, llmContextTarget, llmToolsTarget);
+
+const { box, button, div, form, h2, input, section, span, text } = tag;
+const { ArrayExpression, CallExpression, Identifier, Literal, MemberExpression } = js;
+const { ObjectExpression, Property } = js;
+const { arguments: args, callee, elements, key, object, properties, property, value } = js;
+const { Heading, List, ListItem, Paragraph, Root, Strong } = md;
+const { Code, Hint, Item, Items, Section, Text } = llmContext;
+const { Enum, Int, Option, Str, Tool, Tools } = llmTools;
+
+// C.Name({ field: value, ... }): the code that makes a component in a state, with a scope's
+// components, as a story's make does.
+const make = (name, ...props) =>
+	CallExpression(
+		callee(MemberExpression(object(Identifier({ name: "C" })), property(Identifier({ name })))),
+		args(ObjectExpression(properties(...props))),
+	);
+const prop = (name, node) => Property({ kind: "init" }, key(Identifier({ name })), value(node));
+// A field that's a string, a boolean or a number that can't be negative.
+const literal = (name) => prop(name, Literal({ value: field(name) }));
+// A title as part of a tool's name, which can only have letters, digits, _ and -.
+const slug = (title) =>
+	title
+		.toLowerCase()
+		.replace(/[^a-z0-9]+/g, "_")
+		.replace(/^_|_$/g, "");
 
 // Whether the drop landed on the lower half of the element that handles it; a drop without a
 // position, as in tests, goes above.
@@ -49,7 +94,29 @@ export const Card = component({
 		span({ class: "flex-1" }, field("title")),
 		button({ class: "btn btn-ghost btn-xs", title: "Remove", "on:click": send("remove") }, "✕"),
 	),
+	renders: {
+		// ← and → shift it a column, as a drag across columns does on the page.
+		tui: box(
+			{ flexDirection: "row", gap: "1" },
+			box({ focusable: "true", dim: "true", "on:click": send("shift", -1) }, "←"),
+			text({ flexGrow: "1", flexShrink: "1" }, field("title")),
+			box({ focusable: "true", dim: "true", "on:click": send("shift", 1) }, "→"),
+			box({ focusable: "true", color: "red", "on:click": send("remove") }, "✕"),
+		),
+		js: make("Card", literal("id"), literal("title")),
+		md: ListItem(Paragraph(field("title"))),
+		// The id is what the board's tools take.
+		llmContext: Item(field("title"), " ", Code(field("id"))),
+	},
 	on: {
+		// Shifts it by columns, by: its column says which card, the board moves it.
+		shift: {
+			args: [t.number().int()],
+			emits: { notify: ["cardShifted"] },
+			run(_next, [by], ctx) {
+				ctx.notify("cardShifted", [by]);
+			},
+		},
 		remove: {
 			args: [],
 			emits: { notify: ["removeCard"] },
@@ -100,6 +167,54 @@ export const Column = component({
 		get count() {
 			return this.cards.length;
 		},
+		get addTool() {
+			return `add_card_to_${slug(this.title)}`;
+		},
+	},
+	renders: {
+		// A column of the board's row: its cards, and an input that adds one on Enter.
+		tui: box(
+			{
+				flexGrow: "1",
+				flexBasis: "0",
+				borderStyle: "round",
+				borderText: field("title"),
+				paddingX: "1",
+			},
+			renderEach(field("cards")),
+			box(
+				{ "on:submit": send("add") },
+				input({
+					placeholder: "New card",
+					value: field("text"),
+					"on:input": send("setText", targetValue()),
+				}),
+			),
+		),
+		// With what's typed in its input, which is its state too.
+		js: make(
+			"Column",
+			literal("title"),
+			prop("cards", ArrayExpression(elements(renderEach(field("cards"))))),
+			literal("text"),
+		),
+		md: ListItem(
+			Paragraph(Strong(field("title")), " (", field("count"), ")"),
+			$if(field("count"), List(renderEach(field("cards"))), null),
+		),
+		// A section a level below the board's, its cards an item each.
+		llmContext: Section(
+			{ title: field("title") },
+			Items({ empty: "No cards." }, renderEach(field("cards"))),
+		),
+		// Its tool, among the board's: a call adds to this column.
+		llmTools: Tool(
+			{ name: field("addTool"), "on:call": send("addCard", toolArg("title")) },
+			"Add a card at the end of the ",
+			field("title"),
+			" column.",
+			Str({ name: "title", minLength: 1 }, "The card's title."),
+		),
 	},
 	on: {
 		setText: setField("text"),
@@ -111,6 +226,13 @@ export const Column = component({
 				if (title === "") return;
 				next.cards.push(ctx.scope.make("Card", { id: ctx.uuid(), title }));
 				next.text = "";
+			},
+		},
+		// A card titled title at the end, leaving what's typed.
+		addCard: {
+			args: [t.string().len(1)],
+			run(next, [title], ctx) {
+				next.cards.push(ctx.scope.make("Card", { id: ctx.uuid(), title }));
 			},
 		},
 		// What the board does to move a card: take it out, put it in at a position.
@@ -136,6 +258,16 @@ export const Column = component({
 			run(next, _args, ctx) {
 				next.cards.splice(ctx.sourceKey, 1);
 				ctx.stopNext();
+			},
+		},
+		// From the card at ctx.sourceKey: shift it by columns.
+		cardShifted: {
+			args: [t.number().int()],
+			sourceKey: t.index("cards"),
+			emits: { notify: ["shiftCard"] },
+			run(_next, [by], ctx) {
+				ctx.stopNext();
+				ctx.notify("shiftCard", [this.cards[ctx.sourceKey].id, by]);
 			},
 		},
 		// From the card at ctx.sourceKey: the card id was dropped on it, below it if after.
@@ -206,6 +338,18 @@ const WEEK = {
 	],
 };
 const tool = agentTool;
+// What the board's tools pick from: a card by its id, said with its title; a column by its
+// index, said with its title.
+const whichCard = Enum(
+	"id",
+	"Which card.",
+	each(field("cardChoices"), Option(field("id"), field("label"))),
+);
+const whichColumn = Enum(
+	"column",
+	"Which column.",
+	each(field("columns"), Option(lookupBind("key"), field("title"))),
+);
 // What the board says to an agent that drives it: its tools are its own messages and queries.
 const AGENT = {
 	prompt:
@@ -253,6 +397,15 @@ export const Board = component({
 				})),
 			};
 		},
+		// Every card, with its column's title: what the tools offer to pick from.
+		get cardChoices() {
+			return this.columns.flatMap((col) =>
+				col.cards.map(({ id, title }) => ({ id, label: `${title} (in ${col.title})` })),
+			);
+		},
+		get hasCards() {
+			return this.columns.some((col) => col.cards.length > 0);
+		},
 		cards_in: {
 			args: [t.number().int().min(0)],
 			run(column) {
@@ -276,6 +429,57 @@ export const Board = component({
 			),
 		),
 	),
+	renders: {
+		// The columns side by side, as on the page.
+		tui: box({ flexDirection: "row", gap: "1" }, renderEach(field("columns"))),
+		// C.Board({ columns: [C.Column({ title: "To do", cards: [C.Card({ ... })] }), ...] })
+		js: make("Board", prop("columns", ArrayExpression(elements(renderEach(field("columns")))))),
+		// A list item per column, a list of its cards in each.
+		md: Root(
+			Heading({ depth: 2 }, "Board"),
+			$if(field("columns"), List(renderEach(field("columns"))), Paragraph("No columns.")),
+		),
+		llmContext: Section(
+			"Kanban board",
+			Text("Cards flow left to right through the columns as work progresses."),
+			renderEach(field("columns")),
+			Unless(field("columns"), Hint("There are no columns yet: offer to add some.")),
+		),
+		// The board's tools work across columns; each column adds its own tool, which adds to it.
+		llmTools: Tools(
+			When(
+				field("hasCards"),
+				Tool(
+					"move_card",
+					send("move_card", toolArg("id"), toolArg("column"), toolArg("at")),
+					"Move a card to a position in a column.",
+					whichCard,
+					whichColumn,
+					Int({ name: "at", min: 0 }, "Its position in the column, 0 for the top."),
+				),
+				Tool(
+					"rename_card",
+					send("rename_card", toolArg("id"), toolArg("title")),
+					"Change a card's title.",
+					whichCard,
+					Str({ name: "title", minLength: 1 }, "The new title."),
+				),
+				Tool(
+					"remove_card",
+					send("remove_card", toolArg("id")),
+					"Remove a card from the board.",
+					whichCard,
+				),
+			),
+			Tool(
+				"add_column",
+				send("add_column", toolArg("title")),
+				"Add a column at the right end.",
+				Str({ name: "title", minLength: 1 }, "The column's title."),
+			),
+			renderEach(field("columns")),
+		),
+	},
 	invariants: {
 		uniqueCardIds() {
 			const ids = this.columns.flatMap((column) => column.cards.map((card) => card.id));
@@ -363,6 +567,17 @@ export const Board = component({
 						cards: cards.map((card) => scope.make("Card", card)),
 					}),
 				);
+			},
+		},
+		// From the column at ctx.sourceKey: shift its card id by columns, to the end of the one
+		// it lands in. Past the first or last column it stays.
+		shiftCard: {
+			args: [t.string(), t.number().int()],
+			sourceKey: t.index("columns"),
+			run(next, [id, by], ctx) {
+				ctx.stopNext();
+				const to = ctx.sourceKey + by;
+				if (hasColumn(this, to)) moveCard(this, next, id, to, this.columns[to].cards.length);
 			},
 		},
 		// From the column at ctx.sourceKey: the card id was dropped on one of its cards.

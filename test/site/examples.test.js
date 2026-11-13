@@ -6,7 +6,7 @@ import fc from "fast-check";
 import { lint } from "../../src/lint/index.js";
 import { checkStory, prepareStory } from "../../src/storybook/index.js";
 import { Driver, describeProblems } from "../../src/testing/driver.js";
-import { document, testLintsClean } from "../helpers.js";
+import { document, testLintsClean, testRendersItsCode } from "../helpers.js";
 
 // Node can't import from a CDN: the web component example's picker loads as an empty module.
 registerHooks({
@@ -28,6 +28,7 @@ const mistakes = (await import("../../site/examples/mistakes.js")).default;
 
 for (const [name, book] of Object.entries(books)) {
 	testLintsClean(name, book.components);
+	testRendersItsCode(book.components);
 	for (const story of book.stories) {
 		test(`${story.id} starts valid and its sequences pass`, () => {
 			const { root } = prepareStory(story, { fc });
@@ -50,8 +51,9 @@ test("the counter and the todo list render the code that makes them and markdown
 	const { renderMd } = await import("../../src/mdast/index.js");
 	const { Counter } = await import("../../site/examples/counter.js");
 	const { TodoList } = await import("../../site/examples/todo-list.js");
-	assert.equal(renderJs(Counter.make({ count: 3 })), "new Counter(3);");
-	assert.equal(renderJs(Counter.make({ count: -2 })), "new Counter(-2);");
+	assert.equal(renderJs(Counter.make({ count: 3 })), "C.Counter({\n  count: 3\n})");
+	assert.equal(renderJs(Counter.make({ count: -2 })), "C.Counter({\n  count: -2\n})");
+	assert.equal(renderJs(Counter.make({ count: -0 })), "C.Counter({\n  count: -0\n})");
 	assert.equal(renderMd(Counter.make({ count: 3 })), "Count: **3**\n");
 	const todo = TodoList.make({
 		text: "draft",
@@ -62,7 +64,18 @@ test("the counter and the todo list render the code that makes them and markdown
 	});
 	assert.equal(
 		renderJs(todo),
-		'new TodoList("draft", [new Task("Read the guide", true), new Task("Edit this example", false)]);',
+		[
+			"C.TodoList({",
+			'  text: "draft",',
+			"  items: [{",
+			'    title: "Read the guide",',
+			"    done: true",
+			"  }, {",
+			'    title: "Edit this example",',
+			"    done: false",
+			"  }]",
+			"})",
+		].join("\n"),
 	);
 	assert.equal(
 		renderMd(todo),

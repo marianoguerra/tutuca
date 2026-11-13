@@ -22,11 +22,21 @@ import { tuiTarget } from "tutuca/tui/target";
 enableTargets(tuiTarget, jsTarget, mdTarget, llmContextTarget, llmToolsTarget);
 
 const { box, button, div, span, text } = tag;
-const { ExpressionStatement, Identifier, Literal, NewExpression, UnaryExpression } = js;
-const { argument, arguments: args, callee, expression } = js;
+const { CallExpression, Identifier, Literal, MemberExpression, ObjectExpression, Property } = js;
+const { UnaryExpression } = js;
+const { argument, arguments: args, callee, key, object, properties, property, value } = js;
 const { Paragraph, Strong } = md;
 const { Fact, Hint, Section, Text } = llmContext;
 const { Tool, Tools } = llmTools;
+
+// C.Name({ field: value, ... }): the code that makes a component in a state, with a scope's
+// components, as a story's make does.
+const make = (name, ...props) =>
+	CallExpression(
+		callee(MemberExpression(object(Identifier({ name: "C" })), property(Identifier({ name })))),
+		args(ObjectExpression(properties(...props))),
+	);
+const prop = (name, node) => Property({ kind: "init" }, key(Identifier({ name })), value(node));
 
 export const Counter = component({
 	name: "Counter",
@@ -34,8 +44,9 @@ export const Counter = component({
 	fields: { count: t.number() },
 	// A negative number in JavaScript is a minus before a positive literal.
 	queries: {
+		// -0 too, which prints as -0: its context says it's 0 first.
 		get isNegative() {
-			return this.count < 0;
+			return this.count < 0 || Object.is(this.count, -0);
 		},
 		get magnitude() {
 			return Math.abs(this.count);
@@ -57,18 +68,15 @@ export const Counter = component({
 			text({ bold: "true", color: "cyan" }, field("count")),
 			box({ borderStyle: "round", paddingX: "1", focusable: "true", "on:click": send("inc") }, "+"),
 		),
-		// new Counter(3);
-		js: ExpressionStatement(
-			expression(
-				NewExpression(
-					callee(Identifier({ name: "Counter" })),
-					args(
-						$if(
-							field("isNegative"),
-							UnaryExpression({ operator: "-" }, argument(Literal({ value: field("magnitude") }))),
-							Literal({ value: field("count") }),
-						),
-					),
+		// C.Counter({ count: 3 }), the code that makes it with this count.
+		js: make(
+			"Counter",
+			prop(
+				"count",
+				$if(
+					field("isNegative"),
+					UnaryExpression({ operator: "-" }, argument(Literal({ value: field("magnitude") }))),
+					Literal({ value: field("count") }),
 				),
 			),
 		),

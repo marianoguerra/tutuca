@@ -1,6 +1,7 @@
 // A JSON tree. Every value shows read only in its main view; the ones that can change have
 // an edit view, styled like main, that edits them in place. pushView("edit", ...) above a
 // tree, as JsonEditor does, switches the whole tree; values without an edit view keep main.
+// Its renders for a terminal, JavaScript, markdown and a model are in renders.js.
 
 import { CLASSES_META, DATA_META } from "../../src/meta/index.js";
 import {
@@ -27,6 +28,18 @@ import { metaFor } from "../common/meta.js";
 import { applyBelow, openAllButtons } from "../common/open.js";
 import { segmented } from "../common/ui.js";
 import { plural } from "../common/util.js";
+import {
+	arrayRenders,
+	boolRenders,
+	editorRenders,
+	entryRenders,
+	nullRenders,
+	numberRenders,
+	objectRenders,
+	rootRenders,
+	selectorRenders,
+	stringRenders,
+} from "./renders.js";
 
 export const VALUE_NAMES = [
 	"JsonNull",
@@ -61,6 +74,9 @@ const BLOCK = "ml-1 flex flex-col border-l border-base-content/15 pl-4";
 
 const { div, input, label, pre, span } = tag;
 
+// A terminal input as wide as its text, and a cell for the caret past it.
+const inputWidth = (text) => String(Math.max(text.length + 1, 2));
+
 // The messages that change a value say so to what's above, with jsonEdited, once they ran: a
 // schema editor reads its schema again, and the editors around a value stop it.
 const edits = (on, names) => {
@@ -88,6 +104,7 @@ export const JsonNull = component({
 		},
 	},
 	view: span({ class: TEXT.null }, "null"),
+	renders: nullRenders,
 });
 
 export const JsonBool = component({
@@ -110,6 +127,7 @@ export const JsonBool = component({
 			$if(field("value"), "true", "false"),
 		),
 	},
+	renders: boolRenders,
 	on: edits(
 		{
 			toggle: {
@@ -148,6 +166,18 @@ export const JsonNumber = component({
 				? `${TEXT.number} ${INLINE}`
 				: `${TEXT.number} ${INLINE} text-error`;
 		},
+		get textColor() {
+			return Number.isFinite(asNumber(this.text)) ? "cyan" : "red";
+		},
+		get inputWidth() {
+			return inputWidth(this.text);
+		},
+		get isNegative() {
+			return this.value < 0 || Object.is(this.value, -0);
+		},
+		get magnitude() {
+			return Math.abs(this.value);
+		},
 	},
 	views: {
 		main: span({ class: TEXT.number }, field("value")),
@@ -160,6 +190,7 @@ export const JsonNumber = component({
 			"on:input": send("setText", targetValue()),
 		}),
 	},
+	renders: numberRenders,
 	on: edits(
 		{
 			setText: {
@@ -184,6 +215,15 @@ export const JsonString = component({
 			return this.value;
 		},
 	},
+	queries: {
+		// As JSON writes it, escapes and all.
+		get quoted() {
+			return JSON.stringify(this.value);
+		},
+		get inputWidth() {
+			return inputWidth(this.value);
+		},
+	},
 	views: {
 		main: span({ class: TEXT.string }, '"', field("value"), '"'),
 		edit: span(
@@ -198,6 +238,7 @@ export const JsonString = component({
 			'"',
 		),
 	},
+	renders: stringRenders,
 	on: edits(
 		{
 			setValue: {
@@ -248,6 +289,7 @@ export const JsonSelector = component({
 			),
 		),
 	},
+	renders: selectorRenders,
 	on: edits(
 		{
 			// Replaces itself with an empty value of type.
@@ -379,6 +421,9 @@ export const JsonArray = component({
 		get isEmpty() {
 			return this.items.length === 0;
 		},
+		get isOpenWithItems() {
+			return this.open && this.items.length > 0;
+		},
 		get summary() {
 			return plural(this.items.length, "item");
 		},
@@ -388,6 +433,7 @@ export const JsonArray = component({
 		main: collectionView("[", "]", "items", [], null),
 		edit: collectionView("[", "]", "items", [moveButton, removeButton], "+ item"),
 	},
+	renders: arrayRenders,
 	on: edits(
 		{
 			...openable("items"),
@@ -419,6 +465,19 @@ export const JsonArray = component({
 export const JsonEntry = component({
 	name: "JsonEntry",
 	fields: { key: t.string(), value: t.component(VALUE_NAMES) },
+	queries: {
+		get inputWidth() {
+			return inputWidth(this.key);
+		},
+		// Whether its value has rows of its own, which markdown lists under its line.
+		get nests() {
+			return canApply(this.value, "setOpen") && !this.value.isEmpty;
+		},
+		// And whether they show, which a terminal puts under its key.
+		get valueOpens() {
+			return this.nests && this.value.open;
+		},
+	},
 	views: {
 		main: span(
 			{ class: "inline-flex items-baseline gap-1" },
@@ -443,6 +502,7 @@ export const JsonEntry = component({
 			render(field("value")),
 		),
 	},
+	renders: entryRenders,
 	on: edits(
 		{
 			...passOpenDeep("value"),
@@ -471,6 +531,9 @@ export const JsonObject = component({
 		get isEmpty() {
 			return this.entries.length === 0;
 		},
+		get isOpenWithItems() {
+			return this.open && this.entries.length > 0;
+		},
 		get summary() {
 			return plural(this.entries.length, "key");
 		},
@@ -480,6 +543,7 @@ export const JsonObject = component({
 		main: collectionView("{", "}", "entries", [], null),
 		edit: collectionView("{", "}", "entries", [moveButton, removeButton], "+ entry"),
 	},
+	renders: objectRenders,
 	on: edits(
 		{
 			...openable("entries"),
@@ -556,6 +620,7 @@ export const JsonRoot = component({
 	},
 	view: jsonRootView(),
 	views: { edit: jsonRootView() },
+	renders: rootRenders,
 	on: {
 		...passOpenDeep("value"),
 		// Passed on, to what holds the root.
@@ -597,6 +662,9 @@ export const JsonEditor = component({
 		get isView() {
 			return this.mode === "view";
 		},
+		get json() {
+			return this.toJson();
+		},
 	},
 	view: div(
 		{ class: "flex flex-col gap-3" },
@@ -625,6 +693,7 @@ export const JsonEditor = component({
 			"",
 		),
 	),
+	renders: editorRenders,
 	on: {
 		...passOpenDeep("value"),
 		// Its text follows by itself: nothing above needs to know.

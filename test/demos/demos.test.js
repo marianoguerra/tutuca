@@ -890,14 +890,27 @@ test("renders demo: the other renders follow the component, story by story", asy
 		while (host.tasks.length > 0) host.handleTasks();
 		await settle();
 	};
+	// A group per book; the stories that generate their state aren't offered.
 	assert.deepEqual(
-		[...document.querySelectorAll("#story option")].map((o) => o.value),
-		["Counter/From zero", "Counter/From ten", "Todo list/Empty", "Todo list/A few items"],
+		[...document.querySelectorAll("#story optgroup")].map((g) => g.label),
+		["Counter", "Todo list", "Cart", "Kanban", "JSON"],
 	);
-	assert.equal(code(), "new Counter(0);");
+	assert.deepEqual(
+		[...document.querySelectorAll("#story option")].map((o) => o.value).slice(0, 6),
+		[
+			"Counter/From zero",
+			"Counter/From ten",
+			"Todo list/Empty",
+			"Todo list/A few items",
+			"Cart/Three lines",
+			"Cart/Empty",
+		],
+	);
+	assert.ok(!document.querySelector('#story option[value="JSON/Generated document"]'));
+	assert.equal(code(), "C.Counter({\n  count: 0\n})");
 	assert.match(terminal(), /│ − │ 0 │ \+ │/);
 	await click(".btn-primary");
-	assert.equal(code(), "new Counter(1);");
+	assert.equal(code(), "C.Counter({\n  count: 1\n})");
 	assert.match(terminal(), /│ − │ 1 │ \+ │/, "the terminal preview follows the page");
 	// And the page follows the terminal: Tab to +, Enter presses it, on the page's host.
 	const screen = others().querySelector("tutuca-terminal").shadowRoot.querySelector(".screen");
@@ -907,18 +920,29 @@ test("renders demo: the other renders follow the component, story by story", asy
 		);
 	}
 	await settle();
-	assert.equal(code(), "new Counter(2);");
+	assert.equal(code(), "C.Counter({\n  count: 2\n})");
 	assert.equal(document.querySelector("#app .text-2xl").textContent, "2");
 	assert.match(terminal(), /│ − │ 2 │ \+ │/);
 	await click(".btn");
-	assert.equal(code(), "new Counter(1);");
+	assert.equal(code(), "C.Counter({\n  count: 1\n})");
 	assert.equal(markdown(), "Count: **1**\n");
 	assert.equal(others().querySelector("md-view").getAttribute("content"), "Count: **1**\n");
 	demo.open("Todo list/A few items");
 	assert.equal(document.getElementById("story").value, "Todo list/A few items");
 	assert.equal(
 		code(),
-		'new TodoList("", [new Task("Read the guide", true), new Task("Edit this example", false)]);',
+		[
+			"C.TodoList({",
+			'  text: "",',
+			"  items: [{",
+			'    title: "Read the guide",',
+			"    done: true",
+			"  }, {",
+			'    title: "Edit this example",',
+			"    done: false",
+			"  }]",
+			"})",
+		].join("\n"),
 	);
 	await click('li:nth-child(2) [type="checkbox"]');
 	assert.equal(markdown(), "## Todo\n\n- [x] Read the guide\n- [x] Edit this example\n\n0 left\n");
@@ -971,5 +995,113 @@ test("renders demo: the LLM panels follow the state, and calling a tool changes 
 	assert.equal(toggle.input_schema.properties.index.description, "Which task.\n- 0: Buy milk");
 	await call("toggle_task", { index: 0 });
 	assert.match(context(), /\[x\] Buy milk[\s\S]*Everything is done\./);
+	await settle();
+});
+
+test("renders demo: nested components render their children's renders, and a child's tools call it", async () => {
+	const { start } = await import("../../demos/renders/main.js");
+	const page = readFileSync(new URL("../../demos/renders/index.html", import.meta.url), "utf8");
+	const window = dom(page.replace(/<script[\s\S]*?<\/script>/g, ""));
+	const { document } = window;
+	const demo = start(document);
+	const panel = (title) =>
+		[...document.querySelectorAll("#others .render")].find(
+			(s) => s.querySelector("h2").textContent === title,
+		);
+	const code = () => panel("JavaScript").querySelector("code").textContent;
+	const markdown = () => panel("Markdown").querySelector("pre").textContent;
+	const terminal = () =>
+		[...panel("Terminal").querySelector("tutuca-terminal").shadowRoot.querySelectorAll(".row")]
+			.map((row) => row.textContent.trimEnd())
+			.join("\n");
+	const tools = () => panel("LLM tools");
+	const offered = () => [...tools().querySelectorAll("select option")].map((o) => o.value);
+	const call = async (name, input) => {
+		const select = tools().querySelector("select");
+		select.value = name;
+		select.dispatchEvent(new window.Event("change"));
+		if (input !== undefined) tools().querySelector("textarea").value = JSON.stringify(input);
+		tools()
+			.querySelector("form")
+			.dispatchEvent(new window.Event("submit", { bubbles: true, cancelable: true }));
+		await settle();
+		return tools().querySelector(".render-result").textContent;
+	};
+
+	// The cart: each line's row in the table, its tools among the cart's, called on that line.
+	demo.open("Cart/Three lines");
+	// The code that makes it, each line's in the cart's array.
+	const compact = () => code().replace(/\s+/g, " ");
+	assert.equal(
+		compact(),
+		'C.Cart({ lines: [C.Line({ name: "Coffee beans", price: 12.5, quantity: 2 }), C.Line({ name: "Filters", price: 3, quantity: 1 }), C.Line({ name: "Mug", price: 9.75, quantity: 1 })] })',
+	);
+	assert.match(markdown(), /\| Filters +\| +1 \| +\$3\.00 \| +\$3\.00 \|/);
+	assert.match(terminal(), /Mug +\[−\] 1 \[\+\] +\$9\.75 ✕/);
+	assert.deepEqual(offered(), [
+		"set_coffee_beans_quantity",
+		"remove_coffee_beans",
+		"set_filters_quantity",
+		"remove_filters",
+		"set_mug_quantity",
+		"remove_mug",
+	]);
+	assert.equal(
+		await call("set_filters_quantity", { quantity: -1 }),
+		"quantity is at least 0, not -1",
+	);
+	assert.equal(await call("set_filters_quantity", { quantity: 4 }), "→ setQuantity(4)");
+	assert.match(markdown(), /\| Filters +\| +4 \|/);
+	// remove notifies the cart, which takes the line out.
+	await call("remove_mug");
+	assert.equal(
+		compact(),
+		'C.Cart({ lines: [C.Line({ name: "Coffee beans", price: 12.5, quantity: 2 }), C.Line({ name: "Filters", price: 3, quantity: 4 })] })',
+	);
+	assert.equal(document.querySelectorAll("#app .rounded-box").length, 2);
+
+	// The board: three levels, the board's tools and a tool per column.
+	demo.open("Kanban/Board/Week");
+	assert.match(
+		compact(),
+		/^C\.Board\(\{ columns: \[C\.Column\(\{ title: "To do", cards: \[C\.Card\(\{ id: "c00", /,
+	);
+	assert.match(markdown(), /- \*\*Doing\*\* \(1\)\n {2}- Review the event routing\n/);
+	assert.deepEqual(offered(), [
+		"move_card",
+		"rename_card",
+		"remove_card",
+		"add_column",
+		"add_card_to_to_do",
+		"add_card_to_doing",
+		"add_card_to_done",
+	]);
+	await call("add_card_to_done", { title: "Ship it" });
+	assert.match(markdown(), /- \*\*Done\*\* \(1\)\n {2}- Ship it\n/);
+	assert.equal(
+		await call("move_card", { id: "c10", column: 2, at: 0 }),
+		'→ move_card("c10", 2, 0)',
+	);
+	assert.match(markdown(), /- \*\*Done\*\* \(2\)\n {2}- Review the event routing\n {2}- Ship it\n/);
+	assert.match(terminal(), /─ Done ─/);
+
+	// The JSON tree: recursive renders, the editor's text as a code block.
+	demo.open("JSON/Document");
+	assert.match(
+		compact(),
+		/^C\.JsonEditor\(\{ value: C\.JsonObject\(\{ entries: \[C\.JsonEntry\(\{ key: "name", value: C\.JsonString\(\{ value: "tutuca" \}\) \}\),/,
+	);
+	assert.match(markdown(), /- `keywords`: _2 items_\n\n {2}0\. `"ui"`/);
+	assert.match(markdown(), /```json\n\{/);
+	assert.match(terminal(), / {2}"keywords": \[\n {4}"ui"\n {4}"immutable"\n {2}\]/);
+	assert.match(panel("LLM context").querySelector("pre").textContent, /- \*\*Mode:\*\* view/);
+	// Edit, on the page: the terminal's tree edits too.
+	document
+		.querySelector('#app [aria-label="Mode"] button:nth-child(2)')
+		.dispatchEvent(new window.MouseEvent("click", { bubbles: true, cancelable: true }));
+	const host = demo.host();
+	while (host.tasks.length > 0) host.handleTasks();
+	await settle();
+	assert.match(terminal(), /\+ add/);
 	await settle();
 });
