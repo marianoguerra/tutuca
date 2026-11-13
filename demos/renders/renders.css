@@ -202,8 +202,36 @@
 	border: 0;
 	border-top: 1px dashed #999;
 }
-/* A PostScript program is long: it scrolls, beside its preview. */
-.render .ps-program {
+/* Long output (a PostScript program, the LLM tools' JSON) scrolls within its pane. */
+.render .render-scroll {
 	max-height: 28rem;
 	overflow-y: auto;
+}
+/* A panel's title collapses and expands it, with a triangle saying which it is. */
+.render > summary {
+	display: flex;
+	align-items: center;
+	gap: 0.4rem;
+	cursor: pointer;
+	list-style: none;
+	user-select: none;
+}
+.render > summary::-webkit-details-marker {
+	display: none;
+}
+.render > summary::before {
+	content: "▸";
+	margin-bottom: 0.5rem;
+	font-size: 0.75rem;
+	opacity: 0.6;
+	transition: transform 0.15s;
+}
+.render[open] > summary::before {
+	transform: rotate(90deg);
+}
+.render:not([open]) > summary h2 {
+	margin-bottom: 0;
+}
+.render:not([open]) > summary::before {
+	margin-bottom: 0;
 }

@@ -127,7 +127,7 @@ const SHOWN = {
 	ps: {
 		title: "PostScript",
 		make: (document) => {
-			const code = el(document, "pre", { class: "ps-program" });
+			const code = el(document, "pre", { class: "render-scroll" });
 			const pages = el(document, "div", { class: "ps-pages" });
 			const node = el(
 				document,
@@ -179,7 +179,7 @@ const SHOWN = {
 	llmTools: {
 		title: "LLM tools",
 		make: (document) => {
-			const json = el(document, "pre");
+			const json = el(document, "pre", { class: "render-scroll" });
 			const tool = el(document, "select", { "aria-label": "Tool" });
 			const input = el(document, "textarea", {
 				rows: "4",
@@ -236,7 +236,54 @@ const SHOWN = {
 };
 
 // The panels for the targets spec renders; filled again by update.
-const mountOthers = (document, container, spec, host) => {
+// The panels collapsed, by name: they stay so from story to story, and in this browser from visit
+// to visit when it keeps them.
+const COLLAPSED_KEY = "tutuca-renders-collapsed";
+const loadCollapsed = (window) => {
+	try {
+		return new Set(JSON.parse(window?.localStorage.getItem(COLLAPSED_KEY) ?? "[]"));
+	} catch {
+		return new Set();
+	}
+};
+const saveCollapsed = (window, collapsed) => {
+	try {
+		window?.localStorage.setItem(COLLAPSED_KEY, JSON.stringify([...collapsed]));
+	} catch {
+		// Kept for this visit only.
+	}
+};
+
+// A panel whose title collapses and expands it; with Ctrl (⌘ on a Mac), every panel.
+const collapsible = (document, container, collapsed, name, title, ...children) => {
+	const panel = el(
+		document,
+		"details",
+		{ class: "render", "data-panel": name },
+		el(
+			document,
+			"summary",
+			{ title: "Click to collapse or expand; Ctrl+click (⌘+click) for every panel" },
+			el(document, "h2", {}, title),
+		),
+		...children,
+	);
+	panel.open = !collapsed.has(name);
+	panel.firstChild.addEventListener("click", (e) => {
+		e.preventDefault();
+		const open = !panel.open;
+		const all = e.ctrlKey || e.metaKey;
+		for (const each of all ? container.querySelectorAll("details.render") : [panel]) {
+			each.open = open;
+			if (open) collapsed.delete(each.dataset.panel);
+			else collapsed.add(each.dataset.panel);
+		}
+		saveCollapsed(document.defaultView, collapsed);
+	});
+	return panel;
+};
+
+const mountOthers = (document, container, spec, host, collapsed) => {
 	container.replaceChildren();
 	const panels = [];
 	for (const [name, shown] of Object.entries(SHOWN)) {
@@ -244,14 +291,7 @@ const mountOthers = (document, container, spec, host) => {
 		const made = shown.make(document);
 		const error = el(document, "pre", { class: "render-error", hidden: "" });
 		container.append(
-			el(
-				document,
-				"section",
-				{ class: "render" },
-				el(document, "h2", {}, shown.title),
-				made.node,
-				error,
-			),
+			collapsible(document, container, collapsed, name, shown.title, made.node, error),
 		);
 		shown.attach?.(made, host);
 		panels.push({ shown, made, error });
@@ -297,6 +337,7 @@ export const start = (document = globalThis.document) => {
 	const style = document.getElementById("margaui");
 	if (style !== null) classes.watch(style);
 
+	const collapsed = loadCollapsed(window);
 	let host = null;
 	const open = (id) => {
 		const story = stories.find((s) => s.id === id) ?? stories[0];
@@ -309,7 +350,7 @@ export const start = (document = globalThis.document) => {
 		host.scope.register(story.book.components);
 		host.scope.registerAskHandlers(story.book.askHandlers);
 		const root = story.make(host.scope.components);
-		const update = mountOthers(document, others, specOf(root), host);
+		const update = mountOthers(document, others, specOf(root), host, collapsed);
 		host.listen((record) => {
 			if (isProblem(record)) console.error(record.outcome ?? record.type, record);
 			if (record.type === "rendered") update(host.root);

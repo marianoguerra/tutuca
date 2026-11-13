@@ -32,11 +32,13 @@
       <p>
         A component's view on the left, and what else it renders on the right: what a terminal
         shows (renders.tui, the same app: use either), the JavaScript that makes it (renders.js),
-        markdown about it (renders.md), what a model is told about it (renders.llmContext) and the
+        markdown about it (renders.md), it printed (renders.ps, as PostScript and as a PDF), a Word
+        document of it (renders.docx), what a model is told about it (renders.llmContext) and the
         tools a model is given to change it (renders.llmTools, which you can call here). Use it and
         watch them follow: the tools offered change with the state. The cart, the kanban board and
         the JSON tree are components inside components: each renders its children's renders where
-        they go, as its view does, and a child's tools are its parent's, called on that child.
+        they go, as its view does, and a child's tools are its parent's, called on that child. A
+        panel's title collapses it; Ctrl+click (⌘+click) collapses or expands them all.
       </p>
     </header>
     <main class="renders">

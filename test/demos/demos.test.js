@@ -1041,6 +1041,44 @@ test("renders demo: the PDF and Word panels make their files, the Word one previ
 	await settle();
 });
 
+test("renders demo: a panel's title collapses it, Ctrl+click every panel, story to story", async () => {
+	const { start } = await import("../../demos/renders/main.js");
+	const page = readFileSync(new URL("../../demos/renders/index.html", import.meta.url), "utf8");
+	// A URL, so it has localStorage.
+	const window = dom(page.replace(/<script[\s\S]*?<\/script>/g, ""), {
+		url: "http://localhost/demos/renders/",
+	});
+	const { document } = window;
+	window.localStorage.clear();
+	const demo = start(document);
+	const panels = () => [...document.querySelectorAll("#others details.render")];
+	const open = () => Object.fromEntries(panels().map((p) => [p.dataset.panel, p.open]));
+	const click = (name, init = {}) =>
+		document
+			.querySelector(`#others details[data-panel="${name}"] > summary`)
+			.dispatchEvent(new window.MouseEvent("click", { bubbles: true, cancelable: true, ...init }));
+	assert.ok(panels().every((p) => p.open));
+	click("js");
+	assert.equal(open().js, false);
+	assert.equal(open().md, true);
+	// Another story keeps it collapsed.
+	demo.open("Todo list/A few items");
+	assert.equal(open().js, false);
+	assert.equal(open().md, true);
+	// Ctrl+click collapses them all, and again expands them all; ⌘ does as Ctrl.
+	click("md", { ctrlKey: true });
+	assert.ok(panels().every((p) => !p.open));
+	click("md", { metaKey: true });
+	assert.ok(panels().every((p) => p.open));
+	click("llmTools");
+	assert.deepEqual(JSON.parse(window.localStorage.getItem("tutuca-renders-collapsed")), [
+		"llmTools",
+	]);
+	// The LLM tools' JSON scrolls in its pane.
+	assert.ok(document.querySelector('#others details[data-panel="llmTools"] pre.render-scroll'));
+	await settle();
+});
+
 test("renders demo: the LLM panels follow the state, and calling a tool changes the component", async () => {
 	const { start } = await import("../../demos/renders/main.js");
 	const page = readFileSync(new URL("../../demos/renders/index.html", import.meta.url), "utf8");
