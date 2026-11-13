@@ -61,7 +61,8 @@ const inputsOf = async (contents) => {
 	});
 	return Object.keys(metafile.inputs);
 };
-const OPT_IN = /^(src\/(tui|jsast|mdast)\/|deps\/(astring|mdast)\.js)/;
+const OPT_IN =
+	/^(src\/(tui|jsast|mdast|ps|pdf|docx|checked)\/|deps\/(astring|mdast|pdfkit|docx)\.js)/;
 
 test("the default bundles carry no render target but the page's", async () => {
 	for (const contents of [

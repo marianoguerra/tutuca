@@ -22,6 +22,8 @@ const BUNDLES = [
 	"picomatch",
 	"vega",
 	"echarts",
+	"pdfkit",
+	"docx",
 ];
 for (const name of BUNDLES) await vendorIfMissing(name);
 rmSync(out, { recursive: true, force: true });
@@ -100,6 +102,11 @@ const siteImportMap = (base) => ({
 		"tutuca/llm/target": `${base}src/llm/target.js`,
 		"tutuca/mdast": `${base}src/mdast/index.js`,
 		"tutuca/mdast/target": `${base}src/mdast/target.js`,
+		"tutuca/ps": `${base}src/ps/index.js`,
+		"tutuca/ps/target": `${base}src/ps/target.js`,
+		"tutuca/pdf": `${base}src/pdf/index.js`,
+		"tutuca/docx": `${base}src/docx/index.js`,
+		"tutuca/docx/target": `${base}src/docx/target.js`,
 		"tutuca/tui": `${base}src/tui/index.js`,
 		"tutuca/tui/target": `${base}src/tui/target.js`,
 		"tutuca/tui/element": `${base}src/tui/element.js`,

@@ -2,7 +2,9 @@
 // renders, rendered again after each render of the page: renders.tui as a terminal shows it
 // (<tutuca-terminal>, the same app: what's done in it runs on the page's host), renders.js as
 // the code it prints (tutuca/jsast), renders.md as the markdown it prints (tutuca/mdast), raw and
-// through <md-view>, renders.llmContext as what a model is told (tutuca/llm) and renders.llmTools
+// through <md-view>, renders.ps as the PostScript it prints (tutuca/ps) and an SVG preview of
+// it, and as a PDF (tutuca/pdf) in a frame, renders.docx as a Word file (tutuca/docx) to download
+// and an HTML preview of it, renders.llmContext as what a model is told (tutuca/llm) and renders.llmTools
 // as the tools it's given, which a form calls as a model would. The story is in the hash,
 // #Counter/From zero. The cart, the kanban board and the JSON tree nest: each component's
 // renders put its children's where they go, and a child's tools are its parent's.
@@ -14,12 +16,17 @@ import cart from "../../site/examples/composed.js";
 import counter from "../../site/examples/counter.js";
 import todoList from "../../site/examples/todo-list.js";
 import { ClassCompiler, classNamesOf } from "../../src/css/classes.js";
+import { DOCX_MIME, printDocx, renderDocxTree } from "../../src/docx/index.js";
 import { renderJs } from "../../src/jsast/index.js";
 import { callLlmTool, renderLlmContext, renderLlmTools } from "../../src/llm/index.js";
 import { renderMd } from "../../src/mdast/index.js";
+import { printPdf } from "../../src/pdf/index.js";
+import { printPs, renderPsTree } from "../../src/ps/index.js";
 import { defineTutucaTerminal } from "../../src/tui/element.js";
 import { DevChecks } from "../../src/tutuca.dev.js";
 import { Host, isProblem, specOf } from "../../src/tutuca.js";
+import { previewDocx } from "./docx-preview.js";
+import { previewPs } from "./ps-preview.js";
 
 const books = [counter, todoList, cart, kanbanBook, jsonBook];
 // The ones that make their state: the rest generate it.
@@ -60,8 +67,30 @@ const sampleInput = ({ properties }) =>
 // A call's outcome, as a tool result would tell the model.
 const callText = (call) => `→ ${call.name}(${call.args.map((a) => JSON.stringify(a)).join(", ")})`;
 
-// The renders this page shows, by target, in this order. make builds a panel, attach(panel, host)
-// starts it on the page's host once it's on the page, show(panel, instance) fills it.
+// A file to download, made again after each render: its link's URL is the last one made, the one
+// before let go of. A file's made asynchronously; one made after a later one started is dropped.
+const download = (document, label) => {
+	const link = el(document, "a", { class: "btn btn-sm", hidden: "" }, label);
+	let url = null;
+	let made = 0;
+	const set = async (bytes, type, name) => {
+		const mine = ++made;
+		const data = await bytes;
+		if (mine !== made) return null;
+		const URL = document.defaultView?.URL ?? globalThis.URL;
+		if (url !== null) URL.revokeObjectURL?.(url);
+		url = URL.createObjectURL?.(new Blob([data], { type })) ?? null;
+		if (url !== null) link.setAttribute("href", url);
+		link.setAttribute("download", name);
+		link.hidden = false;
+		return { data, url };
+	};
+	return { link, set };
+};
+
+// The renders this page shows, in this order, by target (or the target they say). make builds a
+// panel, attach(panel, host) starts it on the page's host once it's on the page, show(panel,
+// instance) fills it, returning a promise when it does so asynchronously.
 const SHOWN = {
 	tui: {
 		title: "Terminal",
@@ -94,6 +123,53 @@ const SHOWN = {
 		title: "Markdown",
 		make: (document) => mdPanes(document, "renders.md"),
 		show: (made, instance) => showMd(made, renderMd(instance)),
+	},
+	ps: {
+		title: "PostScript",
+		make: (document) => {
+			const code = el(document, "pre", { class: "ps-program" });
+			const pages = el(document, "div", { class: "ps-pages" });
+			const node = el(
+				document,
+				"div",
+				{ class: "render-panes" },
+				pane(document, "renders.ps", code),
+				pane(document, "Previewed", pages),
+			);
+			return { node, code, pages };
+		},
+		show: ({ code, pages }, instance) => {
+			const tree = renderPsTree(instance);
+			code.textContent = printPs(tree);
+			pages.replaceChildren(...previewPs(pages.ownerDocument, tree));
+		},
+	},
+	pdf: {
+		target: "ps",
+		title: "PDF",
+		make: (document) => {
+			const frame = el(document, "iframe", { class: "pdf-frame", title: "PDF" });
+			const file = download(document, "Download PDF");
+			return { node: el(document, "div", { class: "pdf-pane" }, file.link, frame), frame, file };
+		},
+		show: async ({ frame, file }, instance) => {
+			const name = `${specOf(instance).name}.pdf`;
+			const made = await file.set(printPdf(renderPsTree(instance)), "application/pdf", name);
+			if (made?.url) frame.setAttribute("src", made.url);
+		},
+	},
+	docx: {
+		title: "Word",
+		make: (document) => {
+			const preview = el(document, "div", { class: "docx-preview" });
+			const file = download(document, "Download .docx");
+			return { node: el(document, "div", {}, file.link, preview), preview, file };
+		},
+		show: async ({ preview, file }, instance) => {
+			const tree = renderDocxTree(instance);
+			preview.replaceChildren(...previewDocx(preview.ownerDocument, tree));
+			await file.set(printDocx(tree), DOCX_MIME, `${specOf(instance).name}.docx`);
+		},
 	},
 	llmContext: {
 		title: "LLM context",
@@ -163,8 +239,8 @@ const SHOWN = {
 const mountOthers = (document, container, spec, host) => {
 	container.replaceChildren();
 	const panels = [];
-	for (const [target, shown] of Object.entries(SHOWN)) {
-		if (spec.renders[target] === undefined) continue;
+	for (const [name, shown] of Object.entries(SHOWN)) {
+		if (spec.renders[shown.target ?? name] === undefined) continue;
 		const made = shown.make(document);
 		const error = el(document, "pre", { class: "render-error", hidden: "" });
 		container.append(
@@ -184,13 +260,17 @@ const mountOthers = (document, container, spec, host) => {
 		container.append(el(document, "p", { class: "renders-none" }, "It renders only its views."));
 	}
 	return (instance) => {
+		const fail = (error, e) => {
+			error.textContent = String(e.message ?? e);
+			error.hidden = false;
+		};
 		for (const { shown, made, error } of panels) {
 			try {
-				shown.show(made, instance);
+				const shows = shown.show(made, instance);
 				error.hidden = true;
+				shows?.catch((e) => fail(error, e));
 			} catch (e) {
-				error.textContent = String(e.message ?? e);
-				error.hidden = false;
+				fail(error, e);
 			}
 		}
 	};

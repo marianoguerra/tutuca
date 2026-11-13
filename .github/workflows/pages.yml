@@ -40,6 +40,9 @@ jobs:
           distribution: full
       - run: npm ci
       - run: racket spec/render.rkt
+      # The vendored bundles the site's tutuca/pdf and tutuca/docx import, which aren't in the
+      # repo (site.js would build them too, when missing).
+      - run: node scripts/vendor.js pdfkit docx
       # The tutuca-wax demos (wax/ on the site): MoonBit builds the pinned wax-mb, which compiles
       # the runtime and the component modules; npm ci brings binaryen's wasm-opt for the build.
       - name: Install MoonBit

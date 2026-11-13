@@ -1,7 +1,8 @@
 // 2. A todo list: arrays of records, loops, form inputs and computed values.
 // Methods are getters the view reads like fields; each() repeats a view per item.
 // Its renders are what it is elsewhere: tui in a terminal (`node scripts/tui.js todo-list`), js
-// the code that makes it, md a description of it, llmContext what a model is told about it and
+// the code that makes it, md a description of it, ps a printed checklist (as PostScript and PDF),
+// docx a Word document of it, llmContext what a model is told about it and
 // llmTools what a model can do to it (the Renders demo shows them).
 import {
 	$if,
@@ -16,6 +17,7 @@ import {
 	tag,
 	targetValue,
 } from "tutuca";
+import { docx, docxTarget } from "tutuca/docx/target";
 import { js, jsTarget } from "tutuca/jsast/target";
 import {
 	Case,
@@ -28,11 +30,20 @@ import {
 	When,
 } from "tutuca/llm/target";
 import { md, mdTarget } from "tutuca/mdast/target";
+import { ps, psTarget } from "tutuca/ps/target";
 import { book, step } from "tutuca/storybook";
 import { tuiTarget } from "tutuca/tui/target";
 
 // What it renders besides views is opt in, a target at a time.
-enableTargets(tuiTarget, jsTarget, mdTarget, llmContextTarget, llmToolsTarget);
+enableTargets(
+	tuiTarget,
+	jsTarget,
+	mdTarget,
+	psTarget,
+	docxTarget,
+	llmContextTarget,
+	llmToolsTarget,
+);
 
 const { box, button, div, form, input, label, li, p, span, text, ul } = tag;
 const { ArrayExpression, CallExpression, Identifier, Literal, MemberExpression } = js;
@@ -73,6 +84,13 @@ export const TodoList = component({
 		},
 		get isEmpty() {
 			return this.items.length === 0;
+		},
+		// The printed checklist's page: a row per item (one for "Nothing to do."), 22 points apart.
+		get pageHeight() {
+			return 130 + Math.max(1, this.items.length) * 22;
+		},
+		get leftY() {
+			return -(104 + Math.max(1, this.items.length) * 22);
 		},
 	},
 	view: div(
@@ -182,6 +200,52 @@ export const TodoList = component({
 				List(each(field("items"), ListItem({ checked: field("done") }, Paragraph(field("title"))))),
 			),
 			Paragraph(field("left"), " left"),
+		),
+		// A checklist to print: a box per item, ticked when it's done, from the page's top.
+		ps: ps.Page(
+			{ width: 320, height: field("pageHeight") },
+			ps.Group(
+				{ x: 36, y: field("pageHeight") },
+				ps.Text({ x: 0, y: -52, size: 20, font: "Helvetica-Bold" }, "Todo"),
+				$if(
+					field("isEmpty"),
+					ps.Text({ x: 0, y: -84, fill: "#666666" }, "Nothing to do."),
+					ps.Group(
+						{ y: -84, stepY: -22 },
+						each(
+							field("items"),
+							ps.Group(
+								ps.Rect({ x: 0, y: -2, width: 12, height: 12, stroke: "#333333" }),
+								$if(
+									field("done"),
+									ps.Path(
+										{ stroke: "#22aa77", lineWidth: 2, lineCap: "round", lineJoin: "round" },
+										ps.MoveTo({ x: 2, y: 4 }),
+										ps.LineTo({ x: 5, y: 1 }),
+										ps.LineTo({ x: 10, y: 9 }),
+									),
+									null,
+								),
+								ps.Text(
+									{ x: 20, y: 0, fill: $if(field("done"), "#888888", "#000000") },
+									field("title"),
+								),
+							),
+						),
+					),
+				),
+				ps.Text({ x: 0, y: field("leftY"), size: 10, fill: "#666666" }, field("left"), " left"),
+			),
+		),
+		// A heading, a task per item, and how many are left.
+		docx: docx.Section(
+			docx.Heading({ level: 1 }, "Todo"),
+			$if(
+				field("isEmpty"),
+				docx.Paragraph("Nothing to do."),
+				docx.List(each(field("items"), docx.ListItem({ checked: field("done") }, field("title")))),
+			),
+			docx.Paragraph(docx.Emphasis(field("left"), " left")),
 		),
 		// What a model is told: how many are left, the tasks (the first 20) and, by the state,
 		// what's being typed and what would help next.

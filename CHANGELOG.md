@@ -44,6 +44,47 @@
   table (`src/mdast/schema.js`), each issue at its path in an `MdAstError`. `renderMdAst`
   renders it and `renderMd` prints it with mdast-util-to-markdown (vendored as `deps/mdast.js`),
   which escapes text markdown would read as syntax.
+- **PostScript from components: `tutuca/ps`** (experimental). `renders.ps` says what a component
+  draws on a printed page: a drawing, not PostScript's operators. `ps.Document` > `Page` (size,
+  label, background) > graphics: `Group` (moved, rotated, scaled; `stepX`/`stepY` move its nth
+  child n steps, so an `each` lays out a row), `Rect`, `Circle`, `Line`, `Polyline`, `Path` (of
+  `MoveTo`, `LineTo`, `CurveTo`, `Arc`, `ClosePath`) and `Text` (its children; font, size,
+  alignment, a line per newline). Coordinates are PostScript's, in points from the bottom left.
+  As with `tutuca/mdast`, what a view says is checked when the tags are built and the drawing
+  when it renders, against one table (`src/ps/schema.js`), each issue at its path in a
+  `PsError`. `renderPsTree` renders it and `renderPs` prints it as a DSC conforming,
+  LanguageLevel 2, 7 bit clean document (`printPs`), which `gs` and `ps2pdf` run. Text is ISO
+  Latin-1: fonts are reencoded (but Symbol and ZapfDingbats), typographic quotes, dashes and
+  ellipses print as their Latin-1 look-alikes and other characters as `?`. A page is A4
+  unless it says otherwise. The counter on the landing page prints a card, and the Renders demo
+  shows a story's PostScript next to an SVG preview of it.
+- **PDF from components: `tutuca/pdf`** (experimental). `renderPdf(instance)` prints what a
+  component's `renders.ps` draws as a PDF, made with [PDFKit](https://pdfkit.org) (vendored as
+  `deps/pdfkit.js`: its browser build, the 14 standard fonts registered), in browsers and node:
+  one drawing, two printers (`printPs`, `printPdf`), which agree on what a drawing leaves out
+  (`src/ps/drawing.js`: page size, default fill or stroke, text lines, arcs). Text is in the
+  standard fonts (Windows-1252: typographic quotes, dashes and € print as they are) or in fonts
+  given by name as TrueType/OpenType bytes, embedded; another font is an error, as a PDF can't
+  ask the printer for one.
+- **Word documents from components: `tutuca/docx`** (experimental). `renders.docx` says what a
+  component is as a Word document, as `renders.md` does as markdown: `docx.Document` >
+  `Section` (A4 or Letter, portrait or landscape) > `Paragraph`, `Heading`, `Title`, `List` of
+  `ListItem` (bulleted, or numbered when `ordered`, each list from 1, a `List` in a `List` a
+  level deeper; `checked` makes a task, ☒ or ☐), `Code`, `Table` > `TableRow` > `TableCell`
+  (fill, span; text and blocks), `PageBreak`; inline `Strong`, `Emphasis`, `Underline`,
+  `Strike`, `InlineCode`, `Span` (color, size, font, highlight), `Link`, `Break`, nesting their
+  formatting. Checked as md is, each issue at its path in a `DocxError`. `renderDocxTree`
+  renders it and `renderDocx` makes the .docx file's bytes with
+  [docx](https://docx.js.org) (vendored as `deps/docx.js`).
+- **The demo components print.** The counter, the todo list, the cart (an invoice, each line its
+  row), the kanban board (its columns side by side, each card under the last) and the JSON tree
+  (its text) have a `renders.ps` and a `renders.docx`. The Renders demo shows each as
+  PostScript with an SVG preview, as a PDF in a frame and as a Word file to download with an
+  HTML preview.
+- **Trees checked against a table, once: `src/checked/`.** `tutuca/mdast`, `tutuca/ps` and
+  `tutuca/docx` read their tables (`Schema`), build their tags (`checkedTags`) and lower and check
+  what they render (`checkedLower`) with the same code; `MdAstError`, `PsError` and `DocxError`
+  are `SchemaError`s.
 - **Components a model can read and use: `tutuca/llm`** (experimental), two targets.
   `renders.llmContext` is what a model is told about a component, markdown made for a context
   window (lowered to mdast, printed by `tutuca/mdast`'s new `printMd`): `Section` (a heading, a

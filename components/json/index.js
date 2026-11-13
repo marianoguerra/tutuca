@@ -36,6 +36,7 @@ import {
 	nullRenders,
 	numberRenders,
 	objectRenders,
+	PRINTED_LINE,
 	rootRenders,
 	selectorRenders,
 	stringRenders,
@@ -596,6 +597,9 @@ const jsonRootView = () =>
 	);
 // A dropped file's JSON replaces the value, and says so like an edit.
 const rootDrop = dataDrop({ after: (_next, ctx) => ctx.notify("jsonEdited") });
+// Printed, the JSON text's page is as tall as its lines (renders.js's PRINTED_LINE apart).
+const printedHeight = (text) => 96 + text.split("\n").length * PRINTED_LINE;
+
 export const JsonRoot = component({
 	name: "JsonRoot",
 	meta: { [DATA_META]: { load: "load", data: "json" } },
@@ -613,6 +617,12 @@ export const JsonRoot = component({
 		// The value as JSON, what load takes back.
 		get json() {
 			return this.value.toJson();
+		},
+		get text() {
+			return JSON.stringify(this.value.toJson(), null, 2);
+		},
+		get printedHeight() {
+			return printedHeight(this.text);
 		},
 		get hasDropError() {
 			return this.dropError !== "";
@@ -655,6 +665,9 @@ export const JsonEditor = component({
 	queries: {
 		get text() {
 			return JSON.stringify(this.toJson(), null, 2);
+		},
+		get printedHeight() {
+			return printedHeight(this.text);
 		},
 		get isEdit() {
 			return this.mode === "edit";

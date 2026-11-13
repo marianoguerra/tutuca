@@ -1,9 +1,11 @@
 // 1. A counter: a component is a name, typed fields, a view and the messages it handles.
 // Click the buttons in Preview, then open Steps to replay the "count to three" sequence.
 // Its renders are what it is elsewhere: tui in a terminal (`node scripts/tui.js counter`), js
-// the code that makes it, md a description of it, llmContext what a model is told about it and
+// the code that makes it, md a description of it, ps a printed card of it (as PostScript and
+// PDF), docx a Word document of it, llmContext what a model is told about it and
 // llmTools what a model can do to it (the Renders demo shows them).
 import { $if, component, enableTargets, field, send, t, tag } from "tutuca";
+import { docx, docxTarget } from "tutuca/docx/target";
 import { js, jsTarget } from "tutuca/jsast/target";
 import {
 	Case,
@@ -15,17 +17,27 @@ import {
 	Unless,
 } from "tutuca/llm/target";
 import { md, mdTarget } from "tutuca/mdast/target";
+import { ps, psTarget } from "tutuca/ps/target";
 import { book, step } from "tutuca/storybook";
 import { tuiTarget } from "tutuca/tui/target";
 
 // What it renders besides views is opt in, a target at a time.
-enableTargets(tuiTarget, jsTarget, mdTarget, llmContextTarget, llmToolsTarget);
+enableTargets(
+	tuiTarget,
+	jsTarget,
+	mdTarget,
+	psTarget,
+	docxTarget,
+	llmContextTarget,
+	llmToolsTarget,
+);
 
 const { box, button, div, span, text } = tag;
 const { CallExpression, Identifier, Literal, MemberExpression, ObjectExpression, Property } = js;
 const { UnaryExpression } = js;
 const { argument, arguments: args, callee, key, object, properties, property, value } = js;
 const { Paragraph, Strong } = md;
+const { Page, Rect } = ps;
 const { Fact, Hint, Section, Text } = llmContext;
 const { Tool, Tools } = llmTools;
 
@@ -82,6 +94,25 @@ export const Counter = component({
 		),
 		// Count: **3**
 		md: Paragraph("Count: ", Strong(field("count"))),
+		// A printed card, red below zero: points, from the page's bottom left.
+		ps: Page(
+			{ width: 200, height: 120 },
+			Rect({ x: 4, y: 4, width: 192, height: 112, stroke: "#999999" }),
+			ps.Text({ x: 100, y: 92, size: 11, align: "center", fill: "#666666" }, "COUNT"),
+			ps.Text(
+				{
+					x: 100,
+					y: 36,
+					size: 40,
+					align: "center",
+					font: "Helvetica-Bold",
+					fill: $if(field("isNegative"), "#c0392b", "#222222"),
+				},
+				field("count"),
+			),
+		),
+		// Count: 3, the count bold.
+		docx: docx.Paragraph("Count: ", docx.Strong(field("count"))),
 		// What a model is told: the count, and what it means, by its sign.
 		llmContext: Section(
 			"Counter",

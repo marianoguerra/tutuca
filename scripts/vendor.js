@@ -4,6 +4,11 @@
 //   mdast       deps/mdast.js: mdast-util-to-markdown and the GFM extensions for what src/mdast's
 //               schema has (strikethrough, tables, task list items); it prints the mdast trees
 //               components render with them.
+//   pdfkit      deps/pdfkit.js: PDFKit's browser build, its 14 standard fonts registered and its
+//               toBytes; src/pdf prints the drawings components render with it.
+//   docx        deps/docx.js: docx, which src/docx makes the Word documents components render with.
+//               It and pdfkit are gitignored: CI builds them, as do `just vendor-printers`,
+//               npm test (pretest, when missing) and the site build.
 //   codemirror  site/deps/codemirror.js: the playground needs one copy of @codemirror/state.
 //   automerge   demos/deps/automerge.js: automerge-repo needs one initialized copy of automerge;
 //               the sync demo's importmap maps every @automerge package to it.
@@ -30,6 +35,24 @@ const MDAST_PACKAGES = [
 	"mdast-util-gfm-strikethrough",
 	"mdast-util-gfm-table",
 	"mdast-util-gfm-task-list-item",
+];
+
+// PDFKit's standard fonts, by module name: the 14 every PDF reader has.
+const PDF_FONTS = [
+	"Courier",
+	"CourierBold",
+	"CourierBoldOblique",
+	"CourierOblique",
+	"Helvetica",
+	"HelveticaBold",
+	"HelveticaBoldOblique",
+	"HelveticaOblique",
+	"Symbol",
+	"TimesBold",
+	"TimesBoldItalic",
+	"TimesItalic",
+	"TimesRoman",
+	"ZapfDingbats",
 ];
 
 const TARGETS = {
@@ -70,6 +93,29 @@ const TARGETS = {
 			platform: "neutral",
 			mainFields: ["module", "main"],
 		},
+	},
+	pdfkit: {
+		out: "deps/pdfkit.js",
+		title: () => `pdfkit ${versionOf("pdfkit")} (https://github.com/foliojs/pdfkit)`,
+		license: "node_modules/pdfkit/LICENSE",
+		build: {
+			...reexports([
+				'import { registerStdFonts } from "pdfkit";',
+				...PDF_FONTS.map((f) => `import ${f} from "pdfkit/standard-fonts/${f}";`),
+				`registerStdFonts(${PDF_FONTS.join(", ")});`,
+				'export { PDFDocument } from "pdfkit";',
+				'export { toBytes } from "pdfkit/output";',
+			]),
+			// The browser build in node too: it reads no files, the fonts are registered.
+			conditions: ["browser"],
+			minify: true,
+		},
+	},
+	docx: {
+		out: "deps/docx.js",
+		title: () => `docx ${versionOf("docx")} (https://github.com/dolanmiu/docx)`,
+		license: "node_modules/docx/LICENSE",
+		build: { ...reexports(['export * from "docx";']), minify: true },
 	},
 	codemirror: {
 		out: "site/deps/codemirror.js",

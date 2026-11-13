@@ -3,6 +3,8 @@ dist
 _site
 *.tgz
 .playwright-mcp
+deps/pdfkit.js
+deps/docx.js
 demos/deps/
 site/deps/
 tutuca-core.*

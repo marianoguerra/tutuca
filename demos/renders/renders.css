@@ -108,3 +108,102 @@
 .render-call .render-result {
 	width: 100%;
 }
+/* A renders.ps's pages, previewed as SVG: as wide as the pane at most, each with a page's edge. */
+.ps-pages {
+	display: flex;
+	flex-direction: column;
+	gap: 0.5rem;
+}
+.ps-page {
+	max-width: 100%;
+	height: auto;
+	border: 1px solid var(--color-base-300, #e4e4e7);
+	box-shadow: 0 1px 3px rgb(0 0 0 / 0.12);
+}
+/* A renders.ps as a PDF, in the browser's viewer, and its download. */
+.pdf-pane {
+	display: flex;
+	flex-direction: column;
+	align-items: flex-start;
+	gap: 0.5rem;
+}
+.pdf-frame {
+	width: 100%;
+	height: 28rem;
+	border: 1px solid var(--color-base-300, #e4e4e7);
+	border-radius: 0.375rem;
+}
+/* A renders.docx previewed: a page per section, a document's typography. */
+.docx-preview {
+	display: flex;
+	flex-direction: column;
+	gap: 0.75rem;
+	margin-top: 0.5rem;
+}
+.docx-page {
+	padding: 1.5rem 2rem;
+	border: 1px solid var(--color-base-300, #e4e4e7);
+	background: #fff;
+	color: #111;
+	font-family: Calibri, Carlito, "Segoe UI", sans-serif;
+	font-size: 0.9rem;
+	box-shadow: 0 1px 3px rgb(0 0 0 / 0.12);
+}
+.docx-page h1,
+.docx-page h2,
+.docx-page h3 {
+	margin: 0.5rem 0;
+	color: #1f4e79;
+	font-size: 1.3rem;
+	font-weight: 600;
+	letter-spacing: 0;
+	text-transform: none;
+	opacity: 1;
+}
+.docx-page .docx-title {
+	color: #111;
+	font-size: 1.8rem;
+	font-weight: 400;
+}
+.docx-page p {
+	margin: 0.3rem 0;
+}
+.docx-page ul,
+.docx-page ol {
+	margin: 0.3rem 0;
+	padding-left: 1.5rem;
+}
+.docx-page ul {
+	list-style: disc;
+}
+.docx-page ol {
+	list-style: decimal;
+}
+.docx-page .docx-nested {
+	list-style: none;
+}
+.docx-page table {
+	width: 100%;
+	border-collapse: collapse;
+}
+.docx-page td,
+.docx-page th {
+	padding: 0.2rem 0.4rem;
+	border: 1px solid #333;
+	text-align: left;
+	vertical-align: top;
+}
+.docx-page pre {
+	background: #f4f4f5;
+	color: #111;
+	font-size: 0.8rem;
+}
+.docx-page-break {
+	border: 0;
+	border-top: 1px dashed #999;
+}
+/* A PostScript program is long: it scrolls, beside its preview. */
+.render .ps-program {
+	max-height: 28rem;
+	overflow-y: auto;
+}

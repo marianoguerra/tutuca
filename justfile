@@ -61,11 +61,16 @@ storybook story="": (serve "storybook.html#" + story)
 dist:
     npm run dist
 
-# immer is deps/immer.js; codemirror (site/deps/) and automerge (demos/deps/) are gitignored and
-# `just site` builds them when missing.
+# immer is deps/immer.js; codemirror (site/deps/), automerge (demos/deps/), pdfkit and docx
+# (deps/) are gitignored and `just site` builds them when missing.
 # Rebuild a vendored bundle after bumping its packages, e.g. `just vendor immer`.
 vendor name:
     node scripts/vendor.js {{name}}
+
+# Build the gitignored deps/pdfkit.js and deps/docx.js that tutuca/pdf and tutuca/docx import,
+# in a fresh checkout or after bumping pdfkit or docx (npm test builds them only when missing).
+vendor-printers:
+    node scripts/vendor.js pdfkit docx
 
 # Check what gets published: imports by package name, bundle exports, tarball contents.
 smoke: dist

@@ -1,10 +1,12 @@
 // 3. Components inside components: a cart of line items. Each line is its own component
 // with its own messages; the cart renders them and listens to what they notify.
 // Messages declare typed args, checked when sent: try sending setQuantity(-1) from Steps.
-// Its other renders nest too: the cart's tui, js, md, llmContext and llmTools render each line's
+// Its other renders nest too: the cart's tui, js, md, ps (an invoice, printed as PostScript and
+// PDF), docx, llmContext and llmTools render each line's
 // where it puts them, and a line's tools are the cart's, called on that line (the Renders demo
 // shows them).
 import { $if, component, enableTargets, field, renderEach, send, t, tag } from "tutuca";
+import { docx, docxTarget } from "tutuca/docx/target";
 import { js, jsTarget } from "tutuca/jsast/target";
 import {
 	llmContext,
@@ -15,10 +17,22 @@ import {
 	When,
 } from "tutuca/llm/target";
 import { md, mdTarget } from "tutuca/mdast/target";
+import { ps, psTarget } from "tutuca/ps/target";
 import { book, step } from "tutuca/storybook";
 import { tuiTarget } from "tutuca/tui/target";
 
-enableTargets(tuiTarget, jsTarget, mdTarget, llmContextTarget, llmToolsTarget);
+enableTargets(
+	tuiTarget,
+	jsTarget,
+	mdTarget,
+	psTarget,
+	docxTarget,
+	llmContextTarget,
+	llmToolsTarget,
+);
+
+// The invoice's columns: where the item starts, and where the quantity, price and subtotal end.
+const COLUMNS = { item: 0, qty: 250, price: 330, subtotal: 420 };
 
 const { box, button, div, span, strong, text } = tag;
 const { ArrayExpression, CallExpression, Identifier, Literal, MemberExpression } = js;
@@ -102,6 +116,20 @@ export const Line = component({
 			TableCell("$", field("priceText")),
 			TableCell("$", field("subtotal")),
 		),
+		// A row of the cart's invoice, at the y the cart's Group steps it to.
+		ps: ps.Group(
+			ps.Text({ x: COLUMNS.item, y: 0 }, field("name")),
+			ps.Text({ x: COLUMNS.qty, y: 0, align: "right" }, field("quantity")),
+			ps.Text({ x: COLUMNS.price, y: 0, align: "right" }, "$", field("priceText")),
+			ps.Text({ x: COLUMNS.subtotal, y: 0, align: "right" }, "$", field("subtotal")),
+		),
+		// A row of the cart's Word table.
+		docx: docx.TableRow(
+			docx.TableCell(field("name")),
+			docx.TableCell(docx.Paragraph({ align: "right" }, field("quantity"))),
+			docx.TableCell(docx.Paragraph({ align: "right" }, "$", field("priceText"))),
+			docx.TableCell(docx.Paragraph({ align: "right" }, "$", field("subtotal"))),
+		),
 		// An item of the cart's list.
 		llmContext: Item(
 			Strong(field("name")),
@@ -167,6 +195,13 @@ export const Cart = component({
 		get isEmpty() {
 			return this.lines.length === 0;
 		},
+		// The invoice's page: a row per line, 20 points apart, and the total under them.
+		get pageHeight() {
+			return 170 + this.lines.length * 20;
+		},
+		get totalY() {
+			return -(118 + this.lines.length * 20);
+		},
 	},
 	view: div(
 		{ class: "flex max-w-md flex-col gap-2" },
@@ -205,6 +240,76 @@ export const Cart = component({
 						TableCell(field("count")),
 						TableCell(""),
 						TableCell(Strong("$", field("total"))),
+					),
+				),
+			),
+		),
+		// An invoice: a header, each line's row, a rule and the total.
+		ps: ps.Page(
+			{ width: 480, height: field("pageHeight") },
+			ps.Group(
+				{ x: 30, y: field("pageHeight") },
+				ps.Text({ x: 0, y: -50, size: 20, font: "Helvetica-Bold" }, "Invoice"),
+				$if(
+					field("isEmpty"),
+					ps.Text({ x: 0, y: -90, fill: "#666666" }, "The cart is empty."),
+					ps.Group(
+						ps.Group(
+							{ y: -82 },
+							ps.Text({ x: COLUMNS.item, y: 0, size: 9, fill: "#666666" }, "ITEM"),
+							ps.Text({ x: COLUMNS.qty, y: 0, size: 9, fill: "#666666", align: "right" }, "QTY"),
+							ps.Text(
+								{ x: COLUMNS.price, y: 0, size: 9, fill: "#666666", align: "right" },
+								"PRICE",
+							),
+							ps.Text(
+								{ x: COLUMNS.subtotal, y: 0, size: 9, fill: "#666666", align: "right" },
+								"SUBTOTAL",
+							),
+						),
+						ps.Line({
+							x1: 0,
+							y1: -88,
+							x2: COLUMNS.subtotal,
+							y2: -88,
+							stroke: "#999999",
+							lineWidth: 0.5,
+						}),
+						ps.Group({ y: -106, stepY: -20 }, renderEach(field("lines"))),
+					),
+				),
+				ps.Group(
+					{ y: field("totalY") },
+					ps.Line({ x1: 0, y1: 14, x2: COLUMNS.subtotal, y2: 14, stroke: "#333333" }),
+					ps.Text({ x: COLUMNS.item, y: 0, font: "Helvetica-Bold" }, field("count"), " items"),
+					ps.Text(
+						{ x: COLUMNS.subtotal, y: 0, font: "Helvetica-Bold", align: "right" },
+						"Total $",
+						field("total"),
+					),
+				),
+			),
+		),
+		// A Word table: a header row, each line's and the total's.
+		docx: docx.Section(
+			docx.Heading({ level: 1 }, "Cart"),
+			$if(
+				field("isEmpty"),
+				docx.Paragraph("The cart is empty."),
+				docx.Table(
+					docx.TableRow(
+						{ header: true },
+						docx.TableCell({ fill: "#eeeeee" }, docx.Strong("Item")),
+						docx.TableCell({ fill: "#eeeeee" }, docx.Strong("Qty")),
+						docx.TableCell({ fill: "#eeeeee" }, docx.Strong("Price")),
+						docx.TableCell({ fill: "#eeeeee" }, docx.Strong("Subtotal")),
+					),
+					renderEach(field("lines")),
+					docx.TableRow(
+						docx.TableCell(docx.Strong("Total")),
+						docx.TableCell(docx.Paragraph({ align: "right" }, field("count"))),
+						docx.TableCell(),
+						docx.TableCell(docx.Paragraph({ align: "right" }, docx.Strong("$", field("total")))),
 					),
 				),
 			),

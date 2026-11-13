@@ -1,14 +1,18 @@
 // What a JSON tree renders besides its views (the Renders demo shows them): renders.js is the
-// code that makes the tree in its state (C.JsonObject({ entries: [...], open: true })), renders.md as nested lists, renders.tui as an indented tree in
-// a terminal, and the root's renders.llmContext the value as data. Each value's render is its
+// code that makes the tree in its state (C.JsonObject({ entries: [...], open: true })),
+// renders.md as nested lists, renders.tui as an indented tree in a terminal, the root's and the
+// editor's renders.ps their JSON text printed (as PostScript and PDF) and renders.docx a document
+// with it as a code block, and the root's renders.llmContext the value as data. Each value's render is its
 // own, put where its collection's render says, as its views are; recursion is render and
 // renderIt. The edit views have tui ones too: pushView("edit", ...) above a tree edits it in a
 // terminal as on the page. Each value says its md three ways, by view name: main (a block),
 // inline (in an entry's line) and row (an array's list item).
 
+import { docx, docxTarget } from "../../src/docx/target.js";
 import { js, jsTarget } from "../../src/jsast/target.js";
 import { llmContext, llmContextTarget } from "../../src/llm/target.js";
 import { md, mdTarget } from "../../src/mdast/target.js";
+import { ps, psTarget } from "../../src/ps/target.js";
 import { tuiTarget } from "../../src/tui/target.js";
 import {
 	$if,
@@ -24,7 +28,19 @@ import {
 	targetValue,
 } from "../../src/tutuca.js";
 
-enableTargets(tuiTarget, jsTarget, mdTarget, llmContextTarget);
+enableTargets(tuiTarget, jsTarget, mdTarget, psTarget, docxTarget, llmContextTarget);
+
+// The JSON text, printed: monospaced lines this far apart, from the page's top.
+export const PRINTED_LINE = 11;
+const printedText = ps.Page(
+	{ height: field("printedHeight") },
+	ps.Group(
+		{ x: 36, y: field("printedHeight") },
+		ps.Text({ x: 0, y: -48, font: "Courier", size: 9, lineHeight: PRINTED_LINE }, field("text")),
+	),
+);
+const documentText = (title) =>
+	docx.Section(docx.Heading({ level: 1 }, title), docx.Code(field("text")));
 
 const { box, input, text } = tag;
 const { ArrayExpression, CallExpression, Identifier, Literal, MemberExpression } = js;
@@ -298,6 +314,8 @@ export const rootRenders = {
 		literal("dropError"),
 	),
 	md: Root(render(field("value"))),
+	ps: printedText,
+	docx: documentText("JSON value"),
 	llmContext: valueContext("JSON value"),
 };
 
@@ -325,5 +343,7 @@ export const editorRenders = {
 		render(field("value")),
 		$if(field("showText"), Code({ lang: "json" }, field("text")), null),
 	),
+	ps: printedText,
+	docx: documentText("JSON document"),
 	llmContext: Section("JSON document", Fact("Mode", field("mode")), Data(field("json"))),
 };

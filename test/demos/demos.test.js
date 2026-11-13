@@ -949,6 +949,98 @@ test("renders demo: the other renders follow the component, story by story", asy
 	await settle();
 });
 
+test("renders demo: the PostScript panel prints the counter's card and previews it", async () => {
+	const { start } = await import("../../demos/renders/main.js");
+	const page = readFileSync(new URL("../../demos/renders/index.html", import.meta.url), "utf8");
+	const window = dom(page.replace(/<script[\s\S]*?<\/script>/g, ""));
+	const { document } = window;
+	const demo = start(document);
+	const panel = () =>
+		[...document.querySelectorAll("#others .render")].find(
+			(s) => s.querySelector("h2").textContent === "PostScript",
+		);
+	const program = () => panel().querySelector("pre").textContent;
+	const shown = () => [...panel().querySelectorAll("svg.ps-page tspan")].map((t) => t.textContent);
+	assert.match(program(), /^%!PS-Adobe-3\.0\n/);
+	assert.match(program(), /^100 36 moveto \(0\) centershow$/m);
+	assert.deepEqual(shown(), ["COUNT", "0"]);
+	assert.equal(panel().querySelector("svg.ps-page").getAttribute("viewBox"), "0 0 200 120");
+	document
+		.querySelector("#app .btn")
+		.dispatchEvent(new window.MouseEvent("click", { bubbles: true, cancelable: true }));
+	const host = demo.host();
+	while (host.tasks.length > 0) host.handleTasks();
+	await settle();
+	// Below zero it's red, and its - is Latin-1's hyphen.
+	assert.match(
+		program(),
+		/^0\.753 0\.224 0\.169 setrgbcolor\n100 36 moveto \(\\2551\) centershow$/m,
+	);
+	assert.deepEqual(shown(), ["COUNT", "-1"]);
+	// A component without renders.ps has no panel.
+	demo.open("JSON/Null");
+	assert.equal(panel(), undefined);
+	await settle();
+});
+
+test("renders demo: the PDF and Word panels make their files, the Word one previewed", async () => {
+	const { start } = await import("../../demos/renders/main.js");
+	const page = readFileSync(new URL("../../demos/renders/index.html", import.meta.url), "utf8");
+	const window = dom(page.replace(/<script[\s\S]*?<\/script>/g, ""));
+	const { document } = window;
+	// jsdom has no object URLs: these say what they're of.
+	const made = [];
+	window.URL.createObjectURL = (blob) => {
+		made.push(blob);
+		return `blob:${made.length}`;
+	};
+	window.URL.revokeObjectURL = () => {};
+	const demo = start(document);
+	const panel = (title) =>
+		[...document.querySelectorAll("#others .render")].find(
+			(s) => s.querySelector("h2").textContent === title,
+		);
+	const link = (title) => panel(title).querySelector("a");
+	// A file's made asynchronously.
+	const ready = async (title) => {
+		for (let i = 0; i < 200 && link(title).hidden; i++) await settle();
+		assert.equal(link(title).hidden, false, `${title} made its file`);
+	};
+	const bytesOf = async (title) => {
+		const blob = made[Number(link(title).getAttribute("href").slice(5)) - 1];
+		return new Uint8Array(await blob.arrayBuffer());
+	};
+	demo.open("Cart/Three lines");
+	await ready("PDF");
+	await ready("Word");
+	assert.equal(link("PDF").getAttribute("download"), "Cart.pdf");
+	assert.equal(
+		panel("PDF").querySelector("iframe").getAttribute("src"),
+		link("PDF").getAttribute("href"),
+	);
+	assert.match(new TextDecoder().decode((await bytesOf("PDF")).slice(0, 8)), /^%PDF-1\.\d/);
+	assert.equal(link("Word").getAttribute("download"), "Cart.docx");
+	assert.deepEqual([...(await bytesOf("Word")).slice(0, 2)], [0x50, 0x4b]);
+	// The preview: the cart's table, each line's row in it.
+	const rows = [...panel("Word").querySelectorAll(".docx-page tr")].map((tr) =>
+		[...tr.children].map((cell) => cell.textContent),
+	);
+	assert.deepEqual(rows, [
+		["Item", "Qty", "Price", "Subtotal"],
+		["Coffee beans", "2", "$12.50", "$25.00"],
+		["Filters", "1", "$3.00", "$3.00"],
+		["Mug", "1", "$9.75", "$9.75"],
+		["Total", "4", "", "$37.75"],
+	]);
+	demo.open("Todo list/A few items");
+	await ready("Word");
+	assert.deepEqual(
+		[...panel("Word").querySelectorAll(".docx-page li")].map((li) => li.textContent),
+		["☒ Read the guide", "☐ Edit this example"],
+	);
+	await settle();
+});
+
 test("renders demo: the LLM panels follow the state, and calling a tool changes the component", async () => {
 	const { start } = await import("../../demos/renders/main.js");
 	const page = readFileSync(new URL("../../demos/renders/index.html", import.meta.url), "utf8");

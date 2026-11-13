@@ -5,11 +5,13 @@
 // dragged. The host marks the target under the drag with data-draggingover, which the styles
 // highlight.
 //
-// Its other renders nest three levels down, as its views do: the board's renders.tui, js, md
-// and llmContext render each column's, which render each card's (the Renders demo shows them).
+// Its other renders nest three levels down, as its views do: the board's renders.tui, js, md, ps
+// (the board drawn, printed as PostScript and PDF), docx (a table, a column per cell) and
+// llmContext render each column's, which render each card's (the Renders demo shows them).
 // A terminal can't drag, so a card there has ← and → boxes that shift it a column; a model
 // moves cards with the board's tools, and adds them with each column's.
 
+import { docx, docxTarget } from "../../src/docx/target.js";
 import { js, jsTarget } from "../../src/jsast/target.js";
 import {
 	llmContext,
@@ -22,6 +24,7 @@ import {
 } from "../../src/llm/target.js";
 import { md, mdTarget } from "../../src/mdast/target.js";
 import { AGENT_META, agentTool, DATA_META } from "../../src/meta/index.js";
+import { ps, psTarget } from "../../src/ps/target.js";
 import { tuiTarget } from "../../src/tui/target.js";
 import {
 	$if,
@@ -43,7 +46,18 @@ import {
 import { setField } from "../common/card.js";
 import { metaFor } from "../common/meta.js";
 
-enableTargets(tuiTarget, jsTarget, mdTarget, llmContextTarget, llmToolsTarget);
+enableTargets(
+	tuiTarget,
+	jsTarget,
+	mdTarget,
+	psTarget,
+	docxTarget,
+	llmContextTarget,
+	llmToolsTarget,
+);
+
+// The printed board: columns this wide, side by side; cards this tall, one under the other.
+const PRINT = { column: 170, gap: 12, card: 30, cardGap: 6, header: 34, title: 26 };
 
 const { box, button, div, form, h2, input, section, span, text } = tag;
 const { ArrayExpression, CallExpression, Identifier, Literal, MemberExpression } = js;
@@ -83,6 +97,14 @@ const draggedCardId = (ctx) => (ctx.drag?.type === "card" ? ctx.drag.value?.id :
 export const Card = component({
 	name: "Card",
 	fields: { id: t.string(), title: t.string() },
+	queries: {
+		// Printed, a title is as long as a card is wide: PostScript doesn't wrap text.
+		get printedTitle() {
+			return this.title.length > PRINT.title
+				? `${this.title.slice(0, PRINT.title - 1)}…`
+				: this.title;
+		},
+	},
 	view: div(
 		{
 			class:
@@ -105,6 +127,20 @@ export const Card = component({
 		),
 		js: make("Card", literal("id"), literal("title")),
 		md: ListItem(Paragraph(field("title"))),
+		// A card under the last, its top at the y its column steps it to.
+		ps: ps.Group(
+			ps.Rect({
+				x: 0,
+				y: -PRINT.card,
+				width: PRINT.column - 16,
+				height: PRINT.card,
+				fill: "#ffffff",
+				stroke: "#c8c8d0",
+				lineWidth: 0.75,
+			}),
+			ps.Text({ x: 8, y: -PRINT.card / 2 - 3.5, size: 10 }, field("printedTitle")),
+		),
+		docx: docx.ListItem(field("title")),
 		// The id is what the board's tools take.
 		llmContext: Item(field("title"), " ", Code(field("id"))),
 	},
@@ -170,6 +206,13 @@ export const Column = component({
 		get addTool() {
 			return `add_card_to_${slug(this.title)}`;
 		},
+		// Printed, as tall as its cards (one card's room when it has none).
+		get printedHeight() {
+			return PRINT.header + Math.max(1, this.cards.length) * (PRINT.card + PRINT.cardGap) + 4;
+		},
+		get printedBottom() {
+			return -this.printedHeight;
+		},
 	},
 	renders: {
 		// A column of the board's row: its cards, and an input that adds one on Enter.
@@ -201,6 +244,34 @@ export const Column = component({
 		md: ListItem(
 			Paragraph(Strong(field("title")), " (", field("count"), ")"),
 			$if(field("count"), List(renderEach(field("cards"))), null),
+		),
+		// A column of the board, its top at the board's: its title, and its cards under it.
+		ps: ps.Group(
+			ps.Rect({
+				x: 0,
+				y: field("printedBottom"),
+				width: PRINT.column,
+				height: field("printedHeight"),
+				fill: "#f1f1f4",
+			}),
+			ps.Text({ x: 8, y: -20, size: 11, font: "Helvetica-Bold" }, field("title")),
+			ps.Text(
+				{ x: PRINT.column - 8, y: -20, size: 9, align: "right", fill: "#666666" },
+				field("count"),
+			),
+			ps.Group(
+				{ x: 8, y: -PRINT.header, stepY: -(PRINT.card + PRINT.cardGap) },
+				renderEach(field("cards")),
+			),
+		),
+		// A cell of the board's table: its title, and its cards as a list.
+		docx: docx.TableCell(
+			docx.Paragraph(docx.Strong(field("title")), " (", field("count"), ")"),
+			$if(
+				field("count"),
+				docx.List(renderEach(field("cards"))),
+				docx.Paragraph(docx.Emphasis("No cards.")),
+			),
 		),
 		// A section a level below the board's, its cards an item each.
 		llmContext: Section(
@@ -406,6 +477,14 @@ export const Board = component({
 		get hasCards() {
 			return this.columns.some((col) => col.cards.length > 0);
 		},
+		// The printed board's page: its columns side by side, as tall as the tallest.
+		get pageWidth() {
+			return 48 + Math.max(1, this.columns.length) * (PRINT.column + PRINT.gap) - PRINT.gap;
+		},
+		get pageHeight() {
+			const cards = Math.max(1, ...this.columns.map((col) => col.cards.length));
+			return 120 + PRINT.header + cards * (PRINT.card + PRINT.cardGap);
+		},
 		cards_in: {
 			args: [t.number().int().min(0)],
 			run(column) {
@@ -438,6 +517,29 @@ export const Board = component({
 		md: Root(
 			Heading({ depth: 2 }, "Board"),
 			$if(field("columns"), List(renderEach(field("columns"))), Paragraph("No columns.")),
+		),
+		// The board drawn on a landscape page: its title, and its columns side by side.
+		ps: ps.Page(
+			{ width: field("pageWidth"), height: field("pageHeight") },
+			ps.Group(
+				{ x: 24, y: field("pageHeight") },
+				ps.Text({ x: 0, y: -44, size: 18, font: "Helvetica-Bold" }, "Board"),
+				$if(
+					field("columns"),
+					ps.Group({ y: -64, stepX: PRINT.column + PRINT.gap }, renderEach(field("columns"))),
+					ps.Text({ x: 0, y: -76, fill: "#666666" }, "No columns."),
+				),
+			),
+		),
+		// A table of one row: a cell per column, as on the page.
+		docx: docx.Section(
+			{ orientation: "landscape" },
+			docx.Heading({ level: 1 }, "Board"),
+			$if(
+				field("columns"),
+				docx.Table(docx.TableRow(renderEach(field("columns")))),
+				docx.Paragraph("No columns."),
+			),
 		),
 		llmContext: Section(
 			"Kanban board",
