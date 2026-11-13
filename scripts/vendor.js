@@ -1,5 +1,9 @@
 // Bundles devDependencies into single browser files, so pages run without a bundler:
 //   immer       deps/immer.js: src/ imports it by path, in the repo and the npm package.
+//   astring     deps/astring.js: src/jsast prints the ESTrees components render with it.
+//   mdast       deps/mdast.js: mdast-util-to-markdown and the GFM extensions for what src/mdast's
+//               schema has (strikethrough, tables, task list items); it prints the mdast trees
+//               components render with them.
 //   codemirror  site/deps/codemirror.js: the playground needs one copy of @codemirror/state.
 //   automerge   demos/deps/automerge.js: automerge-repo needs one initialized copy of automerge;
 //               the sync demo's importmap maps every @automerge package to it.
@@ -21,6 +25,13 @@ const reexports = (lines) => ({
 	stdin: { contents: lines.join("\n"), resolveDir: ".", loader: "js" },
 });
 
+const MDAST_PACKAGES = [
+	"mdast-util-to-markdown",
+	"mdast-util-gfm-strikethrough",
+	"mdast-util-gfm-table",
+	"mdast-util-gfm-task-list-item",
+];
+
 const TARGETS = {
 	immer: {
 		out: "deps/immer.js",
@@ -35,6 +46,29 @@ const TARGETS = {
 		build: {
 			entryPoints: ["node_modules/immer/dist/immer.mjs"],
 			define: { "process.env.NODE_ENV": '"development"' },
+		},
+	},
+	astring: {
+		out: "deps/astring.js",
+		title: () => `astring ${versionOf("astring")} (https://github.com/davidbonnet/astring)`,
+		license: "node_modules/astring/LICENSE",
+		build: { entryPoints: ["node_modules/astring/dist/astring.mjs"] },
+	},
+	mdast: {
+		out: "deps/mdast.js",
+		title: () => `${versions(MDAST_PACKAGES)} (https://github.com/syntax-tree)`,
+		license: "node_modules/mdast-util-to-markdown/license",
+		build: {
+			...reexports([
+				'export { toMarkdown } from "mdast-util-to-markdown";',
+				'export { gfmStrikethroughToMarkdown } from "mdast-util-gfm-strikethrough";',
+				'export { gfmTableToMarkdown } from "mdast-util-gfm-table";',
+				'export { gfmTaskListItemToMarkdown } from "mdast-util-gfm-task-list-item";',
+			]),
+			// Not the browser builds: decode-named-character-reference's reads document when it
+			// loads, and src/mdast runs in node too.
+			platform: "neutral",
+			mainFields: ["module", "main"],
 		},
 	},
 	codemirror: {

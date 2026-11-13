@@ -866,3 +866,110 @@ test("canvas demo: an item whose chrome is pressed comes to the front", async ()
 	assert.equal(app.state(), before);
 	await assertClean(app);
 });
+
+test("renders demo: the other renders follow the component, story by story", async () => {
+	const { start } = await import("../../demos/renders/main.js");
+	const page = readFileSync(new URL("../../demos/renders/index.html", import.meta.url), "utf8");
+	const window = dom(page.replace(/<script[\s\S]*?<\/script>/g, ""));
+	const { document } = window;
+	const demo = start(document);
+	const others = () => document.getElementById("others");
+	const code = () => others().querySelector("code").textContent;
+	const markdown = () => others().querySelector(".render-panes pre").textContent;
+	// The terminal preview's rows, as text.
+	const terminal = () =>
+		[...others().querySelector("tutuca-terminal").shadowRoot.querySelectorAll(".row")]
+			.map((row) => row.textContent.trimEnd())
+			.join("\n");
+	// The host renders, and so the panels follow, in a task after the click's.
+	const click = async (selector) => {
+		document
+			.querySelector(`#app ${selector}`)
+			.dispatchEvent(new window.MouseEvent("click", { bubbles: true, cancelable: true }));
+		const host = demo.host();
+		while (host.tasks.length > 0) host.handleTasks();
+		await settle();
+	};
+	assert.deepEqual(
+		[...document.querySelectorAll("#story option")].map((o) => o.value),
+		["Counter/From zero", "Counter/From ten", "Todo list/Empty", "Todo list/A few items"],
+	);
+	assert.equal(code(), "new Counter(0);");
+	assert.match(terminal(), /│ − │ 0 │ \+ │/);
+	await click(".btn-primary");
+	assert.equal(code(), "new Counter(1);");
+	assert.match(terminal(), /│ − │ 1 │ \+ │/, "the terminal preview follows the page");
+	// And the page follows the terminal: Tab to +, Enter presses it, on the page's host.
+	const screen = others().querySelector("tutuca-terminal").shadowRoot.querySelector(".screen");
+	for (const key of ["Tab", "Tab", "Enter"]) {
+		screen.dispatchEvent(
+			new window.KeyboardEvent("keydown", { key, bubbles: true, cancelable: true }),
+		);
+	}
+	await settle();
+	assert.equal(code(), "new Counter(2);");
+	assert.equal(document.querySelector("#app .text-2xl").textContent, "2");
+	assert.match(terminal(), /│ − │ 2 │ \+ │/);
+	await click(".btn");
+	assert.equal(code(), "new Counter(1);");
+	assert.equal(markdown(), "Count: **1**\n");
+	assert.equal(others().querySelector("md-view").getAttribute("content"), "Count: **1**\n");
+	demo.open("Todo list/A few items");
+	assert.equal(document.getElementById("story").value, "Todo list/A few items");
+	assert.equal(
+		code(),
+		'new TodoList("", [new Task("Read the guide", true), new Task("Edit this example", false)]);',
+	);
+	await click('li:nth-child(2) [type="checkbox"]');
+	assert.equal(markdown(), "## Todo\n\n- [x] Read the guide\n- [x] Edit this example\n\n0 left\n");
+	await settle();
+});
+
+test("renders demo: the LLM panels follow the state, and calling a tool changes the component", async () => {
+	const { start } = await import("../../demos/renders/main.js");
+	const page = readFileSync(new URL("../../demos/renders/index.html", import.meta.url), "utf8");
+	const window = dom(page.replace(/<script[\s\S]*?<\/script>/g, ""));
+	const { document } = window;
+	const demo = start(document);
+	const panel = (title) =>
+		[...document.querySelectorAll("#others .render")].find(
+			(s) => s.querySelector("h2").textContent === title,
+		);
+	const context = () => panel("LLM context").querySelector("pre").textContent;
+	const tools = () => panel("LLM tools");
+	const offered = () => [...tools().querySelectorAll("select option")].map((o) => o.value);
+	const call = async (name, input) => {
+		const select = tools().querySelector("select");
+		select.value = name;
+		select.dispatchEvent(new window.Event("change"));
+		if (input !== undefined) tools().querySelector("textarea").value = JSON.stringify(input);
+		tools()
+			.querySelector("form")
+			.dispatchEvent(new window.Event("submit", { bubbles: true, cancelable: true }));
+		await settle();
+		return tools().querySelector(".render-result").textContent;
+	};
+	assert.equal(context(), "# Counter\n\n- **Count:** 0\n\nIt's where it starts.\n");
+	// No reset at 0: there's nothing to reset.
+	assert.deepEqual(offered(), ["increment", "decrement"]);
+	assert.equal(await call("decrement"), "→ dec()");
+	assert.equal(document.querySelector("#app .text-2xl").textContent, "-1");
+	assert.match(context(), /\*\*Hint:\*\* It's below zero/);
+	assert.deepEqual(offered(), ["increment", "decrement", "reset"]);
+	await call("reset");
+	assert.equal(document.querySelector("#app .text-2xl").textContent, "0");
+
+	demo.open("Todo list/Empty");
+	assert.deepEqual(offered(), ["add_task"]);
+	assert.match(context(), /There are no tasks\.\n\n> \*\*Hint:\*\* Offer to add the first tasks\./);
+	assert.equal(await call("add_task", { title: "" }), 'title is at least 1 characters, not ""');
+	assert.ok(tools().querySelector(".render-result").classList.contains("render-error"));
+	assert.equal(await call("add_task", { title: "Buy milk" }), '→ add("Buy milk")');
+	assert.match(document.querySelector("#app li").textContent, /Buy milk/);
+	assert.deepEqual(offered(), ["add_task", "toggle_task", "remove_task"]);
+	const toggle = JSON.parse(tools().querySelector("pre").textContent)[1];
+	assert.equal(toggle.input_schema.properties.index.description, "Which task.\n- 0: Buy milk");
+	await call("toggle_task", { index: 0 });
+	assert.match(context(), /\[x\] Buy milk[\s\S]*Everything is done\./);
+	await settle();
+});

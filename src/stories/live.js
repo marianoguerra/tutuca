@@ -39,6 +39,7 @@ class StoryRunner {
 		this.lastStress = null; // { root, commands } of the last failed stress run.
 		this.messagesBySpec = new Map();
 		this.timeline = new Timeline();
+		this.mirrors = new Set(); // The terminal previews of its app (<tutuca-terminal>).
 	}
 	mount(detail) {
 		this.detail = detail;
@@ -71,12 +72,26 @@ class StoryRunner {
 	}
 	dispose() {
 		this.onDispose();
+		this.mirrors.clear();
 		this.stressToken = null;
 		this.detail = null;
 		this.driver.host.stop();
 	}
 	get current() {
 		return this.timeline.current;
+	}
+	// A terminal preview's request (element.js's TERMINAL_REQUEST): it shows the app's host, and
+	// follows it from then on.
+	showTerminal(detail) {
+		const mirror = detail.show(this.driver.host);
+		if (mirror !== null) this.mirrors.add(mirror);
+	}
+	// The previews follow each render of the app; the ones let go of are dropped.
+	syncMirrors() {
+		for (const mirror of this.mirrors) {
+			if (mirror.stopped) this.mirrors.delete(mirror);
+			else mirror.sync();
+		}
 	}
 	get nextStep() {
 		return this.current.nextStep;
@@ -275,6 +290,7 @@ class StoryRunner {
 	// What the host reports: the transitions of tasks from the user or from async replies, each
 	// with its own problems, and the rest, whose problems go to the current entry.
 	onReport(record) {
+		if (record.type === "rendered") this.syncMirrors();
 		if (record.kind === "transition") this.transitions?.push(record); // For the entry of a step.
 		if (this.driver === null || this.busy) return;
 		if (record.kind === "transition" && record.committed) {
@@ -334,6 +350,7 @@ class StoryRunner {
 			stateJson: JSON.stringify(snapshot(current.state), null, 2) ?? "",
 			changes: this.changes(),
 			reload: this.reload,
+			renders: Object.keys(specOf(current.state).renders), // What it renders besides views.
 			stress: stressSettings(this.story), // What the stress panel starts with.
 			// Live values for the dev panel, which keeps refs to them, not the values.
 			dev: {
@@ -387,6 +404,7 @@ export class StoryRegistry {
 		this.classes = compile === null ? null : new ClassCompiler(compile, known);
 		this.stories = new Map(books.flatMap((book) => book.stories.map((s) => [s.id, s])));
 		this.runners = new Map();
+		this.terminals = new Map(); // key → the requests of terminal previews of an app not mounted yet.
 	}
 	mount(detail) {
 		const parsed = parseStoryAppKey(this.prefix, detail.key);
@@ -400,6 +418,15 @@ export class StoryRegistry {
 		const runner = new StoryRunner(story, { fc, seed, css, classes, carried, onDispose });
 		runner.mount(detail);
 		this.runners.set(detail.key, runner);
+		for (const request of this.terminals.get(detail.key) ?? []) runner.showTerminal(request);
+		this.terminals.delete(detail.key);
+	}
+	// A terminal preview of the app at detail.key, now or once it mounts.
+	showTerminal(detail) {
+		const runner = this.runners.get(detail.key);
+		if (runner !== undefined) return runner.showTerminal(detail);
+		const waiting = this.terminals.get(detail.key) ?? [];
+		this.terminals.set(detail.key, [...waiting, detail]);
 	}
 	// The state each mounted story is at, by story id, for the next registry to carry over.
 	carriable() {

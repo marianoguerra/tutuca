@@ -294,6 +294,8 @@ const EVENT_ARGS = {
 		const target = ctx.node ?? ctx.event.target;
 		return target.type === "checkbox" ? target.checked : target.value;
 	},
+	// The key a key event is for, as KeyboardEvent.key says it: "a", "Enter", "ArrowUp", ...
+	eventKey: (ctx) => ctx.event?.key ?? null,
 	sourceKey: (ctx) => ctx.sourceKey,
 	// The key of the child the dragged element is in, as sourceKey is for the event's element;
 	// null when nothing, or something from outside the component, is dragged.
@@ -311,6 +313,7 @@ export class EventArgNode extends ViewNode {
 	}
 }
 export const targetValue = () => new EventArgNode("targetValue");
+export const eventKey = () => new EventArgNode("eventKey");
 export const sourceKey = () => new EventArgNode("sourceKey");
 export const dragKey = () => new EventArgNode("dragKey");
 export class LookupBindNode extends ViewNode {
@@ -325,8 +328,9 @@ export class LookupBindNode extends ViewNode {
 }
 export const lookupBind = (name) => new LookupBindNode(name);
 export class RenderContext {
-	constructor({ it, binds, provided, viewStack, depth, component }) {
+	constructor({ it, binds, provided, viewStack, depth, component, target = null }) {
 		this.it = it;
+		this.target = target; // The RenderTarget whose renders it picks; null for the page's views.
 		this.component = component; // component != it inside loops
 		this.binds = binds;
 		this.provided = provided; // name -> { value, depth, keys }: what ancestors provide.
@@ -336,9 +340,9 @@ export class RenderContext {
 	get spec() {
 		return specOf(this.component);
 	}
-	static root(component) {
+	static root(component, { target = null } = {}) {
 		const empty = { it: null, binds: {}, provided: {}, viewStack: [], depth: -1 };
-		return new RenderContext({ ...empty, component }).enterFrame(component);
+		return new RenderContext({ ...empty, component, target }).enterFrame(component);
 	}
 	with(changes) {
 		return new RenderContext({ ...this, ...changes });
@@ -369,12 +373,20 @@ export class RenderContext {
 	lookupBind(name) {
 		return this.binds[name] ?? null;
 	}
+	// From the spec's renders for the target; a spec without them shows its page views if the target
+	// falls back to them, and fails to render if not. A view missing by name falls back to that
+	// target's main, never to another target's.
 	getBestViewFor(spec, viewName) {
+		const views = spec.viewsFor(this.target) ?? this.viewsWithout(spec);
 		const candidates = viewName === undefined ? this.viewStack : [viewName, ...this.viewStack];
 		for (const name of candidates) {
-			const view = spec.views[name];
+			const view = views[name];
 			if (view !== undefined) return view;
 		}
-		return spec.views.main;
+		return views.main;
+	}
+	viewsWithout(spec) {
+		if (this.target.fallsBackToViews) return spec.views;
+		throw new Error(`Component ${spec.name} has no ${this.target.name} render`);
 	}
 }

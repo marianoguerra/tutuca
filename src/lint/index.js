@@ -34,9 +34,19 @@ const RENDER_KINDS = new Set([
 const LOOP_HOOKS = ["prepare", "filter", "iter", "key", "enrich"];
 const EMIT_KINDS = new Set(["notify", "ask", "sendAt"]);
 const isTypeList = (a) => Array.isArray(a) && a.every((t) => t instanceof Type);
+const KEY_EVENTS = new Set(["keydown", "keyup", "keypress"]);
 // Per event arg: the prefix of its lint codes and where it can be used beyond send args.
 const EVENT_ARG_RULES = {
 	targetValue: { code: "target" },
+	// Only key events have a key.
+	eventKey: {
+		code: "event-key",
+		check: (lint) =>
+			!KEY_EVENTS.has(lint.eventType) && [
+				"event-key-outside-key-event",
+				`eventKey is only set in key events (keydown, keyup), not in on:${lint.eventType}`,
+			],
+	},
 	// Events from outside any each body, in this view, always have a null source key.
 	sourceKey: {
 		code: "source-key",
@@ -112,7 +122,12 @@ export class Lint extends Walker {
 		super();
 		this.registrations = [...registrations];
 		this.componentNames = componentNames === null ? null : new Set(componentNames);
-		this.viewNames = new Set(this.registrations.flatMap((spec) => Object.keys(spec.views)));
+		this.viewNames = new Set(
+			this.registrations.flatMap((spec) => [
+				...Object.keys(spec.views),
+				...Object.values(spec.renders).flatMap((views) => Object.keys(views)),
+			]),
+		);
 		this.providedNames = new Set(this.registrations.flatMap((spec) => Object.keys(spec.provides)));
 		// The interface names registrations say they implement, which fields can hold.
 		this.implementedNames = new Set(
@@ -132,7 +147,14 @@ export class Lint extends Walker {
 			this.viewName = null;
 			this.labels = [];
 			this.lintSpec(spec);
-			for (const [viewName, view] of Object.entries(spec.views)) {
+			// A target's views are reported as tui main, js compact, ... next to the page's views.
+			const views = [
+				...Object.entries(spec.views),
+				...Object.entries(spec.renders).flatMap(([target, byName]) =>
+					Object.entries(byName).map(([name, view]) => [`${target} ${name}`, view]),
+				),
+			];
+			for (const [viewName, view] of views) {
 				this.viewName = viewName;
 				this.env = viewEnv;
 				this.inAction = false;

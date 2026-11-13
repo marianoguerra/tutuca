@@ -50,6 +50,7 @@ export {
 	toMessages,
 	toQueries,
 } from "./core/model/spec.js";
+export { enableTargets, RenderTarget } from "./core/model/targets.js";
 export {
 	AnyType,
 	ArrayType,
@@ -93,6 +94,7 @@ export {
 	ElementNode,
 	EventArgNode,
 	each,
+	eventKey,
 	FieldNode,
 	field,
 	h,

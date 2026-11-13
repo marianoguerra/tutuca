@@ -60,6 +60,10 @@ host.start(host.scope.components.Counter());
 | `tutuca/playground` | the `<tutuca-playground>` element: edit a book of stories and run it live (bring your own CodeMirror) |
 | `tutuca/element` | the `<tutuca-app>` custom element |
 | `tutuca/vdom` | the virtual DOM |
+| `tutuca/tui` | tutuca apps in a terminal (opt in: `enableTargets(tuiTarget)`, from `tutuca/tui/target` to declare without the terminal): a component's `renders.tui` (one tree, or views by name with a `main`) is what it renders there, as its `view` (and `views`) is on a page. `runTui({ components, root })` runs one (`node scripts/tui.js counter` runs an example); `startTui` makes one without a terminal, for tests |
+| `tutuca/jsast` | (experimental) components that render JavaScript (opt in: `enableTargets(jsTarget)`, with `js` from `tutuca/jsast/target` to declare without the printer): a component's `renders.js` is an ESTree built with `js.FunctionDeclaration(...)` tags; `renderJs(instance)` prints it (astring) |
+| `tutuca/mdast` | (experimental) components that render markdown (opt in: `enableTargets(mdTarget)`, with `md` from `tutuca/mdast/target` to declare without the printer): a component's `renders.md` is an mdast tree built with `md.Heading(...)` tags; `renderMd(instance)` prints it as GFM (mdast-util-to-markdown) |
+| `tutuca/llm` | (experimental) components a model can read and use (opt in: `enableTargets(llmContextTarget, llmToolsTarget)`, tags from `tutuca/llm/target`): `renders.llmContext` is markdown for a context window (`Section`, `Fact`, `Items`, `Hint`, `Data`), printed by `renderLlmContext`; `renders.llmTools` is tool definitions (`Tool`, `Str`, `Enum`, ...), `renderLlmTools` gives them with JSON Schema inputs and `callLlmTool(host, { name, input })` checks and runs a call; `When`/`Unless`/`Choose` make both follow the state |
 | `tutuca/sync` | sync engines: projection, schema-guided diff, ops, `startSynced`, `storageEngine` |
 | `tutuca/sync/remote` | an engine that sends diffs to a remote and applies the ones it sends |
 | `tutuca/automerge` | an engine over an Automerge document (bring your own `@automerge/automerge`) |

@@ -32,17 +32,25 @@ import {
 
 const { div, option, p, pre, section, select, span } = tag;
 
-// What it shows: the app, or one of its panels with the app kept mounted.
-const TABS = ["preview", ...PANELS];
-const TAB_LABELS = { preview: "Preview", ...PANEL_LABELS };
+// What it shows: the app, the app in a terminal (when its root renders tui), or one of its
+// panels, with the app kept mounted.
+const TABS = ["preview", "terminal", ...PANELS];
+const TAB_LABELS = { preview: "Preview", terminal: "Terminal preview", ...PANEL_LABELS };
 // The dev tab counts the lint issues of the run.
 const issueBadge = $if(
 	field("hasIssues"),
 	span({ class: "badge badge-sm badge-warning ml-1" }, field("issueCount")),
 	"",
 );
-const playgroundTab = (name) =>
-	tabButton("setPanel", name, TAB_LABELS[name], ...(name === "dev" ? [issueBadge] : []));
+const playgroundTab = (name) => {
+	const tab = tabButton(
+		"setPanel",
+		name,
+		TAB_LABELS[name],
+		...(name === "dev" ? [issueBadge] : []),
+	);
+	return name === "terminal" ? $if(field("hasTerminal"), tab, "") : tab;
+};
 
 export const Playground = component({
 	name: "Playground",
@@ -56,6 +64,7 @@ export const Playground = component({
 		error: t.string(),
 		panel: t.enum(...TABS),
 		issueCount: t.number().int().min(0),
+		hasTerminal: t.boolean(), // The story's root renders tui: the terminal preview shows it.
 		...panelFields,
 		travel: t.component("TimeTravel"), // Under the preview, over the story's timeline.
 	},
@@ -65,6 +74,9 @@ export const Playground = component({
 		},
 		get isPreview() {
 			return this.panel === "preview";
+		},
+		get isTerminal() {
+			return this.panel === "terminal";
 		},
 		get hasExamples() {
 			return this.examples.length > 1;
@@ -146,6 +158,19 @@ export const Playground = component({
 							storyApp(),
 							div({ class: "mt-3 empty:hidden" }, render(field("travel"))),
 						),
+						// The same app, as a terminal shows it: what's done there runs on it.
+						$if(
+							field("isTerminal"),
+							section(
+								{ class: appCard },
+								tag["tutuca-terminal"]({ class: "block", "app-key": field("appKey") }),
+								p(
+									{ class: "mt-2 text-xs text-base-content/60" },
+									"Its renders.tui, as a terminal shows it. Click it to type; Tab moves focus, Shift+drag selects.",
+								),
+							),
+							"",
+						),
 						panelsView(),
 					),
 					$if(field("isLoading"), "", p({ class: "text-base-content/60" }, "Nothing to show.")),
@@ -220,8 +245,10 @@ export const Playground = component({
 			},
 		},
 		// Of the app's state reports, the run's lint issues and timeline too.
-		...panelHandlers((_self, next, { dev, timeline, cursor }) => {
+		...panelHandlers((_self, next, { dev, timeline, cursor, renders }) => {
 			next.issueCount = dev?.issues.length ?? 0;
+			next.hasTerminal = renders?.includes("tui") ?? false;
+			if (!next.hasTerminal && next.panel === "terminal") next.panel = "preview";
 			const shown = showArgs({ size: timeline.length, cursor, current: timeline[cursor] });
 			next.travel = apply(next.travel, "show", ...shown);
 		}),

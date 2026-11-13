@@ -223,7 +223,13 @@ const printCompactly = (spec) => {
 
 // What an event's target value can be: an input's text or a checkbox's checked.
 const eventValue = (fc) => fc.oneof(fc.string({ maxLength: 6 }), fc.boolean());
-const EVENT_ARG = { targetValue: eventValue };
+// What a key event's key can be: a few that views tell apart, and a character.
+const eventKeyValue = (fc) =>
+	fc.oneof(
+		fc.constantFrom("Enter", "Escape", "Tab", "ArrowUp", "ArrowDown", " "),
+		fc.string({ minLength: 1, maxLength: 1 }),
+	);
+const EVENT_ARG = { targetValue: eventValue, eventKey: eventKeyValue };
 // Arbitraries of args for a message: its declared types, else the args of the sends in the
 // spec's views when every one is a constant or targetValue; null when it can't be driven.
 const argsFor = (A, spec, message) => {

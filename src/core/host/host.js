@@ -54,8 +54,12 @@ export class Host {
 		env = browserEnv,
 		publish = null,
 		schedule = inNextTask,
+		target = null,
 	} = {}) {
 		this.document = document;
+		// The RenderTarget whose renders it shows (tutuca/tui's tuiTarget for its terminal DOM);
+		// null for the components' views.
+		this.target = target;
 		this.rootNode = rootNode;
 		this.checks = checks === null ? null : new checks();
 		this.env = env; // What handlers read from the world, through ctx.
@@ -131,7 +135,7 @@ export class Host {
 	}
 	render() {
 		if (this.document === null) return;
-		const ctx = RenderContext.root(this.root);
+		const ctx = RenderContext.root(this.root, { target: this.target });
 		const curVDom = this._curVDom;
 		const newVDom = toVChildren(renderView(this.root, ctx));
 		morph(this.document, this.rootNode, newVDom, curVDom);

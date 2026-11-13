@@ -4,6 +4,121 @@
 
 ### Added
 
+- **`eventKey()`**, a send arg: the key a key event is for, as `KeyboardEvent.key` says it
+  (`"a"`, `"Enter"`, `"ArrowUp"`). Lint errors with `event-key-outside-key-event` when it's used
+  outside `keydown`, `keyup` and `keypress`; property tests generate keys for it.
+- **`renders`: what a component renders other than a page, by target.** `view`/`views` stay the
+  page; `renders: { tui: ..., js: ... }` holds the rest, each target one tree (its main view) or
+  a plain object of views by name with a `main`. `component()` doesn't know the target names, so
+  a new output (markdown, say) is a new key under `renders`, not a new component option.
+  `spec.renders[name]` holds the views, `spec.viewsFor(target)` returns them (the page's for
+  `null`), and `RenderContext` and `Host` take a `target`. A view missing by name falls back to
+  that target's main. Lint lints every target's views, as `tui main`, `js compact`, ...
+  - **Every target is opt in.** A target is a `RenderTarget` (`tutuca`), defined by the module
+    that renders it: `tuiTarget`, `jsTarget`, `mdTarget`. `component()` takes `renders.X` only
+    after `enableTargets(...)` was given target X, and says which are enabled when it wasn't.
+    A target says whether a component without renders for it shows its page views there
+    (`fallsBackToViews`, the terminal) or fails to render (JavaScript, markdown).
+  - A module that only declares components imports `tutuca/tui/target`, `tutuca/jsast/target`
+    or `tutuca/mdast/target` (the target, and `js` or `md`'s tags), not the renderer: the
+    landing page's examples declare all three and load none of the terminal, astring or the
+    markdown printer. `dist/tutuca.js` and `dist/tutuca.dev.js` carry none of them, which
+    `test/core/targets.test.js` checks.
+- **Terminal preview on a page: `<tutuca-terminal>` (`tutuca/tui/element`).** It shows an app's
+  `renders.tui` as a terminal would, without a terminal emulator: the Screen's cells drawn as
+  styled text (`drawBuffer`, `sgrCss`), and the page's keys, mouse, wheel and paste sent to it as
+  a terminal's input (`bindScreen`, `keyOf`). `mirrorTui(host)` (`tutuca/tui`) is a Screen on
+  another host's state whose events run on that host, so the page's app and its terminal render
+  are one app: `el.show(host)` returns it, and `mirror.sync()` after the host renders draws the
+  new state. With `app-key`, the element asks its ancestors for the host (`TERMINAL_REQUEST`), as
+  `<tutuca-app>` does. The playground has a **Terminal preview** tab for a story whose root
+  renders tui (a press there is in the story's timeline, as a click on the page is), and the
+  Renders demo shows a terminal next to the JavaScript and markdown.
+- **JavaScript from components: `tutuca/jsast`** (experimental). `renders.js` says what a
+  component renders as an ESTree; `renderJsAst` renders it and `renderJs` prints it.
+- **Markdown from components: `tutuca/mdast`** (experimental). `renders.md` says what a component
+  renders as an [mdast](https://github.com/syntax-tree/mdast) tree, as `renders.js` does an
+  ESTree: `md.Heading({ depth: 2 }, ...)`, `md.List(each(...))`, `md.ListItem({ checked })`, with
+  GFM's tables, strikethrough and task list items. Text in a phrasing parent is a text node.
+  What a view says is checked when the tags are built and the tree when it renders, against one
+  table (`src/mdast/schema.js`), each issue at its path in an `MdAstError`. `renderMdAst`
+  renders it and `renderMd` prints it with mdast-util-to-markdown (vendored as `deps/mdast.js`),
+  which escapes text markdown would read as syntax.
+- **Components a model can read and use: `tutuca/llm`** (experimental), two targets.
+  `renders.llmContext` is what a model is told about a component, markdown made for a context
+  window (lowered to mdast, printed by `tutuca/mdast`'s new `printMd`): `Section` (a heading, a
+  level deeper per child component), `Fact` (consecutive ones are one `- **Name:** value` list,
+  values printed for reading), `Items`/`Item` (task lists, `max` with "…and N more", `empty`),
+  `Hint` (guidance for the model), `Text`, `Data` (a JSON block), `Strong`/`Em`/`Code`.
+  `renders.llmTools` is the tools it's given: `Tool(name, send(...), description, ...params)`
+  with `Str`, `Num`, `Int`, `Bool`, `Enum`/`Option`, `List` params (required unless `optional`),
+  rendered by `renderLlmTools` as Anthropic tool definitions (`input_schema` JSON Schema).
+  `toolArg(name)` is a call's param in its send; `callLlmTool(host, { name, input })` checks the
+  input against the tool's schema (a `ToolCallError` whose issues are what to tell the model) and
+  sends to the component the tool was rendered in, found from the render's markers as a click's
+  is (`pathOfMarkers`, from `core/host/events.js`), so child components' and loop items' tools
+  work. Tags take positional attrs (`Str("title", "What to do")`) and are checked when built and
+  as they render, each issue at its path in an `LlmError`. Both have **`When`, `Unless` and
+  `Choose`/`Case`/`Otherwise`**: any number of children, rendered only for the branch that holds,
+  testing presence (empty arrays and objects don't count) or comparing (`is`, `not`, `above`,
+  `below`, `atLeast`, `atMost`, `in`, values that can be fields). So a tool that can't be used
+  isn't offered, an `Enum`'s values are the ones there are, and hints follow the state.
+  `tutuca/llm` and `tutuca/llm/target` are package exports and in the site's import map.
+- **The landing page's counter and todo list render JavaScript and markdown**: the code that
+  makes them (`new TodoList("", [new Task("Read the guide", true)])`) and a description of them
+  (`## Todo`, a `- [ ]` per task, how many are left). The **Renders** demo (`demos/renders/`)
+  shows a story's component next to them, raw and through `<md-view>`, following as it's used,
+  and next to its LLM context and tools, with a form that calls a tool as a model would. The
+  counter offers `reset` only away from 0 (a new `reset` message); the todo list offers
+  `toggle_task` and `remove_task` only with tasks, their `index` an `Enum` of the tasks there
+  are, and its `add` takes an optional title, leaving what's typed when a tool sends it.
+  `tutuca/jsast` and `tutuca/mdast` are package exports and in the site's import map.
+- **Terminal UIs: `tutuca/tui`.** A component's `renders.tui` is what it renders in a terminal,
+  as its `view` is on a page. `Host({ target: "tui" })` renders them.
+  - The host renders into a retained terminal DOM (`src/tui/tdom.js`) that `src/vdom`'s morph
+    patches and `events.js` walks unchanged. Each paint lays it out (flexbox), draws it into a
+    cell buffer and writes only the cells that changed.
+  - Elements: `<box>` (flexDirection, gap, padding, margin, borderStyle, borderText, width,
+    height, flexGrow, justifyContent, alignItems, overflow, ...), `<text>` (wrap, truncate),
+    `<input>` and `<spacer>`; color, backgroundColor, bold, dim, italic, underline, inverse and
+    strikethrough style the text in an element and its children. Text from the state has its
+    escape sequences and control characters removed.
+  - Events: a mouse event goes to the element under the cell; a key to the focused element (an
+    `<input>`, or one with `focusable`). Unless a handler prevents it, Tab and Shift+Tab move
+    focus and scroll it into view, Enter and space click, and an input edits at its caret
+    (`selectionStart`, placed by a click; arrows, Home, End, Ctrl/Alt for words, readline's Ctrl
+    keys, paste), scrolls sideways to keep it in view, and sends `input` as it's edited and
+    `submit` on Enter.
+  - Scroll containers: a box with `overflow` (or `overflowY`) `scroll` or `auto` lays its content
+    out as tall as it is and shows it from its `scrollTop` (which a view can set, as on a page),
+    with a thumb on its right border or padding. The wheel scrolls the innermost one under it
+    that can still scroll that way; the arrows, PageUp, PageDown, Home and End the focused one,
+    and PageUp and PageDown the one around what has focus. Each scroll sends `scroll`. What's
+    scrolled out of view can't be clicked.
+  - Styled spans: inside a `<text>`, elements style the part they hold, nested over outer, kept
+    across wrapped and truncated rows; a click on that part reaches the element.
+  - Layers: `position: "fixed"` lays an element out against the screen, drawn over everything
+    (by `zIndex`, then tree order) and not clipped by its ancestors. With `modal` it traps focus
+    (takes it on open, keeps Tab in it, takes the clicks outside it, gives focus back on close).
+  - Terminals: `runTui` detects colors (`NO_COLOR`, `FORCE_COLOR`, `COLORTERM`, `TERM`, known
+    terminals) and Unicode (`TERM`, CI, the locale); output reduces 24-bit colors to 256, 16 or
+    none and draws box drawing as ASCII when needed. `Screen` and `startTui` take `terminal`.
+  - Editing: `<textarea>` edits many lines (Up and Down keep the column, Enter starts a line,
+    Alt+Enter submits), scrolled to its caret. An input or textarea has a selection
+    (`selectionStart`, `selectionEnd`, `selectionDirection`, `setSelectionRange`): Shift with the
+    moves selects, Ctrl+A selects all, a drag selects, Shift+click selects to the click, and
+    typing, Backspace and Delete replace it. Ctrl+C, Ctrl+X and Ctrl+V copy, cut and paste (Ctrl+C
+    only quits with nothing selected; a copy goes to the system clipboard by OSC 52, or the page's
+    in `<tutuca-terminal>`), and Ctrl+Z and Ctrl+Y undo and redo, a run of typing as one step.
+  - Drawing: all of tuiuiu's border styles; each side's own color and dimming (`borderTopColor`,
+    `borderDimLeft`, ...); `<divider>`, a line across a column or down a row, with a title; and
+    `split` on a box, a line between its children that joins its border.
+  - `runTui({ components, root })` runs an app in the terminal (raw mode, the alternate screen,
+    SGR mouse, bracketed paste, resize; Ctrl+C quits). `startTui` makes one without a terminal.
+    `node scripts/tui.js counter` and `node scripts/tui.js todo-list` run the landing page's
+    counter and todo list, which have a `renders.tui` now.
+  - The cell buffer, text widths, flexbox and drawing are ported from tuiuiu.js (MIT; see
+    `src/tui/LICENSE.tuiuiu`).
 - **Two kinds of report: `Transition` and `Lifecycle`.** `host.listen(fn)` calls `fn(record)`,
   as XState's inspection has `@xstate.transition` and `@xstate.actor`. Every record has `kind`,
   `n` (its place in the order the host reported), `at` (the host's clock), `issues` (what dev

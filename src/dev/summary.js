@@ -105,6 +105,7 @@ const typeDetail = (type) => {
 
 const EVENT_ARG_TITLES = {
 	targetValue: "the value of the event's target",
+	eventKey: "the key a key event is for",
 	sourceKey: "the key the event came from",
 	dragKey: "the key the dragged element came from",
 };

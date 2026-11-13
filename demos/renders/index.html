@@ -1,0 +1,52 @@
+<!doctype html>
+<html lang="en">
+  <head>
+    <meta charset="UTF-8" />
+    <meta name="viewport" content="width=device-width, initial-scale=1" />
+    <title>Renders · Tutuca demos</title>
+    <script type="importmap">
+      {
+        "imports": {
+          "margaui": "../../node_modules/margaui/dist/margaui.min.js",
+          "tutuca": "../../src/tutuca.js",
+          "tutuca/storybook": "../../src/storybook/index.js",
+          "tutuca/jsast/target": "../../src/jsast/target.js",
+          "tutuca/mdast/target": "../../src/mdast/target.js",
+          "tutuca/llm/target": "../../src/llm/target.js",
+          "tutuca/tui/target": "../../src/tui/target.js"
+        }
+      }
+    </script>
+    <style id="margaui"></style>
+    <link rel="stylesheet" href="../../node_modules/margaui/dist/themes/theme.css" />
+    <link rel="stylesheet" href="../demo.css" />
+    <link rel="stylesheet" href="./renders.css" />
+    <script type="module" src="./main.js"></script>
+  </head>
+  <body>
+    <header class="demo-bar">
+      <a href="../">← All demos</a>
+      <h1>Renders</h1>
+      <p>
+        A component's view on the left, and what else it renders on the right: what a terminal
+        shows (renders.tui, the same app: use either), the JavaScript that makes it (renders.js),
+        markdown about it (renders.md), what a model is told about it (renders.llmContext) and the
+        tools a model is given to change it (renders.llmTools, which you can call here). Use it and
+        watch them follow: the tools offered change with the state.
+      </p>
+    </header>
+    <main class="renders">
+      <label class="renders-pick">
+        Story
+        <select id="story"></select>
+      </label>
+      <div class="renders-columns">
+        <section class="renders-live" aria-label="The component">
+          <h2>View</h2>
+          <div id="app"></div>
+        </section>
+        <section class="renders-others" id="others" aria-label="Its other renders"></section>
+      </div>
+    </main>
+  </body>
+</html>

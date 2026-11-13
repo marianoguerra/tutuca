@@ -2,7 +2,8 @@
 // module and the files it reaches through relative imports, the right pane is the Playground
 // component, showing the book's stories live with the story panels (src/panels). A run links the
 // edited files as blob modules (sources.js) and imports them; their imports of tutuca resolve
-// to the page's copy, the one the panels run on.
+// to the page's copy, the one the panels run on. A story whose root renders tui has a Terminal
+// preview tab too: the same app in a <tutuca-terminal> (src/tui/element.js).
 //
 // CodeMirror (EditorView, EditorState, Compartment, keymap, basicSetup, javascript, oneDark),
 // fast-check and a margaui-style compile(classes) → css are passed in, as in the storybook.
@@ -12,6 +13,7 @@ import { TimeTravel } from "../history/bar.js";
 import { bookClasses, logProblems, startPanelHost, uiClasses } from "../panels/host.js";
 import { panelComponents } from "../panels/ui/panels.js";
 import { StoryRegistry } from "../stories/live.js";
+import { defineTutucaTerminal, TERMINAL_REQUEST } from "../tui/element.js";
 import { booksOf, linkSources, loadSources } from "./sources.js";
 import { makePlayground, Playground, storyChoices } from "./ui/playground.js";
 
@@ -92,6 +94,7 @@ export const definePlayground = (window, { codemirror, fc, compile }) => {
 	const existing = window.customElements.get("tutuca-playground");
 	if (existing !== undefined) return existing;
 	defineTutucaApp(window);
+	defineTutucaTerminal(window);
 	const { EditorState, EditorView, Compartment, keymap, basicSetup, javascript, oneDark } =
 		codemirror;
 	const dark = window.matchMedia?.("(prefers-color-scheme: dark)");
@@ -166,6 +169,8 @@ export const definePlayground = (window, { codemirror, fc, compile }) => {
 			this.setCollapsed(this.hasAttribute("collapsed"));
 
 			const rootNode = root.querySelector(".pg-panel");
+			// A terminal preview shows the app of the story it names.
+			rootNode.addEventListener(TERMINAL_REQUEST, (e) => this.registry?.showTerminal(e.detail));
 			const host = startPanelHost({
 				document,
 				rootNode,

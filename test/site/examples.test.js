@@ -44,3 +44,29 @@ test("the mistakes example has exactly the three mistakes it describes", () => {
 		["unknown-field", "send-arity", "unknown-handler"],
 	);
 });
+
+test("the counter and the todo list render the code that makes them and markdown about them", async () => {
+	const { renderJs } = await import("../../src/jsast/index.js");
+	const { renderMd } = await import("../../src/mdast/index.js");
+	const { Counter } = await import("../../site/examples/counter.js");
+	const { TodoList } = await import("../../site/examples/todo-list.js");
+	assert.equal(renderJs(Counter.make({ count: 3 })), "new Counter(3);");
+	assert.equal(renderJs(Counter.make({ count: -2 })), "new Counter(-2);");
+	assert.equal(renderMd(Counter.make({ count: 3 })), "Count: **3**\n");
+	const todo = TodoList.make({
+		text: "draft",
+		items: [
+			{ title: "Read the guide", done: true },
+			{ title: "Edit this example", done: false },
+		],
+	});
+	assert.equal(
+		renderJs(todo),
+		'new TodoList("draft", [new Task("Read the guide", true), new Task("Edit this example", false)]);',
+	);
+	assert.equal(
+		renderMd(todo),
+		"## Todo\n\n- [x] Read the guide\n- [ ] Edit this example\n\n1 left\n",
+	);
+	assert.equal(renderMd(TodoList.make()), "## Todo\n\nNothing to do.\n\n0 left\n");
+});

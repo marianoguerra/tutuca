@@ -56,8 +56,9 @@ const walkUp = (node, rootNode) => {
 	}
 	return node === rootNode ? { markers, components, eids } : null;
 };
-// The path the markers, innermost first, describe.
-const pathFrom = (markers) => {
+// The path the markers, innermost first, describe; a render outside the DOM (tutuca/llm's
+// tools) finds its component's from the markers in its vnodes.
+export const pathOfMarkers = (markers) => {
 	const frames = [];
 	for (const marker of [...markers].reverse()) {
 		if (isFrameMarker(marker)) frames.push(frameOfMarker(marker));
@@ -68,7 +69,7 @@ const pathFrom = (markers) => {
 // The path of the component, and the loop items in it, node was rendered in.
 export const pathOf = (node, rootNode) => {
 	const walk = walkUp(node, rootNode);
-	return walk === null || walk.components.length === 0 ? null : pathFrom(walk.markers);
+	return walk === null || walk.components.length === 0 ? null : pathOfMarkers(walk.markers);
 };
 // The handler for a type event on target, with the address of its component and its element.
 // Only the component target is in handles it, unless bubbles: then the nearest enclosing
@@ -82,7 +83,7 @@ export const handlerFor = (target, type, rootNode, root, bubbles = false) => {
 		if (eids.length === 0) continue;
 		// What is outside the component below: its frame is the child the event came through.
 		const start = level === 0 ? 0 : walk.components[level - 1] + 1;
-		const to = Address.at(pathFrom(walk.markers.slice(start)), root);
+		const to = Address.at(pathOfMarkers(walk.markers.slice(start)), root);
 		const { eventHandlers } = specOf(to.keyPath.getIn(root));
 		for (const { eid, node } of eids) {
 			for (const handler of eventHandlers.get(eid) ?? []) {

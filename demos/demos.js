@@ -88,6 +88,15 @@ export const demos = [
 		sources: ["tree-spec"],
 	},
 	{
+		dir: "renders",
+		emoji: "🪞",
+		title: "Renders",
+		blurb:
+			"One component, several outputs: the counter and the todo list next to the same app in a terminal preview, the JavaScript that makes them, the markdown that describes them, and what a model is told and the tools it gets (call them here), following as you use them.",
+		story: null,
+		sources: [],
+	},
+	{
 		dir: "notes",
 		emoji: "🔀",
 		title: "Notes",

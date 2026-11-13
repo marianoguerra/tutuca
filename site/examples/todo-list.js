@@ -1,9 +1,53 @@
 // 2. A todo list: arrays of records, loops, form inputs and computed values.
 // Methods are getters the view reads like fields; each() repeats a view per item.
-import { $if, component, each, field, send, sourceKey, t, tag, targetValue } from "tutuca";
+// Its renders are what it is elsewhere: tui in a terminal (`node scripts/tui.js todo-list`), js
+// the code that makes it, md a description of it, llmContext what a model is told about it and
+// llmTools what a model can do to it (the Renders demo shows them).
+import {
+	$if,
+	component,
+	each,
+	enableTargets,
+	field,
+	lookupBind,
+	send,
+	sourceKey,
+	t,
+	tag,
+	targetValue,
+} from "tutuca";
+import { js, jsTarget } from "tutuca/jsast/target";
+import {
+	Case,
+	Choose,
+	llmContext,
+	llmContextTarget,
+	llmTools,
+	llmToolsTarget,
+	toolArg,
+	When,
+} from "tutuca/llm/target";
+import { md, mdTarget } from "tutuca/mdast/target";
 import { book, step } from "tutuca/storybook";
+import { tuiTarget } from "tutuca/tui/target";
 
-const { button, div, form, input, label, li, p, span, ul } = tag;
+// What it renders besides views is opt in, a target at a time.
+enableTargets(tuiTarget, jsTarget, mdTarget, llmContextTarget, llmToolsTarget);
+
+const { box, button, div, form, input, label, li, p, span, text, ul } = tag;
+const { ArrayExpression, ExpressionStatement, Identifier, Literal, NewExpression } = js;
+const { arguments: args, callee, elements, expression } = js;
+const { Heading, List, ListItem, Paragraph, Root } = md;
+const { Fact, Hint, Item, Items, Section } = llmContext;
+const { Enum, Option, Str, Tool, Tools } = llmTools;
+
+// Which task a tool is about: its index, each said with its title, so the model picks by what
+// the user calls it and can only pick one that's there.
+const whichTask = Enum(
+	"index",
+	"Which task.",
+	each(field("items"), Option(lookupBind("key"), field("title"), When(field("done"), " (done)"))),
+);
 
 export const TodoList = component({
 	name: "TodoList",
@@ -59,16 +103,136 @@ export const TodoList = component({
 		),
 		p({ class: "text-sm opacity-60" }, field("left"), " left"),
 	),
+	// The same list in a terminal. Enter in the input submits it, as in a form; the [ ] and ✕
+	// boxes take focus with Tab and a click, and Enter or space presses them.
+	renders: {
+		tui: box(
+			{ borderStyle: "round", borderText: "Todo", paddingX: "1", gap: "1", width: "48" },
+			box(
+				{ flexDirection: "row", gap: "1", "on:submit": send("add") },
+				input({
+					flexGrow: "1",
+					placeholder: "What needs doing?",
+					value: field("text"),
+					"on:input": send("setText", targetValue()),
+				}),
+				box({ focusable: "true", bold: "true", color: "green", "on:click": send("add") }, "[Add]"),
+			),
+			$if(
+				field("isEmpty"),
+				text({ dim: "true" }, "Nothing to do."),
+				// A scroll container: past six items it scrolls, by wheel, PageUp and PageDown, and to
+				// what Tab focuses.
+				box(
+					{ maxHeight: "6", overflowY: "auto", paddingRight: "1" },
+					each(
+						field("items"),
+						box(
+							{ flexDirection: "row", gap: "1" },
+							box(
+								{ focusable: "true", "on:click": send("toggle", sourceKey()) },
+								$if(field("done"), "[x]", "[ ]"),
+							),
+							text(
+								{ flexGrow: "1", dim: field("done"), strikethrough: field("done") },
+								field("title"),
+							),
+							box(
+								{ focusable: "true", color: "red", "on:click": send("remove", sourceKey()) },
+								"✕",
+							),
+						),
+					),
+				),
+			),
+			text({ dim: "true" }, field("left"), " left"),
+		),
+		// new TodoList("", [new Task("Buy milk", false), ...]);
+		js: ExpressionStatement(
+			expression(
+				NewExpression(
+					callee(Identifier({ name: "TodoList" })),
+					args(
+						Literal({ value: field("text") }),
+						ArrayExpression(
+							elements(
+								each(
+									field("items"),
+									NewExpression(
+										callee(Identifier({ name: "Task" })),
+										args(Literal({ value: field("title") }), Literal({ value: field("done") })),
+									),
+								),
+							),
+						),
+					),
+				),
+			),
+		),
+		// ## Todo, a task list item per item, and how many are left.
+		md: Root(
+			Heading({ depth: 2 }, "Todo"),
+			$if(
+				field("isEmpty"),
+				Paragraph("Nothing to do."),
+				List(each(field("items"), ListItem({ checked: field("done") }, Paragraph(field("title"))))),
+			),
+			Paragraph(field("left"), " left"),
+		),
+		// What a model is told: how many are left, the tasks (the first 20) and, by the state,
+		// what's being typed and what would help next.
+		llmContext: Section(
+			"Todo list",
+			Fact("Left", field("left")),
+			When(field("text"), Fact("Being typed", field("text"))),
+			Items(
+				{ max: 20, empty: "There are no tasks." },
+				each(field("items"), Item({ done: field("done") }, field("title"))),
+			),
+			Choose(
+				Case(field("isEmpty"), Hint("Offer to add the first tasks.")),
+				Case({ test: field("left"), is: 0 }, Hint("Everything is done.")),
+			),
+			When(field("text"), Hint("The user is typing a task: it isn't on the list yet.")),
+		),
+		// What a model can do: add always; toggle and remove only when there are tasks, and only
+		// to the ones there are.
+		llmTools: Tools(
+			Tool(
+				"add_task",
+				send("add", toolArg("title")),
+				"Add a task to the list.",
+				Str({ name: "title", minLength: 1 }, "What needs doing."),
+			),
+			When(
+				field("items"),
+				Tool(
+					"toggle_task",
+					send("toggle", toolArg("index")),
+					"Mark a task done, or not done.",
+					whichTask,
+				),
+				Tool(
+					"remove_task",
+					send("remove", toolArg("index")),
+					"Remove a task from the list.",
+					whichTask,
+				),
+			),
+		),
+	},
 	on: {
 		setText(next, [text]) {
 			next.text = text;
 		},
-		add(next, _args, ctx) {
+		// The form adds what's typed; a tool call, the title it says, leaving what's typed.
+		add(next, [title], ctx) {
 			ctx.event?.preventDefault();
-			const title = this.text.trim();
-			if (title === "") return;
-			next.items.push({ title, done: false });
-			next.text = "";
+			const typed = title === undefined;
+			const text = (typed ? this.text : title).trim();
+			if (text === "") return;
+			next.items.push({ title: text, done: false });
+			if (typed) next.text = "";
 		},
 		toggle(next, [i]) {
 			next.items[i].done = !this.items[i].done;

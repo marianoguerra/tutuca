@@ -27,7 +27,8 @@ for (const name of BUNDLES) await vendorIfMissing(name);
 rmSync(out, { recursive: true, force: true });
 cpSync("site", out, { recursive: true });
 // What the storybook and demo pages load; storybook.html is written below, pointed at the CDN.
-const pages = ["src", "deps", "components", "demos", ...globSync("storybook*.js")];
+// The Renders demo loads the landing page's examples from site/examples, as in the repo.
+const pages = ["src", "deps", "components", "demos", "site/examples", ...globSync("storybook*.js")];
 for (const path of pages) {
 	cpSync(path, `${out}/${path}`, { recursive: true });
 }
@@ -93,6 +94,15 @@ const siteImportMap = (base) => ({
 		"tutuca/playground": `${base}src/playground/index.js`,
 		"tutuca/lint": `${base}src/lint/index.js`,
 		"tutuca/meta": `${base}src/meta/index.js`,
+		"tutuca/jsast": `${base}src/jsast/index.js`,
+		"tutuca/jsast/target": `${base}src/jsast/target.js`,
+		"tutuca/llm": `${base}src/llm/index.js`,
+		"tutuca/llm/target": `${base}src/llm/target.js`,
+		"tutuca/mdast": `${base}src/mdast/index.js`,
+		"tutuca/mdast/target": `${base}src/mdast/target.js`,
+		"tutuca/tui": `${base}src/tui/index.js`,
+		"tutuca/tui/target": `${base}src/tui/target.js`,
+		"tutuca/tui/element": `${base}src/tui/element.js`,
 		margaui: cdn("margaui", "dist/margaui.min.js"),
 		"fast-check": cdn("fast-check", "+esm"),
 	},
