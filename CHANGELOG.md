@@ -1,9 +1,37 @@
 # Changelog
 
-## Unreleased
+## 1.0.0-beta.4
+
+A component renders more than a page: a terminal UI, JavaScript, markdown, what a model is
+told and the tools it's given, PostScript, PDF and Word, each target opt in. Pages render with
+a cache, so an update renders only the components whose instance or provided values changed.
+Components say how to show them, what they are as data and how an LLM agent drives them, under
+`tutuca/meta`; host reports are `Transition`s and `HostEvent`s; watches add structured
+concurrency to messages. `src/` is organized by concept and layer, and names say what things
+are, with no aliases kept.
 
 ### Added
 
+- **A render cache: a page renders only what changed.** A component renders again only when its
+  instance, its place (view, view stack, depth) or a provided value read anywhere below it
+  changed; otherwise its last render is reused, and morph skips it by identity. A `Host` takes
+  `renderCache`, a `RenderCache`:
+  - `CopyCache`, the default, keeps the last render's entries as a tree, as a copying GC keeps
+    what's reachable: memory is the current render's.
+  - `WeakMapCache` keeps an entry per place for as long as its instance lives, so a tab
+    switched back renders nothing, at the cost of memory when old states stay alive (undo).
+  - `NullCache` renders every view on every update, as before.
+  - `CheckCache(inner)` checks each render against an uncached one, and its recorded deps
+    against `DepsWalker`'s, with `console.assert`: for development and tests.
+
+  Other targets render uncached. `TUTUCA_RENDER_CACHE` (`none`, `weakmap`, `copy`,
+  `check:weakmap`, `check:copy`) picks a test host's cache. `docs/render-cache.md` has the
+  design and the numbers: a one-leaf edit of a 2047-node tree updates 64x faster in a browser,
+  a one-item edit of a 2000-item list 2x. `tutuca/vdom` exports `childrenEqual`, and
+  `markers.js` has `frameOpen(frame)` and `wrapOpen(opening, node)`.
+- **`driver.fire(type, target, init)` and `driver.click(target, init)`** (`tutuca/testing`'s
+  `Driver`) dispatch an event on an element, or the first match of a selector in what it
+  rendered, as a browser would, and run what it causes.
 - **`eventKey()`**, a send arg: the key a key event is for, as `KeyboardEvent.key` says it
   (`"a"`, `"Enter"`, `"ArrowUp"`). Lint errors with `event-key-outside-key-event` when it's used
   outside `keydown`, `keyup` and `keypress`; property tests generate keys for it.
@@ -353,6 +381,10 @@
 
 ### Breaking
 
+- **A page's views must be functions of their instance and the provided values they read.** With
+  the render cache, a view that reads anything else (a global, the clock, a mutable object
+  outside the state) shows what it rendered last until its instance or those values change.
+  `new Host({ renderCache: new NullCache() })` renders every view on every update, as before.
 - **Names follow their concepts, and `src/` its layers.** No aliases are kept. Entries of this
   release above and below use the names before these renames.
   - **Watches**, not settle scopes, so `scope` only means a registry `Scope`: `SettleScope` →
@@ -496,12 +528,6 @@
   event settled") instead of how many entries it has: a kind's summary is in the formatters'
   table with its header and rows, so a kind can't have one without the other.
 - An op's text no longer throws for an `undefined` value.
-
-### Added
-
-- **`driver.fire(type, target, init)` and `driver.click(target, init)`** (`tutuca/pbt`'s
-  `Driver`) dispatch an event on an element, or the first match of a selector in what it
-  rendered, as a browser would, and run what it causes.
 
 ## 1.0.0-beta.3
 
