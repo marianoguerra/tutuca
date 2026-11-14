@@ -102,9 +102,10 @@ export class VFragment extends VBase {
 	}
 	isEqualTo(other) {
 		return (
-			other instanceof VFragment &&
-			this.key === other.key &&
-			childrenEqual(this.children, other.children)
+			this === other ||
+			(other instanceof VFragment &&
+				this.key === other.key &&
+				childrenEqual(this.children, other.children))
 		);
 	}
 }
@@ -122,7 +123,7 @@ export const toVChildren = (value) => {
 	return children;
 };
 // A pure vnode walk: much cheaper than morphing, which has to read the DOM at every element.
-function childrenEqual(a, b) {
+export function childrenEqual(a, b) {
 	if (a.length !== b.length) return false;
 	for (let i = 0; i < a.length; i++) if (a[i] !== b[i] && !a[i].isEqualTo(b[i])) return false;
 	return true;
@@ -323,7 +324,14 @@ function morphChildren(
 		const source = oldChildren[index];
 		const oldNodes = oldGroups[index];
 		let nodes;
-		if (source instanceof VFragment && target instanceof VFragment) {
+		if (source === target && source instanceof VFragment) {
+			// OPT: a shared fragment (a cached render's loop) has the nodes it had: only placed.
+			nodes = oldNodes;
+			const last = nodes.at(-1);
+			if (last !== undefined && nextOwnedSibling(last) !== before) {
+				for (const node of nodes) parentDom.insertBefore(node, before);
+			}
+		} else if (source instanceof VFragment && target instanceof VFragment) {
 			nodes = morphChildren(parentDom, source.children, target.children, doc, ns, oldNodes, before);
 		} else if (source && !(source instanceof VFragment) && !(target instanceof VFragment)) {
 			const node = morphNode(oldNodes[0], source, target, doc, ns);

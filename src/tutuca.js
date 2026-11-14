@@ -83,6 +83,16 @@ export {
 	postHolds,
 	preHolds,
 } from "./core/model/validate.js";
+export { CheckCache } from "./core/view/check-cache.js";
+export { DepsWalker } from "./core/view/deps-walker.js";
+export {
+	CopyCache,
+	DepsCache,
+	NullCache,
+	RenderCache,
+	viewFacts,
+	WeakMapCache,
+} from "./core/view/render-cache.js";
 export * from "./core/view/tag.js";
 export {
 	$if,

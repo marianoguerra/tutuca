@@ -1,0 +1,47 @@
+<!doctype html>
+<html lang="en">
+	<head>
+		<meta charset="utf-8" />
+		<meta name="viewport" content="width=device-width, initial-scale=1" />
+		<title>Render cache benchmark</title>
+		<style>
+			body { font-family: ui-monospace, monospace; margin: 16px; }
+			#stage { position: absolute; left: -10000px; width: 800px; }
+		</style>
+	</head>
+	<body>
+		<!-- The render cache benchmark (scripts/bench/render.js) on this browser's DOM: just serve,
+		then open /scripts/bench/render.html?size=2000&updates=40. Each host renders into a fresh
+		element in #stage, in the document but off screen. window.benchResults has the numbers
+		when it's done; for heap numbers, start Chrome with --js-flags=--expose-gc. -->
+		<pre id="out">running…</pre>
+		<div id="stage"></div>
+		<script type="module">
+			import { runBench } from "./render.js";
+
+			const params = new URLSearchParams(location.search);
+			const out = document.getElementById("out");
+			const stage = document.getElementById("stage");
+			const lines = [];
+			const mount = () => {
+				const rootNode = document.createElement("main");
+				stage.append(rootNode);
+				return { document, rootNode, unmount: () => rootNode.remove() };
+			};
+			const log = (line) => {
+				lines.push(line);
+				out.textContent = `${lines.join("\n")}\n\nrunning…`;
+			};
+			window.benchResults = runBench({
+				size: Number(params.get("size") ?? 2000),
+				updates: Number(params.get("updates") ?? 40),
+				mount,
+				log,
+			}).then((results) => {
+				out.textContent = lines.join("\n");
+				window.benchDone = results;
+				return results;
+			});
+		</script>
+	</body>
+</html>

@@ -12,7 +12,11 @@ const COMPONENT_OPEN = open({ t: "component" });
 // node, a component's view, between the comments that say a component rendered here.
 export const wrapComponent = (node) => [COMPONENT_OPEN, node, MARKER_END];
 // node between the comments that say frame is the path to what's inside.
-export const wrapFrame = (frame, node) => [open(frameMarker(frame)), node, MARKER_END];
+export const wrapFrame = (frame, node) => wrapOpen(frameOpen(frame), node);
+// The comment that opens frame, and node between it and a closing one: wrapFrame in two steps,
+// for what needs the opening's text first (a render cache's slot).
+export const frameOpen = (frame) => open(frameMarker(frame));
+export const wrapOpen = (opening, node) => [opening, node, MARKER_END];
 export const isMarkerOpen = (text) => text.startsWith("§{") && text.endsWith("§");
 // The marker an opening comment's text holds; throws on bad json.
 export const parseMarker = (text) => JSON.parse(text.slice(1, -1));

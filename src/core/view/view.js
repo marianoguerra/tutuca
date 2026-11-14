@@ -4,12 +4,15 @@ import { DispatchPath, Frame, selectorFrom } from "../../tree/index.js";
 import { addChild, toVChildren, VFragment, VNode } from "../../vdom/index.js";
 import { isComponent, specOf } from "../model/spec.js";
 import { planElement } from "./element-plan.js";
-import { wrapComponent, wrapFrame } from "./markers.js";
+import { frameOpen, wrapOpen } from "./markers.js";
+import { addDep, NULL_CACHE, providesAny } from "./render-cache.js";
 
+// A component's view in ctx, between its markers, as ctx.cache renders it (render-cache.js): a
+// cache reuses what an instance rendered before in the same place, when its subtree read the
+// same provided values.
 export const renderView = (instance, ctx, viewName) => {
 	const spec = specOf(instance);
-	const view = ctx.getBestViewFor(spec, viewName);
-	return wrapComponent(view.eval(ctx.with({ component: instance })));
+	return ctx.cache.render(instance, spec, ctx.getBestViewFor(spec, viewName), ctx);
 };
 export class ViewNode {
 	static kind = "node"; // The Walker method it dispatches to.
@@ -76,10 +79,10 @@ export class ProvidedNode extends ViewNode {
 	// No ancestor providing the name is a lint warning (lint can't see ancestry): as a value it
 	// reads undefined, as a render or each source it fails.
 	eval(ctx) {
-		return ctx.provided[this.name]?.value;
+		return ctx.readProvided(this.name)?.value;
 	}
 	toFrame(ctx) {
-		const { depth, keys } = ctx.provided[this.name];
+		const { depth, keys } = ctx.readProvided(this.name);
 		return new Frame([], null, { name: this.name, depth, keys }, true);
 	}
 }
@@ -129,7 +132,11 @@ export class CondNode extends ViewNode {
 		this.elseVal = elseVal;
 	}
 	eval(ctx) {
-		return (this.test.eval(ctx) ? this.thenVal : this.elseVal).eval(ctx);
+		return this.branch(ctx).eval(ctx);
+	}
+	// The child the test picks in ctx.
+	branch(ctx) {
+		return this.test.eval(ctx) ? this.thenVal : this.elseVal;
 	}
 	childNodes() {
 		return [this.test, this.thenVal, this.elseVal];
@@ -158,8 +165,9 @@ export class RenderNode extends ViewNode {
 	}
 	eval(ctx) {
 		const child = this.source.eval(ctx);
-		const frame = this.source.toFrame(ctx);
-		return wrapFrame(frame, renderView(child, ctx.enterFrame(child), this.viewName));
+		const open = frameOpen(this.source.toFrame(ctx));
+		const childCtx = ctx.enterFrame(child, {}, ctx.slotIn(open));
+		return wrapOpen(open, renderView(child, childCtx, this.viewName));
 	}
 	childNodes() {
 		return [this.source];
@@ -172,26 +180,39 @@ function* filteredEntries(self, filter, items, state) {
 		if (filter === undefined || filter.call(self, entry[0], entry[1], state)) yield entry;
 	}
 }
-// The fragments a loop renders: one per entry of the source, with its key and frame, each
-// being what renderItem returns for the item's ctx. The loop's prepare, iter, filter, key and
-// enrich shape it.
-const loopFragments = (ctx, source, loopName, renderItem) => {
-	const loop = loopName === undefined ? {} : ctx.spec.loops[loopName];
+// The entries a loop goes over in ctx: { key, value, binds, fragmentKey } for each entry of the
+// source its prepare, iter and filter keep, binds and fragmentKey as its enrich and key make them.
+// Rendering (loopFragments) and DepsWalker both go through it, so they walk the same items.
+export function* loopEntries(ctx, source, loop) {
 	const self = ctx.component;
-	const nodes = [];
 	const items = source.eval(ctx);
 	const state = loop.prepare === undefined ? null : loop.prepare.call(self, items);
 	const entries = loop.iter
 		? loop.iter.call(self, items, state)
 		: filteredEntries(self, loop.filter, items, state);
-	const sourceFrame = source.toFrame(ctx);
 	for (const [key, value] of entries) {
-		const frame = sourceFrame.forItem(key);
 		const fragmentKey = loop.key === undefined ? key : loop.key.call(self, key, value, state);
 		const base = { value, key };
 		const binds = loop.enrich ? { ...loop.enrich.call(self, base, state), value, key } : base;
-		const dom = renderItem(ctx.enterFrame(value, binds), loop);
-		nodes.push(new VFragment(toVChildren(wrapFrame(frame, dom)), fragmentKey));
+		yield { key, value, binds, fragmentKey };
+	}
+}
+export const loopOf = (ctx, loopName) => (loopName === undefined ? {} : ctx.spec.loops[loopName]);
+// The fragments a loop renders: one per entry of the source, with its key and frame, each
+// being what renderItem returns for the item's ctx. The loop's prepare, iter, filter, key and
+// enrich shape it.
+// An item that's a component (reuse) can keep its fragment while the cache keeps its render.
+const loopFragments = (ctx, source, loopName, renderItem, reuse = false) => {
+	const loop = loopOf(ctx, loopName);
+	const nodes = [];
+	const entries = loopEntries(ctx, source, loop);
+	const sourceFrame = source.toFrame(ctx);
+	for (const { key, value, binds, fragmentKey } of entries) {
+		const open = frameOpen(sourceFrame.forItem(key));
+		const dom = renderItem(ctx.enterFrame(value, binds, ctx.slotIn(open)), loop);
+		const wrapped = wrapOpen(open, dom);
+		const make = () => new VFragment(toVChildren(wrapped), fragmentKey);
+		nodes.push(reuse ? ctx.cache.fragment(dom, wrapped, fragmentKey, make) : make());
 	}
 	return new VFragment(nodes);
 };
@@ -212,7 +233,7 @@ export class EachNode extends ViewNode {
 }
 export const each = (source, child, loopName) =>
 	new EachNode(toNode(source), toNode(child), loopName);
-const renderEachItem = (itemCtx, loop) =>
+export const renderEachItem = (itemCtx, loop) =>
 	renderView(itemCtx.it, itemCtx.forItemView(itemCtx.it), loop.view);
 // A loop that renders each item, a component, with the loop's view.
 export class RenderEachNode extends ViewNode {
@@ -223,7 +244,7 @@ export class RenderEachNode extends ViewNode {
 		this.loopName = loopName;
 	}
 	eval(ctx) {
-		return loopFragments(ctx, this.source, this.loopName, renderEachItem);
+		return loopFragments(ctx, this.source, this.loopName, renderEachItem, true);
 	}
 	childNodes() {
 		return [this.source];
@@ -328,7 +349,19 @@ export class LookupBindNode extends ViewNode {
 }
 export const lookupBind = (name) => new LookupBindNode(name);
 export class RenderContext {
-	constructor({ it, binds, provided, viewStack, depth, component, target = null }) {
+	constructor({
+		it,
+		binds,
+		provided,
+		viewStack,
+		depth,
+		component,
+		target = null,
+		cache = NULL_CACHE,
+		deps = null,
+		slot = "",
+		cacheScope = null,
+	}) {
 		this.it = it;
 		this.target = target; // The RenderTarget whose renders it picks; null for the page's views.
 		this.component = component; // component != it inside loops
@@ -336,20 +369,35 @@ export class RenderContext {
 		this.provided = provided; // name -> { value, depth, keys }: what ancestors provide.
 		this.viewStack = viewStack;
 		this.depth = depth;
+		this.cache = cache; // The RenderCache renderView renders components with.
+		// name -> entry: the provided entries the component being rendered read so far, null when
+		// nothing collects them.
+		this.deps = deps;
+		// Where in its component's view this is: the frames' marker texts since the component,
+		// when the cache uses slots (CopyCache); "" otherwise.
+		this.slot = slot;
+		this.cacheScope = cacheScope; // What the cache finds and keeps entries in, its own.
 	}
 	get spec() {
 		return specOf(this.component);
 	}
-	static root(component, { target = null } = {}) {
+	static root(component, { target = null, cache = NULL_CACHE } = {}) {
 		const empty = { it: null, binds: {}, provided: {}, viewStack: [], depth: -1 };
-		return new RenderContext({ ...empty, component, target }).enterFrame(component);
+		const cacheScope = cache.scope;
+		return new RenderContext({ ...empty, component, target, cache, cacheScope }).enterFrame(
+			component,
+		);
 	}
 	with(changes) {
 		return new RenderContext({ ...this, ...changes });
 	}
-	enterFrame(it, binds = {}) {
+	enterFrame(it, binds = {}, slot = this.slot) {
 		const depth = this.depth + 1;
-		return this.with({ it, binds, provided: this.mergeProvided(it, depth), depth });
+		return this.with({ it, binds, provided: this.mergeProvided(it, depth), depth, slot });
+	}
+	// The slot inside the frame open opens.
+	slotIn(open) {
+		return this.cache.usesSlots ? this.slot + open.text : this.slot;
 	}
 	forItemView(it) {
 		return this.with({ it, binds: {} });
@@ -363,6 +411,7 @@ export class RenderContext {
 	mergeProvided(it, depth) {
 		if (!isComponent(it)) return this.provided;
 		const { provides } = specOf(it);
+		if (!providesAny(provides)) return this.provided; // OPT: nothing to copy the map for.
 		const newProvided = { ...this.provided };
 		for (const key in provides) {
 			const suffix = new DispatchPath(selectorFrom(provides[key], it).fix(it)).toKeyPath();
@@ -372,6 +421,13 @@ export class RenderContext {
 	}
 	lookupBind(name) {
 		return this.binds[name] ?? null;
+	}
+	// What an ancestor provides as name, { value, depth, keys }, or undefined; noted in deps, as
+	// what's rendered here depends on it.
+	readProvided(name) {
+		const entry = this.provided[name];
+		if (this.deps !== null) addDep(this.deps, name, entry);
+		return entry;
 	}
 	// From the spec's renders for the target; a spec without them shows its page views if the target
 	// falls back to them, and fails to render if not. A view missing by name falls back to that

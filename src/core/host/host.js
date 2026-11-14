@@ -16,6 +16,7 @@ import { morph, toVChildren } from "../../vdom/index.js";
 import { apply, checkInvariants, query } from "../model/contract.js";
 import { Scope } from "../model/scope.js";
 import { specOf } from "../model/spec.js";
+import { CopyCache, NULL_CACHE } from "../view/render-cache.js";
 import { RenderContext, renderView } from "../view/view.js";
 import { DRAG_EVENTS, DROP_EVENTS, DragTracker } from "./drag.js";
 import { eventSend } from "./events.js";
@@ -55,12 +56,17 @@ export class Host {
 		publish = null,
 		schedule = inNextTask,
 		target = null,
+		renderCache = new CopyCache(),
 	} = {}) {
 		this.document = document;
 		// The RenderTarget whose renders it shows (tutuca/tui's tuiTarget for its terminal DOM);
 		// null for the components' views.
 		this.target = target;
 		this.rootNode = rootNode;
+		// The RenderCache it renders with (view/render-cache.js): CopyCache, the default, and
+		// WeakMapCache reuse what didn't change, NullCache renders everything, CheckCache checks
+		// one of them. Only the page's views are cached for now.
+		this.renderCache = target === null ? renderCache : NULL_CACHE;
 		this.checks = checks === null ? null : new checks();
 		this.env = env; // What handlers read from the world, through ctx.
 		this.root = null;
@@ -135,9 +141,12 @@ export class Host {
 	}
 	render() {
 		if (this.document === null) return;
-		const ctx = RenderContext.root(this.root, { target: this.target });
+		const { root, target, renderCache: cache } = this;
+		cache.begin();
+		const ctx = RenderContext.root(root, { target, cache });
 		const curVDom = this._curVDom;
-		const newVDom = toVChildren(renderView(this.root, ctx));
+		const newVDom = toVChildren(renderView(root, ctx));
+		cache.end(root, target, newVDom);
 		morph(this.document, this.rootNode, newVDom, curVDom);
 		this._curVDom = newVDom;
 		this.report("rendered", { upTo: this._lastSeq }, { ctx, newVDom, curVDom });

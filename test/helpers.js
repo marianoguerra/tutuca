@@ -10,7 +10,7 @@ import { DevChecks } from "../src/dev/checks.js";
 import { renderJs } from "../src/jsast/index.js";
 import { lint, lintScope } from "../src/lint/index.js";
 import { planToolCall } from "../src/meta/index.js";
-import { Driver, snapshot, testEnv } from "../src/testing/driver.js";
+import { Driver, renderCacheFromEnv, snapshot, testEnv } from "../src/testing/driver.js";
 import { arbitraries, specProperties } from "../src/testing/pbt.js";
 import { MessageContext, Scheduler } from "../src/tree/index.js";
 import { component, Host, Scope, t } from "../src/tutuca.js";
@@ -26,7 +26,10 @@ export const { document } = dom();
 // tick and has the host publish its reports right away, collecting the errors of failed tasks
 // in failures and passing every report (a Transition or a HostEvent) to onReport, so a test
 // drives the queue with drain() and click(target).
-export const setupHost = (specs, { dev = false, sync = false, onReport = null } = {}) => {
+export const setupHost = (
+	specs,
+	{ dev = false, sync = false, onReport = null, renderCache = renderCacheFromEnv() } = {},
+) => {
 	const window = dom();
 	const rootNode = window.document.createElement("main");
 	const failures = [];
@@ -39,6 +42,7 @@ export const setupHost = (specs, { dev = false, sync = false, onReport = null } 
 		rootNode,
 		checks: dev ? DevChecks : null,
 		env: testEnv(),
+		renderCache,
 		...(sync ? { publish, schedule: () => () => {} } : {}),
 	});
 	host.scope.register(specs);

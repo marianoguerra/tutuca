@@ -6,15 +6,19 @@ import { DevChecks } from "../dev/checks.js";
 import {
 	Address,
 	AnswerTask,
+	CheckCache,
+	CopyCache,
 	DispatchPath,
 	Frame,
 	Host,
 	isComponent,
+	NullCache,
 	Selector,
 	scopeOf,
 	specOf,
 	Target,
 	Task,
+	WeakMapCache,
 } from "../tutuca.js";
 
 // An env whose runs repeat: a clock stopped at start until advance(ms) moves it, numbers from
@@ -63,6 +67,22 @@ export const snapshot = (v) => {
 // reports (Transitions and HostEvents), as it reports them. Live keeps the timers, for async
 // ask replies and events from a user, and only keeps problems in reports; onReport gets every
 // report as it happens.
+// The render cache a test host runs with when not told, from TUTUCA_RENDER_CACHE: none, weakmap
+// or copy, check:weakmap or check:copy to check every render against an uncached one; unset,
+// undefined: the Host's default (CopyCache).
+const CACHES = {
+	none: () => new NullCache(),
+	weakmap: () => new WeakMapCache(),
+	copy: () => new CopyCache(),
+};
+export const renderCacheFromEnv = () => {
+	const name = globalThis.process?.env?.TUTUCA_RENDER_CACHE;
+	if (name === undefined || name === "") return undefined;
+	const [check, inner] = name.startsWith("check:") ? [true, name.slice(6)] : [false, name];
+	const make = CACHES[inner];
+	if (make === undefined) throw new Error(`Unknown TUTUCA_RENDER_CACHE: ${name}`);
+	return check ? new CheckCache(make()) : make();
+};
 const specsOf = (root) => Object.values(specsByName(scopeOf(root)));
 export class Driver {
 	constructor({
@@ -72,6 +92,7 @@ export class Driver {
 		live = false,
 		onReport = null,
 		env = testEnv(),
+		renderCache = renderCacheFromEnv(),
 	}) {
 		const node = rootNode ?? document?.createElement("main") ?? null;
 		this.env = env; // Its clock moves with env.advance(ms).
@@ -82,7 +103,8 @@ export class Driver {
 		};
 		// Not live, nothing runs later: drain runs the tasks.
 		const schedule = live ? undefined : () => () => {};
-		this.host = new Host({ document, rootNode: node, checks: DevChecks, env, publish, schedule });
+		const checks = DevChecks;
+		this.host = new Host({ document, rootNode: node, checks, env, publish, schedule, renderCache });
 		for (const spec of specsOf(root)) this.host.addEventListeners(spec.eventTypes);
 		this.host.start(root);
 	}
