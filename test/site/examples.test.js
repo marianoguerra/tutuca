@@ -1,4 +1,5 @@
-// The landing page's examples: they import tutuca by name, as an app would.
+// The landing page's examples, and the Renders demo's fuller versions of three of them: they
+// import tutuca by name, as an app would.
 import assert from "node:assert/strict";
 import { registerHooks } from "node:module";
 import test from "node:test";
@@ -24,6 +25,12 @@ const books = {
 	"web-component": (await import("../../site/examples/web-component.js")).default,
 	"drag-and-drop": (await import("../../site/examples/drag-and-drop.js")).default,
 };
+const renders = {
+	"renders/counter": (await import("../../demos/renders/examples/counter.js")).default,
+	"renders/todo-list": (await import("../../demos/renders/examples/todo-list.js")).default,
+	"renders/composed": (await import("../../demos/renders/examples/composed.js")).default,
+};
+Object.assign(books, renders);
 const mistakes = (await import("../../site/examples/mistakes.js")).default;
 
 for (const [name, book] of Object.entries(books)) {
@@ -46,11 +53,11 @@ test("the mistakes example has exactly the three mistakes it describes", () => {
 	);
 });
 
-test("the counter and the todo list render the code that makes them and markdown about them", async () => {
+test("the Renders demo's counter and todo list render the code that makes them and markdown about them", async () => {
 	const { renderJs } = await import("../../src/jsast/index.js");
 	const { renderMd } = await import("../../src/mdast/index.js");
-	const { Counter } = await import("../../site/examples/counter.js");
-	const { TodoList } = await import("../../site/examples/todo-list.js");
+	const { Counter } = await import("../../demos/renders/examples/counter.js");
+	const { TodoList } = await import("../../demos/renders/examples/todo-list.js");
 	assert.equal(renderJs(Counter.make({ count: 3 })), "C.Counter({\n  count: 3\n})");
 	assert.equal(renderJs(Counter.make({ count: -2 })), "C.Counter({\n  count: -2\n})");
 	assert.equal(renderJs(Counter.make({ count: -0 })), "C.Counter({\n  count: -0\n})");

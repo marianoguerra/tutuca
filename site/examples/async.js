@@ -1,7 +1,3 @@
-// 4. Talking to the outside world: a component asks, a handler answers later. ctx.ask
-// names a handler registered next to the components; its result comes back to the
-// component's answers.lookup.ok, and a failure to answers.lookup.error. Handlers are
-// swappable: these stories answer from a table, an app would call fetch.
 import { $if, component, field, send, t, tag, targetValue } from "tutuca";
 import { CLASSES_META } from "tutuca/meta";
 import { book, step } from "tutuca/storybook";

@@ -29,8 +29,7 @@ for (const name of BUNDLES) await vendorIfMissing(name);
 rmSync(out, { recursive: true, force: true });
 cpSync("site", out, { recursive: true });
 // What the storybook and demo pages load; storybook.html is written below, pointed at the CDN.
-// The Renders demo loads the landing page's examples from site/examples, as in the repo.
-const pages = ["src", "deps", "components", "demos", "site/examples", ...globSync("storybook*.js")];
+const pages = ["src", "deps", "components", "demos", ...globSync("storybook*.js")];
 for (const path of pages) {
 	cpSync(path, `${out}/${path}`, { recursive: true });
 }

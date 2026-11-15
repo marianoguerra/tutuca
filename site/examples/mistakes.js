@@ -1,7 +1,3 @@
-// 7. When things go wrong. This component has three mistakes the linter catches before
-// anything runs: open the Dev tab to see them, with where each one is. Then fix them here
-// and press Ctrl+Enter. Sending a message with args of the wrong type is caught when it
-// happens: Steps shows it as a problem.
 import { component, field, send, t, tag } from "tutuca";
 import { book, step } from "tutuca/storybook";
 

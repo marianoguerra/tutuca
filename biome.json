@@ -56,7 +56,7 @@
 	},
 	"overrides": [
 		{
-			"includes": ["site/examples/**/*.js", "tdata/mbt/load.mjs"],
+			"includes": ["site/examples/**/*.js", "demos/renders/examples/**/*.js", "tdata/mbt/load.mjs"],
 			"linter": {
 				"rules": {
 					"correctness": { "noUnresolvedImports": "off" }

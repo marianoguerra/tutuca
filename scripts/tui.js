@@ -1,4 +1,4 @@
-// Runs a landing page example's tui in this terminal, from the state one of its stories makes:
+// Runs a Renders demo example's tui in this terminal, from the state one of its stories makes:
 // node scripts/tui.js counter ["From ten"]. The first story without a name; Ctrl+C quits.
 // --log file writes what the terminal sends, what it parsed to, the element under each mouse
 // event and each message the app handled, one JSON line each.
@@ -9,7 +9,7 @@ const argv = process.argv.slice(2);
 const logAt = argv.indexOf("--log");
 const logFile = logAt === -1 ? null : argv.splice(logAt, 2)[1];
 const [name = "counter", storyName] = argv;
-const { default: book } = await import(`../site/examples/${name}.js`);
+const { default: book } = await import(`../demos/renders/examples/${name}.js`);
 const story =
 	storyName === undefined ? book.stories[0] : book.stories.find((s) => s.name === storyName);
 if (story === undefined) {

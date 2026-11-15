@@ -1,6 +1,3 @@
-// 5. Web components: custom elements are tags like any other, and the custom events they
-// fire reach on:<event-name> handlers. emoji-picker-element fires emoji-click, a
-// CustomEvent that bubbles out of its shadow root; the handler reads its detail from ctx.event.
 import "https://cdn.jsdelivr.net/npm/emoji-picker-element@1.29.1/index.js";
 import { $if, component, field, h, send, t, tag } from "tutuca";
 import { book, step } from "tutuca/storybook";

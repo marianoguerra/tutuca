@@ -2,8 +2,8 @@
 // routed by tutuca's own marker walk, and keys doing what a browser does by default.
 import assert from "node:assert/strict";
 import test from "node:test";
-import { Counter } from "../../site/examples/counter.js";
-import { TodoList } from "../../site/examples/todo-list.js";
+import { Counter } from "../../demos/renders/examples/counter.js";
+import { TodoList } from "../../demos/renders/examples/todo-list.js";
 import { lint } from "../../src/lint/index.js";
 import { startTui, tuiTarget } from "../../src/tui/index.js";
 import {

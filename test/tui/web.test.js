@@ -2,7 +2,7 @@
 // preview, <tutuca-terminal>, showing another host's app and running what's done in it there.
 import assert from "node:assert/strict";
 import test from "node:test";
-import { Counter } from "../../site/examples/counter.js";
+import { Counter } from "../../demos/renders/examples/counter.js";
 import { defineTutucaTerminal, TERMINAL_REQUEST } from "../../src/tui/element.js";
 import { CellBuffer, drawRow, keyOf, mirrorTui, sgrCss } from "../../src/tui/index.js";
 import { tuiTarget } from "../../src/tui/target.js";

@@ -1,7 +1,3 @@
-// 6. Drag and drop: draggable="true" makes an element draggable, on:drop makes one a drop
-// target. In the drop's send, dragKey() is the key of the dragged item and sourceKey() the
-// one it was dropped on. While dragging, tutuca marks the dragged element with data-dragging
-// and the target under it with data-draggingover, set to the dragged one's data-dragtype.
 import {
 	component,
 	dragKey,
