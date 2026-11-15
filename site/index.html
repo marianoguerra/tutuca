@@ -156,6 +156,31 @@ host.start(host.scope.components.Counter());</code></pre>
 						<p>A small virtual DOM matches elements by key and reuses static parts of the view.</p>
 					</div>
 				</li>
+				<li>
+					<span class="icon" aria-hidden="true">💾</span>
+					<div>
+						<strong>Automatic memoization</strong>
+						<p>
+							A component renders again only when its state, its place in the page, or a
+							provided value it reads changed. Tutuca tracks those reads for you, with no
+							<code>memo</code> or dependency lists to write. Editing one leaf of a 2,047-node
+							tree updates 64 times faster.
+							<a href="https://github.com/marianoguerra/tutuca/blob/main/docs/render-cache.md">Read the design</a>.
+						</p>
+					</div>
+				</li>
+				<li>
+					<span class="icon" aria-hidden="true">🖨️</span>
+					<div>
+						<strong>Extensible rendering targets</strong>
+						<p>
+							The same component can also render as a terminal UI, JavaScript, Markdown,
+							context and tools for an LLM, PostScript, PDF, or a Word document. Each output is
+							one more key under <code>renders</code>, and you enable only the outputs you use.
+							Add your own target the same way. <a href="./demos/renders/">See the Renders demo</a>.
+						</p>
+					</div>
+				</li>
 			</ul>
 
 			<h2>Save and share state</h2>
@@ -425,6 +450,7 @@ host.start(host.scope.components.Counter());</code></pre>
 				</thead>
 				<tbody>
 					<tr><td><code>core</code></td><td>Components, views, rendering, and the task loop</td><td><span class="tag beta">beta</span></td></tr>
+					<tr><td><code>cache</code></td><td>Render cache: re-renders only components whose state or provided values changed</td><td><span class="tag beta">beta</span></td></tr>
 					<tr><td><code>storybook</code></td><td>Stories, test sequences, and the state timeline</td><td><span class="tag beta">beta</span></td></tr>
 					<tr><td><code>sync</code></td><td>Schema-guided diffs and the sync engines</td><td><span class="tag">experimental</span></td></tr>
 					<tr><td><code>dev</code></td><td>DevTools formatters and the inspector panel</td><td><span class="tag beta">beta</span></td></tr>
