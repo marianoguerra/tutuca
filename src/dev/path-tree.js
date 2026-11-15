@@ -7,8 +7,8 @@
 import { isComponent, specOf } from "../core/model/spec.js";
 import { viewFacts } from "../core/view/render-cache.js";
 import { loopEntries, loopOf, RenderContext } from "../core/view/view.js";
-import { Walker } from "../core/view/walk.js";
 import { DispatchPath } from "../tree/index.js";
+import { RenderWalker } from "./render-walker.js";
 
 // What a render or loop source is, as a step: { t: "field", name }, { t: "seqItem", name,
 // keyName, key } or { t: "provided", name, up, keys }, up being how many frames above the
@@ -37,7 +37,7 @@ const sizeOf = (items) =>
 	items == null ? 0 : Array.isArray(items) ? items.length : Object.keys(items).length;
 // The name of the view getBestViewFor picks.
 const viewNameOf = (ctx, spec, viewName) => {
-	const views = spec.viewsFor(ctx.target) ?? spec.views;
+	const views = spec.viewsFor(ctx.renderTarget) ?? spec.views;
 	const candidates = viewName === undefined ? ctx.viewStack : [viewName, ...ctx.viewStack];
 	return candidates.find((name) => views[name] !== undefined) ?? "main";
 };
@@ -65,21 +65,20 @@ const makeStep = (step, path) => ({
 	hasChildren: false,
 });
 
-export class PathTreeWalker extends Walker {
+class PathTreeWalker extends RenderWalker {
 	// path: the focus DispatchPath, null for none (every step active); siblings: how many
 	// items of a loop it lists before the ones off the path collapse into a { t: "more" } step.
 	constructor({ path = null, siblings = 8 } = {}) {
 		super();
 		this.path = path;
 		this.siblings = siblings;
-		this.ctx = null;
 		this.parent = null; // The step whose children the steps found go in.
 	}
 	// The root's step, its tree below it as far as the focus path goes.
-	static tree(root, { path = null, target = null, siblings = 8 } = {}) {
+	static tree(root, { path = null, renderTarget = null, siblings = 8 } = {}) {
 		const walker = new PathTreeWalker({ path, siblings });
 		const step = makeStep({ t: "root" }, new DispatchPath());
-		walker.enter(step, root, RenderContext.root(root, { target }), undefined);
+		walker.enter(step, root, RenderContext.root(root, { renderTarget }), undefined);
 		return step;
 	}
 	onPath(path) {
@@ -120,14 +119,12 @@ export class PathTreeWalker extends Walker {
 	}
 	// Runs walk with ctx, adding the steps it finds to step's children.
 	fill(step, ctx, walk) {
-		const { ctx: prevCtx, parent: prevParent } = this;
-		this.ctx = ctx;
+		const prevParent = this.parent;
 		this.parent = step;
 		step.children = [];
 		try {
-			walk();
+			this.withCtx(ctx, walk);
 		} finally {
-			this.ctx = prevCtx;
 			this.parent = prevParent;
 		}
 		step.hasChildren = step.children.length > 0;
@@ -143,13 +140,6 @@ export class PathTreeWalker extends Walker {
 	// that do (viewFacts prunes the rest).
 	node(node) {
 		for (const c of node.childNodes()) this.visit(c);
-	}
-	element(node) {
-		for (const [, value] of node.attrs) this.visit(value);
-		for (const c of node.children) this.visit(c);
-	}
-	cond(node) {
-		this.visit(node.branch(this.ctx));
 	}
 	render(node) {
 		const { ctx } = this;
@@ -207,28 +197,6 @@ export class PathTreeWalker extends Walker {
 		if (more > 0) {
 			const step = makeStep({ t: "more", count: more }, group.path);
 			this.add({ ...step, active: false, children: null });
-		}
-	}
-	renderEach(node) {
-		this.each(node); // A RenderEachNode has no child: each item is a component.
-	}
-	withBinds(node) {
-		const { ctx } = this;
-		const { value: _value, ...binds } = ctx.spec.binds[node.bindsName].call(ctx.component);
-		this.ctx = ctx.addBinds(binds);
-		try {
-			this.visit(node.child);
-		} finally {
-			this.ctx = ctx;
-		}
-	}
-	pushView(node) {
-		const { ctx } = this;
-		this.ctx = ctx.pushView(node.source.eval(ctx));
-		try {
-			this.visit(node.child);
-		} finally {
-			this.ctx = ctx;
 		}
 	}
 }

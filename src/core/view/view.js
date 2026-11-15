@@ -20,7 +20,7 @@ export class ViewNode {
 		return [];
 	}
 	accept(walker) {
-		walker.dispatch(this.constructor.kind, this);
+		return walker.dispatch(this.constructor.kind, this);
 	}
 }
 export class FieldNode extends ViewNode {
@@ -90,13 +90,13 @@ export const provided = (name) => new ProvidedNode(name);
 let nextEid = 0;
 export class ElementNode extends ViewNode {
 	static kind = "element";
-	constructor(tagName, attrs, children, handlers) {
+	constructor(tagName, attrs, children, bindings) {
 		super();
 		this.tagName = tagName;
 		this.attrs = attrs;
 		this.children = children;
-		this.handlers = handlers;
-		this.eid = handlers.length > 0 ? nextEid++ : null;
+		this.bindings = bindings;
+		this.eid = bindings.length > 0 ? nextEid++ : null;
 		this.plan = planElement(this); // OPT: what every render shares (shape, constant parts), see planElement.
 	}
 	// A vnode of this element's shape, with the dynamic attrs and the children evaluated in ctx.
@@ -112,16 +112,16 @@ export class ElementNode extends ViewNode {
 	}
 }
 // Arrays of children splice into the element when the view is built, nested ones too. An on:type
-// attr is a handler, { type, action }: the event's type and the send it makes.
+// attr is an event binding, { type, action }: the event's type and the send it makes.
 export const h = (tagName, attrs, ...children) => {
 	const props = [];
-	const handlers = [];
+	const bindings = [];
 	for (const key in attrs) {
 		const value = attrs[key];
-		if (key.startsWith("on:")) handlers.push({ type: key.slice(3), action: value });
+		if (key.startsWith("on:")) bindings.push({ type: key.slice(3), action: value });
 		else props.push([key, toNode(value)]);
 	}
-	return new ElementNode(tagName, props, children.flat(Infinity).map(toNode), handlers);
+	return new ElementNode(tagName, props, children.flat(Infinity).map(toNode), bindings);
 };
 export class CondNode extends ViewNode {
 	static kind = "cond";
@@ -182,7 +182,8 @@ function* filteredEntries(self, filter, items, state) {
 }
 // The entries a loop goes over in ctx: { key, value, binds, fragmentKey } for each entry of the
 // source its prepare, iter and filter keep, binds and fragmentKey as its enrich and key make them.
-// Rendering (loopFragments) and DepsWalker both go through it, so they walk the same items.
+// Rendering (loopFragments) and the dev walkers (DepsWalker, the path tree) all go through it,
+// so they walk the same items.
 export function* loopEntries(ctx, source, loop) {
 	const self = ctx.component;
 	const items = source.eval(ctx);
@@ -233,8 +234,10 @@ export class EachNode extends ViewNode {
 }
 export const each = (source, child, loopName) =>
 	new EachNode(toNode(source), toNode(child), loopName);
-export const renderEachItem = (itemCtx, loop) =>
-	renderView(itemCtx.it, itemCtx.forItemView(itemCtx.it), loop.view);
+// An item, a component, rendered with a view of its own: a view pushed for the loop's component
+// doesn't reach it (forItemView).
+const renderItem = (it, ctx, viewName) => renderView(it, ctx.forItemView(it), viewName);
+const renderEachItem = (itemCtx, loop) => renderItem(itemCtx.it, itemCtx, loop.view);
 // A loop that renders each item, a component, with the loop's view.
 export class RenderEachNode extends ViewNode {
 	static kind = "renderEach";
@@ -258,8 +261,7 @@ export class RenderItNode extends ViewNode {
 		this.viewName = viewName;
 	}
 	eval(ctx) {
-		const it = ctx.lookupBind("value");
-		return renderView(it, ctx.forItemView(it), this.viewName);
+		return renderItem(ctx.lookupBind("value"), ctx, this.viewName);
 	}
 }
 export const renderIt = (viewName) => new RenderItNode(viewName);
@@ -356,14 +358,14 @@ export class RenderContext {
 		viewStack,
 		depth,
 		component,
-		target = null,
+		renderTarget = null,
 		cache = NULL_CACHE,
 		deps = null,
 		slot = "",
-		cacheScope = null,
+		cacheLevel = null,
 	}) {
 		this.it = it;
-		this.target = target; // The RenderTarget whose renders it picks; null for the page's views.
+		this.renderTarget = renderTarget; // The RenderTarget whose renders it picks; null for the page's views.
 		this.component = component; // component != it inside loops
 		this.binds = binds;
 		this.provided = provided; // name -> { value, depth, keys }: what ancestors provide.
@@ -376,15 +378,15 @@ export class RenderContext {
 		// Where in its component's view this is: the frames' marker texts since the component,
 		// when the cache uses slots (CopyCache); "" otherwise.
 		this.slot = slot;
-		this.cacheScope = cacheScope; // What the cache finds and keeps entries in, its own.
+		this.cacheLevel = cacheLevel; // What the cache finds and keeps entries in, its own.
 	}
 	get spec() {
 		return specOf(this.component);
 	}
-	static root(component, { target = null, cache = NULL_CACHE } = {}) {
+	static root(component, { renderTarget = null, cache = NULL_CACHE } = {}) {
 		const empty = { it: null, binds: {}, provided: {}, viewStack: [], depth: -1 };
-		const cacheScope = cache.scope;
-		return new RenderContext({ ...empty, component, target, cache, cacheScope }).enterFrame(
+		const cacheLevel = cache.rootLevel;
+		return new RenderContext({ ...empty, component, renderTarget, cache, cacheLevel }).enterFrame(
 			component,
 		);
 	}
@@ -433,7 +435,7 @@ export class RenderContext {
 	// falls back to them, and fails to render if not. A view missing by name falls back to that
 	// target's main, never to another target's.
 	getBestViewFor(spec, viewName) {
-		const views = spec.viewsFor(this.target) ?? this.viewsWithout(spec);
+		const views = spec.viewsFor(this.renderTarget) ?? this.viewsWithout(spec);
 		const candidates = viewName === undefined ? this.viewStack : [viewName, ...this.viewStack];
 		for (const name of candidates) {
 			const view = views[name];
@@ -442,7 +444,7 @@ export class RenderContext {
 		return views.main;
 	}
 	viewsWithout(spec) {
-		if (this.target.fallsBackToViews) return spec.views;
-		throw new Error(`Component ${spec.name} has no ${this.target.name} render`);
+		if (this.renderTarget.fallsBackToViews) return spec.views;
+		throw new Error(`Component ${spec.name} has no ${this.renderTarget.name} render`);
 	}
 }

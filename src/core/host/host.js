@@ -55,18 +55,21 @@ export class Host {
 		env = browserEnv,
 		publish = null,
 		schedule = inNextTask,
-		target = null,
-		renderCache = new CopyCache(),
+		renderTarget = null,
+		renderCache = null,
 	} = {}) {
 		this.document = document;
 		// The RenderTarget whose renders it shows (tutuca/tui's tuiTarget for its terminal DOM);
 		// null for the components' views.
-		this.target = target;
+		this.renderTarget = renderTarget;
 		this.rootNode = rootNode;
 		// The RenderCache it renders with (view/render-cache.js): CopyCache, the default, and
 		// WeakMapCache reuse what didn't change, NullCache renders everything, CheckCache checks
-		// one of them. Only the page's views are cached for now.
-		this.renderCache = target === null ? renderCache : NULL_CACHE;
+		// one of them. Only the page's views are cached for now, so a render target takes none.
+		if (renderTarget !== null && renderCache !== null) {
+			throw new Error(`a Host with a render target (${renderTarget.name}) takes no renderCache`);
+		}
+		this.renderCache = renderTarget !== null ? NULL_CACHE : (renderCache ?? new CopyCache());
 		this.checks = checks === null ? null : new checks();
 		this.env = env; // What handlers read from the world, through ctx.
 		this.root = null;
@@ -141,12 +144,12 @@ export class Host {
 	}
 	render() {
 		if (this.document === null) return;
-		const { root, target, renderCache: cache } = this;
+		const { root, renderTarget, renderCache: cache } = this;
 		cache.begin();
-		const ctx = RenderContext.root(root, { target, cache });
+		const ctx = RenderContext.root(root, { renderTarget, cache });
 		const curVDom = this._curVDom;
 		const newVDom = toVChildren(renderView(root, ctx));
-		cache.end(root, target, newVDom);
+		cache.end(root, renderTarget, newVDom);
 		morph(this.document, this.rootNode, newVDom, curVDom);
 		this._curVDom = newVDom;
 		this.report("rendered", { upTo: this._lastSeq }, { ctx, newVDom, curVDom });
@@ -177,7 +180,7 @@ export class Host {
 	// the back of the queue for the next tick. event, node and drag are what the handler reads as
 	// ctx.event, ctx.node and ctx.drag. Returns the task.
 	send(name, args = [], { to, now = false, event = null, node = null, drag = null } = {}) {
-		const task = new HostTask(name, args, targetOf(to), { now, event, node, drag });
+		const task = new HostTask(name, args, destinationOf(to), { now, event, node, drag });
 		task.prepare(this.root);
 		if (now) {
 			this.scheduler.arrive(task);
@@ -213,9 +216,9 @@ export class Host {
 			this.announce(record);
 		};
 		const producer = (root) => {
-			const target = at.getIn(root);
-			const next = apply(target, name, ...args);
-			checkInvariants(specOf(target), name, isDraft(next) ? current(next) : next);
+			const instance = at.getIn(root);
+			const next = apply(instance, name, ...args);
+			checkInvariants(specOf(instance), name, isDraft(next) ? current(next) : next);
 			return at.setIn(root, next);
 		};
 		try {
@@ -232,8 +235,8 @@ export class Host {
 	}
 	// The Address to (as send takes it) reaches in the current root.
 	addressOf(to) {
-		const where = targetOf(to);
-		return where instanceof Address ? where : Address.of(where, this.root);
+		const where = destinationOf(to);
+		return where instanceof Address ? where : Address.ofTarget(where, this.root);
 	}
 	// Resolves once nothing is left to run: no task queued and no ask waiting for its answer.
 	whenIdle() {
@@ -283,7 +286,7 @@ export class Host {
 	// Stops handling events and tasks: handleEvent ignores events without a root.
 	stop() {
 		this.clearTasks();
-		this.detachSync();
+		this.engines.detach();
 		this.root = null;
 		this.report("stopped");
 		this.resolveIdle(true);
@@ -295,13 +298,11 @@ export class Host {
 				host: this,
 				root: () => this.root,
 				// Reports a HostEvent about the engine: syncFailed, syncRejected, migrated.
-				report: (type, fields) => this.report(type, { engine: this.engineName(engine), ...fields }),
+				report: (type, fields) =>
+					this.report(type, { engine: this.engines.nameOf(engine), ...fields }),
 				apply: (producer, info = null) => this.applyChange(producer, { source: engine, info }),
 			});
 		}
-	}
-	detachSync() {
-		this.engines.detach();
 	}
 	// Applies a change made elsewhere (by source, an engine) as a producer on the root, at once,
 	// so it applies to the state it was made against. Renders unless a task run will. During
@@ -322,7 +323,7 @@ export class Host {
 		const issues = this.checks?.state(null, curRoot, newRoot) ?? [];
 		if (report !== null) report(curRoot, newRoot, issues);
 		else {
-			const fields = { source: this.engineName(source) };
+			const fields = { source: this.engines.nameOf(source) };
 			this.report("externalChange", fields, { info, before: curRoot, after: newRoot }, issues);
 		}
 		if (this._handlingTasks) return;
@@ -336,10 +337,6 @@ export class Host {
 		const issues = this.checks?.settled(this._settledRoot, this.root) ?? [];
 		this._settledRoot = this.root;
 		this.report("settled", { upTo: this._lastSeq }, {}, issues);
-	}
-	// An engine as reports name it.
-	engineName(engine) {
-		return this.engines.nameOf(engine);
 	}
 	handleTasks() {
 		if (this._handlingTasks) return;
@@ -402,7 +399,7 @@ export class Host {
 }
 // Where a message from the host goes: to as it is, if it is an Address; otherwise a Target from
 // the root, fixed when it is sent. The root, without one.
-const targetOf = (to = new DispatchPath()) => {
+const destinationOf = (to = new DispatchPath()) => {
 	if (to instanceof Address) return to;
 	if (to instanceof DispatchPath) return new Target(to);
 	if (to instanceof Selector) return new Target(new DispatchPath(), to);

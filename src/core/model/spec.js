@@ -1,4 +1,4 @@
-// The parts of a ComponentSpec (component.js) and the identity a component instance carries:
+// The parts of a ComponentSpec (../component.js) and the identity a component instance carries:
 // its spec and scope, the specs of its messages, answers and queries, and how component()'s
 // options become them.
 
@@ -7,6 +7,10 @@ export const scopeSym = Symbol("TutucaScope");
 export const specOf = (v) => v?.[specSym];
 export const scopeOf = (v) => v?.[scopeSym] ?? null;
 export const isComponent = (v) => specOf(v) !== undefined;
+// A ComponentSpec: its prototype's spec is itself.
+export const isSpec = (v) => v?.proto?.[specSym] === v;
+// The spec of c, a component or its spec.
+export const specOrSelf = (c) => specOf(c) ?? c;
 // An on entry is a handler function, or a handler spec { run, args, sourceKey, pre, why, post,
 // emits, pure }: the handler, run, with its contract. args types the send/notify arguments,
 // sourceKey the child key it arrives from, pre and post are conditions on the instance (why,

@@ -424,9 +424,8 @@ export function nextWord(text, at) {
 	while (i < last && !isSpace(text.slice(bounds[i], bounds[i + 1]))) i++;
 	return bounds[i];
 }
-// The column a caret is at, and the caret nearest a column (a click on the right half of a wide
+// The caret nearest a column (a click on the right half of a wide
 // grapheme puts it after).
-export const columnOf = (text, at) => stringWidth(text.slice(0, at));
 export function caretAtColumn(text, column) {
 	let col = 0;
 	let at = 0;
@@ -438,3 +437,29 @@ export function caretAtColumn(text, column) {
 	}
 	return at;
 }
+
+// --- lines -----------------------------------------------------------------------------------
+
+// The lines of a value, as { start, end } offsets (end before its newline); an input's is one.
+export function linesOf(value, multiline = true) {
+	if (!multiline) return [{ start: 0, end: value.length }];
+	const lines = [];
+	let start = 0;
+	for (;;) {
+		const nl = value.indexOf("\n", start);
+		if (nl === -1) {
+			lines.push({ start, end: value.length });
+			return lines;
+		}
+		lines.push({ start, end: nl });
+		start = nl + 1;
+	}
+}
+export const lineIndexAt = (lines, at) => {
+	let i = lines.length - 1;
+	while (i > 0 && lines[i].start > at) i--;
+	return i;
+};
+// The column of an offset in its line, as it's drawn.
+export const columnIn = (value, line, at) =>
+	stringWidth(stripControls(value.slice(line.start, at)));

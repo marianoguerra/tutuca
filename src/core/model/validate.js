@@ -29,25 +29,25 @@ export const argIssues = (types, args, scope, owner) => {
 };
 // Whether a message's pre and post conditions hold; one it doesn't have holds. A throwing one
 // doesn't. info is what the handler's ctx says about the message ({} outside a handler).
-export const preHolds = (message, prev, args, info) =>
-	message.pre === undefined || holds(() => message.pre.call(prev, prev, args, info));
-export const postHolds = (message, prev, next, args, info) =>
-	message.post === undefined || holds(() => message.post.call(prev, prev, next, args, info));
+export const preHolds = (handler, prev, args, info) =>
+	handler.pre === undefined || holds(() => handler.pre.call(prev, prev, args, info));
+export const postHolds = (handler, prev, next, args, info) =>
+	handler.post === undefined || holds(() => handler.post.call(prev, prev, next, args, info));
 // The ways a handled message broke its spec: "args", "arg:<i>", "sourceKey", "pre", "post"
 // and "emits:<kind>:<name>". prev and next are the component before and after the handler,
 // info is { sourceKey, emitted } from the MessageContext it ran in.
-export const messageIssues = (message, prev, next, args, info) => {
+export const messageIssues = (handler, prev, next, args, info) => {
 	const scope = scopeOf(prev);
-	const issues = argIssues(message.args, args, scope, prev);
+	const issues = argIssues(handler.args, args, scope, prev);
 	const { sourceKey, emitted } = info;
-	if (message.sourceKey !== undefined && !message.sourceKey.isValid(sourceKey, scope, prev)) {
+	if (handler.sourceKey !== undefined && !handler.sourceKey.isValid(sourceKey, scope, prev)) {
 		issues.push("sourceKey");
 	}
-	if (!preHolds(message, prev, args, info)) issues.push("pre");
-	if (!postHolds(message, prev, next, args, info)) issues.push("post");
-	if (message.emits !== undefined) {
+	if (!preHolds(handler, prev, args, info)) issues.push("pre");
+	if (!postHolds(handler, prev, next, args, info)) issues.push("post");
+	if (handler.emits !== undefined) {
 		for (const { kind, name } of emitted) {
-			if (!message.emits[kind]?.includes(name)) issues.push(`emits:${kind}:${name}`);
+			if (!handler.emits[kind]?.includes(name)) issues.push(`emits:${kind}:${name}`);
 		}
 	}
 	return issues;

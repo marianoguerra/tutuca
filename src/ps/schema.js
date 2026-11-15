@@ -4,9 +4,8 @@
 // Circle, Line, Polyline, Path, Text), which print.js prints as the operators that draw them (and
 // tutuca/pdf as a PDF's). Coordinates are PostScript's: points (1/72 inch), the origin at the
 // page's bottom left, y up. Its categories are Graphic and Segment (a Path's); Text is a literal.
-import { empty, isColor, literal, oneOf, opt, parent, req, Schema } from "../checked/schema.js";
+import { empty, isNumber, literal, oneOf, opt, parent, req, Schema } from "../checked/schema.js";
 
-export { isColor };
 export const GRAPHIC = "Graphic";
 export const SEGMENT = "Segment";
 
@@ -14,7 +13,7 @@ export const LINE_CAPS = ["butt", "round", "square"];
 export const LINE_JOINS = ["miter", "round", "bevel"];
 export const ALIGNS = ["left", "center", "right"];
 
-// How a shape strokes; what it says neither fill nor stroke for is in print.js's paint.
+// How a shape strokes; what it says neither fill nor stroke for is in drawing.js's paintOf.
 const strokeStyle = {
 	stroke: opt("color"),
 	lineWidth: opt("size"),
@@ -98,7 +97,6 @@ export const SCHEMA = {
 	}),
 };
 
-const isNumber = (v) => typeof v === "number" && Number.isFinite(v);
 // A PostScript name that needs no escaping: Helvetica, Times-Bold, NewCenturySchlbk-Roman.
 const isFont = (v) => typeof v === "string" && /^[A-Za-z][A-Za-z0-9._-]*$/.test(v);
 

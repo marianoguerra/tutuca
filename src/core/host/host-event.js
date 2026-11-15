@@ -12,7 +12,7 @@ import { hidden, Record } from "../../tree/index.js";
 // - rendered: upTo, the last task rendered (hidden: ctx, newVDom, curVDom)
 // - renderFailed: error, upTo
 // - eventFailed: eventType, error (hidden: event)
-// - externalChange: source, the engine that made it (null for host.apply's), info (hidden:
+// - externalChange: source, the engine that made it (null for one applied with no engine), info (hidden:
 //   before, after); issues, the fields it left invalid
 // - syncFailed: engine, error
 // - syncRejected: engine, ops

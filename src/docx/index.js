@@ -29,12 +29,11 @@
 //   new Blob([bytes], { type: DOCX_MIME })
 //
 // What's checked, against one table (schema.js): what a view says, when it's built (tags.js),
-// and the document it renders to, when it renders (lower.js, every node, with the path to it).
+// and the document it renders to, when it renders (render.js, every node, with the path to it).
 // Both throw a DocxError.
-export { lower } from "./lower.js";
-export { printDocx, toDocxDocument } from "./print.js";
+export { printDocx } from "./print.js";
 export { renderDocx, renderDocxTree } from "./render.js";
-export { ALIGNS, BLOCK, HIGHLIGHTS, INLINE, ORIENTATIONS, PAGE_SIZES, SCHEMA } from "./schema.js";
+export { SCHEMA } from "./schema.js";
 export { DocxError, docx, docxTarget } from "./target.js";
 
 export const DOCX_MIME = "application/vnd.openxmlformats-officedocument.wordprocessingml.document";

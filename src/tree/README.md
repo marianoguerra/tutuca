@@ -17,7 +17,7 @@ the four interfaces in `scheduler.js`. It ships as `tutuca/tree`.
 | `context.js` | `MessageContext`: what a handler sends with |
 | `scheduler.js` | `Scheduler`: the queue and `tree->` |
 | `transition.js` | `Transition`: what became of a task, one per task the scheduler is done with |
-| `record.js` | `hidden` and `plainOf`: what tasks and their records keep out of sight, and a record as data |
+| `record.js` | `Record`, the base of what's reported, with `hidden` and `plainOf`: what tasks and their records keep out of sight, and a record as data |
 | `text.js` | how keys and values print |
 
 ## From spec/tree to the code
@@ -46,7 +46,7 @@ the four interfaces in `scheduler.js`. It ships as `tutuca/tree`.
 | observations `stale`, `orphaned`, `lost`, `unhandled` | a `Transition`'s `outcome`, through `Hooks.transition(record, ctx)` |
 
 `Frame.provider` has no counterpart in spec/tree. It is a frame that starts from an ancestor's
-frame (the one at `provider.depth`, plus `provider.keys`) instead of from the frame before it.
+frame (the one `provider.up` frames back, plus `provider.keys`) instead of from the frame before it.
 That's where a node reads a value an ancestor provides, and `DispatchPath.toKeyPath` is where it
 matters.
 
@@ -64,7 +64,7 @@ new Scheduler({
 	store: { get() {}, set(root) {} },     // where the root lives
 	transact(root, keyPath, fn) {},     // a new root, with fn(draft of the leaf) at the path
 	hooks: {
-		context(task, instance, nextRequest) {}, // a MessageContext, or a host's subclass
+		context(task, instance, nextId) {}, // a MessageContext, or a host's subclass
 		beforeCommit(prev, next, task) {},       // optional: returns what to call after commit
 		transition(record, ctx) {},              // what became of a task (transition.js)
 		wake() {},                               // optional: something was queued

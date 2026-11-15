@@ -4,8 +4,10 @@ import assert from "node:assert/strict";
 import test from "node:test";
 import * as esbuild from "esbuild";
 import {
+	CopyCache,
 	component,
 	enableTargets,
+	Host,
 	h,
 	RenderContext,
 	RenderTarget,
@@ -39,13 +41,23 @@ test("a component without renders for a target shows its views if the target fal
 	const fails = new RenderTarget("fails");
 	enableTargets(shows, fails);
 	const Plain = component({ name: "Plain", view: h("p", {}, "page") });
-	const best = (target) => {
+	const best = (renderTarget) => {
 		const instance = Plain.make();
-		return RenderContext.root(instance, { target }).getBestViewFor(specOf(instance));
+		return RenderContext.root(instance, { renderTarget }).getBestViewFor(specOf(instance));
 	};
 	assert.equal(best(null), Plain.views.main);
 	assert.equal(best(shows), Plain.views.main);
 	assert.throws(() => best(fails), /^Error: Component Plain has no fails render$/);
+});
+
+test("a Host with a render target takes no render cache: only the page's views are cached", () => {
+	const renderTarget = new RenderTarget("uncached", { fallsBackToViews: true });
+	assert.throws(
+		() => new Host({ renderTarget, renderCache: new CopyCache() }),
+		/a Host with a render target \(uncached\) takes no renderCache/,
+	);
+	assert.equal(new Host({ renderTarget }).renderCache.usesSlots, false);
+	assert.ok(new Host().renderCache instanceof CopyCache);
 });
 
 // What each default bundle (scripts/dist.js's entries) is made of.
@@ -70,7 +82,7 @@ test("the default bundles carry no render target but the page's", async () => {
 		'export * from "./src/tutuca.js";\nexport * from "./src/tutuca.dev.js";',
 	]) {
 		const inputs = await inputsOf(contents);
-		assert.ok(inputs.includes("src/core/model/targets.js"), inputs.join("\n"));
+		assert.ok(inputs.includes("src/core/view/targets.js"), inputs.join("\n"));
 		assert.deepEqual(
 			inputs.filter((path) => OPT_IN.test(path)),
 			[],

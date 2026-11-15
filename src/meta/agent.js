@@ -10,9 +10,10 @@
 // each tool names a message or query the component has, with as many params as it takes args.
 //
 // This module is the agent's pure core, for any host: the tools in pi-ai's shape ({ name,
-// description, parameters }, JSON Schema derived from the args' types), the system prompt, the
-// next step of the loop, and running a tool call against a component. Running a message that
-// needs a context is the host's: planToolCall says what to send and what answers it.
+// description, parameters }, JSON Schema derived from the args' types), the system prompt and
+// running a tool call against a component. Running a message that needs a context is the
+// host's: planToolCall says what to send and what answers it. The loop over a transcript that
+// calls them is agent-loop.js.
 import {
 	apply,
 	checkCall,
@@ -23,8 +24,8 @@ import {
 	QuerySpec,
 	query,
 	specOf,
+	specOrSelf,
 	t,
-	WATCH_OUTCOMES,
 } from "../tutuca.js";
 import { dataOf, dataSchema, hasDataMeta, isZeroArgQuery, loadData, withSample } from "./data.js";
 import { displayOf } from "./display.js";
@@ -89,7 +90,7 @@ const isOperation = (op, kind) =>
 // tools of one name, a summary or result that isn't a zero-arg query. What its data meta says is
 // dataProblems'.
 export const agentProblems = (c, scope = undefined) => {
-	const spec = specOf(c) ?? c;
+	const spec = specOrSelf(c);
 	if (!hasAgentMeta(spec)) return [];
 	// Its shape first, as a scope with agentMetaSchemas checks it: the rest reads it.
 	const shape = metaShapeProblems(spec, AGENT_META, agentMetaSchemas[AGENT_META]);
@@ -250,38 +251,6 @@ export const summaryOf = (c) => {
 };
 const asText = (v) => (typeof v === "string" ? v : JSON.stringify(v));
 
-// The most steps (model turns) an agent takes for one prompt, unless its target's meta says.
-const MAX_STEPS = 12;
-export const maxStepsOf = (c) => agentOf(c).maxSteps ?? MAX_STEPS;
-// The tool calls of a pi-ai assistant message.
-const toolCallsOf = (message) =>
-	message?.role === "assistant" && Array.isArray(message.content)
-		? message.content.filter((b) => b?.type === "toolCall")
-		: [];
-// What an agent does next with transcript (pi-ai messages): infer (ask the model), tools (run
-// calls, the last assistant message's calls without a result yet), or complete (the model
-// answered without calling a tool, or nothing was asked).
-export const nextAction = (transcript) => {
-	let i = transcript.length - 1;
-	const answered = new Set();
-	while (i >= 0 && transcript[i].role === "toolResult") answered.add(transcript[i--].toolCallId);
-	const last = transcript[i];
-	if (last === undefined) return { action: "complete", calls: [] };
-	if (last.role === "user") return { action: "infer", calls: [] };
-	const calls = toolCallsOf(last);
-	if (calls.length === 0) return { action: "complete", calls: [] };
-	const pending = calls.filter((call) => !answered.has(call.id));
-	return pending.length > 0 ? { action: "tools", calls: pending } : { action: "infer", calls: [] };
-};
-// A pi-ai tool result message.
-export const toolResultMessage = (call, text, isError = false) => ({
-	role: "toolResult",
-	toolCallId: call.id,
-	toolName: call.name,
-	content: [{ type: "text", text }],
-	isError,
-});
-
 // The positional args for a tool call's named arguments; one left out is null.
 const callArgs = (tool, argsObject) => tool.params.map((name) => argsObject?.[name] ?? null);
 
@@ -318,33 +287,6 @@ export const planToolCall = (c, call) => {
 	} catch (error) {
 		return done(contractErrorText(c, error, tool.params), true);
 	}
-};
-// What a watch (src/tree/watch.js) tells its watcher: a tool's message and everything it
-// caused ran (ok), some of it threw (failed), or it was stopped (cancelled, timeout).
-export const reportType = t.record({
-	id: t.number(),
-	outcome: t.enum(...WATCH_OUTCOMES),
-	tasks: t.number().int().min(0),
-	failed: t.number().int().min(0),
-});
-// What answers a message tool's call once its watch settled with report: what c looks
-// like after (its result query) and, when it didn't go well, why; and whether it's an error.
-export const settledText = (c, result, report) => {
-	const now = resultText(c, result);
-	if (report.outcome === "ok") return { text: now, isError: false };
-	const why =
-		report.outcome === "failed"
-			? `It ran, but ${report.failed} of the ${report.tasks} steps it took failed.`
-			: report.outcome === "timeout"
-				? "It took too long and was stopped."
-				: "It was stopped before it finished.";
-	return { text: `${why} Now: ${now}`, isError: true };
-};
-// Results for the tool calls of transcript's last assistant message that have none, saying
-// text: a transcript a stopped loop left is one a model can be asked about again.
-export const pendingResults = (transcript, text) => {
-	const { action, calls } = nextAction(transcript);
-	return action === "tools" ? calls.map((call) => toolResultMessage(call, text, true)) : [];
 };
 // What answers a message tool's call once it ran: c's zero-arg query result, as text.
 export const resultText = (c, result) => {

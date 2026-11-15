@@ -4,11 +4,21 @@
 // themes and graphics. Text styles inherit down the tree as CSS's do: color, backgroundColor,
 // bold, dim, italic, underline, inverse and strikethrough set on a box apply to the text in it.
 import { sgr } from "./buffer.js";
-import { columnIn, lineIndexAt, linesOf } from "./editing.js";
-import { borderOf, clipsOf, paddingOf, propsOf, TEXT_STYLE } from "./layout.js";
 import {
+	borderWidthOf,
+	clipsOf,
+	contentBox,
+	inside,
+	paddingOf,
+	propsOf,
+	TEXT_STYLE,
+} from "./props.js";
+import {
+	columnIn,
 	graphemes,
 	graphemeWidth,
+	lineIndexAt,
+	linesOf,
 	padText,
 	readGrapheme,
 	sliceColumns,
@@ -18,18 +28,24 @@ import {
 } from "./text.js";
 
 const border = (tl, tr, bl, br, t, b, l, r) => ({ tl, tr, bl, br, t, b, l, r });
+// The styles tuiuiu has under two names.
+const HEAVY = border("┏", "┓", "┗", "┛", "━", "━", "┃", "┃");
+const ASCII = border("+", "+", "+", "+", "-", "-", "|", "|");
+const DOUBLE_EDGE = border("╓", "╖", "╙", "╜", "─", "─", "║", "║");
+const TAB = border("▁", "▁", "▔", "▔", "▁", "▔", "▎", "▊");
+const BLANK = border(" ", " ", " ", " ", " ", " ", " ", " ");
 // All of tuiuiu's border styles, by name; none (no border) isn't one, hidden and blank take the
 // space with blanks.
 export const BORDER_STYLES = {
 	single: border("┌", "┐", "└", "┘", "─", "─", "│", "│"),
 	double: border("╔", "╗", "╚", "╝", "═", "═", "║", "║"),
 	round: border("╭", "╮", "╰", "╯", "─", "─", "│", "│"),
-	bold: border("┏", "┓", "┗", "┛", "━", "━", "┃", "┃"),
-	heavy: border("┏", "┓", "┗", "┛", "━", "━", "┃", "┃"),
-	singleDouble: border("╓", "╖", "╙", "╜", "─", "─", "║", "║"),
+	bold: HEAVY,
+	heavy: HEAVY,
+	singleDouble: DOUBLE_EDGE,
 	doubleSingle: border("╒", "╕", "╘", "╛", "═", "═", "│", "│"),
-	classic: border("+", "+", "+", "+", "-", "-", "|", "|"),
-	ascii: border("+", "+", "+", "+", "-", "-", "|", "|"),
+	classic: ASCII,
+	ascii: ASCII,
 	asciiDouble: border("+", "+", "+", "+", "=", "=", "|", "|"),
 	markdown: border("|", "|", "|", "|", "-", "-", "|", "|"),
 	arrow: border("↘", "↙", "↗", "↖", "↓", "↑", "→", "←"),
@@ -38,7 +54,7 @@ export const BORDER_STYLES = {
 	heavyHead: border("┎", "┒", "└", "┘", "━", "─", "│", "│"),
 	doubleHead: border("╒", "╕", "└", "┘", "═", "─", "│", "│"),
 	heavyEdge: border("┍", "┑", "┕", "┙", "─", "─", "┃", "┃"),
-	doubleEdge: border("╓", "╖", "╙", "╜", "─", "─", "║", "║"),
+	doubleEdge: DOUBLE_EDGE,
 	minimal: border("─", "─", "─", "─", "─", "─", " ", " "),
 	minimalHeavy: border("━", "━", "━", "━", "━", "━", " ", " "),
 	minimalDouble: border("═", "═", "═", "═", "═", "═", " ", " "),
@@ -51,10 +67,10 @@ export const BORDER_STYLES = {
 	vkey: border("▏", "▕", "▏", "▕", " ", " ", "▏", "▕"),
 	tall: border("▊", "▎", "▊", "▎", "▔", "▁", "▊", "▎"),
 	panel: border("▊", "▎", "▊", "▎", "█", "▁", "▊", "▎"),
-	tab: border("▁", "▁", "▔", "▔", "▁", "▔", "▎", "▊"),
-	wide: border("▁", "▁", "▔", "▔", "▁", "▔", "▎", "▊"),
-	hidden: border(" ", " ", " ", " ", " ", " ", " ", " "),
-	blank: border(" ", " ", " ", " ", " ", " ", " ", " "),
+	tab: TAB,
+	wide: TAB,
+	hidden: BLANK,
+	blank: BLANK,
 };
 // Where a split's line meets the border, by the families of styles that have the pieces: down from
 // the top, up from the bottom, right from the left, left from the right. Others join with their
@@ -115,12 +131,10 @@ const intersect = (a, b) => {
 		h: Math.max(0, Math.min(a.y + a.h, b.y + b.h) - y),
 	};
 };
-const inClip = (clip, x, y) =>
-	x >= clip.x && y >= clip.y && x < clip.x + clip.w && y < clip.y + clip.h;
 
 function put(buffer, clip, x, y, char, style) {
 	const w = graphemeWidth(char);
-	if (w <= 0 || !inClip(clip, x, y) || !inClip(clip, x + w - 1, y)) return;
+	if (w <= 0 || !inside(clip, x, y) || !inside(clip, x + w - 1, y)) return;
 	buffer.writeChar(x, y, char, style);
 }
 function putString(buffer, clip, x, y, text, style, maxX) {
@@ -198,8 +212,8 @@ function paintBorder(buffer, clip, rect, props) {
 function paintSplit(buffer, clip, layout, props) {
 	const { rect, children } = layout;
 	const chars = bordersOf(props.borderStyle);
-	const tees = TEES[props.borderStyle] ?? (borderOf(props) ? TEES.single : null);
-	const b = borderOf(props);
+	const tees = TEES[props.borderStyle] ?? (borderWidthOf(props) ? TEES.single : null);
+	const b = borderWidthOf(props);
 	const row = (props.flexDirection ?? "column").startsWith("row");
 	const flow = children.filter((c) => c.node.props.position === undefined);
 	for (let i = 1; i < flow.length; i++) {
@@ -322,13 +336,13 @@ function paintInput(buffer, clip, layout, text, focused) {
 	const { x, y, w, h } = layout.rect;
 	const { el, empty, multiline } = layout.node;
 	if (w <= 0 || h <= 0) return;
-	const fieldStyle = sgr(text);
+	const textStyle = sgr(text);
 	if (empty) {
 		// The placeholder is dim and italic, on the first row; the field is the whole box.
 		const hint = sgr({ ...text, dim: true, italic: true });
 		putString(buffer, clip, x, y, padText(sliceColumns(layout.lines[0], 0, w), w), hint, x + w);
 		for (let row = 1; row < h; row++)
-			putString(buffer, clip, x, y + row, " ".repeat(w), fieldStyle, x + w);
+			putString(buffer, clip, x, y + row, " ".repeat(w), textStyle, x + w);
 		if (focused) invert(buffer, clip, x, y, text);
 		return;
 	}
@@ -338,7 +352,7 @@ function paintInput(buffer, clip, layout, text, focused) {
 	const caretLine = lineIndexAt(lines, el.caret);
 	const caretCol = columnIn(value, lines[caretLine], el.caret);
 	let left = el.scrollLeft;
-	let top = multiline ? el._scrollTop : 0;
+	let top = multiline ? el.scrollTop : 0;
 	if (focused) {
 		// Scrolled to keep the caret in view, and no further than there's text to show.
 		if (caretCol < left) left = caretCol;
@@ -347,9 +361,8 @@ function paintInput(buffer, clip, layout, text, focused) {
 		if (caretLine < top) top = caretLine;
 		if (caretLine >= top + h) top = caretLine - h + 1;
 		top = Math.max(0, Math.min(top, lines.length - h));
-		// View state, written past the setters: it needs no other paint.
-		el._scrollLeft = left;
-		el._scrollTop = top;
+		// View state, settled and not set: it needs no other paint.
+		el.settleScroll({ left, top });
 	}
 	const [start, end] = [el.selectionStart, el.selectionEnd];
 	for (let row = 0; row < h; row++) {
@@ -361,7 +374,7 @@ function paintInput(buffer, clip, layout, text, focused) {
 			x,
 			y + row,
 			padText(sliceColumns(rowText, left, left + w), w),
-			fieldStyle,
+			textStyle,
 			x + w,
 		);
 		if (!focused || !line || start === end) continue;
@@ -393,7 +406,7 @@ function paintScrollbar(buffer, clip, el, rect, props) {
 	const { scrollHeight, clientHeight, viewport } = el;
 	if (!viewport || scrollHeight <= clientHeight || clientHeight <= 0) return;
 	const pad = paddingOf(props);
-	const b = borderOf(props);
+	const b = borderWidthOf(props);
 	if (!(b && props.borderRight !== false) && pad.right < 1) return;
 	const col = b && props.borderRight !== false ? rect.x + rect.w - 1 : viewport.x + viewport.w;
 	const size = Math.max(1, Math.round((clientHeight * clientHeight) / scrollHeight));
@@ -425,7 +438,7 @@ export function paint(
 	}
 	if (node.type === "divider") return paintDivider(buffer, clip, layout, style);
 	if (node.type !== "box" || rect.w <= 0 || rect.h <= 0) return;
-	const b = borderOf(props);
+	const b = borderWidthOf(props);
 	if (props.backgroundColor !== undefined) {
 		const fill = intersect(clip, {
 			x: rect.x + b,
@@ -441,13 +454,7 @@ export function paint(
 	const clips = clipsOf(props);
 	let inner = clip;
 	if (clips.x || clips.y) {
-		const pad = paddingOf(props);
-		const content = {
-			x: rect.x + b + pad.left,
-			y: rect.y + b + pad.top,
-			w: rect.w - 2 * b - pad.left - pad.right,
-			h: rect.h - 2 * b - pad.top - pad.bottom,
-		};
+		const content = contentBox(rect, props);
 		inner = intersect(clip, {
 			x: clips.x ? content.x : clip.x,
 			y: clips.y ? content.y : clip.y,

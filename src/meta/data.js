@@ -14,7 +14,7 @@ import {
 	hasMeta,
 	metaShapeProblems,
 	QuerySpec,
-	specOf,
+	specOrSelf,
 	t,
 } from "../tutuca.js";
 import { contractErrorText } from "./errors.js";
@@ -67,13 +67,13 @@ const loadMessage = (spec, name) => {
 export const dataSchema = (c, scope = undefined) => {
 	const meta = dataOf(c, scope);
 	if (meta.schema !== null) return meta.schema;
-	return typeSchema(loadMessage(specOf(c) ?? c, meta.load)?.args[0]);
+	return typeSchema(loadMessage(specOrSelf(c), meta.load)?.args[0]);
 };
 
 // What c (a component or its spec, with scope) says about its data that it can't do, as
 // messages: a load that isn't a pure message of one arg, a data that isn't a zero-arg query.
 export const dataProblems = (c, scope = undefined) => {
-	const spec = specOf(c) ?? c;
+	const spec = specOrSelf(c);
 	if (!hasDataMeta(spec)) return [];
 	const shape = metaShapeProblems(spec, DATA_META, dataMetaSchemas[DATA_META]);
 	if (shape.length > 0) return shape;

@@ -9,5 +9,5 @@
 // It's made with PDFKit, in browsers and node alike. Text is in the 14 fonts every PDF reader
 // has, or in ones given by name: renderPdf(instance, { fonts: { Inter: bytes } }) embeds them,
 // for Text({ font: "Inter" }).
-export { printPdf, STANDARD_FONTS } from "./print.js";
+export { printPdf } from "./print.js";
 export { renderPdf } from "./render.js";

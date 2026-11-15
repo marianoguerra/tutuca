@@ -32,23 +32,10 @@
 //   renderPs(Bars.make({ values: [3, 5, 2] })) // "%!PS-Adobe-3.0\n..."
 //
 // What's checked, against one table (schema.js): what a view says, when it's built (tags.js),
-// and the drawing it renders to, when it renders (lower.js, every node, with the path to it).
+// and the drawing it renders to, when it renders (render.js, every node, with the path to it).
 // Both throw a PsError.
 
-export {
-	arcSweep,
-	asDocument,
-	encloses,
-	fontOf,
-	groupTransform,
-	PAGE_SIZE,
-	pageSize,
-	paintOf,
-	rgbOf,
-	textLines,
-} from "./drawing.js";
-export { lower } from "./lower.js";
+export { PAGE_SIZE } from "./drawing.js";
 export { num, printPs, psString, setColor } from "./print.js";
 export { renderPs, renderPsTree } from "./render.js";
-export { ALIGNS, GRAPHIC, LINE_CAPS, LINE_JOINS, SCHEMA, SEGMENT } from "./schema.js";
 export { PsError, ps, psTarget } from "./target.js";

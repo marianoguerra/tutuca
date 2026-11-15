@@ -6,6 +6,8 @@
 // attr of the wrong kind, a slot its node doesn't have (or has twice), a node outside a slot, a
 // node a slot doesn't take, text. What field, each or render give is only known when the view
 // renders; lower.js checks that.
+import { SchemaError } from "../checked/schema.js";
+import { splitArgs, tagProxy } from "../core/view/tag.js";
 import { CondNode, ConstantNode, ElementNode, h } from "../tutuca.js";
 import {
 	accepts,
@@ -17,13 +19,7 @@ import {
 	scalarIssue,
 } from "./schema.js";
 
-export class JsAstError extends Error {
-	constructor(issues) {
-		super(issues.length === 1 ? issues[0] : `${issues.length} issues:\n  ${issues.join("\n  ")}`);
-		this.name = "JsAstError";
-		this.issues = issues;
-	}
-}
+export class JsAstError extends SchemaError {}
 
 // The elements among a view's children, each with whether it's always there (not in a branch of
 // an $if), and whether some child is only known when it renders. Text is an issue.
@@ -130,19 +126,15 @@ const checkSlot = (node, issues) => {
 	staticChildren(node.children, `slot ${node.tagName}`, issues);
 };
 
-const isAttrs = (v) =>
-	v !== null && typeof v === "object" && Object.getPrototypeOf(v) === Object.prototype;
 const build = (name, args) => {
-	const [attrs, children] = isAttrs(args[0]) ? [args[0], args.slice(1)] : [{}, args];
+	const [attrs, children] = splitArgs(args);
 	const node = h(name, attrs, ...children);
 	const issues = [];
-	if (node.handlers.length > 0) issues.push(`${name} can't handle events`);
+	if (node.bindings.length > 0) issues.push(`${name} can't handle events`);
 	if (isTypeName(name)) checkType(node, issues);
 	else checkSlot(node, issues);
 	if (issues.length > 0) throw new JsAstError(issues);
 	return node;
 };
 // Destructure the ones a module uses: const { Identifier, Literal } = js; const { left } = js.
-export const js = new Proxy(Object.create(null), {
-	get: (_target, name) => (typeof name === "string" ? (...args) => build(name, args) : undefined),
-});
+export const js = tagProxy(build);

@@ -255,7 +255,6 @@ function morphNode(domNode, source, target, doc, ns) {
 	return newNode;
 }
 // A fragment contributes the sum of its children's DOM widths, including zero.
-// Snapshot references before editing; virtual indices need not equal DOM indices.
 function domWidth(vnode) {
 	return vnode instanceof VFragment
 		? vnode.children.reduce((n, child) => n + domWidth(child), 0)

@@ -48,8 +48,8 @@ export const TOOLS = {
 		children: PARAMS,
 		text: true,
 		check: (attrs, node, statics, issues) => {
-			if (node.handlers.length === 0) issues.push(`Tool ${attrs.name} needs an on:call`);
-			for (const { action } of node.handlers) {
+			if (node.bindings.length === 0) issues.push(`Tool ${attrs.name} needs an on:call`);
+			for (const { action } of node.bindings) {
 				if (!(action instanceof SendNode)) {
 					issues.push(`Tool ${attrs.name}'s on:call is a send, not ${JSON.stringify(action)}`);
 				}

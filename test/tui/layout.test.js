@@ -1,6 +1,6 @@
 import assert from "node:assert/strict";
 import test from "node:test";
-import { absolutize, calculateLayout, layoutTree, TDocument } from "../../src/tui/index.js";
+import { absolutize, calculateLayout, layoutInput, TDocument } from "../../src/tui/index.js";
 
 // A layout input from a compact description: [props, ...children], strings as text.
 const box = (props = {}, ...children) => ({
@@ -106,7 +106,7 @@ test("text wraps to its box, and a column grows to hold it", () => {
 	assert.deepEqual(l.children[0].lines, ["aaa", "bbb", "ccc"]);
 });
 
-test("layoutTree reads the terminal DOM: attributes parsed, comments skipped, bare text runs merged", () => {
+test("layoutInput reads the terminal DOM: attributes parsed, comments skipped, bare text runs merged", () => {
 	const doc = new TDocument();
 	const el = doc.createElement("box");
 	el.setAttribute("flexDirection", "row");
@@ -120,7 +120,7 @@ test("layoutTree reads the terminal DOM: attributes parsed, comments skipped, ba
 	];
 	for (const node of nodes) el.appendChild(node);
 	el.childNodes[3].appendChild(doc.createTextNode("\x1b[31mred"));
-	const tree = layoutTree(el);
+	const tree = layoutInput(el);
 	assert.deepEqual(tree.props, { flexDirection: "row", padding: 1, borderTop: false });
 	assert.deepEqual(
 		tree.children.map((c) => [c.type, c.props.children]),
@@ -131,6 +131,6 @@ test("layoutTree reads the terminal DOM: attributes parsed, comments skipped, ba
 	);
 	assert.throws(() => {
 		el.setAttribute("gap", "wide");
-		layoutTree(el);
+		layoutInput(el);
 	}, /gap must be a number/);
 });

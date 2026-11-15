@@ -16,8 +16,8 @@ export const componentHandlers = {
 };
 export class HandlerContext extends MessageContext {
 	/** @param {import("../model/scope.js").Scope | null} scope */
-	constructor(task, nextRequest, env, scope) {
-		super(task, nextRequest);
+	constructor(task, nextId, env, scope) {
+		super(task, nextId);
 		this.env = env;
 		this.scope = scope; // The handling component's scope, to make components from.
 		this.event = task.event ?? null; // The DOM event, in event tasks.
@@ -68,9 +68,9 @@ export class HostTask extends Task {
 		return this.now;
 	}
 }
-// A task's transaction: root with the node at path replaced by what fn makes of its draft.
-export const leafProduce = (root, path, fn) =>
-	produce(root, (rootDraft) => path.setIn(rootDraft, fn(path.getIn(rootDraft))));
+// A task's transaction: root with the node at keyPath replaced by what fn makes of its draft.
+export const leafProduce = (root, keyPath, fn) =>
+	produce(root, (rootDraft) => keyPath.setIn(rootDraft, fn(keyPath.getIn(rootDraft))));
 // The Scheduler that delivers host's tasks against its root: the tree's store is the host's
 // root, a transaction is immer's produce (dev mode's checks also record who wrote what), and the
 // host hears what happens through its hooks.
@@ -78,11 +78,13 @@ export const schedulerFor = (host) =>
 	new Scheduler({
 		handlers: componentHandlers,
 		store: { get: () => host.root, set: (root) => (host.root = root) },
-		transact: (root, path, fn) =>
-			host.checks !== null ? host.checks.transact(root, path, fn) : leafProduce(root, path, fn),
+		transact: (root, keyPath, fn) =>
+			host.checks !== null
+				? host.checks.transact(root, keyPath, fn)
+				: leafProduce(root, keyPath, fn),
 		hooks: {
-			context: (task, instance, nextRequest) =>
-				new HandlerContext(task, nextRequest, host.env, scopeOf(instance)),
+			context: (task, instance, nextId) =>
+				new HandlerContext(task, nextId, host.env, scopeOf(instance)),
 			beforeCommit: (prev, next, task) => host.engines.prepare(prev, next, task),
 			transition: (record, ctx) => host.transitioned(record, ctx),
 			wake: () => host.wake(),

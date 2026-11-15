@@ -30,7 +30,7 @@ import { dom, reportType, setupHost, unhandledNames } from "../helpers.js";
 const setup = (specs) => setupHost(specs, { sync: true });
 
 const actionNames = (spec, node) =>
-	spec.eventHandlers.get(node.eid).map((handler) => handler.action.name);
+	spec.eventBindings.get(node.eid).map((handler) => handler.action.name);
 
 const recordVisits = (seen) =>
 	new (class extends Walker {
@@ -109,9 +109,9 @@ test("elements with handlers get unique IDs, and the spec maps them without copy
 	assert.deepEqual(actionNames(spec, source), ["list"]);
 	assert.deepEqual(actionNames(spec, a), ["a"]);
 	assert.deepEqual(actionNames(spec, cd), ["c", "d"]);
-	assert.equal(spec.eventHandlers.size, 3);
+	assert.equal(spec.eventBindings.size, 3);
 	assert.deepEqual(spec.eventTypes, new Set(["click", "input", "blur"]));
-	assert.equal(spec.eventHandlers.get(source.eid), source.handlers);
+	assert.equal(spec.eventBindings.get(source.eid), source.bindings);
 });
 
 test("compilation collects handlers in attributes and children, not in action arguments", () => {
@@ -129,7 +129,7 @@ test("compilation collects handlers in attributes and children, not in action ar
 		[source, yes, no, child].map((node) => actionNames(spec, node)),
 		[["parent"], ["yes"], ["no"], ["child"]],
 	);
-	assert.equal(spec.eventHandlers.has(argument.eid), false);
+	assert.equal(spec.eventBindings.has(argument.eid), false);
 });
 
 test("shared templates keep one ID across views and components", () => {
@@ -142,9 +142,9 @@ test("shared templates keep one ID across views and components", () => {
 		},
 	});
 	assert.deepEqual(actionNames(spec, shared), ["shared"]);
-	assert.equal(spec.eventHandlers.size, 2);
+	assert.equal(spec.eventBindings.size, 2);
 	const other = component({ name: "B", view: shared });
-	assert.equal(other.eventHandlers.size, 1);
+	assert.equal(other.eventBindings.size, 1);
 });
 
 test("rendering adds data-eid only to elements with handlers", () => {

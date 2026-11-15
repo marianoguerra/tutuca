@@ -1,12 +1,14 @@
-// Component specs: component() turns options into a ComponentSpec that makes instances.
-import { immerable } from "../../../deps/immer.js";
-import { mint } from "../../tree/index.js";
-import { toNode, ViewNode } from "../view/view.js";
-import { eventHandlersOf } from "../view/walk.js";
-import { toMeta } from "./component-meta.js";
-import { QuerySpec, scopeSym, specSym, toAnswers, toMessages, toQueries } from "./spec.js";
-import { enabledTarget, enabledTargetNames } from "./targets.js";
-import { prefixed } from "./types.js";
+// Component specs: component() turns options into a ComponentSpec that makes instances. This is
+// where the model (fields, messages, queries: model/) and the views (view/) of a component meet;
+// neither imports the other's directory.
+import { immerable } from "../../deps/immer.js";
+import { mint } from "../tree/index.js";
+import { toMeta } from "./model/component-meta.js";
+import { QuerySpec, scopeSym, specSym, toAnswers, toMessages, toQueries } from "./model/spec.js";
+import { prefixed } from "./model/types.js";
+import { enabledTarget, enabledTargetNames } from "./view/targets.js";
+import { toNode, ViewNode } from "./view/view.js";
+import { eventBindingsOf } from "./view/walk.js";
 
 export class ComponentSpec {
 	constructor({
@@ -26,7 +28,7 @@ export class ComponentSpec {
 		meta,
 	}) {
 		this.name = name;
-		/** @type {Object<string, import("./types.js").Type>} */
+		/** @type {Object<string, import("./model/types.js").Type>} */
 		this.fields = fields;
 		this.methods = methods;
 		// Copy descriptors, not values, so getters in methods stay getters.
@@ -45,11 +47,11 @@ export class ComponentSpec {
 		this.implements = implemented;
 		// What it says about itself to hosts, by namespace URI (component-meta.js's toMeta), frozen.
 		this.meta = meta;
-		/** @type {Object<string, import("../view/view.js").ViewNode>} */
+		/** @type {Object<string, import("./view/view.js").ViewNode>} */
 		this.views = views;
 		// What it renders other than a page, by enabled target name (targets.js), each its views
 		// by name.
-		/** @type {Object<string, Object<string, import("../view/view.js").ViewNode>>} */
+		/** @type {Object<string, Object<string, import("./view/view.js").ViewNode>>} */
 		this.renders = renders;
 		this.on = on;
 		this.answers = answers; // ask name -> outcome (ok, error, unhandled) -> its handler.
@@ -57,10 +59,10 @@ export class ComponentSpec {
 		this.binds = binds; // name -> fn returning the names withBinds(name, ...) puts in scope.
 		this.provides = provides;
 		this.invariants = invariants; // name → predicate on the instance, checked in dev and tests.
-		this.eventHandlers = new Map(
-			[views, ...Object.values(renders)].flatMap((byName) => [...eventHandlersOf(byName)]),
+		this.eventBindings = new Map(
+			[views, ...Object.values(renders)].flatMap((byName) => [...eventBindingsOf(byName)]),
 		);
-		this.eventTypes = new Set([...this.eventHandlers.values()].flat().map((h) => h.type));
+		this.eventTypes = new Set([...this.eventBindings.values()].flat().map((h) => h.type));
 	}
 	// Its views for a RenderTarget, the page's for null; undefined when it renders nothing for it.
 	viewsFor(target) {

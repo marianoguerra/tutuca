@@ -8,6 +8,7 @@
 // CodeMirror (EditorView, EditorState, Compartment, keymap, basicSetup, javascript, oneDark),
 // fast-check and a margaui-style compile(classes) → css are passed in, as in the storybook.
 
+import { DevChecks } from "../dev/checks.js";
 import { defineTutucaApp } from "../embed/element.js";
 import { TimeTravel } from "../history/bar.js";
 import { bookClasses, logProblems, startPanelHost, uiClasses } from "../panels/host.js";
@@ -176,6 +177,7 @@ export const definePlayground = (window, { codemirror, fc, compile }) => {
 				rootNode,
 				components: playgroundComponents,
 				registryOf: () => this.registry,
+				checks: DevChecks,
 				askHandlers: { playground: ([op, id]) => this.onPick(op, id) },
 			});
 			this.host = host;

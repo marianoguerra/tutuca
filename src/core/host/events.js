@@ -92,10 +92,10 @@ export const pathOf = (node, rootNode) => {
 	const walk = walkUp(node, rootNode);
 	return walk === null || walk.components.length === 0 ? null : pathOfMarkers(walk.markers);
 };
-// The handler for a type event on target, with the address of its component and its element.
+// The event binding for a type event on target, with the address of its component and its element.
 // Only the component target is in handles it, unless bubbles: then the nearest enclosing
-// component with a handler for it does.
-export const handlerFor = (target, type, rootNode, root, bubbles = false) => {
+// component with a binding for it does.
+export const bindingFor = (target, type, rootNode, root, bubbles = false) => {
 	const walk = walkUp(target, rootNode);
 	if (walk === null) return null;
 	const levels = bubbles ? walk.components.length : Math.min(1, walk.components.length);
@@ -105,24 +105,33 @@ export const handlerFor = (target, type, rootNode, root, bubbles = false) => {
 		// What is outside the component below: its frame is the child the event came through.
 		const start = level === 0 ? 0 : walk.components[level - 1] + 1;
 		const to = Address.at(pathOfMarkers(walk.markers.slice(start)), root);
-		const { eventHandlers } = specOf(to.keyPath.getIn(root));
+		const { eventBindings } = specOf(to.keyPath.getIn(root));
 		for (const { eid, node } of eids) {
-			for (const handler of eventHandlers.get(eid) ?? []) {
-				if (handler.type === type) return { handler, to, node };
+			for (const binding of eventBindings.get(eid) ?? []) {
+				if (binding.type === type) return { binding, to, node };
 			}
 		}
 	}
 	return null;
 };
-// The send event's handler makes: { name, args, to, node }, args as values worked out as the
+// The send event's binding makes: { name, args, to, node }, args as values worked out as the
 // event arrives, as a handler's context would (view.js's EVENT_ARGS read the event, the element with the
-// handler, the drag and the key of the item the event reached); null when no handler takes it.
+// binding, the drag and the key of the item the event reached); null when no binding takes it.
 export const eventSend = (event, rootNode, root, drag, bubbles = false) => {
-	const found = handlerFor(event.target, event.type, rootNode, root, bubbles);
+	const found = bindingFor(event.target, event.type, rootNode, root, bubbles);
 	if (found === null) return null;
-	const { handler, to, node } = found;
+	const { binding, to, node } = found;
+	return {
+		name: binding.action.name,
+		args: eventArgs(binding.action, to, event, node, drag),
+		to,
+		node,
+	};
+};
+// The args of the send action as values, for an event that reached the component at to: what
+// view.js's EVENT_ARGS read.
+export const eventArgs = (action, to, event, node = null, drag = null) => {
 	const path = to.path.toNodePath();
 	const ctx = { event, node, drag, path, sourceKey: to.path.sourceKeyIn(path) };
-	const args = handler.action.args.map((arg) => arg.eval(ctx));
-	return { name: handler.action.name, args, to, node };
+	return action.args.map((arg) => arg.eval(ctx));
 };

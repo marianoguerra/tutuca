@@ -1,10 +1,9 @@
 // A preview of a renders.ps on a page, which can't run PostScript: the drawing renderPsTree
 // makes, drawn as SVG the way tutuca/ps prints it (its defaults, PostScript's y up, an Arc's line
 // from the current point). Fonts are the browser's look-alikes, so text widths differ a little.
-import { PAGE_SIZE } from "../../src/ps/index.js";
+import { asDocument, BLACK, pageSize, paintOf } from "../../src/ps/drawing.js";
 
 const SVG = "http://www.w3.org/2000/svg";
-const BLACK = "#000";
 const FAMILY = [
 	[/^(Times|NewCenturySchlbk|Palatino|Bookman)/, "serif"],
 	[/^Courier/, "monospace"],
@@ -51,13 +50,9 @@ const pathData = (segments) => {
 		.join(" ");
 };
 
-// fill and stroke as tutuca/ps paints them: black fill or stroke when it says neither.
-const paint = (node, encloses) => {
-	let { fill, stroke } = node;
-	if (fill === undefined && stroke === undefined) {
-		if (encloses) fill = BLACK;
-		else stroke = BLACK;
-	}
+// fill and stroke as tutuca/ps paints them (paintOf): black fill or stroke when it says neither.
+const paint = (node) => {
+	const { fill, stroke } = paintOf(node);
 	return {
 		fill: fill ?? "none",
 		stroke: stroke ?? "none",
@@ -90,14 +85,14 @@ const draw = (document, node) => {
 				y: node.y,
 				width: node.width,
 				height: node.height,
-				...paint(node, true),
+				...paint(node),
 			});
 		case "circle":
 			return make(document, "circle", {
 				cx: node.cx,
 				cy: node.cy,
 				r: node.r,
-				...paint(node, true),
+				...paint(node),
 			});
 		case "line":
 			return make(document, "line", {
@@ -105,15 +100,15 @@ const draw = (document, node) => {
 				y1: node.y1,
 				x2: node.x2,
 				y2: node.y2,
-				...paint(node, false),
+				...paint(node),
 			});
 		case "polyline":
 			return make(document, node.closed ? "polygon" : "polyline", {
 				points: node.points.map((p) => p.join(",")).join(" "),
-				...paint(node, node.closed === true),
+				...paint(node),
 			});
 		case "path":
-			return make(document, "path", { d: pathData(node.children), ...paint(node, true) });
+			return make(document, "path", { d: pathData(node.children), ...paint(node) });
 		case "text": {
 			const size = node.size ?? 12;
 			const lineHeight = node.lineHeight ?? size * 1.2;
@@ -140,13 +135,9 @@ const draw = (document, node) => {
 
 // An SVG per page of tree, a Document, a Page or a Graphic.
 export const previewPs = (document, tree) => {
-	const doc =
-		tree.type === "document"
-			? tree
-			: { children: [tree.type === "page" ? tree : { type: "page", children: [tree] }] };
+	const doc = asDocument(tree);
 	return doc.children.map((page) => {
-		const width = page.width ?? doc.width ?? PAGE_SIZE.width;
-		const height = page.height ?? doc.height ?? PAGE_SIZE.height;
+		const { width, height } = pageSize(doc, page);
 		const svg = make(document, "svg", {
 			viewBox: `0 0 ${width} ${height}`,
 			width,

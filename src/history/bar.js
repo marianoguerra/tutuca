@@ -1,6 +1,6 @@
 // The time travel bar: ⏮ ◀ ▶ ⏭, a slider over the states and what made the current one. It
 // holds no timeline, it shows the one it's given and asks "history" to move through it, with
-// [target, op, arg], op one of goto, back, forward, toStart and toEnd. mountTimeTravel puts
+// [appKey, op, arg], op one of goto, back, forward, toStart and toEnd. mountTimeTravel puts
 // one, with a historyEngine, next to a live Host.
 
 import { $if, button, component, field, Host, send, t, tag, targetValue } from "../tutuca.js";
@@ -21,7 +21,7 @@ const STEPS = [
 export const TimeTravel = component({
 	name: "TimeTravel",
 	fields: {
-		target: t.string(), // Passed along with each op: the app the timeline belongs to.
+		appKey: t.string(), // Passed along with each op: the app the timeline belongs to.
 		size: t.number().int().min(0),
 		cursor: t.number().int().min(0),
 		label: t.string(),
@@ -96,7 +96,7 @@ export const TimeTravel = component({
 			args: [t.enum(...MOVES)],
 			emits: { ask: ["history"] },
 			run(_next, [op], ctx) {
-				ctx.ask("history", [this.target, op, null]);
+				ctx.ask("history", [this.appKey, op, null]);
 			},
 		},
 		goto: {
@@ -104,7 +104,7 @@ export const TimeTravel = component({
 			emits: { ask: ["history"] },
 			run(_next, [value], ctx) {
 				const i = Number(value);
-				if (Number.isInteger(i)) ctx.ask("history", [this.target, "goto", i]);
+				if (Number.isInteger(i)) ctx.ask("history", [this.appKey, "goto", i]);
 			},
 		},
 		// Alt+← and Alt+→ step, Alt+Home and Alt+End jump to the ends.
@@ -115,7 +115,7 @@ export const TimeTravel = component({
 				const op = ctx.event?.altKey ? KEYS[ctx.event.key] : undefined;
 				if (op === undefined) return;
 				ctx.event.preventDefault?.();
-				ctx.ask("history", [this.target, op, null]);
+				ctx.ask("history", [this.appKey, op, null]);
 			},
 		},
 	},
@@ -145,7 +145,7 @@ export const mountTimeTravel = ({ document, rootNode, host, max = 1000 }) => {
 	const show = (timeline) => bar.send("show", showArgs(timeline));
 	const engine = historyEngine({ max, onChange: show });
 	bar.scope.registerAskHandlers({
-		history: ([_target, op, arg]) => engine[op](arg),
+		history: ([_appKey, op, arg]) => engine[op](arg),
 	});
 	bar.start(bar.scope.components.TimeTravel());
 	host.attachSync(engine);

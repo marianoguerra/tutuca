@@ -27,13 +27,10 @@
 // callLlmTool checks a call's input against its tool's schema and throws a ToolCallError whose
 // issues are what to tell the model.
 export { LlmError } from "./build.js";
-export { COMPARISONS, present } from "./cond.js";
-export { CONTEXT } from "./context.js";
+export { present } from "./cond.js";
 export {
 	formatValue,
-	lowerContext,
 	renderLlmContext,
-	renderLlmContextAst,
 } from "./context-render.js";
 export {
 	Case,
@@ -47,11 +44,8 @@ export {
 	Unless,
 	When,
 } from "./target.js";
-export { TOOLS } from "./tools.js";
 export {
 	callLlmTool,
-	inputIssues,
-	lowerTools,
 	renderLlmTools,
 	ToolCallError,
 } from "./tools-render.js";

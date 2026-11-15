@@ -1,22 +1,12 @@
 // What the two llm vocabularies share: the error they throw, how a tag reads its arguments, the
 // children a view says when it's built and the ones it renders.
+import { SchemaError } from "../checked/schema.js";
+import { isMarkerOpen, MARKER_CLOSE, parseMarker } from "../core/view/markers.js";
+import { isAttrs } from "../core/view/tag.js";
 import { CondNode, ConstantNode, ElementNode, h, ViewNode } from "../tutuca.js";
 import { VComment, VFragment, VText } from "../vdom/index.js";
 
-export const isAttrs = (v) =>
-	v !== null &&
-	typeof v === "object" &&
-	!(v instanceof ViewNode) &&
-	Object.getPrototypeOf(v) === Object.prototype;
-export const toNode = (v) => (v instanceof ViewNode ? v : new ConstantNode(v));
-
-export class LlmError extends Error {
-	constructor(issues) {
-		super(issues.length === 1 ? issues[0] : `${issues.length} issues:\n  ${issues.join("\n  ")}`);
-		this.name = "LlmError";
-		this.issues = issues;
-	}
-}
+export class LlmError extends SchemaError {}
 
 // A tag's arguments: its positional attrs first (Tool's name and on:call, Fact's name and
 // value), then an attrs object, then its children. A first argument that is an attrs object
@@ -81,8 +71,8 @@ export const flatten = (children, markers = []) => {
 	const visit = (list) => {
 		for (const child of list) {
 			if (child instanceof VComment) {
-				if (child.text === "§/§") stack.pop();
-				else if (child.text.startsWith("§{")) stack.push(JSON.parse(child.text.slice(1, -1)));
+				if (child.text === MARKER_CLOSE) stack.pop();
+				else if (isMarkerOpen(child.text)) stack.push(parseMarker(child.text));
 			} else if (child instanceof VFragment) visit(child.children);
 			else if (child instanceof VText) {
 				if (child.text === "") continue;
@@ -157,7 +147,7 @@ export const checkTag = (schema) => (tag, attrs, node, issues) => {
 	for (const name in spec.attrs ?? {}) {
 		if (!(name in attrs) && spec.attrs[name].required) issues.push(`${tag} needs ${name}`);
 	}
-	for (const { type } of node.handlers) {
+	for (const { type } of node.bindings) {
 		if (spec.handler !== type) {
 			issues.push(
 				spec.handler
@@ -178,9 +168,14 @@ export const checkTag = (schema) => (tag, attrs, node, issues) => {
 	spec.check?.(attrs, node, statics, issues);
 };
 // A vocabulary's tags, by name, as md and js are: const { Tool, Str } = llmTools.
+// extra are the names that aren't tags of the schema (When, Unless, Choose). A name that's
+// neither throws an LlmError when it's called, as md.Foo() does.
 export const vocabulary = (schema, extra = {}) => {
 	const build = tagBuilder(schema, checkTag(schema));
-	const tags = Object.create(null);
-	for (const name in schema) tags[name] = (...args) => build(name, args);
-	return Object.freeze(Object.assign(tags, extra));
+	return new Proxy(Object.create(null), {
+		get: (_target, name) => {
+			if (typeof name !== "string") return undefined;
+			return Object.hasOwn(extra, name) ? extra[name] : (...args) => build(name, args);
+		},
+	});
 };

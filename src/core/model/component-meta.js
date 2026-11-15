@@ -3,11 +3,10 @@
 // clash; a scope can register a schema for one, a shape of field types (key -> Type), against
 // which the components registered there are checked and from which metaOf fills defaults.
 
-import { scopeOf, specOf } from "./spec.js";
+import { scopeOf, specOrSelf } from "./spec.js";
 import { isRecord, unlessNoDefault } from "./types.js";
 
-const emptyMeta = Object.freeze(Object.create(null));
-const noMeta = Object.freeze({});
+const emptyMeta = Object.freeze({});
 export const toMeta = (name, meta) => {
 	if (meta === undefined) return emptyMeta;
 	if (!isRecord(meta)) throw new Error(`Component ${name}: meta must be an object`);
@@ -45,7 +44,7 @@ export const metaProblems = (uri, values, shape, scope = null) => {
 // What c (a component or its spec) says under uri, over the defaults of the schema scope (c's
 // own by default) has for uri: every key of a registered schema, else what c gives ({} for none).
 export const metaOf = (c, uri, scope = scopeOf(c)) => {
-	const given = (specOf(c) ?? c)?.meta?.[uri] ?? noMeta;
+	const given = specOrSelf(c)?.meta?.[uri] ?? emptyMeta;
 	const shape = scope?.lookupMetaSchema(uri) ?? null;
 	return shape === null ? given : Object.freeze(Object.assign(defaultsOf(shape, scope), given));
 };
@@ -74,7 +73,7 @@ const deepFreeze = (v) => {
 export const filledMeta = (c, uri, shape, scope = undefined) =>
 	deepFreeze(structuredClone({ ...defaultsOf(shape, scope), ...metaOf(c, uri, scope) }));
 // Whether c (a component or its spec) says anything under uri.
-export const hasMeta = (c, uri) => Object.hasOwn((specOf(c) ?? c)?.meta ?? {}, uri);
+export const hasMeta = (c, uri) => Object.hasOwn(specOrSelf(c)?.meta ?? emptyMeta, uri);
 // What's wrong with the shape of what c's spec says under uri, checked against shape; none
 // when it says nothing there.
 export const metaShapeProblems = (spec, uri, shape) =>

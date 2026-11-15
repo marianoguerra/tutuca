@@ -1,21 +1,17 @@
 // Rendering a component's renders.llmTools: the tool definitions a model is given (Anthropic's
 // shape: name, description, input_schema, a JSON Schema), and calling one of them: its input
 // checked against its schema, then its send, to the component it was rendered in.
-import { pathOfMarkers } from "../core/host/events.js";
-import { Address, RenderContext, specOf } from "../tutuca.js";
-import { toVChildren } from "../vdom/index.js";
+
+import { renderedVNodes } from "../checked/render.js";
+import { eventArgs, pathOfMarkers } from "../core/host/events.js";
+import { Address, specOf } from "../tutuca.js";
 import { attrsIssues, childIssue, flatten, LlmError, textIssue } from "./build.js";
 import { llmToolsTarget } from "./target.js";
 import { PARAMS, TOOLS } from "./tools.js";
 
 // A call a model made that can't be: there's no such tool now, or its input doesn't fit. Its
 // issues are written to be sent back to the model as the tool's error result.
-export class ToolCallError extends LlmError {
-	constructor(issues) {
-		super(issues);
-		this.name = "ToolCallError";
-	}
-}
+export class ToolCallError extends LlmError {}
 
 const NAME = /^[a-zA-Z0-9_-]{1,64}$/;
 // What's said in text among children, as one description.
@@ -199,11 +195,8 @@ export const lowerTools = (vnodes) => {
 	return { tools, calls };
 };
 
-const renderedTools = (instance, view) => {
-	const ctx = RenderContext.root(instance, { target: llmToolsTarget });
-	const node = ctx.getBestViewFor(specOf(instance), view);
-	return lowerTools(toVChildren(node.eval(ctx.with({ component: instance }))));
-};
+const renderedTools = (instance, view) =>
+	lowerTools(renderedVNodes(instance, llmToolsTarget, view));
 // The tool definitions instance's renders.llmTools (view, or main) says: what to give a model
 // as its tools. Throws an LlmError listing what isn't valid.
 export const renderLlmTools = (instance, { view } = {}) => renderedTools(instance, view).tools;
@@ -294,13 +287,11 @@ export const callLlmTool = (host, { name, input = {} }, { view } = {}) => {
 	const issues = inputIssues(call.schema, input);
 	if (issues.length > 0) throw new ToolCallError(issues);
 	const to = Address.at(pathOfMarkers([...call.markers].reverse()), root);
-	const handlers = specOf(to.keyPath.getIn(root)).eventHandlers.get(call.eid) ?? [];
-	const { action } = handlers.find((h) => h.type === "call");
+	const bindings = specOf(to.keyPath.getIn(root)).eventBindings.get(call.eid) ?? [];
+	const { action } = bindings.find((b) => b.type === "call");
 	// What a handler shared with the page reads of the event is there: ctx.event.preventDefault().
 	const event = { type: "call", tool: name, input, preventDefault() {} };
-	const path = to.path.toNodePath();
-	const ctx = { event, node: null, drag: null, path, sourceKey: to.path.sourceKeyIn(path) };
-	const args = action.args.map((arg) => arg.eval(ctx));
+	const args = eventArgs(action, to, event);
 	const task = host.send(action.name, args, { to, now: true, event });
 	return { name: action.name, args, to, task };
 };

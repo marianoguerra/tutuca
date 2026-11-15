@@ -1,6 +1,6 @@
-// src/core's layers: the model (specs, types, contracts, scopes) knows nothing of the host that
-// runs it, and of the views only what component() needs to build a spec's; the views know
-// nothing of the host.
+// src/core's layers: the model (specs, types, contracts, scopes) knows nothing of the views or
+// of the host that runs it, and the views know nothing of the host. component.js, where a
+// spec's model and views meet, is above both.
 import assert from "node:assert/strict";
 import { readdirSync, readFileSync } from "node:fs";
 import { test } from "node:test";
@@ -20,13 +20,10 @@ const from = (imports, layer) =>
 		.filter(({ spec }) => spec.startsWith(`../${layer}/`))
 		.map(({ file, spec }) => `${file} ${spec}`);
 
-test("the model imports nothing from the host, and from the views only to build them", () => {
+test("the model imports nothing from the host or the views", () => {
 	const imports = importsOf("model");
 	assert.deepEqual(from(imports, "host"), []);
-	assert.deepEqual(from(imports, "view"), [
-		"component.js ../view/view.js",
-		"component.js ../view/walk.js",
-	]);
+	assert.deepEqual(from(imports, "view"), []);
 });
 
 test("the views import nothing from the host", () => {

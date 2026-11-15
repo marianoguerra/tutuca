@@ -9,6 +9,7 @@
 //   (booleans may; absent, they're false).
 // - slots: its node fields, in ESTree order, each one(accepts), opt(accepts), many(accepts) or
 //   holes(accepts): an array that can hold nulls (js.Hole()).
+import { isAttrs } from "../core/view/tag.js";
 
 // A slot's arity: one node, an optional one, an array, an array with holes.
 const slot = (arity) => (accepts) => ({ arity, accepts });
@@ -339,8 +340,6 @@ export const HOLE = "Hole";
 // Node types are PascalCase, slots camelCase: js.BinaryExpression, js.left.
 export const isTypeName = (name) => /^[A-Z]/.test(name);
 
-const isPlainObject = (v) =>
-	v !== null && typeof v === "object" && Object.getPrototypeOf(v) === Object.prototype;
 const show = (v) => (typeof v === "string" ? JSON.stringify(v) : String(v));
 // What's wrong with value as the scalar name of a type, or null.
 export const scalarIssue = (type, name, value) => {
@@ -375,9 +374,7 @@ export const scalarIssue = (type, name, value) => {
 				? null
 				: `Literal value must be a string, number, boolean or null, not ${show(value)}`;
 		case "regex":
-			return isPlainObject(value) &&
-				typeof value.pattern === "string" &&
-				typeof value.flags === "string"
+			return isAttrs(value) && typeof value.pattern === "string" && typeof value.flags === "string"
 				? null
 				: "Literal regex must be { pattern, flags }, both strings";
 		case "bigint":
@@ -385,7 +382,7 @@ export const scalarIssue = (type, name, value) => {
 				? null
 				: `Literal bigint must be a string of digits, not ${show(value)}`;
 		case "templateValue":
-			return isPlainObject(value) && typeof value.raw === "string"
+			return isAttrs(value) && typeof value.raw === "string"
 				? null
 				: "TemplateElement value must be { raw, cooked }, raw a string";
 		default:

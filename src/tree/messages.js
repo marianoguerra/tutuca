@@ -9,7 +9,7 @@ import { hidden } from "./record.js";
 // The handler's contract counts what it emits, not what ran before it in the task (an ask
 // handler, before the reply's).
 const call = (handler, instance, next, args, ctx) => {
-	ctx.ran = { message: handler, args };
+	ctx.ran = { handler, args };
 	ctx.emitted = [];
 	const result = handler.pure
 		? handler.run.call(instance, next, args)
@@ -59,7 +59,7 @@ export class Task {
 		return false;
 	}
 	prepare(root) {
-		this.to ??= Address.of(this.target, root);
+		this.to ??= Address.ofTarget(this.target, root);
 	}
 	// A message the node has no handler for keeps it as it was, and is reported (unhandled).
 	run(handler, instance, next, ctx) {
@@ -73,8 +73,8 @@ export class Task {
 // the root, where it's reported unhandled, once, if no hop handled it. The hops are its sender's
 // ancestors when it starts: a bubble is one turn, so they can't move while it runs.
 export class NotifyTask extends Task {
-	constructor(name, args, from, target, parent, anyHopHandled = false, hops = null) {
-		super(name, args, from, target, parent);
+	constructor(name, args, from, parent, anyHopHandled = false, hops = null) {
+		super(name, args, from, null, parent);
 		this.anyHopHandled = anyHopHandled;
 		this.hops = hops;
 		this.to = hops?.[0] ?? null;
@@ -102,7 +102,7 @@ export class NotifyTask extends Task {
 		}
 		// The next hop runs right after this one, before anything else queued.
 		const { name, args, from, hops } = this;
-		ctx.nextHop = new NotifyTask(name, args, from, null, this, handled, hops.slice(1));
+		ctx.nextHop = new NotifyTask(name, args, from, this, handled, hops.slice(1));
 		return result;
 	}
 }

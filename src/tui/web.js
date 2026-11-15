@@ -6,7 +6,7 @@
 // No ANSI goes through: the cells' styles (SGR parameters, buffer.js's sgr) become CSS here, and
 // the colors are the truecolor ones a cell keeps. The 16 colors and the default ones are CSS
 // variables, --tui-color-0 to --tui-color-15, --tui-fg and --tui-bg, for a page to theme.
-import { rgbOf256 } from "./buffer.js";
+import { keep, rgbOf256 } from "./buffer.js";
 
 const UNDERLINE_STYLES = { 1: "solid", 2: "double", 3: "wavy", 4: "dotted", 5: "dashed" };
 const palette = (n) => (n < 16 ? `var(--tui-color-${n})` : `rgb(${rgbOf256(n).join(", ")})`);
@@ -16,7 +16,7 @@ const cssCache = new Map();
 // style attribute of what draws it; "" for none.
 export function sgrCss(style) {
 	if (style === "") return "";
-	let out = cssCache.get(style);
+	const out = cssCache.get(style);
 	if (out !== undefined) return out;
 	let fg = null;
 	let bg = null;
@@ -57,10 +57,7 @@ export function sgrCss(style) {
 	if (lines.length > 0) css.push(`text-decoration-line: ${lines.join(" ")}`);
 	if (underline !== null && underline !== "solid") css.push(`text-decoration-style: ${underline}`);
 	if (decorationColor !== null) css.push(`text-decoration-color: ${decorationColor}`);
-	out = css.join("; ");
-	if (cssCache.size >= 512) cssCache.delete(cssCache.keys().next().value);
-	cssCache.set(style, out);
-	return out;
+	return keep(cssCache, style, css.join("; "));
 }
 
 // One row of cells as a <div class="row">: text without a style as it is, a run with one as a

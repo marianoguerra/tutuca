@@ -17,7 +17,7 @@
 import { wrapComponent } from "./markers.js";
 import { Walker } from "./walk.js";
 
-export const NO_DEPS = [];
+const NO_DEPS = [];
 
 // What a render asks of its cache. The host calls begin and end around each render; renderView
 // calls render for every component and loops call fragment for every renderEach item.
@@ -26,8 +26,8 @@ export class RenderCache {
 	get usesSlots() {
 		return false;
 	}
-	// What the root's ctx starts with as cacheScope.
-	get scope() {
+	// What the root's ctx starts with as cacheLevel.
+	get rootLevel() {
 		return null;
 	}
 	begin() {}
@@ -99,7 +99,7 @@ const inPlace = (entries, view, ctx) => {
 // CopyCache keeps of the components it rendered. Subclasses say where entries live:
 // find(instance, view, ctx) is { hit, old }, hit the entry of instance in this place, old the
 // entry at its position to inherit children from (CopyCache); keep(entry, ctx, isHit) keeps it
-// for this render; childScope(entry, old) is the cacheScope its children render with.
+// for this render; childLevel(entry, old) is the cacheLevel its children render with.
 // trace, when set (CheckCache), gets every entry a render hit or made.
 export class DepsCache extends RenderCache {
 	last = null; // The entry render just returned the result of, for fragment.
@@ -127,9 +127,9 @@ export class DepsCache extends RenderCache {
 		const entry = { instance, view, viewStack, deps: NO_DEPS, result: null, misses };
 		entry.fragment = null;
 		entry.children = children;
-		const cacheScope = this.childScope(entry, old);
+		const cacheLevel = this.childLevel(entry, old);
 		const result = wrapComponent(
-			view.eval(ctx.with({ component: instance, deps, slot: "", cacheScope })),
+			view.eval(ctx.with({ component: instance, deps, slot: "", cacheLevel })),
 			providesIn(spec, ctx),
 		);
 		entry.deps = deps === null ? NO_DEPS : ownDeps(spec, deps);
@@ -143,7 +143,7 @@ export class DepsCache extends RenderCache {
 	newChildren() {
 		return null;
 	}
-	childScope(_entry, _old) {
+	childLevel(_entry, _old) {
 		return null;
 	}
 	// A loop item's fragment: the one it had when the component rendered in it (result, what
@@ -206,35 +206,35 @@ const inPlaceOf = (had, view, ctx) => {
 // instance shown again after a render without it (a tab switched back) renders again.
 export class CopyCache extends DepsCache {
 	tree = EMPTY_CHILDREN; // The root's children as the last render left them.
-	_scope = null;
+	_rootLevel = null;
 	get usesSlots() {
 		return true;
 	}
-	get scope() {
-		return this._scope;
+	get rootLevel() {
+		return this._rootLevel;
 	}
 	begin() {
 		super.begin();
-		this._scope = { from: this.tree, to: newChildren() };
+		this._rootLevel = { from: this.tree, to: newChildren() };
 	}
-	end(root, target, vdom) {
-		super.end(root, target, vdom);
-		this.tree = this._scope.to;
+	end(root, renderTarget, vdom) {
+		super.end(root, renderTarget, vdom);
+		this.tree = this._rootLevel.to;
 	}
 	find(instance, view, ctx) {
-		const { from } = ctx.cacheScope;
+		const { from } = ctx.cacheLevel;
 		const hit = inPlaceOf(from.byInstance.get(instance), view, ctx);
 		return { hit, old: hit ?? inPlaceOf(from.bySlot.get(ctx.slot), view, ctx) };
 	}
 	keep(entry, ctx) {
-		const { to } = ctx.cacheScope;
+		const { to } = ctx.cacheLevel;
 		push(to.byInstance, entry.instance, entry);
 		push(to.bySlot, ctx.slot, entry);
 	}
 	newChildren() {
 		return newChildren();
 	}
-	childScope(entry, old) {
+	childLevel(entry, old) {
 		if (entry.children === null) return null;
 		return { from: old?.children ?? EMPTY_CHILDREN, to: entry.children };
 	}
@@ -259,7 +259,7 @@ export const providesAny = (provides) => {
 };
 // Where each value a component provides is in it, { name: keys }, as ctx, the one the component
 // was entered with, has them; null when it provides nothing. It follows from the instance.
-export const providesIn = (spec, ctx) => {
+const providesIn = (spec, ctx) => {
 	const { provides } = spec;
 	if (!providesAny(provides)) return null;
 	const keysOf = {};
@@ -307,8 +307,9 @@ class FactsWalker extends Walker {
 	render(node) {
 		return union(RENDERS, this.node(node));
 	}
+	// Not its fallback, each: it renders components too.
 	renderEach(node) {
-		return union(RENDERS, this.node(node));
+		return this.render(node);
 	}
 }
 const factsWalker = new FactsWalker();

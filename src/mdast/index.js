@@ -30,9 +30,7 @@
 //   // "## Todo\n\n- [ ] Buy milk\n"
 //
 // What's checked, against one table (schema.js): what a view says, when it's built (tags.js),
-// and the tree it renders to, when it renders (lower.js, every node, with the path to it). Both
+// and the tree it renders to, when it renders (render.js, every node, with the path to it). Both
 // throw an MdAstError.
-export { lower } from "./lower.js";
 export { printMd, renderMd, renderMdAst } from "./render.js";
-export { ALIGNS, FLOW, PHRASING, SCHEMA } from "./schema.js";
 export { MdAstError, md, mdTarget } from "./target.js";

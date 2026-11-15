@@ -40,12 +40,12 @@
 		"./pbt": "./src/testing/pbt.js",
 		"./storybook": "./src/storybook/index.js",
 		"./element": "./src/embed/element.js",
-		"./playground": "./src/playground/index.js",
+		"./playground": "./src/playground/element.js",
 		"./history": "./src/history/index.js",
 		"./history/bar": "./src/history/bar.js",
 		"./sync": "./src/sync/index.js",
 		"./sync/remote": "./src/sync/remote.js",
-		"./automerge": "./src/sync/automerge.js",
+		"./sync/automerge": "./src/sync/automerge.js",
 		"./package.json": "./package.json"
 	},
 	"files": [

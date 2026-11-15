@@ -7,7 +7,7 @@
 //            delivering each direction's messages in order
 // batch:     { clientId, seq, base, ops }, base being the version the ops were made against
 // messages:  { type: "batch", clientId, seq, version, ops } | { type: "reject", clientId, seq }
-import { applyProjection, applyStateOps, opsOf, rootOps } from "./index.js";
+import { applyProjection, applyStateOps, opsOf, rootOps } from "./engine.js";
 import { writeFitting } from "./migrate.js";
 import { applyOps, OpConflictError } from "./ops.js";
 

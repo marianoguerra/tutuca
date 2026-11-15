@@ -1,7 +1,6 @@
 // The Driver (tutuca/testing): runs a component tree through a dev-mode Host with no timers,
 // headless or rendered, and keeps what it reports. Tests, stress runs and the live storybook
 // drive apps through it: it sends messages, answers asks and fires DOM events as a user would.
-import { isProblem, problemLines } from "../core/host/records.js";
 import { CheckCache } from "../dev/check-cache.js";
 import { DevChecks } from "../dev/checks.js";
 import {
@@ -12,7 +11,9 @@ import {
 	Frame,
 	Host,
 	isComponent,
+	isProblem,
 	NullCache,
+	problemLines,
 	Selector,
 	scopeOf,
 	specOf,
@@ -62,11 +63,6 @@ export const snapshot = (v) => {
 	return out;
 };
 
-// Runs messages on a component tree through Host's task handling in dev mode, with no
-// timers. With a document it renders too; otherwise it is headless. It keeps what the host
-// reports (Transitions and HostEvents), as it reports them. Live keeps the timers, for async
-// ask replies and events from a user, and only keeps problems in reports; onReport gets every
-// report as it happens.
 // The render cache a test host runs with when not told, from TUTUCA_RENDER_CACHE: none, weakmap
 // or copy, check:weakmap or check:copy to check every render against an uncached one; unset,
 // undefined: the Host's default (CopyCache).
@@ -84,6 +80,11 @@ export const renderCacheFromEnv = () => {
 	return check ? new CheckCache(make()) : make();
 };
 const specsOf = (root) => Object.values(specsByName(scopeOf(root)));
+// Runs messages on a component tree through Host's task handling in dev mode, with no
+// timers. With a document it renders too; otherwise it is headless. It keeps what the host
+// reports (Transitions and HostEvents), as it reports them. Live keeps the timers, for async
+// ask replies and events from a user, and only keeps problems in reports; onReport gets every
+// report as it happens.
 export class Driver {
 	constructor({
 		root,

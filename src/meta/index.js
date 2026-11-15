@@ -1,8 +1,9 @@
 // The meta conventions, built on the core's meta (metaOf, a scope's meta schemas) and using only
 // its public surface: what a component says to whoever displays it (display.js), what its whole
-// content is as JSON (data.js), what it says to an LLM agent that drives it (agent.js), and the
-// classes its views compute (classes.js). Both data and agent tell a model what a component takes as JSON Schema (json-schema.js) and why a call failed
-// (errors.js).
+// content is as JSON (data.js), what it says to an LLM agent that drives it (agent.js, and the
+// loop that does in agent-loop.js), and the classes its views compute (classes.js). Both data
+// and agent tell a model what a component takes as JSON Schema (json-schema.js) and why a call
+// failed (errors.js).
 export {
 	AGENT_META,
 	agentMetaSchemas,
@@ -10,18 +11,20 @@ export {
 	agentProblems,
 	agentTool,
 	hasAgentMeta,
+	planToolCall,
+	resultText,
+	summaryOf,
+	systemPrompt,
+	toolsFor,
+} from "./agent.js";
+export {
 	maxStepsOf,
 	nextAction,
 	pendingResults,
-	planToolCall,
 	reportType,
-	resultText,
 	settledText,
-	summaryOf,
-	systemPrompt,
 	toolResultMessage,
-	toolsFor,
-} from "./agent.js";
+} from "./agent-loop.js";
 export {
 	CLASSES_META,
 	classesMetaSchemas,

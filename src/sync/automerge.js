@@ -7,7 +7,7 @@ import * as A from "@automerge/automerge";
 import { StringType } from "../core/model/types.js";
 import { getIn, keyType, narrow, typeAt } from "./codec.js";
 import { diff } from "./diff.js";
-import { applyProjection, applyStateOps, opsOf, rootOps } from "./index.js";
+import { applyProjection, applyStateOps, opsOf, rootOps } from "./engine.js";
 import { writeFitting } from "./migrate.js";
 import { setOwn } from "./ops.js";
 

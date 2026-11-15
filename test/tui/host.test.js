@@ -409,3 +409,20 @@ test("an input looks like a field: underlined across its width, its placeholder 
 	assert.equal(cell(4).style, "7", "the caret, after it, is the one inverted cell");
 	assert.equal(cell(5).style, "4");
 });
+
+test("an attribute named like what layout keeps on an element (rect, layout) is an attribute", () => {
+	const Odd = component({
+		name: "Odd",
+		renders: {
+			tui: h("box", { rect: "mine", layout: "row", listeners: "none" }, h("text", {}, "hi")),
+		},
+	});
+	const app = start({ Odd }, Odd.make());
+	app.drain();
+	const box = app.screen.rootNode.childNodes.find((n) => n.nodeType === 1);
+	assert.equal(box.getAttribute("rect"), "mine");
+	assert.equal(box.getAttribute("layout"), "row");
+	assert.equal(box.getAttribute("listeners"), "none");
+	assert.equal(typeof box.rect.x, "number", "its rect is still layout's");
+	assert.deepEqual(app.at("hi"), [0, 0]);
+});

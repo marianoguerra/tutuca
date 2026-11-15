@@ -18,8 +18,8 @@ export function isConstant(node) {
 	}
 }
 
-// What every render of a Element shares, computed once when it's built:
-// - constant: handlers don't count, actions are evaluated on dispatch, not on render.
+// What every render of an ElementNode shares, computed once when it's built:
+// - constant: event bindings don't count, actions are evaluated on dispatch, not on render.
 // - shape: constant attrs (and data-eid) are applied once on create and never diffed.
 // - valueExprs: the other attrs, evaluated per render in shape.names order.
 // - children: constant children as prebuilt vnodes, so morph skips them by identity.

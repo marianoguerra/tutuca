@@ -92,7 +92,7 @@ export const treeHarness = ({ root, handler, askHandler = () => null, transition
 		store,
 		transact: (r, path, fn) => path.setIn(r, fn(path.getIn(r))),
 		hooks: {
-			context: (task, _node, nextRequest) => new MessageContext(task, nextRequest),
+			context: (task, _node, nextId) => new MessageContext(task, nextId),
 			transition,
 		},
 	});

@@ -20,28 +20,12 @@ import {
 	t,
 	tag,
 } from "../../tutuca.js";
+import { deref, expander, refIdOf, rowsView } from "./tree-node.js";
 
 const { button, div, h3, li, p, section, span, ul } = tag;
 
-// Live values stay out of the state: a node holds a ref to its value, so immer never walks
-// or freezes a spec, scope or task, and the state stays plain data.
-const refs = new Map();
-const ids = new WeakMap();
-let nextRef = 1;
-export const refIdOf = (v) => {
-	if (!isObject(v)) return 0;
-	let id = ids.get(v);
-	if (id === undefined) {
-		id = nextRef++;
-		ids.set(v, id);
-		refs.set(id, new WeakRef(v));
-	}
-	return id;
-};
-export const deref = (id) => refs.get(id)?.deref();
-
 // Classes for the styles of src/dev/formatters.js, by the name it gives them.
-export const TONES = {
+const TONES = {
 	plain: "",
 	name: "font-bold text-warning",
 	key: "text-secondary",
@@ -106,26 +90,7 @@ export const devNode = (C, label, value) => {
 const leafNode = (C, label, tokens) =>
 	C.DevNode({ label, tokens, title: tokens.map((t) => t.text).join("") });
 
-// A node's rows, when it's open.
-const rowsView = $if(
-	field("showRows"),
-	div({ class: "ml-1.5 border-l border-base-300 pl-3" }, renderEach(field("rows"))),
-	"",
-);
-const expander = $if(
-	field("canOpen"),
-	button(
-		{
-			type: "button",
-			class: "w-3 shrink-0 cursor-pointer opacity-60 hover:opacity-100",
-			"aria-label": "Expand",
-			"on:click": send("toggle"),
-		},
-		$if(field("isOpen"), "▾", "▸"),
-	),
-	span({ class: "w-3 shrink-0" }),
-);
-export const DevNode = component({
+const DevNode = component({
 	name: "DevNode",
 	meta: { [CLASSES_META]: { classes: Object.values(TONES).join(" ") } },
 	fields: {
@@ -246,7 +211,7 @@ const DevSection = component({
 const BADGE = "badge badge-sm shrink-0 whitespace-nowrap font-mono";
 const LEVELS = { error: `${BADGE} badge-error`, warning: `${BADGE} badge-warning` };
 // The issues of lint() from src/lint/index.js, as plain records.
-export const DevLint = component({
+const DevLint = component({
 	name: "DevLint",
 	meta: { [CLASSES_META]: { classes: Object.values(LEVELS).join(" ") } },
 	fields: {
@@ -313,7 +278,7 @@ export const lintRecords = (issues) =>
 const sectionCard = (name) =>
 	div({ class: "card border border-base-300 bg-base-100 p-4" }, render(field(name)));
 const VIEW_BUTTON = "btn btn-xs join-item";
-export const DevPanel = component({
+const DevPanel = component({
 	name: "DevPanel",
 	fields: {
 		view: t.enum("main", "code"),

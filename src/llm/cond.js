@@ -15,9 +15,11 @@
 // when all of them do; their values can be fields too ({ test: field("count"), atLeast:
 // field("limit") }). Only the branch that holds is rendered.
 
+import { isAttrs } from "../core/view/tag.js";
+import { toNode } from "../core/view/view.js";
 import { ViewNode } from "../tutuca.js";
 import { toVChildren, VFragment } from "../vdom/index.js";
-import { isAttrs, LlmError, toNode } from "./build.js";
+import { LlmError } from "./build.js";
 
 export const COMPARISONS = {
 	is: (a, b) => a === b,

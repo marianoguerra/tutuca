@@ -25,6 +25,15 @@ export const spliced = (children) => {
 	visit(children);
 	return out;
 };
+// tree in the nodes its printer starts from: an outer one holding inner ones (a document of
+// pages, or of sections), whichever of them tree lacks.
+export const wrapRoot = (tree, outer, inner) => {
+	if (tree.type === outer) return tree;
+	return {
+		type: outer,
+		children: [tree.type === inner ? tree : { type: inner, children: [tree] }],
+	};
+};
 const describe = (child) =>
 	typeof child === "string" ? `text ${JSON.stringify(child)}` : child.tag;
 

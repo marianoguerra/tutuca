@@ -52,6 +52,10 @@ host.start(host.scope.components.Counter());
 |---|---|
 | `tutuca` | components, views, schemas, the host, the `tag` and `button` element builders |
 | `tutuca/dev` | Dev mode: the `DevChecks` a `Host` runs (`new Host({ checks: DevChecks })`) and DevTools formatters |
+| `tutuca/tree` | the routing core on its own: paths, addresses, tasks, watches and the `Scheduler` |
+| `tutuca/meta` | the meta conventions a component can follow: classes, display, data and agent |
+| `tutuca/history` | time travel: `Timeline` and `historyEngine` |
+| `tutuca/history/bar` | the `TimeTravel` bar component |
 | `tutuca/lint` | the linter |
 | `tutuca/classes` | `collectClasses`, `classUsesOf`, `classNamesOf` and `ClassCompiler`, for CSS compilers that need class names listed. A component whose views compute a class (a field, query or bind in `class`) lists every class it can be in its classes meta, `meta: { [CLASSES_META]: { classes: "a b c" } }` (`CLASSES_META` is in `tutuca/meta`); lint warns with `undeclared-dynamic-class` when it doesn't |
 | `tutuca/testing` | the headless driver: `Driver` (send, answer, fire, drag), `testEnv` |
@@ -69,7 +73,7 @@ host.start(host.scope.components.Counter());
 | `tutuca/llm` | (experimental) components a model can read and use (opt in: `enableTargets(llmContextTarget, llmToolsTarget)`, tags from `tutuca/llm/target`): `renders.llmContext` is markdown for a context window (`Section`, `Fact`, `Items`, `Hint`, `Data`), printed by `renderLlmContext`; `renders.llmTools` is tool definitions (`Tool`, `Str`, `Enum`, ...), `renderLlmTools` gives them with JSON Schema inputs and `callLlmTool(host, { name, input })` checks and runs a call; `When`/`Unless`/`Choose` make both follow the state |
 | `tutuca/sync` | sync engines: projection, schema-guided diff, ops, `startSynced`, `storageEngine` |
 | `tutuca/sync/remote` | an engine that sends diffs to a remote and applies the ones it sends |
-| `tutuca/automerge` | an engine over an Automerge document (bring your own `@automerge/automerge`) |
+| `tutuca/sync/automerge` | an engine over an Automerge document (bring your own `@automerge/automerge`) |
 
 ## Docs
 

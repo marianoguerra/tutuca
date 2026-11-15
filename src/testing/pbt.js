@@ -235,7 +235,7 @@ const EVENT_ARG = { targetValue: eventValue, eventKey: eventKeyValue };
 const argsFor = (A, spec, message) => {
 	const { fc } = A;
 	if (message.args !== undefined) return fc.tuple(...message.args.map((type) => A.value(type)));
-	const sends = [...spec.eventHandlers.values()]
+	const sends = [...spec.eventBindings.values()]
 		.flat()
 		.map((h) => h.action)
 		.filter((action) => action.name === message.name);
@@ -385,7 +385,7 @@ const checkAfter = (cmd, model, driver, before) => {
 // The elements with handlers in driver's DOM, and the handlers of one of them.
 const handlerElements = (driver) => [...driver.rootNode.querySelectorAll("[data-eid]")];
 const handlersOf = (driver, el) =>
-	driver.specs.flatMap((spec) => spec.eventHandlers.get(Number(el.dataset.eid)) ?? []);
+	driver.specs.flatMap((spec) => spec.eventBindings.get(Number(el.dataset.eid)) ?? []);
 // A command that dispatches DOM events on the driver's DOM, then checks what they did.
 class DomCommand {
 	check() {

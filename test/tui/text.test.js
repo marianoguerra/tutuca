@@ -52,8 +52,9 @@ test("truncateText and padText fit text to a number of cells", () => {
 });
 
 test("carets move by grapheme and by word, and map to and from columns", async () => {
-	const { caretAtColumn, columnOf, nextBoundary, nextWord, previousBoundary, previousWord } =
-		await import("../../src/tui/index.js");
+	const { caretAtColumn, nextBoundary, nextWord, previousBoundary, previousWord } = await import(
+		"../../src/tui/index.js"
+	);
 	const s = "ab👍 cd  ef";
 	assert.equal(nextBoundary(s, 2), 4); // Past the whole emoji (two code units).
 	assert.equal(previousBoundary(s, 4), 2);
@@ -61,7 +62,6 @@ test("carets move by grapheme and by word, and map to and from columns", async (
 	assert.equal(previousWord(s, 9), 5);
 	assert.equal(nextWord(s, 0), 4);
 	assert.equal(nextWord(s, 4), 7);
-	assert.equal(columnOf(s, 4), 4); // a b and a two-cell emoji.
 	assert.equal(caretAtColumn(s, 3), 4); // The right half of the emoji is after it.
 	assert.equal(caretAtColumn(s, 2), 2);
 	assert.equal(caretAtColumn(s, 99), s.length);

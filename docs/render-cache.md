@@ -3,7 +3,7 @@
 A host renders with a `RenderCache`. `CopyCache`, the default, and `WeakMapCache` reuse what a
 component rendered before, when nothing its render depends on changed. `NullCache` renders every view
 from the root on every update. `CheckCache` checks a cache against an uncached render. Only the
-page's views are cached (`target === null`); other targets always render with `NullCache`.
+page's views are cached (`renderTarget === null`); other targets always render with `NullCache`.
 
 ```js
 new Host({ document, rootNode }); // a CopyCache
@@ -16,9 +16,9 @@ new Host({ document, rootNode, renderCache: new CheckCache(new CopyCache()) }); 
 ```js
 class RenderCache {
   get usesSlots()                       // whether renders compute ctx.slot
-  get scope()                           // the root ctx's cacheScope
+  get rootLevel()                       // the root ctx's cacheLevel
   begin()                               // a render starts
-  end(root, target, vdom)               // it rendered vdom for root
+  end(root, renderTarget, vdom)         // it rendered vdom for root
   render(instance, spec, view, ctx)     // a component's view between its markers
   fragment(result, wrapped, key, make)  // a renderEach item's fragment
 }
@@ -74,7 +74,7 @@ check.
 Subclasses only say where entries live:
 - `find(instance, view, ctx)` gives `{ hit, old }`.
 - `keep(entry, ctx, isHit)` keeps an entry for this render.
-- `childScope(entry, old)` is what its children render with.
+- `childLevel(entry, old)` is what its children render with.
 
 ## The strategies
 

@@ -20,9 +20,9 @@ import { Watches } from "./watch.js";
  * Where the root lives: the scheduler reads it before a task and sets it after one commits.
  * @typedef {{ get(): object, set(root: object): void }} Store
  *
- * One transaction: a new root from root, with the value at path replaced by what fn returns for
+ * One transaction: a new root from root, with the value at keyPath replaced by what fn returns for
  * a mutable draft of it (immer's produce, in tutuca).
- * @typedef {(root: object, path: import("./path.js").KeyPath, fn: (leaf: object) => object) => object} Transact
+ * @typedef {(root: object, keyPath: import("./path.js").KeyPath, fn: (leaf: object) => object) => object} Transact
  *
  * What the host hears and adds:
  * - context: the MessageContext a handler gets (a host's extends the tree's)
@@ -35,7 +35,7 @@ import { Watches } from "./watch.js";
  * - watchOpened, watchSettled: a watch (watch.js) started counting, and settled; the host arms
  *   and clears its timeout
  * @typedef {{
- *   context(task: object, instance: object, nextRequest: () => number): import("./context.js").MessageContext,
+ *   context(task: object, instance: object, nextId: () => number): import("./context.js").MessageContext,
  *   beforeCommit?(prev: object, next: object, task: object): () => void,
  *   transition(record: Transition, ctx?: import("./context.js").MessageContext): void,
  *   wake?(): void,
@@ -52,8 +52,8 @@ export class Scheduler {
 		this.hooks = hooks;
 		this.tasks = [];
 		this.pending = 0; // The asks whose answers are on their way.
-		this.requests = 0; // The ids of the asks made, counted per scheduler so runs repeat.
-		this.nextRequest = () => ++this.requests;
+		this.ids = 0; // The ids of the asks and watches made, counted per scheduler so runs repeat.
+		this.nextId = () => ++this.ids;
 		// The watches that haven't settled (watch.js), counting the tasks queued and run here.
 		this.watches = new Watches({
 			push: (task) => this.push(task),
@@ -126,15 +126,15 @@ export class Scheduler {
 			task.start(curRoot);
 		}
 		const { to } = task;
-		const path = to.keyPath;
+		const { keyPath } = to;
 		const instance = this.receiver(task, to, curRoot);
 		if (instance === null) return;
 		if (task instanceof AskTask) return this.startAsk(task, instance);
 		let ctx;
 		// What went unhandled before a failure is in its transition, as the spec and tutuca-wax
 		// report it.
-		const newRoot = this.transact(curRoot, path, (leafDraft) => {
-			ctx = hooks.context(task, instance, this.nextRequest);
+		const newRoot = this.transact(curRoot, keyPath, (leafDraft) => {
+			ctx = hooks.context(task, instance, this.nextId);
 			ran.ctx = ctx;
 			return task.run(handlers.handler(instance, task.hkey), instance, leafDraft, ctx);
 		});
@@ -179,7 +179,7 @@ export class Scheduler {
 	// the queue when it settles.
 	// An ask in a watch reads a signal, aborted if the watch is cancelled.
 	startAsk(task, instance) {
-		const ctx = this.hooks.context(task, instance, this.nextRequest);
+		const ctx = this.hooks.context(task, instance, this.nextId);
 		const handler = this.handlers.askHandler(instance, task.name);
 		const read = ctx.readable();
 		if (task.watch !== null) {

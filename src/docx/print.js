@@ -1,4 +1,4 @@
-// A document (what a renders.docx renders to, lower.js's) as a .docx file, made with docx
+// A document (what a renders.docx renders to, render.js's) as a .docx file, made with docx
 // (vendored as deps/docx.js), in browsers and node alike.
 //
 // What the document doesn't say:
@@ -29,6 +29,8 @@ import {
 	TextRun,
 	WidthType,
 } from "../../deps/docx.js";
+import { wrapRoot } from "../checked/lower.js";
+import { hexDigits } from "../checked/schema.js";
 import { INLINE, SCHEMA } from "./schema.js";
 
 const MONOSPACE = "Courier New";
@@ -49,10 +51,7 @@ const HEADINGS = [
 	HeadingLevel.HEADING_5,
 	HeadingLevel.HEADING_6,
 ];
-const hex = (color) => {
-	const h = color.slice(1);
-	return (h.length === 3 ? [...h].map((c) => c + c).join("") : h).toUpperCase();
-};
+const hex = (color) => hexDigits(color).toUpperCase();
 const isInline = (node) => node.type === "text" || inlineTypes.has(node.type);
 const inlineTypes = new Set(
 	Object.values(SCHEMA)
@@ -182,11 +181,7 @@ const NUMBERING = {
 	],
 };
 
-const asDocument = (tree) => {
-	if (tree.type === "document") return tree;
-	if (tree.type === "section") return { type: "document", children: [tree] };
-	return { type: "document", children: [{ type: "section", children: [tree] }] };
-};
+const asDocument = (tree) => wrapRoot(tree, "document", "section");
 const section = (node, lists) => {
 	const { width, height } = PAGE_SIZES[node.size ?? "A4"];
 	const landscape = node.orientation === "landscape";

@@ -19,12 +19,12 @@
 import { attr, vocabulary } from "./build.js";
 import { conditionals } from "./cond.js";
 
-export const FLOW = ["Section", "Text", "Hint", "Fact", "Items", "Data"];
-export const INLINE = ["Strong", "Em", "Code"];
-const inline = { children: INLINE, text: true };
+export const FLOW_TAGS = ["Section", "Text", "Hint", "Fact", "Items", "Data"];
+export const INLINE_TAGS = ["Strong", "Em", "Code"];
+const inline = { children: INLINE_TAGS, text: true };
 
 export const CONTEXT = {
-	Section: { positional: ["title"], attrs: { title: attr("string", true) }, children: FLOW },
+	Section: { positional: ["title"], attrs: { title: attr("string", true) }, children: FLOW_TAGS },
 	Text: inline,
 	Hint: inline,
 	Fact: {
@@ -33,7 +33,7 @@ export const CONTEXT = {
 		...inline,
 	},
 	Items: { attrs: { max: attr("number"), empty: attr("string") }, children: ["Item"] },
-	Item: { attrs: { done: attr("boolean") }, children: [...INLINE, "Items"], text: true },
+	Item: { attrs: { done: attr("boolean") }, children: [...INLINE_TAGS, "Items"], text: true },
 	Data: { positional: ["value"], attrs: { value: attr("any"), lang: attr("string") } },
 	Strong: inline,
 	Em: inline,

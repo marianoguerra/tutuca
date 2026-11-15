@@ -26,7 +26,7 @@ const stepFields = {
 };
 const entryFields = {
 	label: t.string(),
-	origin: t.enum("initial", "reload", "step", "user"),
+	origin: t.enum(...Object.keys(ORIGINS)),
 	problemCount: t.number().int().min(0),
 	isCurrent: t.boolean(),
 };

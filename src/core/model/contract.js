@@ -5,9 +5,8 @@
 // in validate.js.
 import { current, freeze, isDraft, produce } from "../../../deps/immer.js";
 import { idOf } from "../../tree/index.js";
-import { ComponentSpec } from "./component.js";
 import { Interface, interfaceProblems, resolveImplements } from "./interface.js";
-import { HandlerSpec, QuerySpec, scopeOf, specOf } from "./spec.js";
+import { HandlerSpec, isSpec, QuerySpec, scopeOf, specOf } from "./spec.js";
 import { argIssues, brokenInvariants, postHolds, preHolds } from "./validate.js";
 
 // Calling an interface operation a component doesn't support, or with what breaks its contract.
@@ -49,10 +48,10 @@ const failIf = (spec, name, issues, detail) => {
 };
 // Throws a ContractError when args don't fit message name of spec, or its pre doesn't hold on
 // prev, saying why when the message has a why.
-export const checkCall = (spec, name, message, prev, args, scope = scopeOf(prev)) => {
-	failIf(spec, name, argIssues(message.args, args, scope, prev));
-	if (!preHolds(message, prev, args, {})) {
-		failIf(spec, name, ["pre"], message.why?.call(prev, prev, args) ?? "");
+export const checkCall = (spec, name, handler, prev, args, scope = scopeOf(prev)) => {
+	failIf(spec, name, argIssues(handler.args, args, scope, prev));
+	if (!preHolds(handler, prev, args, {})) {
+		failIf(spec, name, ["pre"], handler.why?.call(prev, prev, args) ?? "");
 	}
 };
 // Throws a ContractError naming the invariants of instance that don't hold, after name.
@@ -68,20 +67,20 @@ export const checkInvariants = (spec, name, instance) =>
 // a new one, or c if nothing changed, and checks its invariants.
 export const apply = (c, name, ...args) => {
 	const spec = specOrThrow(c, name);
-	const message = spec.on[name];
-	if (!(message instanceof HandlerSpec)) throw new ContractError(spec.name, name, ["unknown"]);
-	if (!message.pure) throw new ContractError(spec.name, name, ["not-pure"]);
+	const handler = spec.on[name];
+	if (!(handler instanceof HandlerSpec)) throw new ContractError(spec.name, name, ["unknown"]);
+	if (!handler.pure) throw new ContractError(spec.name, name, ["not-pure"]);
 	const prev = isDraft(c) ? current(c) : c;
-	checkCall(spec, name, message, prev, args, scopeOf(c));
+	checkCall(spec, name, handler, prev, args, scopeOf(c));
 	applied?.add(idOf(c));
 	let next;
 	if (isDraft(c)) {
-		const result = message.run.call(prev, c, args);
+		const result = handler.run.call(prev, c, args);
 		next = result === undefined ? c : result;
 	} else {
-		next = produce(c, (draft) => message.run.call(prev, draft, args));
+		next = produce(c, (draft) => handler.run.call(prev, draft, args));
 	}
-	if (!postHolds(message, prev, next, args, {})) throw new ContractError(spec.name, name, ["post"]);
+	if (!postHolds(handler, prev, next, args, {})) throw new ContractError(spec.name, name, ["post"]);
 	if (!isDraft(next) && next !== c) checkInvariants(spec, name, next);
 	return next;
 };
@@ -116,9 +115,8 @@ export const canQuery = (c, name) => specOf(c)?.queries[name] instanceof QuerySp
 // What c (a component or its spec) offers: the interfaces it implements (resolved in its
 // scope), its messages, which pure, its queries and the notifies its handlers declare. No state.
 export const contractOf = (c) => {
-	const isSpec = c instanceof ComponentSpec;
-	const spec = isSpec ? c : specOrThrow(c, "contract");
-	const scope = isSpec ? null : scopeOf(c);
+	const spec = isSpec(c) ? c : specOrThrow(c, "contract");
+	const scope = isSpec(c) ? null : scopeOf(c);
 	const notifies = new Set();
 	const messages = Object.values(spec.on)
 		.filter((m) => m instanceof HandlerSpec)
@@ -136,11 +134,11 @@ export const contractOf = (c) => {
 	);
 	return { name: spec.name, implements: implemented, messages, queries, notifies: [...notifies] };
 };
-// What c lacks to implement iface (an Interface, or a name in c's scope), as messages: none
+// What c lacks to implement face (an Interface, or a name in c's scope), as messages: none
 // when it implements it.
-export const interfaceGaps = (c, iface) => {
+export const interfaceGaps = (c, face) => {
 	const spec = specOrThrow(c, "interfaceGaps");
-	const it = iface instanceof Interface ? iface : scopeOf(c)?.lookupInterface(iface);
-	if (it === null || it === undefined) return [`no interface ${String(iface)} in its scope`];
+	const it = face instanceof Interface ? face : scopeOf(c)?.lookupInterface(face);
+	if (it === null || it === undefined) return [`no interface ${String(face)} in its scope`];
 	return interfaceProblems(spec, it);
 };

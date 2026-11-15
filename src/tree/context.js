@@ -6,12 +6,12 @@ import { selectorFrom, Target } from "./path.js";
 import { Watch } from "./watch.js";
 
 export class MessageContext {
-	// nextRequest gives the id of an ask made from here; the scheduler's counts per scheduler, so
-	// runs repeat.
+	// nextId gives the id of an ask or a watch made from here; the scheduler's counts per
+	// scheduler, so runs repeat.
 	/** @param {Task} task */
-	constructor(task, nextRequest) {
+	constructor(task, nextId) {
 		this.task = task;
-		this.nextRequest = nextRequest;
+		this.nextId = nextId;
 		// In an answer handler, the id of the ask it answers (what ctx.ask returned); null
 		// elsewhere.
 		this.request = task.request ?? null;
@@ -26,7 +26,7 @@ export class MessageContext {
 		const through = task.from.isHost ? task.to : task.from;
 		this.sourceKey = through.path.sourceKeyIn(this.path);
 		this.isStopNextSet = false;
-		this.ran = null; // { message, args } once a handler runs.
+		this.ran = null; // { handler, args } once a handler runs.
 		this.emitted = []; // { kind, name, args } the handler sent, for the message's emits.
 		this.unhandled = []; // The messages it had no handler for.
 		this.nextHop = null; // For a notification going on up: its next hop.
@@ -42,13 +42,13 @@ export class MessageContext {
 	notify(name, args = []) {
 		this.emitted.push({ kind: "notify", name, args });
 		if (this.path.isRootPath) this.reportUnhandled(name, null);
-		else this.tasks.push(new NotifyTask(name, args, this.address, null, this.task));
+		else this.tasks.push(new NotifyTask(name, args, this.address, this.task));
 	}
 	// Asks the host; returns the request's id, which its answer's handler reads as ctx.request.
 	// Detached, the ask and its answer are in no watch: nothing waits for them.
 	ask(name, args = [], { detached = false } = {}) {
 		this.emitted.push({ kind: "ask", name, args });
-		const request = this.nextRequest();
+		const request = this.nextId();
 		const task = new AskTask(name, args, this.address, this.task, request);
 		if (detached) task.watch = null;
 		this.tasks.push(task);
@@ -77,7 +77,7 @@ export class MessageContext {
 		this.tasks.push(task);
 		if (watch.detached) task.watch = null;
 		if (watch.settled == null && watch.progress == null && watch.timeout == null) return undefined;
-		const id = this.nextRequest();
+		const id = this.nextId();
 		const outer = watch.detached ? null : this.task.watch;
 		task.watch = new Watch(id, this.address, watch, outer);
 		return id;

@@ -1,3 +1,7 @@
+// The linter: what's wrong in a component's views, handlers, fields and meta, found without
+// running it. A Lint is a Walker over a view's nodes that keeps where it is (the loop, the
+// event, the binds in reach) and collects issues ({ level, code, message, at }); lint checks
+// components, lintScope everything registered in a scope. It never compiles or changes them.
 import { classValueUsesOf } from "../css/classes.js";
 import { agentProblems, classesProblems, dataProblems, hasClassesMeta } from "../meta/index.js";
 import {
@@ -18,7 +22,7 @@ import {
 } from "../tutuca.js";
 
 // The kind of a node: the name of the Walker callback it dispatches to.
-const kindOf = (node) => (node instanceof ViewNode ? node.constructor.kind : null);
+const nodeKindOf = (node) => (node instanceof ViewNode ? node.constructor.kind : null);
 const SOURCE_KINDS = new Set(["field", "seqItem", "provided"]);
 // Nodes that read the component state or render, so they need a RenderContext.
 const RENDER_KINDS = new Set([
@@ -96,7 +100,7 @@ const META_PROBLEMS = [
 // What a node a class attribute computes its class from reads, as a view writes it: a path
 // labels a bind lookup by its kind alone.
 const sourceText = (node) => {
-	const kind = kindOf(node);
+	const kind = nodeKindOf(node);
 	return kind === "lookupBind" ? `lookupBind(${node.name})` : labelOf(node, kind);
 };
 // Bindings visible where an expression evaluates: inside a loop body (value and
@@ -354,7 +358,7 @@ export class Lint extends Walker {
 		}
 	}
 	checkSource(node) {
-		if (!SOURCE_KINDS.has(kindOf(node.source))) {
+		if (!SOURCE_KINDS.has(nodeKindOf(node.source))) {
 			this.report("error", "not-a-source", node, "the source must be field, seqItem or provided");
 		}
 	}
@@ -371,7 +375,7 @@ export class Lint extends Walker {
 		this.env = outer;
 	}
 	visit(node) {
-		const kind = kindOf(node);
+		const kind = nodeKindOf(node);
 		this.labels.push(labelOf(node, kind));
 		if (this.inAction && RENDER_KINDS.has(kind)) {
 			this.report("error", "state-in-action", node, `${kind} cannot be a send argument`);
@@ -379,7 +383,7 @@ export class Lint extends Walker {
 		this.labels.pop();
 	}
 	element(node) {
-		for (const { type } of node.handlers) {
+		for (const { type } of node.bindings) {
 			// Custom elements' events are often kebab-case, like emoji-click.
 			if (!/^[a-z]+(-[a-z0-9]+)*$/.test(type)) {
 				this.report("warning", "unknown-event", node, `"${type}" is not a lower-case event type`);
@@ -402,9 +406,9 @@ export class Lint extends Walker {
 			this.report("warning", "undeclared-dynamic-class", node, message);
 		}
 	}
-	handler(_node, { type, action }) {
+	binding(_node, { type, action }) {
 		this.labels.push(`[on:${type}]`);
-		if (kindOf(action) !== "send") {
+		if (nodeKindOf(action) !== "send") {
 			this.report("error", "event-needs-send", action, `on:${type} needs a send action`);
 		} else {
 			const message = this.spec.on[action.name];
@@ -431,7 +435,7 @@ export class Lint extends Walker {
 			return;
 		}
 		node.args.forEach((arg, i) => {
-			if (kindOf(arg) === "constant" && !types[i].isValid(arg.value, null)) {
+			if (nodeKindOf(arg) === "constant" && !types[i].isValid(arg.value, null)) {
 				this.report("error", `${code}-arg-type`, node, `${call} arg ${i} doesn't match its type`);
 			}
 		});
@@ -525,7 +529,7 @@ export class Lint extends Walker {
 		this.checkViewName(node, node.viewName);
 	}
 	pushView(node) {
-		if (kindOf(node.source) === "constant") this.checkViewName(node, node.source.value);
+		if (nodeKindOf(node.source) === "constant") this.checkViewName(node, node.source.value);
 		super.node(node);
 	}
 	each(node) {
@@ -539,7 +543,7 @@ export class Lint extends Walker {
 		this.checkSource(node);
 		this.visit(node.source);
 		const body = { loop: true, open: loop?.enrich !== undefined };
-		if (kindOf(node) === "each") this.withEnv(body, () => this.visit(node.child));
+		if (nodeKindOf(node) === "each") this.withEnv(body, () => this.visit(node.child));
 	}
 	withBinds(node) {
 		if (this.lookupSection("binds", node.bindsName) === undefined) {

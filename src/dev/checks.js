@@ -92,16 +92,16 @@ export class DevChecks {
 		return this.state(null, null, root);
 	}
 	// A task's transaction, as the host's, recording the foreign writes it makes.
-	transact(root, path, fn) {
-		const [next, ids] = trackApplies(() => leafProduce(root, path, fn));
-		this.writes = foreignWrites(path.getIn(root), path.getIn(next), ids);
+	transact(root, keyPath, fn) {
+		const [next, ids] = trackApplies(() => leafProduce(root, keyPath, fn));
+		this.writes = foreignWrites(keyPath.getIn(root), keyPath.getIn(next), ids);
 		return next;
 	}
 	// A pure message applied from outside the tree (host.apply): the writes of producer, under the
-	// component at path. Returns [the new root, its issues].
-	applied(name, root, path, producer) {
+	// component at keyPath. Returns [the new root, its issues].
+	applied(name, root, keyPath, producer) {
 		const [next, ids] = trackApplies(() => produce(root, producer));
-		const writes = foreignWrites(path.getIn(root), path.getIn(next), ids);
+		const writes = foreignWrites(keyPath.getIn(root), keyPath.getIn(next), ids);
 		return [next, messageIssuesOf(name, [], writes)];
 	}
 	// The fields that changed from prevRoot to root. A task can leave invariants broken for the
@@ -119,7 +119,7 @@ export class DevChecks {
 		const writes = this.writes;
 		this.writes = [];
 		if (ctx.ran === null) return [];
-		const { message, args } = ctx.ran;
-		return messageIssuesOf(message.name, messageIssues(message, prev, next, args, ctx), writes);
+		const { handler, args } = ctx.ran;
+		return messageIssuesOf(handler.name, messageIssues(handler, prev, next, args, ctx), writes);
 	}
 }

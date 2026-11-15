@@ -13,7 +13,7 @@ export const BLOCK = "Block";
 export const INLINE = "Inline";
 
 export const ALIGNS = ["left", "center", "right", "justify"];
-export const PAGE_SIZES = ["A4", "Letter"];
+export const PAGE_SIZE_NAMES = ["A4", "Letter"];
 export const ORIENTATIONS = ["portrait", "landscape"];
 // Word's highlight colors.
 export const HIGHLIGHTS = ["yellow", "green", "cyan", "magenta", "blue", "red", "lightGray"];
@@ -27,7 +27,10 @@ export const SCHEMA = {
 		creator: opt("string"),
 		description: opt("string"),
 	}),
-	Section: parent("section", [], B, { size: oneOf(PAGE_SIZES), orientation: oneOf(ORIENTATIONS) }),
+	Section: parent("section", [], B, {
+		size: oneOf(PAGE_SIZE_NAMES),
+		orientation: oneOf(ORIENTATIONS),
+	}),
 	// Blocks
 	Paragraph: parent("paragraph", B, I, { align: oneOf(ALIGNS) }),
 	Heading: parent("heading", B, I, { level: oneOf([1, 2, 3, 4, 5, 6], false) }),

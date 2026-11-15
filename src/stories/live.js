@@ -1,7 +1,7 @@
 // Runs stories live in <tutuca-app>s for the UI: a StoryRunner per mounted app, with a timeline
 // of states, and the StoryRegistry that answers the UI's "story" asks.
 
-import { argsLabel } from "../core/host/text.js";
+import { argsLabel } from "../core/text.js";
 import { ClassCompiler } from "../css/classes.js";
 import { Timeline } from "../history/index.js";
 import { lint } from "../lint/index.js";

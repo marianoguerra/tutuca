@@ -3,7 +3,7 @@
 // LICENSE.tuiuiu), with NO_COLOR and FORCE_COLOR as their conventions say.
 //
 // colors is "truecolor", 256, 16 or 0 (no color, attributes only); paint keeps full colors in
-// the cells and the output reduces them to this (buffer.js's toTerminal).
+// the cells and the output reduces them to this (buffer.js's reduceStyle).
 
 // Terminals that set an environment variable of their own, and whether they draw 24-bit color.
 const PROFILES = [

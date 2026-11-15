@@ -1,5 +1,5 @@
 // Field types of components: t's builders, the checks their constraints run, and how they
-// make and validate values. Component specs are in component.js, their contracts in contract.js.
+// make and validate values. Component specs are in ../component.js, their contracts in contract.js.
 import { Interface, implementsIface } from "./interface.js";
 import { isComponent, specOf } from "./spec.js";
 
@@ -202,8 +202,8 @@ export class ArrayType extends ContainerType {
 	constructor(valueType) {
 		super([], valueType);
 	}
-	isValidValue(value, scope) {
-		return Array.isArray(value) && value.every((v) => this.valueType.isValid(v, scope));
+	isValidValue(value, scope, owner) {
+		return Array.isArray(value) && value.every((v) => this.valueType.isValid(v, scope, owner));
 	}
 }
 // A record with arbitrary string keys and values of one type.
@@ -212,8 +212,10 @@ export class MapType extends ContainerType {
 	constructor(valueType) {
 		super({}, valueType);
 	}
-	isValidValue(value, scope) {
-		return isRecord(value) && Object.values(value).every((v) => this.valueType.isValid(v, scope));
+	isValidValue(value, scope, owner) {
+		return (
+			isRecord(value) && Object.values(value).every((v) => this.valueType.isValid(v, scope, owner))
+		);
 	}
 }
 // A record with exactly the keys of shape, each of its own type.
@@ -231,17 +233,17 @@ export class RecordType extends Type {
 		if (this.defaultValue !== undefined) return super.makeDefault(scope, owner);
 		const entries = Object.entries(this.shape).map(([k, type]) => {
 			try {
-				return [k, type.make(undefined, scope)];
+				return [k, type.make(undefined, scope, owner)];
 			} catch (error) {
 				throw prefixed(k, error);
 			}
 		});
 		return Object.fromEntries(entries);
 	}
-	isValidValue(value, scope) {
+	isValidValue(value, scope, owner) {
 		if (!isRecord(value)) return false;
 		if (Object.keys(value).some((k) => !Object.hasOwn(this.shape, k))) return false;
-		return Object.entries(this.shape).every(([k, type]) => type.isValid(value[k], scope));
+		return Object.entries(this.shape).every(([k, type]) => type.isValid(value[k], scope, owner));
 	}
 }
 export class OneOfType extends Type {

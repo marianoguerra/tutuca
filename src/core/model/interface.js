@@ -22,26 +22,27 @@ const sameTypes = (want = [], got = undefined) =>
 	got !== undefined &&
 	want.length === got.length &&
 	want.every((t, i) => sigText(t) === sigText(got[i]));
-// What spec lacks to implement iface, as messages: each of iface's messages a handler with the
+// What spec lacks to implement face, as messages: each of face's messages a handler with the
 // same arg types (a pure one does too), each pure message a pure one, each query one of the
 // same args and returns. Undeclared types only match no args. notifies aren't checked: a
 // handler need not declare what it emits.
-export const interfaceProblems = (spec, iface) => {
+const takes = (args) => `takes (${(args ?? []).map(sigText).join(", ")})`;
+export const interfaceProblems = (spec, face) => {
 	const problems = [];
 	const missing = (what, name) => problems.push(`its ${what} ${name} is missing`);
 	const mismatch = (what, name, detail) =>
-		problems.push(`its ${what} ${name} ${detail}, ${iface.name}'s doesn't`);
+		problems.push(`its ${what} ${name} ${detail}, ${face.name}'s doesn't`);
 	const checkMessage = (name, args, pure) => {
 		const h = spec.on[name];
 		if (!(h instanceof HandlerSpec)) return missing(pure ? "pure message" : "message", name);
-		if (pure && !h.pure) problems.push(`its message ${name} isn't pure, ${iface.name}'s is`);
+		if (pure && !h.pure) problems.push(`its message ${name} isn't pure, ${face.name}'s is`);
 		if (!(args.length === 0 && h.args === undefined) && !sameTypes(args, h.args))
-			mismatch("message", name, `takes (${(h.args ?? []).map(sigText).join(", ")})`);
+			mismatch("message", name, takes(h.args));
 	};
-	for (const name in iface.messages) checkMessage(name, iface.messages[name], false);
-	for (const name in iface.pure) checkMessage(name, iface.pure[name], true);
-	for (const name in iface.queries) {
-		const want = iface.queries[name];
+	for (const name in face.messages) checkMessage(name, face.messages[name], false);
+	for (const name in face.pure) checkMessage(name, face.pure[name], true);
+	for (const name in face.queries) {
+		const want = face.queries[name];
 		const q = spec.queries[name];
 		if (!(q instanceof QuerySpec)) {
 			missing("query", name);
@@ -51,7 +52,7 @@ export const interfaceProblems = (spec, iface) => {
 		if (
 			wantArgs.length === 0 ? q.kind === "call" && q.args?.length > 0 : !sameTypes(wantArgs, q.args)
 		)
-			mismatch("query", name, `takes (${(q.args ?? []).map(sigText).join(", ")})`);
+			mismatch("query", name, takes(q.args));
 		if (want.returns !== undefined) {
 			if (q.returns === undefined) problems.push(`its query ${name} doesn't say what it returns`);
 			else if (sigText(want.returns) !== sigText(q.returns))
@@ -66,17 +67,17 @@ export const resolveImplements = (spec, scope) =>
 	spec.implements.map((it) =>
 		it instanceof Interface ? it : (scope?.lookupInterface(it) ?? null),
 	);
-// Whether value is a component implementing iface: it says so, in its scope, or its scope makes
+// Whether value is a component implementing face: it says so, in its scope, or its scope makes
 // it by the interface's name.
-export const implementsIface = (value, iface) => {
+export const implementsIface = (value, face) => {
 	const spec = specOf(value);
 	if (spec === undefined) return false;
 	const scope = scopeOf(value);
-	if (resolveImplements(spec, scope).includes(iface)) return true;
+	if (resolveImplements(spec, scope).includes(face)) return true;
 	if (scope === null) return false;
 	for (const s of scope.ancestors()) {
 		for (const name in s.interfaces) {
-			if (s.interfaces[name] === iface && scope.lookupSpec(name) === spec) return true;
+			if (s.interfaces[name] === face && scope.lookupSpec(name) === spec) return true;
 		}
 	}
 	return false;

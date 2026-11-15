@@ -1,5 +1,6 @@
-// What a drawing (a tree lower.js makes) means where it doesn't say, for everything that draws
-// one: print.js's PostScript, tutuca/pdf's PDF and the Renders demo's SVG preview.
+// What a drawing (a tree render.js makes) means where it doesn't say, for everything that draws
+// one: print.js's PostScript, tutuca/pdf's PDF and the Renders demo's SVG preview
+// (demos/renders/ps-preview.js).
 // - A Page or a Graphic at the root is put in a document, a Graphic in a page.
 // - A page is A4 (595 × 842) unless it or its document says its size.
 // - A shape that says neither fill nor stroke fills black if it encloses an area (Rect, Circle,
@@ -9,17 +10,15 @@
 // - A Group's nth child is moved n times stepX, stepY.
 // - An Arc's angles are degrees; it sweeps counterclockwise (clockwise if it says so) from from
 //   to to, adding 360 until it gets there, and starts with a line from the current point.
+import { wrapRoot } from "../checked/lower.js";
+import { hexDigits } from "../checked/schema.js";
 
 export const PAGE_SIZE = Object.freeze({ width: 595, height: 842 });
 export const DEFAULT_FONT = "Helvetica";
 export const DEFAULT_SIZE = 12;
 export const BLACK = "#000";
 
-export const asDocument = (tree) => {
-	if (tree.type === "document") return tree;
-	if (tree.type === "page") return { type: "document", children: [tree] };
-	return { type: "document", children: [{ type: "page", children: [tree] }] };
-};
+export const asDocument = (tree) => wrapRoot(tree, "document", "page");
 export const pageSize = (doc, page) => ({
 	width: page.width ?? doc.width ?? PAGE_SIZE.width,
 	height: page.height ?? doc.height ?? PAGE_SIZE.height,
@@ -63,7 +62,12 @@ export const arcSweep = ({ from, to, clockwise }) => {
 
 // A color's red, green and blue, 0 to 1.
 export const rgbOf = (color) => {
-	const hex = color.slice(1);
-	const full = hex.length === 3 ? [...hex].map((c) => c + c).join("") : hex;
+	const full = hexDigits(color);
 	return [0, 2, 4].map((i) => Number.parseInt(full.slice(i, i + 2), 16) / 255);
+};
+// The fonts the text under node is in.
+export const fontsIn = (node, fonts = new Set()) => {
+	if (node.type === "text" && textLines(node).length > 0) fonts.add(fontOf(node));
+	for (const child of node.children ?? []) fontsIn(child, fonts);
+	return fonts;
 };

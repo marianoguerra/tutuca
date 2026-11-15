@@ -202,6 +202,26 @@ test("index fields are keys of a sibling collection", () => {
 	);
 });
 
+test("index types inside arrays, maps and records are checked against the owner's field", () => {
+	const Picks = component({
+		name: "Picks",
+		fields: {
+			items: t.array().default(["a", "b"]),
+			picked: t.array(t.index("items")),
+			byName: t.map(t.index("items")),
+			pair: t.record({ first: t.index("items") }),
+		},
+		view: "picks",
+	});
+	const picks = Picks.make({ picked: [0, 1], byName: { x: 1 } });
+	assert.deepEqual(picks.picked, [0, 1]);
+	assert.deepEqual(picks.byName, { x: 1 });
+	assert.deepEqual(picks.pair, { first: 0 }, "a record's default is made with the owner");
+	assert.deepEqual(Picks.make({ picked: [0, 5] }).picked, [], "5 isn't a key of items");
+	assert.deepEqual(Picks.make({ byName: { x: 9 } }).byName, {});
+	assert.deepEqual(Picks.make({ pair: { first: 7 } }).pair, { first: 0 });
+});
+
 test("broken invariants are reported on the component", () => {
 	const Range = component({
 		name: "Range",

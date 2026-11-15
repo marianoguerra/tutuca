@@ -1,6 +1,7 @@
 // The panels of a story's app, shared by the storybook and the playground: the steps, the
 // stress test, the dev panel and the path tree, fed by the reports of its <tutuca-app>.
 
+import { REPORT } from "../../embed/element.js";
 import { $if, apply, field, render, scopeOf, send, t, tag } from "../../tutuca.js";
 import { isShown } from "./common.js";
 import { devComponents, makeDevPanel } from "./dev-panel.js";
@@ -66,7 +67,7 @@ export const storyApp = () =>
 	tag["tutuca-app"]({
 		class: "block",
 		"app-key": field("appKey"),
-		"on:tutucareport": send("appReport"),
+		[`on:${REPORT}`]: send("appReport"),
 	});
 // New panels in next for the app it now shows, next.appKey.
 export const resetPanels = (self, next) => {

@@ -1,6 +1,6 @@
 // DevTools custom formatters for tutuca values (Chrome/Firefox).
 
-import { truncate } from "../core/host/text.js";
+import { truncate } from "../core/text.js";
 import {
 	frameOfMarker,
 	isComponentMarker,
@@ -33,7 +33,7 @@ import {
 	Walker,
 } from "../tutuca.js";
 import { install, join, makeFormatter, objectRef, span } from "./jsonml.js";
-import { brief, isTutucaComponent, SUMMARIES, taskVerb } from "./summary.js";
+import { brief, hasComponentSpec, SUMMARIES, taskVerb } from "./summary.js";
 import { installVdomFormatters } from "./vdom-formatters.js";
 
 export const STYLES = {
@@ -60,7 +60,7 @@ export const prim = (v) => {
 	if (v === null || v === undefined) return span(STYLES.muted, String(v));
 	if (typeof v === "function") return span(STYLES.fn, `ƒ ${v.name}`);
 	if (typeof v === "symbol") return span(STYLES.fn, v.toString());
-	if (isTutucaComponent(v)) return span(STYLES.name, `‹${specOf(v).name}›`);
+	if (hasComponentSpec(v)) return span(STYLES.name, `‹${specOf(v).name}›`);
 	if (Array.isArray(v)) return span(STYLES.muted, `[${v.length}]`);
 	return span(STYLES.muted, "{…}");
 };
@@ -135,7 +135,7 @@ class Printer extends Walker {
 	}
 	element(node) {
 		this.emit(span(STYLES.fn, "h"), "(", prim(node.tagName));
-		const attrs = [...node.attrs, ...node.handlers.map((h) => [`on:${h.type}`, h.action])];
+		const attrs = [...node.attrs, ...node.bindings.map((h) => [`on:${h.type}`, h.action])];
 		if (attrs.length > 0) {
 			this.emit(", {");
 			attrs.forEach(([name, value], i) => {
@@ -220,7 +220,7 @@ const objectRows = (obj) => Object.keys(obj ?? {}).map((k) => [k, ref(obj[k])]);
 // summary(v) → { title, detail }, what it says in plain words (summary.js).
 const KINDS = [
 	{
-		test: isTutucaComponent,
+		test: hasComponentSpec,
 		summary: SUMMARIES.component,
 		header(v) {
 			const spec = specOf(v);
@@ -270,7 +270,7 @@ const KINDS = [
 			if (!(node instanceof ElementNode)) return node.childNodes().map((c) => [null, ref(c)]);
 			return [
 				...node.attrs.map(([name, value]) => [name, ref(value)]),
-				...node.handlers.map((h) => [`on:${h.type}`, ref(h.action)]),
+				...node.bindings.map((h) => [`on:${h.type}`, ref(h.action)]),
 				...node.children.map((c) => [null, ref(c)]),
 			];
 		},

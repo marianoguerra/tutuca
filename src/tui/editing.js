@@ -5,63 +5,49 @@
 // Offsets are UTF-16, as selectionStart is, always on grapheme boundaries.
 import {
 	caretAtColumn,
+	columnIn,
+	lineIndexAt,
+	linesOf,
 	nextBoundary,
 	nextWord,
 	previousBoundary,
 	previousWord,
-	stringWidth,
-	stripControls,
 } from "./text.js";
 
 export const isEditable = (el) =>
 	el?.nodeType === 1 && (el.localName === "input" || el.localName === "textarea");
 const isMultiline = (el) => el.localName === "textarea";
 
-// The lines of a value, as { start, end } offsets (end before its newline); an input's is one.
-export function linesOf(value, multiline = true) {
-	if (!multiline) return [{ start: 0, end: value.length }];
-	const lines = [];
-	let start = 0;
-	for (;;) {
-		const nl = value.indexOf("\n", start);
-		if (nl === -1) {
-			lines.push({ start, end: value.length });
-			return lines;
-		}
-		lines.push({ start, end: nl });
-		start = nl + 1;
-	}
-}
-export const lineIndexAt = (lines, at) => {
-	let i = lines.length - 1;
-	while (i > 0 && lines[i].start > at) i--;
-	return i;
-};
-// The column of an offset in its line, as it's drawn.
-export const columnIn = (value, line, at) =>
-	stringWidth(stripControls(value.slice(line.start, at)));
-
 // The offset at a column of a row of el's value, as a click there puts the caret.
-export function offsetAt(el, column, row = 0) {
+export function offsetAtCell(el, column, row = 0) {
 	const value = el.value;
 	const lines = linesOf(value, isMultiline(el));
 	const line = lines[Math.max(0, Math.min(lines.length - 1, row))];
 	return line.start + caretAtColumn(value.slice(line.start, line.end), Math.max(0, column));
 }
 
+// The column a caret moving up and down a textarea's lines keeps to, by element, while it does.
+const goals = new WeakMap();
+// The caret put at an offset, as a press there does; extend selects to it from the anchor.
+export function placeCaret(el, at, extend = false) {
+	el.select(extend ? el.anchor : at, at);
+	goals.delete(el);
+}
+
 // --- undo ------------------------------------------------------------------------------------
 
 const LIMIT = 200;
 // el's history, started again when its value changed from elsewhere (a render from the state).
+const histories = new WeakMap();
 function historyOf(el) {
-	let h = el._history;
+	let h = histories.get(el);
 	if (h === undefined || h.value !== el.value) {
 		h = { undo: [], redo: [], value: el.value, kind: null };
-		el._history = h;
+		histories.set(el, h);
 	}
 	return h;
 }
-const snapshot = (el) => ({ value: el.value, anchor: el._anchor, focus: el._focus });
+const snapshot = (el) => ({ value: el.value, anchor: el.anchor, focus: el.caret });
 // Before an edit of kind: a run of typing (insert) is one step back, as are other edits each.
 // Returns the history, for the edit to record the value it makes.
 function remember(el, kind) {
@@ -96,7 +82,7 @@ export function replace(el, from, to, text, kind = "edit") {
 	el.value = next;
 	el.select(from + text.length);
 	h.value = el.value;
-	el._goal = null;
+	goals.delete(el);
 	return true;
 }
 // The selection replaced by text (typed or pasted); newlines become spaces in an input.
@@ -133,8 +119,8 @@ export function editKey(
 	// Moves the caret to `to`, selecting from the anchor with Shift; keeps the goal column on
 	// vertical moves.
 	const move = (to, vertical = false) => {
-		if (!vertical) el._goal = null;
-		el.select(shiftKey ? el._anchor : to, to);
+		if (!vertical) goals.delete(el);
+		el.select(shiftKey ? el.anchor : to, to);
 		return done();
 	};
 	const removeRange = (from, to) =>
@@ -169,18 +155,16 @@ export function editKey(
 			const to = i + (key === "ArrowUp" ? -1 : 1);
 			if (to < 0) return move(0, true);
 			if (to >= lines.length) return move(value.length, true);
-			el._goal ??= columnIn(value, line, caret);
+			if (!goals.has(el)) goals.set(el, columnIn(value, line, caret));
 			const target = lines[to];
-			return move(
-				target.start + caretAtColumn(value.slice(target.start, target.end), el._goal),
-				true,
-			);
+			const at = caretAtColumn(value.slice(target.start, target.end), goals.get(el));
+			return move(target.start + at, true);
 		}
 	}
 	if (ctrlKey && !altKey) {
 		switch (key) {
 			case "a":
-				el._goal = null;
+				goals.delete(el);
 				el.select(0, value.length);
 				return done();
 			case "e":
@@ -205,10 +189,12 @@ export function editKey(
 				return done(redo(el));
 			case "c":
 				return selected ? done(false, { copy: el.selectedText }) : { handled: false };
-			case "x":
-				return selected
-					? done(removeRange(start, end).changed, { copy: el.selectedText })
-					: { handled: false };
+			case "x": {
+				if (!selected) return { handled: false };
+				// Read before removing: the selection is gone afterwards.
+				const copy = el.selectedText;
+				return done(removeRange(start, end).changed, { copy });
+			}
 			case "v":
 				return clipboard ? done(insert(el, clipboard, "edit")) : done();
 		}

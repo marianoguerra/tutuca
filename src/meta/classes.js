@@ -7,7 +7,7 @@
 // a string of class names separated by whitespace, as a class attribute holds them, and covers
 // every view, loop and bind of the component. Lint warns about a computed class in a component
 // that doesn't declare them.
-import { hasMeta, metaShapeProblems, specOf, t } from "../tutuca.js";
+import { hasMeta, metaShapeProblems, specOrSelf, t } from "../tutuca.js";
 
 export const CLASSES_META = "https://tutuca.dev/meta/classes";
 export const classesMetaSchemas = {
@@ -20,9 +20,9 @@ export const classesMetaSchemas = {
 export const hasClassesMeta = (c) => hasMeta(c, CLASSES_META);
 // The class names c (a component or its spec) declares; [] when it declares none.
 export const declaredClassesOf = (c) => {
-	const classes = (specOf(c) ?? c)?.meta?.[CLASSES_META]?.classes;
+	const classes = specOrSelf(c)?.meta?.[CLASSES_META]?.classes;
 	return typeof classes === "string" ? classes.split(/\s+/).filter(Boolean) : [];
 };
 // What's wrong with the shape of what spec declares as its classes; none when it declares none.
 export const classesProblems = (c) =>
-	metaShapeProblems(specOf(c) ?? c, CLASSES_META, classesMetaSchemas[CLASSES_META]);
+	metaShapeProblems(specOrSelf(c), CLASSES_META, classesMetaSchemas[CLASSES_META]);

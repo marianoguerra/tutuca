@@ -14,18 +14,17 @@ import {
 	field,
 	lookupBind,
 	render,
-	renderEach,
 	scopeOf,
 	send,
 	t,
 	tag,
 } from "../../tutuca.js";
-import { deref, refIdOf } from "./dev-panel.js";
+import { deref, expander, refIdOf, rowsView } from "./tree-node.js";
 
 const { div, span } = tag;
 
 // The walked trees stay out of the state, as dev-panel's values do, which refers to their
-// steps by dev-panel's refs. A walk is kept, by root, for each focus and siblings it was made
+// steps by refs (tree-node.js). A walk is kept, by root, for each focus and siblings it was made
 // with, so walking again finds the same steps: a message run twice makes the same state.
 const trees = new WeakMap(); // root -> Map(key -> tree)
 const frameKey = ({ provider, keys, item }) => [provider, keys, item];
@@ -61,21 +60,7 @@ const stepNode = (C, step) => {
 	});
 };
 
-const expander = $if(
-	field("canOpen"),
-	button(
-		{
-			type: "button",
-			class: "w-3 shrink-0 cursor-pointer opacity-60 hover:opacity-100",
-			"aria-label": "Expand",
-			"on:click": send("toggle"),
-		},
-		$if(field("isOpen"), "▾", "▸"),
-	),
-	span({ class: "w-3 shrink-0" }),
-);
-
-export const PathStep = component({
+const PathStep = component({
 	name: "PathStep",
 	meta: { [CLASSES_META]: { classes: Object.values(TONES).join(" ") } },
 	fields: {
@@ -137,11 +122,7 @@ export const PathStep = component({
 				"",
 			),
 		),
-		$if(
-			field("showRows"),
-			div({ class: "ml-1.5 border-l border-base-300 pl-3" }, renderEach(field("rows"))),
-			"",
-		),
+		rowsView,
 	),
 	on: {
 		toggle: {
@@ -169,7 +150,7 @@ export const PathStep = component({
 // The path tree of the component at rootRef (dev-panel's refs, 0 for none yet), focused on
 // focusText's path ("" for none). In a story's panels it follows the app: showApp walks each
 // state it shows, focused on the path of the last message, unless that's what it shows already.
-export const PathTree = component({
+const PathTree = component({
 	name: "PathTree",
 	fields: {
 		rootRef: t.number().int().min(0),

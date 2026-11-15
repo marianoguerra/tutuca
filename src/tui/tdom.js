@@ -2,7 +2,7 @@
 // src/core/host/events.js walks (parentNode, previousSibling, a comment's data, data-eid), so a
 // tutuca Host renders into it and routes its events unchanged. Layout and paint read the element
 // tree from it; comments, which hold tutuca's component and loop markers, take no space.
-export const HTML_NS = "http://www.w3.org/1999/xhtml";
+import { HTML_NS } from "../vdom/index.js";
 
 class TNode {
 	constructor(ownerDocument) {
@@ -19,12 +19,6 @@ class TNode {
 	}
 	get previousSibling() {
 		return this.sibling(-1);
-	}
-	get firstChild() {
-		return this.childNodes[0] ?? null;
-	}
-	get lastChild() {
-		return this.childNodes.at(-1) ?? null;
 	}
 	// A fragment inserts its children and is left empty, as the DOM's is.
 	insertBefore(node, ref) {
@@ -104,8 +98,10 @@ export class TFragment extends TNode {
 }
 
 // Attributes are strings in a Map. morph's setProp assigns a name that is `in` the node and sets
-// the attribute otherwise, so an element has few own properties: value, checked, scrollTop and
-// scrollLeft, as on a page, are the ones a view can set.
+// the attribute when that throws or the name isn't there: value, checked, scrollTop and
+// scrollLeft, as on a page, are the ones a view can set. What layout and the element itself keep
+// (rect, layout, viewport, scrollHeight, clientHeight, attributes, listeners) is read only, so a
+// view's attribute of one of those names is an attribute.
 export class TElement extends TNode {
 	nodeType = 1;
 	namespaceURI = HTML_NS;
@@ -113,9 +109,11 @@ export class TElement extends TNode {
 		super(doc);
 		this.localName = tag.toLowerCase();
 		this.tagName = tag.toUpperCase();
-		this.attributes = new Map();
-		this.listeners = new Map();
-		this.rect = null; // { x, y, w, h } in screen cells, set by each layout.
+		this._attributes = new Map();
+		this._listeners = new Map();
+		// What each layout places it at (place, placeScroll): rect is { x, y, w, h } in screen
+		// cells, layout its layout, and for a scroll container the rest.
+		this._placed = { rect: null, layout: null, scrollHeight: 0, clientHeight: 0, viewport: null };
 		this._value = "";
 		this._checked = false;
 		// An input's or textarea's selection: where it started (anchor) and where it's moved to
@@ -124,10 +122,37 @@ export class TElement extends TNode {
 		this._focus = 0;
 		this._scrollTop = 0; // Rows a scroll container's content is scrolled up by.
 		this._scrollLeft = 0; // Columns an input's value is scrolled left by, to show its caret.
-		this.layout = null; // Its layout, rect and, for a scroll container, the rest from layout.
-		this.scrollHeight = 0;
-		this.clientHeight = 0;
-		this.viewport = null;
+	}
+	get attributes() {
+		return this._attributes;
+	}
+	get listeners() {
+		return this._listeners;
+	}
+	get rect() {
+		return this._placed.rect;
+	}
+	get layout() {
+		return this._placed.layout;
+	}
+	get scrollHeight() {
+		return this._placed.scrollHeight;
+	}
+	get clientHeight() {
+		return this._placed.clientHeight;
+	}
+	// A scroll container's content box on the screen, { x, y, w, h }.
+	get viewport() {
+		return this._placed.viewport;
+	}
+	// Where layout put it: its layout, absolutized (its rect is layout.rect).
+	place(layout) {
+		this._placed.rect = layout.rect;
+		this._placed.layout = layout;
+	}
+	// A scroll container's sizes and viewport, from its layout.
+	placeScroll(scrollHeight, clientHeight, viewport) {
+		Object.assign(this._placed, { scrollHeight, clientHeight, viewport });
 	}
 	getAttribute(name) {
 		return this.attributes.get(name) ?? null;
@@ -161,12 +186,13 @@ export class TElement extends TNode {
 	get selectionEnd() {
 		return Math.max(this._anchor, this._focus);
 	}
-	get selectionDirection() {
-		return this._focus < this._anchor ? "backward" : "forward";
-	}
 	// Where the caret is: the end of the selection that moves.
 	get caret() {
 		return this._focus;
+	}
+	// Where the selection started: the end that stays as the caret moves.
+	get anchor() {
+		return this._anchor;
 	}
 	set selectionStart(at) {
 		this.setSelectionRange(at, Math.max(at, this.selectionEnd));
@@ -214,6 +240,12 @@ export class TElement extends TNode {
 		this._scrollLeft = left;
 		this.changed();
 	}
+	// Sets where it's scrolled to without asking for a paint: for layout and paint, which clamp it
+	// and keep the caret in view while they make one. Each is left as it is when not given.
+	settleScroll({ top = this._scrollTop, left = this._scrollLeft }) {
+		this._scrollTop = top;
+		this._scrollLeft = left;
+	}
 	// Whether its content scrolls: overflow or overflowY scroll (or auto).
 	get scrolls() {
 		const y = this.getAttribute("overflowY") ?? this.getAttribute("overflow");
@@ -231,6 +263,9 @@ export class TElement extends TNode {
 	}
 	get innerHTML() {
 		return "";
+	}
+	set innerHTML(_html) {
+		throw new Error("a terminal element has no innerHTML: dangerouslySetInnerHTML is for pages");
 	}
 	// An input, or anything marked focusable, takes focus: by Tab, or by a click on it.
 	get focusable() {

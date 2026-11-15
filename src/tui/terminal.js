@@ -24,7 +24,7 @@ export function startTui({
 		...hostOptions,
 		document: screen.document,
 		rootNode: screen.rootNode,
-		target: tuiTarget,
+		renderTarget: tuiTarget,
 	});
 	host.scope.register(components);
 	host.start(typeof root === "function" ? root(host.scope.components) : root);
@@ -67,7 +67,7 @@ export function mirrorTui(source, { width = 80, height = 24, write = () => {}, t
 	const host = new MirrorHost(source, {
 		document: screen.document,
 		rootNode: screen.rootNode,
-		target: tuiTarget,
+		renderTarget: tuiTarget,
 	});
 	host.addEventListeners(SCREEN_EVENTS);
 	let stopped = false;

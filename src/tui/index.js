@@ -55,52 +55,28 @@ export {
 	reduceStyle,
 	sgr,
 } from "./buffer.js";
-export { detectColors, detectTerminal, detectUnicode } from "./capabilities.js";
-export {
-	columnIn,
-	editKey,
-	insert,
-	isEditable,
-	lineIndexAt,
-	linesOf,
-	offsetAt,
-	redo,
-	replace,
-	undo,
-} from "./editing.js";
-export { PASTE_END, PASTE_START, parseInput, parseMouse } from "./input.js";
-export {
-	absolutize,
-	calculateLayout,
-	clipsOf,
-	layoutTree,
-	parseProp,
-	propsOf,
-	scrollsOf,
-} from "./layout.js";
-export { BORDER_STYLES, inheritedStyleOf, paint, paintScreen } from "./paint.js";
-export { focusables, hitTest, osc52, Screen } from "./screen.js";
+export { detectColors, detectUnicode } from "./capabilities.js";
+export { parseInput } from "./input.js";
+export { absolutize, calculateLayout } from "./layout.js";
+export { layoutInput } from "./layout-input.js";
+export { BORDER_STYLES } from "./paint.js";
+export { Screen } from "./screen.js";
 export { tuiTarget } from "./target.js";
-export { makeEvent, TComment, TDocument, TElement, TFragment, TText } from "./tdom.js";
+export { TDocument } from "./tdom.js";
 export { mirrorTui, runTui, startTui } from "./terminal.js";
 export {
 	caretAtColumn,
-	columnOf,
 	fitSegments,
 	fitText,
-	graphemeBounds,
 	graphemes,
-	graphemeWidth,
 	nextBoundary,
 	nextWord,
 	padText,
 	previousBoundary,
 	previousWord,
-	readGrapheme,
-	segmentsText,
 	sliceColumns,
 	stringWidth,
 	stripControls,
 	truncateText,
 } from "./text.js";
-export { bindScreen, drawBuffer, drawRow, keyOf, sgrCss } from "./web.js";
+export { drawRow, keyOf, sgrCss } from "./web.js";

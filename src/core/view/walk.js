@@ -4,7 +4,7 @@
 const FALLBACK = { renderIt: "render", renderEach: "each" };
 export class Walker {
 	visit(node) {
-		node.accept(this);
+		return node.accept(this);
 	}
 	// Runs the walker's method for kind on node.
 	dispatch(kind, node) {
@@ -19,7 +19,7 @@ export class Walker {
 	element(node) {
 		for (const [name, value] of node.attrs) this.attr(node, name, value);
 		for (const c of node.children) this.child(node, c);
-		for (const h of node.handlers) this.handler(node, h);
+		for (const b of node.bindings) this.binding(node, b);
 	}
 	attr(_node, _name, value) {
 		this.visit(value);
@@ -27,21 +27,22 @@ export class Walker {
 	child(_node, child) {
 		this.visit(child);
 	}
-	handler(_node, handler) {
-		this.visit(handler.action);
+	binding(_node, binding) {
+		this.visit(binding.action);
 	}
 }
-// The handlers of every element in views that has any, by the element's eid.
-class HandlerCollector extends Walker {
-	eventHandlers = new Map();
+// The event bindings ({ type, action }) of every element in views that has any, by the element's
+// eid.
+class BindingCollector extends Walker {
+	eventBindings = new Map();
 	element(node) {
-		if (node.eid !== null) this.eventHandlers.set(node.eid, node.handlers);
+		if (node.eid !== null) this.eventBindings.set(node.eid, node.bindings);
 		super.element(node);
 	}
-	handler(_node, _handler) {}
+	binding(_node, _binding) {}
 }
-export const eventHandlersOf = (views) => {
-	const collector = new HandlerCollector();
+export const eventBindingsOf = (views) => {
+	const collector = new BindingCollector();
 	for (const key in views) collector.visit(views[key]);
-	return collector.eventHandlers;
+	return collector.eventBindings;
 };

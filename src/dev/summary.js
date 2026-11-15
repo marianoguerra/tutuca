@@ -1,7 +1,7 @@
 // Plain language for tutuca values: what a node shows in its readable view, as
 // { title, detail }. The code view shows them as src/dev/formatters.js prints them.
 
-import { truncate } from "../core/host/text.js";
+import { truncate } from "../core/text.js";
 import {
 	ArrayType,
 	AskTask,
@@ -30,7 +30,7 @@ const MAX = 40;
 const plural = (n, one, many = `${one}s`) => `${n} ${n === 1 ? one : many}`;
 const quote = (s) => `“${truncate(String(s), MAX)}”`;
 // specOf alone isn't enough: a Proxy may answer any key.
-export const isTutucaComponent = (v) => specOf(v) instanceof ComponentSpec;
+export const hasComponentSpec = (v) => specOf(v) instanceof ComponentSpec;
 
 // A value in a few words: "“hello”", "42", "3 items", "Tab".
 export const brief = (v) => {
@@ -38,7 +38,7 @@ export const brief = (v) => {
 	if (v === null || v === undefined) return "nothing";
 	if (typeof v === "function") return `function ${v.name || "(anonymous)"}`;
 	if (typeof v !== "object") return String(v);
-	if (isTutucaComponent(v)) return specOf(v).name;
+	if (hasComponentSpec(v)) return specOf(v).name;
 	if (Array.isArray(v)) return v.length === 0 ? "empty list" : `list of ${v.length}`;
 	if (v instanceof Map || v instanceof Set) return plural(v.size, "item");
 	return plural(Object.keys(v).length, "entry", "entries");
@@ -152,8 +152,8 @@ const astDetail = (node) => {
 			const parts = [];
 			if (node.attrs.length > 0) parts.push(plural(node.attrs.length, "attribute"));
 			if (node.children.length > 0) parts.push(plural(node.children.length, "child", "children"));
-			if (node.handlers.length > 0)
-				parts.push(`handles ${node.handlers.map((h) => h.type).join(", ")}`);
+			if (node.bindings.length > 0)
+				parts.push(`handles ${node.bindings.map((h) => h.type).join(", ")}`);
 			return parts.join(" · ");
 		}
 		case "each":

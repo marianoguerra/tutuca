@@ -4,7 +4,7 @@
 // checks found, as codes ({ check, reason, ... }); the problems of a spec or a meta (elsewhere)
 // are sentences.
 import { pathText } from "../../tree/index.js";
-import { argsLabel } from "./text.js";
+import { argsLabel } from "../text.js";
 
 const why = (error) => String(error?.stack ?? error);
 // The host events that are problems whatever their issues, and what each says went wrong.

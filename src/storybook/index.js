@@ -47,7 +47,8 @@ const makeStorybook = (C, books, initialId = "") => {
 	});
 };
 
-// Starts the storybook UI on rootNode. css styles the stories' shadow roots.
+// Starts the storybook UI on rootNode. css styles the stories' shadow roots. checks is as Host
+// takes it: the UI runs in dev mode unless it's null.
 export const startStorybook = ({
 	document,
 	rootNode,
@@ -57,7 +58,7 @@ export const startStorybook = ({
 	compile = null,
 	known = [],
 	initialId = "",
-	dev = true,
+	checks = DevChecks,
 }) => {
 	defineTutucaApp(document.defaultView);
 	const registry = new StoryRegistry({ fc, books, css, compile, known });
@@ -66,7 +67,7 @@ export const startStorybook = ({
 		rootNode,
 		components: storybookComponents,
 		registryOf: () => registry,
-		checks: dev ? DevChecks : null,
+		checks,
 		askHandlers: {
 			scrollToTop: () => {
 				for (const node of [

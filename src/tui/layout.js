@@ -2,191 +2,18 @@
 // without its dirty registry, fingerprints and layout refs: tutuca re-lays out what morph left
 // in the tree each paint.
 //
-// layoutTree(el) reads the terminal DOM into layout input: a { type, props, children, el } per
-// element, attributes parsed by name (numbers, booleans), comments left out, a run of bare text
-// nodes merged into one text node and a <text> element's text nodes into its content.
-// calculateLayout(input, width, height) returns { x, y, width, height, node, children }, x and y
-// relative to the parent's content box (inside its border and padding), as tuiuiu's are.
+// calculateLayout(input, width, height), input as layout-input.js reads it from the terminal
+// DOM, returns { x, y, width, height, node, children }, x and y relative to the parent's content
+// box (inside its border and padding), as tuiuiu's are. absolutize puts it on the screen.
 //
-// Elements: <text> (content, wrap), <spacer> (grows), <input> (its value, or placeholder, as
-// text) and anything else is a box: display, position, flexDirection, flexWrap, flexGrow,
-// flexShrink, flexBasis, justifyContent, alignItems, alignSelf, alignContent, padding*, margin*,
-// gap, columnGap, rowGap, width, height (cells, "50%", "fill", "auto"), min/max sizes, top,
-// bottom, left, right, borderStyle, overflow.
-import { fitSegments, segmentsText, stringWidth, stripControls } from "./text.js";
+// Elements: <text> (content, wrap), <spacer> (grows), <input> and <textarea> (their value, or
+// placeholder, as text), <divider> (a line across its parent) and anything else is a box:
+// display, position, flexDirection, flexWrap, flexGrow, flexShrink, flexBasis, justifyContent,
+// alignItems, alignSelf, alignContent, padding*, margin*, gap, columnGap, rowGap, width, height
+// (cells, "50%", "fill", "auto"), min/max sizes, top, bottom, left, right, borderStyle, overflow.
+import { borderWidthOf, factor, marginsOf, nonNegative, paddingOf, scrollsOf } from "./props.js";
+import { fitSegments, segmentsText, stringWidth } from "./text.js";
 
-const NUMBERS = new Set(
-	"flexGrow flexShrink flex padding paddingX paddingY paddingTop paddingBottom paddingLeft paddingRight gap columnGap rowGap minWidth minHeight maxWidth maxHeight top bottom left right zIndex".split(
-		" ",
-	),
-);
-// Margins, sizes and flexBasis are numbers unless they are a keyword or a percentage.
-const MAYBE_NUMBERS = new Set(
-	"margin marginX marginY marginTop marginBottom marginLeft marginRight width height flexBasis".split(
-		" ",
-	),
-);
-const BOOLEANS = new Set(
-	"borderTop borderBottom borderLeft borderRight bold dim italic inverse strikethrough borderDim borderDimTop borderDimBottom borderDimLeft borderDimRight".split(
-		" ",
-	),
-);
-const isNumeric = (v) => v.trim() !== "" && Number.isFinite(Number(v));
-
-export function parseProp(name, value) {
-	if (NUMBERS.has(name)) {
-		const n = Number(value);
-		if (!Number.isFinite(n))
-			throw new RangeError(`${name} must be a number, got ${JSON.stringify(value)}`);
-		return n;
-	}
-	if (MAYBE_NUMBERS.has(name)) return isNumeric(value) ? Number(value) : value;
-	if (BOOLEANS.has(name)) return value !== "false";
-	return value;
-}
-export function propsOf(el) {
-	const props = {};
-	for (const [name, value] of el.attributes) props[name] = parseProp(name, value);
-	return props;
-}
-
-// --- reading the terminal DOM ----------------------------------------------------------------
-
-// The attributes that style text, and inherit down the tree as CSS's do.
-export const TEXT_STYLE = [
-	"color",
-	"backgroundColor",
-	"bold",
-	"dim",
-	"italic",
-	"underline",
-	"inverse",
-	"strikethrough",
-];
-const textStyleOf = (props) => {
-	const style = {};
-	for (const name of TEXT_STYLE) if (props[name] !== undefined) style[name] = props[name];
-	return style;
-};
-
-// A <text>'s content and its spans: the elements in it style the text in them, nested ones over
-// the ones around them, as <span>s do. Each span is { start, end, style, el }, el the innermost
-// element its text is in (the <text> itself for its own text), so a click on a word reaches it.
-function spansOf(textEl) {
-	let content = "";
-	const spans = [];
-	const walk = (el, style) => {
-		for (const child of el.childNodes) {
-			if (child.nodeType === 3) {
-				const data = stripControls(child.data);
-				if (data === "") continue;
-				const last = spans.at(-1);
-				if (last && last.el === el && last.end === content.length) last.end += data.length;
-				else spans.push({ start: content.length, end: content.length + data.length, style, el });
-				content += data;
-			} else if (child.nodeType === 1) {
-				walk(child, { ...style, ...textStyleOf(propsOf(child)) });
-			}
-		}
-	};
-	walk(textEl, {});
-	return { content, spans };
-}
-
-const textNode = (content, props, el) => ({
-	type: "text",
-	props: { ...props, children: content },
-	children: [],
-	el,
-});
-
-function childrenOf(el) {
-	const out = [];
-	let run = null; // Bare text nodes in a row show as one text, as inline text does in HTML.
-	for (const child of el.childNodes) {
-		if (child.nodeType === 3) {
-			if (child.data === "") continue;
-			if (run === null) {
-				run = textNode("", {}, el);
-				run.texts = [];
-				out.push(run);
-			}
-			run.props.children += stripControls(child.data);
-			run.texts.push(child);
-			continue;
-		}
-		run = null;
-		if (child.nodeType === 1) out.push(layoutTree(child));
-	}
-	return out;
-}
-
-export function layoutTree(el) {
-	const props = propsOf(el);
-	switch (el.localName) {
-		case "text": {
-			const { content, spans } = spansOf(el);
-			// Spans only when an element inside styles or handles part of it.
-			const styled = spans.some((s) => s.el !== el);
-			return styled ? { ...textNode(content, props, el), spans } : textNode(content, props, el);
-		}
-		case "input":
-		case "textarea": {
-			const value = el.value;
-			const shown = value === "" ? (props.placeholder ?? "") : value;
-			return {
-				...textNode(stripControls(shown), props, el),
-				input: true,
-				multiline: el.localName === "textarea",
-				empty: value === "",
-			};
-		}
-		case "spacer":
-			return { type: "spacer", props: { flexGrow: 1, flexShrink: 0, ...props }, children: [], el };
-		case "divider":
-			return { type: "divider", props, children: [], el };
-		default:
-			return { type: "box", props, children: childrenOf(el), el };
-	}
-}
-
-// --- layout ----------------------------------------------------------------------------------
-
-const nonNegative = (value, name) => {
-	if (value === undefined) return 0;
-	if (!Number.isFinite(value)) throw new RangeError(`${name} must be a finite number`);
-	return Math.max(0, Math.floor(value));
-};
-const factor = (value, name) => {
-	if (value === undefined) return 0;
-	if (!Number.isFinite(value) || value < 0)
-		throw new RangeError(`${name} must be a non-negative number`);
-	return value;
-};
-const margin = (v) => (v === "auto" ? 0 : nonNegative(v, "margin"));
-const marginsOf = (s) => ({
-	top: margin(s.marginTop ?? s.marginY ?? s.margin),
-	bottom: margin(s.marginBottom ?? s.marginY ?? s.margin),
-	left: margin(s.marginLeft ?? s.marginX ?? s.margin),
-	right: margin(s.marginRight ?? s.marginX ?? s.margin),
-});
-export const paddingOf = (s) => ({
-	top: nonNegative(s.paddingTop ?? s.paddingY ?? s.padding, "paddingTop"),
-	bottom: nonNegative(s.paddingBottom ?? s.paddingY ?? s.padding, "paddingBottom"),
-	left: nonNegative(s.paddingLeft ?? s.paddingX ?? s.padding, "paddingLeft"),
-	right: nonNegative(s.paddingRight ?? s.paddingX ?? s.padding, "paddingRight"),
-});
-// Whether a box scrolls its content vertically: overflow or overflowY scroll or auto.
-export const scrollsOf = (s) => {
-	const y = s.overflowY ?? s.overflow;
-	return y === "scroll" || y === "auto";
-};
-// What a box clips its content to, on each axis: hidden, scroll and auto clip.
-export const clipsOf = (s) => {
-	const clip = (v) => v === "hidden" || v === "scroll" || v === "auto";
-	return { x: clip(s.overflowX ?? s.overflow), y: clip(s.overflowY ?? s.overflow) };
-};
-export const borderOf = (s) => (s.borderStyle && s.borderStyle !== "none" ? 1 : 0);
 const hasSize = (v) => v !== undefined && v !== "auto";
 const alignOf = (style, parent) =>
 	style.alignSelf && style.alignSelf !== "auto"
@@ -219,6 +46,24 @@ const withBox = (layout, patch) => {
 		: next;
 };
 
+// How far justifyContent moves the i-th of n children down a column with extra rows to spare;
+// undefined for flex-start, which moves none.
+const justifyOffset = (justify, extra, n) =>
+	({
+		center: () => Math.floor(extra / 2),
+		"flex-end": () => extra,
+		"space-between": (i) => (n > 1 ? Math.floor((extra * i) / (n - 1)) : 0),
+		"space-around": (i) => Math.floor((extra / (n * 2)) * (2 * i + 1)),
+		"space-evenly": (i) => Math.floor((extra / (n + 1)) * (i + 1)),
+	})[justify];
+// How much of the spare space a child takes: its flexGrow, or 1 for a spacer or a size of "fill".
+const flexOf = (child, size) =>
+	child.props.flexGrow === undefined
+		? size === "fill" || child.type === "spacer"
+			? 1
+			: 0
+		: factor(child.props.flexGrow, "flexGrow");
+
 // A column grown taller than its content spreads it by its justifyContent.
 function stretchHeight(layout, target, style) {
 	if (target <= layout.height) return withBox(layout, { height: target });
@@ -228,14 +73,7 @@ function stretchHeight(layout, target, style) {
 	}
 	const extra = target - layout.height;
 	const kids = layout.children;
-	const n = kids.length;
-	const offsetOf = {
-		center: () => Math.floor(extra / 2),
-		"flex-end": () => extra,
-		"space-between": (i) => (n > 1 ? Math.floor((extra * i) / (n - 1)) : 0),
-		"space-around": (i) => Math.floor((extra / (n * 2)) * (2 * i + 1)),
-		"space-evenly": (i) => Math.floor((extra / (n + 1)) * (i + 1)),
-	}[style.justifyContent ?? "flex-start"];
+	const offsetOf = justifyOffset(style.justifyContent, extra, kids.length);
 	const children = offsetOf ? kids.map((c, i) => withBox(c, { y: c.y + offsetOf(i) })) : kids;
 	return { ...layout, height: target, children };
 }
@@ -247,10 +85,7 @@ function layoutText(node, ctx) {
 	const own = hasSize(s.width) && s.width !== "fill" ? resolveSize(s.width, ctx.width) : null;
 	const grows = factor(s.flexGrow, "flexGrow") > 0 || s.width === "fill";
 	const room = own ?? ctx.width;
-	// An input is one line, scrolled sideways to its caret when painted.
 	const content = String(s.children ?? "");
-	// rows are segments of content (text.js's fitSegments), so spans keep their styles; lines,
-	// their text.
 	// A textarea is its lines as they are, scrolled to its caret when painted: as tall as they are
 	// unless it has a height (maxHeight caps it), a cell wider for the caret after the longest.
 	if (node.multiline) {
@@ -270,6 +105,8 @@ function layoutText(node, ctx) {
 			rows: null,
 		};
 	}
+	// An input is one line, scrolled sideways to its caret when painted. Anything else: rows are
+	// segments of content (text.js's fitSegments), so spans keep their styles; lines, their text.
 	const rows = node.input ? null : fitSegments(content, room, s.wrap);
 	const lines = node.input
 		? [content.replace(/\n/g, " ")]
@@ -383,7 +220,7 @@ function layoutNode(node, ctx) {
 
 	const pad = paddingOf(style);
 	const m = marginsOf(style);
-	const border = borderOf(style);
+	const border = borderWidthOf(style);
 	const explicitWidth = resolveSize(style.width, ctx.width);
 	const explicitHeight = resolveSize(style.height, ctx.height);
 	const hasWidth = hasSize(style.width);
@@ -548,12 +385,7 @@ function layoutRow(children, width, height, gap, parentStyle, hasExplicitHeight)
 	const infos = [];
 	for (const child of children) {
 		const s = child.props;
-		const flex =
-			s.flexGrow === undefined
-				? s.width === "fill" || child.type === "spacer"
-					? 1
-					: 0
-				: factor(s.flexGrow, "flexGrow");
+		const flex = flexOf(child, s.width);
 		const minWidth = nonNegative(s.minWidth, "minWidth");
 		const basis =
 			s.flexBasis === "content"
@@ -737,12 +569,7 @@ function layoutColumn(children, width, height, gap, parentStyle) {
 		for (const child of children) {
 			const s = child.props;
 			const { top, bottom } = marginsOf(s);
-			const flex =
-				s.flexGrow === undefined
-					? s.height === "fill" || child.type === "spacer"
-						? 1
-						: 0
-					: factor(s.flexGrow, "flexGrow");
+			const flex = flexOf(child, s.height);
 			const minHeight = nonNegative(s.minHeight, "minHeight");
 			const maxHeight =
 				s.maxHeight === undefined ? undefined : nonNegative(s.maxHeight, "maxHeight");
@@ -791,14 +618,7 @@ function layoutColumn(children, width, height, gap, parentStyle) {
 	const remaining = Math.max(0, room - y);
 	const justify = parentStyle.justifyContent ?? "flex-start";
 	if (remaining <= 0 || results.length === 0) return results;
-	const n = results.length;
-	const offsetOf = {
-		"flex-end": () => remaining,
-		center: () => Math.floor(remaining / 2),
-		"space-between": (i) => (n > 1 ? Math.floor((remaining / (n - 1)) * i) : 0),
-		"space-around": (i) => Math.floor((remaining / (n * 2)) * (2 * i + 1)),
-		"space-evenly": (i) => Math.floor((remaining / (n + 1)) * (i + 1)),
-	}[justify];
+	const offsetOf = justifyOffset(justify, remaining, results.length);
 	return offsetOf ? results.map((r, i) => withBox(r, { y: r.y + offsetOf(i) })) : results;
 }
 
@@ -814,24 +634,22 @@ export function absolutize(layout, ox = 0, oy = 0) {
 	// A run of bare text belongs to its parent's element, whose rect is the box's.
 	const own = el && !layout.node.texts;
 	if (own) {
-		el.rect = layout.rect;
-		el.layout = layout;
+		el.place(layout);
 	}
 	const s = layout.node.props;
 	const pad = paddingOf(s);
-	const b = borderOf(s);
+	const b = borderWidthOf(s);
 	const cx = x + pad.left + b;
 	const cy = y + pad.top + b;
 	let top = 0;
 	if (own && layout.scrollHeight !== undefined) {
-		el.scrollHeight = layout.scrollHeight;
-		el.clientHeight = layout.clientHeight;
 		const w = layout.width - pad.left - pad.right - 2 * b;
-		el.viewport = { x: cx, y: cy, w, h: layout.clientHeight };
-		// Written past the setter: layout clamps it without asking for another paint.
+		const viewport = { x: cx, y: cy, w, h: layout.clientHeight };
+		el.placeScroll(layout.scrollHeight, layout.clientHeight, viewport);
+		// Settled, not set: layout clamps it without asking for another paint.
 		const max = layout.scrollHeight - layout.clientHeight;
-		el._scrollTop = Math.max(0, Math.min(el._scrollTop, max));
-		top = el._scrollTop;
+		top = Math.max(0, Math.min(el.scrollTop, max));
+		el.settleScroll({ top });
 	}
 	for (const child of layout.children) absolutize(child, cx, cy - top);
 	// Layers are placed on the screen.

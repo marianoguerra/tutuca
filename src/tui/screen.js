@@ -1,74 +1,17 @@
 // A Screen: a terminal DOM, its layout and paint into a CellBuffer, and the events a terminal
 // sends turned into DOM-like events on the elements under them. A mouse event's target is found
-// by position (hitTest: the deepest box under the cell); from the target, tutuca's events.js
+// by position (hit-test.js: the deepest box under the cell); from the target, tutuca's events.js
 // finds the component and handler by walking parentNode and the marker comments, as it does in
 // a browser. Keys go to the focused element, and do what a browser does by default when no
 // handler prevents it: Tab moves focus, Enter and space click, an input edits its value at its
 // caret, and the wheel, arrows and page keys scroll a scroll container.
 import { bufferToAnsi, CellBuffer, patchesToAnsi } from "./buffer.js";
-import { editKey, insert, isEditable, offsetAt } from "./editing.js";
-import { absolutize, borderOf, calculateLayout, clipsOf, layoutTree, paddingOf } from "./layout.js";
-import { paintScreen, spanAt } from "./paint.js";
+import { editKey, insert, isEditable, offsetAtCell, placeCaret } from "./editing.js";
+import { hitTest } from "./hit-test.js";
+import { absolutize, calculateLayout } from "./layout.js";
+import { layoutInput } from "./layout-input.js";
+import { paintScreen } from "./paint.js";
 import { makeEvent, TDocument } from "./tdom.js";
-import { graphemeWidth, readGrapheme, stringWidth } from "./text.js";
-
-const inside = (r, x, y) => x >= r.x && y >= r.y && x < r.x + r.w && y < r.y + r.h;
-
-// Whether x, y is where a box that clips shows its children: inside its content box on each
-// axis it clips.
-function reachesChildren(layout, x, y) {
-	const props = layout.node.props;
-	const clips = clipsOf(props);
-	if (!clips.x && !clips.y) return true;
-	const { rect } = layout;
-	const b = borderOf(props);
-	const pad = paddingOf(props);
-	const left = rect.x + b + pad.left;
-	const top = rect.y + b + pad.top;
-	const right = rect.x + rect.w - b - pad.right;
-	const bottom = rect.y + rect.h - b - pad.bottom;
-	return (!clips.x || (x >= left && x < right)) && (!clips.y || (y >= top && y < bottom));
-}
-
-// The element under x, y in an absolutized layout, or null. Later siblings paint over earlier
-// ones, so they're tried first; a box that clips (overflow hidden, scroll or auto) hides its
-// children outside its content box, as a scroll container hides what's scrolled out of view.
-export function hitTest(layout, x, y) {
-	if (reachesChildren(layout, x, y)) {
-		for (let i = layout.children.length - 1; i >= 0; i--) {
-			const hit = hitTest(layout.children[i], x, y);
-			if (hit) return hit;
-		}
-	}
-	if (!inside(layout.rect, x, y)) return null;
-	return (layout.node.spans && spanElementAt(layout, x, y)) ?? layout.node.el ?? null;
-}
-
-// The element of the span drawn at x, y in a text with spans, or null past its text.
-function spanElementAt(layout, x, y) {
-	const row = layout.rows[y - layout.rect.y];
-	if (!row) return null;
-	const { spans, props } = layout.node;
-	const content = props.children;
-	let col = layout.rect.x;
-	for (const seg of row) {
-		if (seg.text !== undefined) {
-			const w = stringWidth(seg.text);
-			if (x < col + w) return spanAt(spans, seg.at).el;
-			col += w;
-			continue;
-		}
-		for (let at = seg.start; at < seg.end; ) {
-			const g = readGrapheme(content, at);
-			if (g === null) break;
-			const w = graphemeWidth(g.segment);
-			if (x < col + w) return spanAt(spans, at).el;
-			col += w;
-			at = g.end;
-		}
-	}
-	return null;
-}
 
 // The elements that take focus, in tree order.
 export function focusables(el, out = []) {
@@ -134,7 +77,7 @@ export class Screen {
 	}
 	// Lays out what morph left in the tree and paints it; returns the new buffer.
 	render() {
-		const tree = layoutTree(this.rootNode);
+		const tree = layoutInput(this.rootNode);
 		tree.props = { ...tree.props, width: this.width, height: this.height };
 		this.layout = absolutize(calculateLayout(tree, this.width, this.height));
 		this.trapFocus();
@@ -189,7 +132,7 @@ export class Screen {
 		return top ?? hitTest(this.layout, x, y);
 	}
 	// Scrolls the scroll containers around el, innermost first, so it's in view; whether any
-	// moved. Writes past the setter, as layout does: render lays out again after.
+	// moved. Settles the scroll, as layout does: render lays out again after.
 	scrollIntoView(el) {
 		let moved = false;
 		let { y, h } = el.rect ?? { y: 0, h: 0 };
@@ -200,10 +143,10 @@ export class Screen {
 			if (y < view.y) delta = y - view.y;
 			else if (y + h > view.y + view.h) delta = Math.min(y - view.y, y + h - (view.y + view.h));
 			const max = Math.max(0, c.scrollHeight - c.clientHeight);
-			const top = Math.max(0, Math.min(max, c._scrollTop + delta));
-			if (top !== c._scrollTop) {
-				y -= top - c._scrollTop;
-				c._scrollTop = top;
+			const top = Math.max(0, Math.min(max, c.scrollTop + delta));
+			if (top !== c.scrollTop) {
+				y -= top - c.scrollTop;
+				c.settleScroll({ top });
 				moved = true;
 			}
 			// What has to be in view of the next one out is this container, as far as it shows el.
@@ -282,8 +225,7 @@ export class Screen {
 			// dragging selects from it.
 			if (isEditable(owner) && owner === target) {
 				const at = this.offsetUnder(owner, x, y);
-				owner.select(shiftKey ? owner._anchor : at, at);
-				owner._goal = null;
+				placeCaret(owner, at, shiftKey);
 				this.selecting = owner;
 			}
 			return this.dispatch("mousedown", target, fields);
@@ -303,14 +245,14 @@ export class Screen {
 		}
 		if (action === "drag" && this.selecting !== null) {
 			const el = this.selecting;
-			el.select(el._anchor, this.offsetUnder(el, x, y));
+			el.select(el.anchor, this.offsetUnder(el, x, y));
 		}
 		return this.dispatch("mousemove", target, fields);
 	}
 	// The offset of el's value drawn at x, y (or nearest it), its scroll counted.
 	offsetUnder(el, x, y) {
 		const r = el.rect ?? { x: 0, y: 0 };
-		return offsetAt(el, x - r.x + el.scrollLeft, y - r.y + el._scrollTop);
+		return offsetAtCell(el, x - r.x + el.scrollLeft, y - r.y + el.scrollTop);
 	}
 	// A press and release at x, y: what a click is.
 	click(x, y) {

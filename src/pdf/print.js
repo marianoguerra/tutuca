@@ -16,6 +16,7 @@ import {
 	BLACK,
 	DEFAULT_SIZE,
 	fontOf,
+	fontsIn,
 	groupTransform,
 	pageSize,
 	paintOf,
@@ -147,12 +148,6 @@ const GRAPHICS = {
 	},
 };
 const graphic = (doc, node) => GRAPHICS[node.type](doc, node);
-
-const fontsIn = (node, fonts = new Set()) => {
-	if (node.type === "text" && textLines(node).length > 0) fonts.add(fontOf(node));
-	for (const child of node.children ?? []) fontsIn(child, fonts);
-	return fonts;
-};
 
 // The PDF that draws tree, a Document, a Page or a Graphic as tutuca/ps's lower makes them: its
 // bytes, when PDFKit has written them. fonts: font bytes (Uint8Array or ArrayBuffer) by the name

@@ -4,7 +4,7 @@
 //   { op: "insert", path, index, values }      into the array at path
 //   { op: "remove", path, index, count }       from the array at path
 //   { op: "text", path, index, remove, insert } splices the string at path
-import { truncate } from "../core/host/text.js";
+import { truncate } from "../core/text.js";
 import { jsonText, pathText } from "../tree/index.js";
 
 // An op whose path or index isn't in the state: it was made against a different version.

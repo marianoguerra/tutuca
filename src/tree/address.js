@@ -17,7 +17,7 @@ export class Address {
 		return new Address(path, idOf(path.toNodeKeyPath().getIn(root)));
 	}
 	// The address target reaches in root.
-	static of(target, root) {
+	static ofTarget(target, root) {
 		return Address.at(target.fix(root), root);
 	}
 	// { instance } when the node it recorded is at its path, { stale } when another is there

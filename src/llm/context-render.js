@@ -1,8 +1,8 @@
 // Rendering a component's renders.llmContext: lowered to mdast, checked (every issue at its path,
 // thrown as one LlmError), and printed as markdown by tutuca/mdast's printer.
+
+import { renderedVNodes } from "../checked/render.js";
 import { printMd } from "../mdast/render.js";
-import { RenderContext, specOf } from "../tutuca.js";
-import { toVChildren } from "../vdom/index.js";
 import { attrsIssues, childIssue, flatten, LlmError, textIssue } from "./build.js";
 import { CONTEXT } from "./context.js";
 import { llmContextTarget } from "./target.js";
@@ -168,11 +168,8 @@ const FLOW_TAGS = new Set(CONTEXT.Section.children);
 
 // The mdast instance's renders.llmContext (view, or main) renders to; depth is its first
 // heading's, for context that goes under a heading of its own.
-export const renderLlmContextAst = (instance, { view, depth } = {}) => {
-	const ctx = RenderContext.root(instance, { target: llmContextTarget });
-	const node = ctx.getBestViewFor(specOf(instance), view);
-	return lowerContext(toVChildren(node.eval(ctx.with({ component: instance }))), { depth });
-};
+export const renderLlmContextAst = (instance, { view, depth } = {}) =>
+	lowerContext(renderedVNodes(instance, llmContextTarget, view), { depth });
 // The markdown what instance renders for a model's context says.
 export const renderLlmContext = (instance, options = {}) =>
 	printMd(renderLlmContextAst(instance, options));

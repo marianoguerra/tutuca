@@ -269,7 +269,7 @@ const showStory = (self, next, id) => {
 	next.selectedId = id;
 	next.issueCount = 0;
 	resetPanels(self, next);
-	next.travel = scopeOf(self).components.TimeTravel({ target: next.appKey });
+	next.travel = scopeOf(self).components.TimeTravel({ appKey: next.appKey });
 };
 
 export const makePlayground = (C) =>

@@ -35,15 +35,5 @@
 // when it renders (lower.js, every node, with the path to it). Both throw a JsAstError. Rules
 // of the language ESTree's shapes don't say (a const with no init, a break outside a loop) are
 // not checked.
-export { lower } from "./lower.js";
 export { renderJs, renderJsAst } from "./render.js";
-export {
-	ASSIGNMENT_OPERATORS,
-	BINARY_OPERATORS,
-	HOLE,
-	LOGICAL_OPERATORS,
-	SCHEMA,
-	UNARY_OPERATORS,
-	UPDATE_OPERATORS,
-} from "./schema.js";
 export { JsAstError, js, jsTarget } from "./target.js";

@@ -131,6 +131,17 @@ test("Ctrl+C copies the selection (and asks the terminal to, with OSC 52), Ctrl+
 	assert.equal(app.host.root.text, "cut mecut me\nand a pasted line");
 });
 
+test("Ctrl+X copies what it cuts, with nothing copied before", () => {
+	const app = editor("cut me");
+	app.key("Tab");
+	app.key("a", { ctrlKey: true });
+	app.key("x", { ctrlKey: true });
+	assert.equal(app.host.root.text, "");
+	assert.equal(app.screen.clipboard, "cut me");
+	app.key("v", { ctrlKey: true });
+	assert.equal(app.host.root.text, "cut me");
+});
+
 test("Ctrl+Z undoes a run of typing as one step and each other edit as one; Ctrl+Y redoes", () => {
 	const app = editor();
 	app.key("Tab");

@@ -1,4 +1,4 @@
-// The PostScript program that draws a drawing lower.js made: a DSC conforming document
+// The PostScript program that draws a drawing render.js made: a DSC conforming document
 // (%!PS-Adobe-3.0, LanguageLevel 2, 7 bit clean), a page per Page, which a printer, Ghostscript
 // (gs, ps2pdf) or a viewer reads.
 //
@@ -7,18 +7,20 @@
 //   characters are their own): typographic quotes, dashes and ellipses are their Latin-1
 //   look-alikes, and other characters outside it are ?.
 // - Colors are RGB, or gray when the three are equal.
+
+import { isColor } from "../checked/schema.js";
 import {
 	asDocument,
 	BLACK,
 	DEFAULT_SIZE,
 	fontOf,
+	fontsIn,
 	groupTransform,
 	pageSize,
 	paintOf,
 	rgbOf,
 	textLines,
 } from "./drawing.js";
-import { isColor } from "./schema.js";
 
 // Fonts with their own encoding, which reencoding to Latin-1 would break.
 const OWN_ENCODING = new Set(["Symbol", "ZapfDingbats"]);
@@ -187,12 +189,6 @@ class Out {
 		this.line(last);
 	}
 }
-
-const fontsIn = (node, fonts = new Set()) => {
-	if (node.type === "text" && textLines(node).length > 0) fonts.add(fontOf(node));
-	for (const child of node.children ?? []) fontsIn(child, fonts);
-	return fonts;
-};
 
 // The PostScript program that draws tree, a Document, a Page or a Graphic as lower makes them.
 export const printPs = (tree) => {

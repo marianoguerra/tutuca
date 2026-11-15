@@ -9,7 +9,7 @@
   a focus path active and the ones they don't take inactive. `src/dev/path-tree.js` walks it,
   `src/dev/path-tree-text.js` prints it as an outline for a terminal or a model's context, and
   the storybook and playground panels have a Tree tab that follows the story's app, focused
-  where the last message went.
+  where the last message went. `pathTree` and `pathTreeText` are exported from `tutuca/dev`.
 
 ### Changed
 
@@ -22,6 +22,62 @@
   counts the frames up to it (`Frame.provider` is `{ name, up, keys }`, not the provider's depth).
   The render cache compares provided values by value alone. `WeakMapCache` finds an instance
   moved to another level of a tree.
+- `Host`'s `target` option and field, and `RenderContext`'s, are `renderTarget`
+  (`new Host({ renderTarget: tuiTarget })`, `RenderContext.root(root, { renderTarget })`):
+  a `Target` is where a message goes. A `Host` with a render target throws when it's given a
+  `renderCache`, which it used to ignore.
+- An element's `on:` attrs are its event bindings, not its handlers: `ElementNode.bindings`,
+  `ComponentSpec.eventBindings`, and a `Walker`'s `binding(node, binding)` (was `handler`).
+  A handler is what a component's `on` has.
+- `Address.of(target, root)` is `Address.ofTarget`. `ctx.ran` is `{ handler, args }` (was
+  `{ message, args }`). `Hooks.context`'s third argument, `MessageContext.nextRequest`, is
+  `nextId`: it numbers watches too. `NotifyTask`'s constructor takes no `target` (it was always
+  null): `new NotifyTask(name, args, from, parent, anyHopHandled, hops)`.
+- A `RenderCache`'s `scope` is its `rootLevel`, `childScope` is `childLevel`, and a
+  `RenderContext`'s `cacheScope` is `cacheLevel`: a `Scope` is where components are registered.
+- `mountTutucaApp` and `startStorybook` take `checks`, as `Host` does
+  (`mountTutucaApp(detail, { register, make, checks: DevChecks })`), instead of a `dev` flag,
+  and `tutuca/element` no longer imports dev mode. The playground's UI runs with dev checks, as
+  the storybook's does.
+- `tutuca/automerge` is `tutuca/sync/automerge`.
+- `TimeTravel`'s `target` field is `appKey`.
+- `JsAstError`, `LlmError` and `ToolCallError` are `SchemaError`s, as the other targets'
+  errors are. A tag `llmTools` or `llmContext` doesn't have throws an `LlmError` listing the
+  ones it has when it's called, as `md.Foo()` does, instead of a `TypeError`.
+- In `tutuca/tui`: `layoutTree` is `layoutInput`. An element's `rect`, `layout`, `viewport`,
+  `scrollHeight`, `clientHeight`, `attributes` and `listeners` are read only, so a view's
+  attribute of one of those names is an attribute and no longer replaces what layout keeps.
+  Setting `innerHTML` throws.
+- `src/core/model/component.js` is `src/core/component.js` and `src/core/model/targets.js` is
+  `src/core/view/targets.js`: nothing in `src/core/model/` imports the views.
+
+### Removed
+
+- From `tutuca`: `HOST_EVENT_TYPES`, `FAILED_TYPES`, `idSym` (it's in `tutuca/tree`),
+  `NoDefaultError`, `SYNC_LEVELS`, `metaProblems`, `toAnswers`, `toMessages`, `toQueries`,
+  `argIssues`, `postHolds`, `checkInvariants`, `eventHandlersOf`, and the view node classes
+  nothing built on: `FieldNode`, `QueryNode`, `SeqItemNode`, `ProvidedNode`, `LookupBindNode`,
+  `RenderNode`, `RenderItNode`, `EachNode`, `PushViewNode`, `WithBindsNode`. `Host.detachSync`
+  (`stop` detaches) and `Host.engineName`.
+- From `tutuca/dev`: `foreignWrites`.
+- From `tutuca/tui`: what only the terminal's own modules use (`editKey`, `insert`, `undo`,
+  `redo`, `replace`, `hitTest`, `focusables`, `paint`, `paintScreen`, `parseProp`, `propsOf`,
+  `TElement`, `TText`, `TComment`, `TFragment`, `makeEvent`, `osc52`, `parseMouse`,
+  `bindScreen`, `drawBuffer`, `detectTerminal` and the like), `columnOf`, `CellBuffer.clear`,
+  and a `TElement`'s `firstChild`, `lastChild` and `selectionDirection`.
+- From `tutuca/jsast`, `tutuca/mdast`, `tutuca/ps`, `tutuca/pdf`, `tutuca/docx` and
+  `tutuca/llm`: `lower` (and `lowerContext`, `lowerTools`), the schema tables and their
+  category and operator constants, `ps`'s drawing helpers but `PAGE_SIZE`, `STANDARD_FONTS`,
+  `toDocxDocument`, `renderLlmContextAst` and `inputIssues`. `render*`, `print*`, the tags,
+  the targets and the errors stay.
+- The path tree's text has no `color` option.
+
+### Fixed
+
+- Ctrl+X in a terminal input or textarea copies what it cuts; it copied nothing.
+- A type inside `t.array`, `t.map` or `t.record` is checked, and its default made, with the
+  component it's a field of, as one inside `t.option` or `t.oneOf` is: `t.array(t.index("items"))`
+  takes only keys of `items`, where it took any integer or string.
 
 ## 1.0.0-beta.4
 

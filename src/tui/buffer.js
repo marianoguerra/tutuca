@@ -42,13 +42,19 @@ export function colorToSgr(color, background = false) {
 	return "";
 }
 
+// value kept in cache under key, the oldest entry dropped once it holds max; returns value.
+export const keep = (cache, key, value, max = 512) => {
+	if (cache.size >= max) cache.delete(cache.keys().next().value);
+	cache.set(key, value);
+	return value;
+};
 const sgrCache = new Map();
 // The style string of { color, backgroundColor, bold, dim, italic, underline, inverse,
 // strikethrough }: the SGR parameters joined with ;.
 export function sgr(style) {
 	const { color, backgroundColor, bold, dim, italic, underline, inverse, strikethrough } = style;
 	const key = `${color}|${backgroundColor}|${+!!bold}${+!!dim}${+!!italic}${underline || 0}${+!!inverse}${+!!strikethrough}`;
-	let out = sgrCache.get(key);
+	const out = sgrCache.get(key);
 	if (out !== undefined) return out;
 	const codes = [];
 	if (bold) codes.push("1");
@@ -61,10 +67,7 @@ export function sgr(style) {
 	const bg = colorToSgr(backgroundColor, true);
 	if (fg) codes.push(fg);
 	if (bg) codes.push(bg);
-	out = codes.join(";");
-	if (sgrCache.size >= 512) sgrCache.delete(sgrCache.keys().next().value);
-	sgrCache.set(key, out);
-	return out;
+	return keep(sgrCache, key, codes.join(";"));
 }
 
 const EMPTY = Object.freeze({ char: " ", style: "", wide: false });
@@ -154,12 +157,6 @@ export class CellBuffer {
 			} else if (w > 1) {
 				for (let col = x1; col + w <= x2; col += w) this.writeChar(col, row, char, style);
 			}
-		}
-	}
-	clear() {
-		for (let y = 0; y < this.height; y++) {
-			this.rows[y].fill(EMPTY);
-			this.signatures[y] = null;
 		}
 	}
 	// What a row holds as one string, so equal rows are skipped with one comparison.
@@ -264,7 +261,7 @@ const reduced = new Map();
 export function reduceStyle(style, colors) {
 	if (colors === "truecolor" || style === "") return style;
 	const key = `${colors}|${style}`;
-	let out = reduced.get(key);
+	const out = reduced.get(key);
 	if (out !== undefined) return out;
 	const params = style.split(";");
 	const kept = [];
@@ -291,10 +288,7 @@ export function reduceStyle(style, colors) {
 		if (colors === 0 && isColorCode(n)) continue;
 		kept.push(p);
 	}
-	out = kept.join(";");
-	if (reduced.size >= 512) reduced.delete(reduced.keys().next().value);
-	reduced.set(key, out);
-	return out;
+	return keep(reduced, key, kept.join(";"));
 }
 
 // What a terminal without Unicode draws instead of box drawing, blocks and the ellipsis: one
@@ -318,7 +312,7 @@ const FULL = { colors: "truecolor", unicode: true };
 const styleFor = (style, terminal) => reduceStyle(style, terminal.colors);
 const charFor = (char, terminal) => (terminal.unicode ? char : asciiOf(char));
 
-// The whole buffer as ANSI lines, for printing it once (renderToString), as terminal shows it.
+// The whole buffer as ANSI lines, for printing it once, as terminal shows it.
 export function bufferToAnsi(buffer, terminal = FULL) {
 	const lines = buffer.rows.map((row) => {
 		let out = "";

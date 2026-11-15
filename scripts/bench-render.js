@@ -1,4 +1,4 @@
-// The render cache benchmark on jsdom: a dev-only script, not part of the CLI.
+// The render cache benchmark on jsdom: a dev-only script.
 // node --expose-gc scripts/bench-render.js [--size N] [--updates N]
 // The same benchmark runs in a browser on a real DOM: just serve, then open
 // scripts/bench/render.html (?size=N&updates=N). The benchmark itself is scripts/bench/render.js.

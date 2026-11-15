@@ -1,22 +1,20 @@
 // The core: components, views, schemas, specs, paths, tasks and the host. Each lives in its own module;
 // this one is the public surface npm consumers and dist/ bundle.
 
+export { ComponentSpec, component } from "./core/component.js";
 export { DRAG_EVENTS, DROP_EVENTS, Drag } from "./core/host/drag.js";
 export { browserEnv, Host } from "./core/host/host.js";
-export { HOST_EVENT_TYPES, HostEvent } from "./core/host/host-event.js";
+export { HostEvent } from "./core/host/host-event.js";
 export {
-	FAILED_TYPES,
 	isProblem,
 	problemLines,
 	transitionLabel,
 } from "./core/host/records.js";
 export { componentHandlers, HandlerContext, HostTask } from "./core/host/tree-binding.js";
-export { ComponentSpec, component } from "./core/model/component.js";
 export {
 	filledMeta,
 	hasMeta,
 	metaOf,
-	metaProblems,
 	metaShapeProblems,
 } from "./core/model/component-meta.js";
 export {
@@ -25,7 +23,6 @@ export {
 	canApply,
 	canQuery,
 	checkCall,
-	checkInvariants,
 	contractOf,
 	interfaceGaps,
 	query,
@@ -45,12 +42,9 @@ export {
 	scopeOf,
 	scopeSym,
 	specOf,
+	specOrSelf,
 	specSym,
-	toAnswers,
-	toMessages,
-	toQueries,
 } from "./core/model/spec.js";
-export { enableTargets, RenderTarget } from "./core/model/targets.js";
 export {
 	AnyType,
 	ArrayType,
@@ -60,14 +54,12 @@ export {
 	IndexType,
 	isRecord,
 	MapType,
-	NoDefaultError,
 	NumberType,
 	OneOfType,
 	OptionType,
 	prefixed,
 	RecordType,
 	StringType,
-	SYNC_LEVELS,
 	syncsAt,
 	Type,
 	t,
@@ -76,11 +68,9 @@ export {
 	unwrapOption,
 } from "./core/model/types.js";
 export {
-	argIssues,
 	brokenInvariants,
 	findInvalid,
 	messageIssues,
-	postHolds,
 	preHolds,
 } from "./core/model/validate.js";
 export {
@@ -91,46 +81,37 @@ export {
 	viewFacts,
 	WeakMapCache,
 } from "./core/view/render-cache.js";
-export * from "./core/view/tag.js";
+export { button, tag } from "./core/view/tag.js";
+export { enableTargets, RenderTarget } from "./core/view/targets.js";
 export {
 	$if,
 	$query,
 	CondNode,
 	ConstantNode,
 	dragKey,
-	EachNode,
 	ElementNode,
 	EventArgNode,
 	each,
 	eventKey,
-	FieldNode,
 	field,
 	h,
-	LookupBindNode,
 	lookupBind,
-	ProvidedNode,
-	PushViewNode,
 	provided,
 	pushView,
-	QueryNode,
 	RenderContext,
 	RenderEachNode,
-	RenderItNode,
-	RenderNode,
 	render,
 	renderEach,
 	renderIt,
 	SendNode,
-	SeqItemNode,
 	send,
 	seqItem,
 	sourceKey,
 	targetValue,
 	ViewNode,
-	WithBindsNode,
 	withBinds,
 } from "./core/view/view.js";
-export * from "./core/view/walk.js";
+export { Walker } from "./core/view/walk.js";
 export {
 	Address,
 	ANSWER_OUTCOMES,
@@ -142,7 +123,6 @@ export {
 	Frame,
 	HOST,
 	idOf,
-	idSym,
 	KeyPath,
 	MessageContext,
 	NotifyTask,

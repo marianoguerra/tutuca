@@ -13,7 +13,7 @@
 // - literal: its value is its text: the value attr, or the text its children render to.
 
 export const isTypeName = (name) => /^[A-Z]/.test(name);
-const isNumber = (v) => typeof v === "number" && Number.isFinite(v);
+export const isNumber = (v) => typeof v === "number" && Number.isFinite(v);
 
 // What a value of each kind is, said as what was expected: null when it's one.
 export const KINDS = {
@@ -26,6 +26,11 @@ export const KINDS = {
 	color: (v) => (isColor(v) ? null : "a color, #rgb or #rrggbb"),
 };
 export const isColor = (v) => typeof v === "string" && /^#([0-9a-f]{3}|[0-9a-f]{6})$/i.test(v);
+// A color's six hex digits, #rgb written out: "rrggbb".
+export const hexDigits = (color) => {
+	const hex = color.slice(1);
+	return hex.length === 3 ? [...hex].map((c) => c + c).join("") : hex;
+};
 
 // Scalars, as tables write them.
 export const opt = (kind, extra = {}) => ({ kind, optional: true, ...extra });

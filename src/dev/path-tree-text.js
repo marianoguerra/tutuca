@@ -63,9 +63,9 @@ export const componentText = (node) => {
 	if (node.spec === null) return "";
 	return node.view === "main" ? node.spec : `${node.spec}:${node.view}`;
 };
-export const markOf = (node) => (node.last ? "◆" : node.active ? "●" : "○");
+const markOf = (node) => (node.last ? "◆" : node.active ? "●" : "○");
 // The text of node's line, without its mark and indentation.
-export const lineText = (node) => {
+const lineText = (node) => {
 	const comp = componentText(node);
 	const step = stepParts(node.step)
 		.map((p) => p.text)
@@ -74,23 +74,11 @@ export const lineText = (node) => {
 	return `${step}${comp === "" ? "" : ` ${comp}`}${collapsed}`;
 };
 
-const ANSI = { punct: 2, name: 36, value: 32, kw: 35, muted: 2, comp: 33 };
-const paint = (code, text) => `\x1b[${code}m${text}\x1b[0m`;
-const colorLine = (node) => {
-	const parts = stepParts(node.step).map((p) => paint(ANSI[p.tone], p.text));
-	const comp = componentText(node);
-	if (comp !== "") parts.push(` ${paint(ANSI.comp, comp)}`);
-	if (node.children === null && node.hasChildren) parts.push(paint(2, " ▸"));
-	const text = parts.join("");
-	return node.active ? text : paint(2, text);
-};
-
-// The tree as lines, one per step; color adds ANSI colors and dims the inactive steps.
-export const pathTreeText = (tree, { color = false } = {}) => {
+// The tree as lines, one per step.
+export const pathTreeText = (tree) => {
 	const lines = [];
-	const line = color ? colorLine : lineText;
 	const walk = (node, prefix, head) => {
-		lines.push(`${head}${markOf(node)} ${line(node)}`);
+		lines.push(`${head}${markOf(node)} ${lineText(node)}`);
 		const children = node.children ?? [];
 		children.forEach((c, i) => {
 			const isLast = i === children.length - 1;

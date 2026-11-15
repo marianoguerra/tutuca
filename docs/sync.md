@@ -36,7 +36,7 @@ Engines never see components. They see the **projection**, the state as plain JS
 
 ```js
 import { startSynced, storageEngine } from "tutuca/sync";
-import { automergeEngine } from "tutuca/automerge";
+import { automergeEngine } from "tutuca/sync/automerge";
 
 await startSynced(host, {
 	engines: [automergeEngine({ handle }), storageEngine(localStorage, "notes")],
@@ -178,7 +178,7 @@ Sends each change's ops to a remote and applies the ops other clients send.
   with `{ type: "batch", clientId, seq, version, ops }` or `{ type: "reject", clientId, seq }`.
   `memoryRemote()` connects clients to one relay in-process, for tests.
 
-### `automergeEngine({ handle })` (`tutuca/automerge`)
+### `automergeEngine({ handle })` (`tutuca/sync/automerge`)
 
 Keeps the shared fields in an Automerge document, so peers merge concurrent edits.
 

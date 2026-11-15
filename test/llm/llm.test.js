@@ -455,3 +455,16 @@ test("what a context tag says is checked when it's built and as it renders", () 
 		'Items[0] > Item[0]: Item.done is a boolean, not "yes"',
 	);
 });
+
+test("a tag a vocabulary doesn't have throws an LlmError listing the ones it has", () => {
+	assert.throws(
+		() => llmTools.Foo(),
+		(error) => {
+			assert.ok(error instanceof LlmError, error);
+			assert.match(error.message, /^unknown tag Foo \(one of Tools, /);
+			return true;
+		},
+	);
+	assert.throws(() => llmContext.Tool(), /unknown tag Tool \(one of Section, /);
+	assert.equal(typeof llmTools.When, "function");
+});

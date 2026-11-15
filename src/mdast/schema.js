@@ -4,7 +4,7 @@
 // mdast is simpler than ESTree: a node's only node field is children, so there are no slots. Its
 // categories are Flow and Phrasing; in a Phrasing parent, text is a text node, adjacent text one
 // node. Left out attrs are left out of the node too (a listItem without checked is not a task),
-// but for spread, which is false (lower.js's DEFAULTS). Text, InlineCode, Code and Html are
+// but for spread, which is false (render.js's DEFAULTS). Text, InlineCode, Code and Html are
 // literals.
 import { empty, literal, oneOf, opt, parent, Schema } from "../checked/schema.js";
 

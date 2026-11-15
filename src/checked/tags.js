@@ -5,7 +5,9 @@
 // What a view says when it's built is checked here: a type or attr that doesn't exist, a constant
 // attr of the wrong kind, a child its node doesn't take, text where there can't be any. What
 // field, each or render give is only known when the view renders; lower.js checks that.
-import { CondNode, ConstantNode, ElementNode, h } from "../core/view/view.js";
+
+import { splitArgs, tagProxy } from "../core/view/tag.js";
+import { CondNode, ConstantNode, ElementNode, h } from "../tutuca.js";
 import { isTypeName } from "./schema.js";
 
 // The children of a node as far as they're known when it's built: elements, and constant text.
@@ -65,22 +67,17 @@ const check = (schema, node, issues) => {
 	else checkChildren(schema, type, children, issues);
 };
 
-const isAttrs = (v) =>
-	v !== null && typeof v === "object" && Object.getPrototypeOf(v) === Object.prototype;
-
 // The builders of schema's tags, throwing an ErrorClass (a SchemaError) for what's wrong.
 // Destructure the ones a module uses: const { Heading, Paragraph } = md.
 export const checkedTags = (schema, ErrorClass) => {
 	const build = (name, args) => {
-		const [attrs, children] = isAttrs(args[0]) ? [args[0], args.slice(1)] : [{}, args];
+		const [attrs, children] = splitArgs(args);
 		const node = h(name, attrs, ...children);
 		const issues = [];
-		if (node.handlers.length > 0) issues.push(`${name} can't handle events`);
+		if (node.bindings.length > 0) issues.push(`${name} can't handle events`);
 		check(schema, node, issues);
 		if (issues.length > 0) throw new ErrorClass(issues);
 		return node;
 	};
-	return new Proxy(Object.create(null), {
-		get: (_target, name) => (typeof name === "string" ? (...args) => build(name, args) : undefined),
-	});
+	return tagProxy(build);
 };

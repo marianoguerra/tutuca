@@ -24,8 +24,8 @@ export class CheckCache extends RenderCache {
 	get usesSlots() {
 		return this.inner.usesSlots;
 	}
-	get scope() {
-		return this.inner.scope;
+	get rootLevel() {
+		return this.inner.rootLevel;
 	}
 	begin() {
 		this.inner.begin();
@@ -37,9 +37,9 @@ export class CheckCache extends RenderCache {
 	fragment(result, wrapped, key, make) {
 		return this.inner.fragment(result, wrapped, key, make);
 	}
-	end(root, target, vdom) {
-		this.inner.end(root, target, vdom);
-		const fresh = toVChildren(renderView(root, RenderContext.root(root, { target })));
+	end(root, renderTarget, vdom) {
+		this.inner.end(root, renderTarget, vdom);
+		const fresh = toVChildren(renderView(root, RenderContext.root(root, { renderTarget })));
 		console.assert(childrenEqual(vdom, fresh), "A cached render differs from an uncached one");
 		const traced = new Map();
 		for (const entry of this.inner.trace) {
@@ -49,7 +49,7 @@ export class CheckCache extends RenderCache {
 		}
 		this.inner.trace = null;
 		DepsWalker.depsOf(root, {
-			target,
+			renderTarget,
 			onComponent(instance, view, ctx, deps) {
 				// Not traced: under a hit, whose own deps cover it.
 				const entry = traced.get(instance)?.find((e) => samePlace(e, view, ctx));

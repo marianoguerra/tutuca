@@ -47,8 +47,8 @@ export class Transition extends Record {
 		Object.assign(this, fields);
 		hidden(this, { task: null, before: null, after: null, instance: null, ...heavy });
 	}
-	// The transition of task with outcome; extra adds fields (error, emitted, ...) and heavy
-	// references (before, after, instance).
+	// The transition of task with outcome: error, what ctx emitted and left unhandled, and the
+	// heavy references (before, after, instance).
 	static of(
 		task,
 		outcome,

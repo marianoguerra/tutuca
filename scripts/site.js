@@ -92,7 +92,7 @@ const siteImportMap = (base) => ({
 	imports: {
 		tutuca: `${base}src/tutuca.js`,
 		"tutuca/storybook": `${base}src/storybook/index.js`,
-		"tutuca/playground": `${base}src/playground/index.js`,
+		"tutuca/playground": `${base}src/playground/element.js`,
 		"tutuca/lint": `${base}src/lint/index.js`,
 		"tutuca/meta": `${base}src/meta/index.js`,
 		"tutuca/jsast": `${base}src/jsast/index.js`,

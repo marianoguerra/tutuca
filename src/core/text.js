@@ -1,5 +1,5 @@
 // How values print in labels, logs and messages, besides the tree's own (tree/text.js).
-import { jsonText } from "../../tree/index.js";
+import { jsonText } from "../tree/index.js";
 
 // s cut to max characters, with an ellipsis when it was longer.
 export const truncate = (s, max) => (s.length > max ? `${s.slice(0, max)}…` : s);

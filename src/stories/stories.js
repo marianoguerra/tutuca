@@ -1,7 +1,7 @@
 // Stories without a UI: books of stories, their sequences of steps and stress tests, run on a
 // headless Driver. fast-check is passed in, as in pbt.js.
 
-import { argsLabel } from "../core/host/text.js";
+import { argsLabel } from "../core/text.js";
 import { Driver, describeProblems } from "../testing/driver.js";
 import { arbitraries, eventCommands, messageCommands, runCommands } from "../testing/pbt.js";
 import { DispatchPath, errorMessage, Scope, selectorFrom, specOf } from "../tutuca.js";
@@ -152,8 +152,6 @@ export const checkStory = (story, { fc, document = null }) => {
 	}
 };
 
-// The fc property of story's stress test: sequences of messages, or of events with a
-// document, from root or, with from "generated", from instances of the root's spec.
 // A stress run's settings: story.stress says numRuns, maxCommands and events, the rest and
 // what it leaves out are STRESS_DEFAULTS.
 export const STRESS_DEFAULTS = {
@@ -170,6 +168,8 @@ export const stressSettings = (story) => {
 	}
 	return settings;
 };
+// The fc property of story's stress test: sequences of messages, or of events with a
+// document, from root or, with from "generated", from instances of the root's spec.
 // onRun(ops, error), when given, is called after each run with the text of the commands
 // that ran and the error that failed it, or null.
 export const stressProperty = (

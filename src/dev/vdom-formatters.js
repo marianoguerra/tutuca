@@ -1,6 +1,6 @@
 // DevTools custom formatters for vdom trees (Chrome/Firefox), shown like the Elements panel.
 
-import { truncate } from "../core/host/text.js";
+import { truncate } from "../core/text.js";
 import { HTML_NS, VBase, VComment, VFragment, VNode, VText } from "../vdom/index.js";
 import { install, makeFormatter, objectRef as ref, span } from "./jsonml.js";
 
