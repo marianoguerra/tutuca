@@ -92,7 +92,7 @@ export const demos = [
 		emoji: "🪞",
 		title: "Renders",
 		blurb:
-			"One component, several outputs: the counter and the todo list next to the same app in a terminal preview, the JavaScript that makes them, the markdown that describes them, and what a model is told and the tools it gets (call them here), following as you use them.",
+			"One component, several outputs: the counter, the todo list, the cart, the kanban board and the JSON tree next to the same app in a terminal preview, the JavaScript that makes them, the markdown that describes them, them printed as PostScript and PDF, a Word document of them, and what a model is told and the tools it gets (call them here), following as you use them.",
 		story: null,
 		sources: [],
 	},

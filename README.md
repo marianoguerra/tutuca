@@ -7,7 +7,7 @@ Tutuca covers components, typed state, rendering and event handling, and the too
 tests that run without a browser, property-based tests generated from your field types, a
 storybook with stress tests, and a linter. State changes can be saved or shared with other tabs
 and devices through sync engines you plug in ([`docs/sync.md`](docs/sync.md)). A formal model of
-the semantics is being written in PLT Redex (`spec/`). The core is about 2,000 lines of
+the semantics is being written in PLT Redex (`spec/`). The core is about 4,000 lines of
 JavaScript with no npm dependencies (it includes a copy of immer).
 
 - Site: https://marianoguerra.github.io/tutuca/
