@@ -168,6 +168,29 @@ test("the dev tab inspects the story's state, transitions, components and lint",
 	assert.deepEqual(failures, []);
 });
 
+test("the tree tab shows the story's path tree, focused where the last message went", async () => {
+	const { host, rootNode, click, byText, failures } = start("JSON/Bool (edit)");
+	await settle();
+	click(byText('[role="tab"]', "Tree"));
+	await settle();
+	const before = host.root.tree;
+	assert.notEqual(before.rootRef, 0);
+	assert.match(before.tree.comp, /^JsonEditor/);
+	assert.match(rootNode.textContent, /JsonEditor/);
+	click(byText('[role="tab"]', "Steps"));
+	click(rootNode.querySelector('[title="Step"]'));
+	await settle();
+	// A new state is walked again; the tree keeps what it showed for the same one.
+	assert.notEqual(host.root.tree.rootRef, before.rootRef);
+	// Focused on the toggle the step sent the value, not the notify that went up to the root.
+	assert.equal(host.root.tree.focusText, ".value");
+	click(byText('[role="tab"]', "Tree"));
+	await settle();
+	assert.match(rootNode.textContent, /focus\.valueclear/);
+	assert.match(rootNode.textContent, /◆/);
+	assert.deepEqual(failures, []);
+});
+
 test("a stress run from the UI reports its result", async () => {
 	const { host, rootNode, click, byText, failures } = start("Math/Quadratic/Two roots");
 	await settle();

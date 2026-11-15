@@ -11,7 +11,7 @@
 // A RenderCache is what a render asks; NullCache keeps nothing, and the two DepsCaches keep
 // entries their own way: WeakMapCache by instance, as long as the instance lives, CopyCache as a
 // tree of the last render's entries, dropping what that render didn't reach. CheckCache
-// (check-cache.js) checks one against an uncached render.
+// (src/dev/check-cache.js) checks one against an uncached render.
 import { wrapComponent } from "./markers.js";
 import { Walker } from "./walk.js";
 

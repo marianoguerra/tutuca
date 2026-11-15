@@ -122,7 +122,7 @@ Another design finds the dependencies before rendering:
 1. Walk only what steers a render (conds, loops, child components) and what reads a provided value.
 2. Render, keyed on what the walk found.
 
-`DepsWalker` (`src/core/view/deps-walker.js`) is that walk. It shares `loopEntries` and
+`DepsWalker` (`src/dev/deps-walker.js`, exported from `tutuca/dev`) is that walk. It shares `loopEntries` and
 `CondNode.branch` with the render, so the two can't drift apart. On its own it must visit every
 component on every update, because it can't stop at an unchanged instance without remembering deps.
 It costs about half a full render: in the browser, 2.2 ms on top of a cached tree update of 0.1 ms.

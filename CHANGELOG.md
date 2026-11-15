@@ -1,5 +1,21 @@
 # Changelog
 
+## Unreleased
+
+### Added
+
+- **The path tree**: the steps a render takes from the root (`.field`, `.seq[.key=value]`,
+  `*provided ^up.keys`, `each .seq`, `[key]`, `it`), found without rendering, with the steps on
+  a focus path active and the ones they don't take inactive. `src/dev/path-tree.js` walks it,
+  `src/dev/path-tree-text.js` prints it as an outline for a terminal or a model's context, and
+  the storybook and playground panels have a Tree tab that follows the story's app, focused
+  where the last message went.
+
+### Changed
+
+- `CheckCache` and `DepsWalker` are dev tools: they moved to `src/dev/` and are exported from
+  `tutuca/dev`, not `tutuca`.
+
 ## 1.0.0-beta.4
 
 A component renders more than a page: a terminal UI, JavaScript, markdown, what a model is

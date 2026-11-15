@@ -6,12 +6,11 @@
 // checked there).
 import assert from "node:assert/strict";
 import { after, before, test } from "node:test";
+import { CheckCache, DepsWalker } from "../../src/tutuca.dev.js";
 import {
 	$if,
-	CheckCache,
 	CopyCache,
 	component,
-	DepsWalker,
 	field,
 	h,
 	provided,

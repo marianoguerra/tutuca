@@ -2,10 +2,11 @@
 // renders again without a cache and asserts both are the same, and walks the tree with
 // DepsWalker and asserts each component's recorded deps are the ones it finds. For dev and
 // tests (TUTUCA_RENDER_CACHE=check:copy npm test); invariants are asserted at runtime.
-import { childrenEqual, toVChildren } from "../../vdom/index.js";
+
+import { RenderCache, samePlace, sameProvided } from "../core/view/render-cache.js";
+import { RenderContext, renderView } from "../core/view/view.js";
+import { childrenEqual, toVChildren } from "../vdom/index.js";
 import { DepsWalker } from "./deps-walker.js";
-import { RenderCache, samePlace, sameProvided } from "./render-cache.js";
-import { RenderContext, renderView } from "./view.js";
 
 const sameDeps = (recorded, walked) => {
 	const byName = new Map(walked);

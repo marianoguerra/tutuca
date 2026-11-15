@@ -5,6 +5,7 @@ import {
 	lintRecords,
 	makeDevPanel,
 } from "../../src/panels/ui/dev-panel.js";
+import { makePathTree, pathTreeComponents } from "../../src/panels/ui/path-tree.js";
 import { book, step } from "../../src/storybook/index.js";
 import {
 	Address,
@@ -18,6 +19,7 @@ import {
 } from "../../src/tutuca.js";
 import { fromJson, jsonComponents } from "../json/index.js";
 import { todoComponents } from "../todo/index.js";
+import { appScope, makeApp } from "./path-tree-app.js";
 
 // Values to inspect, made in a scope of their own like an app's.
 const app = new Scope();
@@ -27,11 +29,21 @@ const path = new DispatchPath([new Frame(["items"], 1, null, true)]);
 const task = new Task("toggle", [], new Address(path, 1), new Target(path), null);
 const specs = Object.values(jsonComponents);
 
+// An app whose render takes every kind of path step, for the path tree.
+const pathApp = makeApp(appScope().components, { todos: 12 });
+const docsSidebar = new DispatchPath([Frame.node("pages", "docs"), Frame.node("sidebar")]);
+const todoTags = new DispatchPath([new Frame(["todos"], 5, null, true), Frame.node("tags", 0)]);
+const stepTo =
+	(...rows) =>
+	(b) =>
+		rows.reduce((sel, i) => sel.item("rows", i), b.field("tree"));
+const rowsOf = (s, ...rows) => rows.reduce((step, i) => step.rows[i], s.tree);
+
 const opened = (node) => node.isOpen && node.rows.length > 0;
 
 export default book({
 	title: "Dev",
-	components: devComponents,
+	components: { ...devComponents, ...pathTreeComponents },
 	stories: {
 		"Node/Component instance": {
 			make: (C) => devNode(C, "root", doc),
@@ -96,6 +108,48 @@ export default book({
 						devNode(C, "set", new Set(["a", "b"])),
 					],
 				}),
+		},
+		"Path tree/Focused": {
+			make: (C) => makePathTree(C, pathApp, { path: docsSidebar }),
+			sequences: {
+				"open a step off the path, then focus one": [
+					step.check("the loops are closed", (s) => !rowsOf(s, 2).isOpen && rowsOf(s, 2).canOpen),
+					step.send("toggle", [], { to: stepTo(2) }),
+					step.check("the loop lists its items", (s) => rowsOf(s, 2).rows.length === 9),
+					step.check("inactive", (s) => rowsOf(s, 2, 0).mark === "inactive"),
+					step.send("focus", [], { to: stepTo(0) }),
+					step.check("the header is the focus", (s) => s.focusText === ".header"),
+					step.check("and the path's last step", (s) => rowsOf(s, 0).mark === "last"),
+					step.send("clearFocus"),
+					step.check(
+						"no focus: every step active",
+						(s) => s.focusText === "" && rowsOf(s, 2).mark === "active",
+					),
+				],
+			},
+		},
+		"Path tree/Loop item": {
+			make: (C) => makePathTree(C, pathApp, { path: todoTags, siblings: 2 }),
+			sequences: {
+				"the focused item stays past siblings": [
+					step.check(
+						"two items, the focused one and … more",
+						(s) =>
+							rowsOf(s, 2)
+								.rows.map((r) => r.parts.map((p) => p.text).join(""))
+								.join(" ") === "[0] [2] [5] … 8 more",
+					),
+					step.check("its tag is the last step", (s) => rowsOf(s, 2, 2, 0, 0).mark === "last"),
+				],
+			},
+		},
+		"Path tree/Whole tree": {
+			make: (C) => makePathTree(C, pathApp, { siblings: 3 }),
+			sequences: {
+				"everything active": [
+					step.check("no focus", (s) => s.focusText === "" && rowsOf(s, 1).isOpen),
+				],
+			},
 		},
 		"Lint/Clean": { make: (C) => C.DevLint() },
 		"Lint/Issues": {

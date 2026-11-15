@@ -1,19 +1,20 @@
 // The panels of a story's app, shared by the storybook and the playground: the steps, the
-// stress test and the dev panel, fed by the reports of its <tutuca-app>.
+// stress test, the dev panel and the path tree, fed by the reports of its <tutuca-app>.
 
 import { $if, apply, field, render, scopeOf, send, t, tag } from "../../tutuca.js";
 import { isShown } from "./common.js";
 import { devComponents, makeDevPanel } from "./dev-panel.js";
+import { makePathTree, pathTreeComponents } from "./path-tree.js";
 import { StoryPanel, SUMMARY_KEYS } from "./story-panel.js";
 import { StressPanel, stressResult } from "./stress-panel.js";
 
 // The panels' components.
-export const panelComponents = { StoryPanel, StressPanel, ...devComponents };
+export const panelComponents = { StoryPanel, StressPanel, ...devComponents, ...pathTreeComponents };
 
 // The panels, by the name a component's panel field shows each by: its tab's label and the
 // field it is in.
-const PANEL_FIELDS = { steps: "story", stress: "stress", dev: "dev" };
-export const PANEL_LABELS = { steps: "Steps", stress: "Stress test", dev: "Dev" };
+const PANEL_FIELDS = { steps: "story", stress: "stress", dev: "dev", tree: "tree" };
+export const PANEL_LABELS = { steps: "Steps", stress: "Stress test", dev: "Dev", tree: "Tree" };
 export const PANELS = Object.keys(PANEL_LABELS);
 // The panel fields of a component that shows them (besides panel, which says the one shown,
 // one of PANELS among whatever else it shows), and new panels for the app at appKey.
@@ -21,13 +22,15 @@ export const panelFields = {
 	story: t.component("StoryPanel"),
 	stress: t.component("StressPanel"),
 	dev: t.component("DevPanel"),
+	tree: t.component("PathTree"),
 };
 export const makePanels = (C, appKey = "") => ({
 	story: C.StoryPanel({ appKey }),
 	stress: C.StressPanel({ appKey }),
 	dev: makeDevPanel(C),
+	tree: makePathTree(C),
 });
-// queries with isSteps, isStress and isDev, which say whether the panel field says that panel
+// queries with isSteps, isStress, isDev and isTree, which say whether the panel field says that panel
 // shows.
 export const withPanelQueries = (queries) =>
 	Object.defineProperties(
@@ -44,7 +47,7 @@ export const withPanelQueries = (queries) =>
 			]),
 		),
 	);
-// The panel that shows, of the three.
+// The panel that shows.
 export const panelsView = () =>
 	PANELS.map((panel) => $if(field(isShown(panel)), render(field(PANEL_FIELDS[panel])), ""));
 // The handlers the panels send their parent: showSteps shows the steps, appReport applies a
@@ -79,7 +82,10 @@ const applyAppReport = (self, next, detail, onState) => {
 		onState?.(self, next, detail.data);
 		const summary = Object.fromEntries(SUMMARY_KEYS.map((key) => [key, detail.data[key]]));
 		next.story = apply(next.story, "showSummary", summary);
-		if (detail.data.dev) next.dev = apply(next.dev, "showApp", detail.data.dev);
+		if (detail.data.dev) {
+			next.dev = apply(next.dev, "showApp", detail.data.dev);
+			next.tree = apply(next.tree, "showApp", detail.data.dev);
+		}
 		if (detail.data.stress) next.stress = apply(next.stress, "showSettings", detail.data.stress);
 	} else if (detail.type === "stress" && next.stress.status === "running") {
 		next.stress = apply(next.stress, "showStress", stressResult(detail.data));

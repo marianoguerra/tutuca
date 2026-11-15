@@ -28,7 +28,7 @@ const { button, div, h3, li, p, section, span, ul } = tag;
 const refs = new Map();
 const ids = new WeakMap();
 let nextRef = 1;
-const refIdOf = (v) => {
+export const refIdOf = (v) => {
 	if (!isObject(v)) return 0;
 	let id = ids.get(v);
 	if (id === undefined) {
@@ -38,10 +38,10 @@ const refIdOf = (v) => {
 	}
 	return id;
 };
-const deref = (id) => refs.get(id)?.deref();
+export const deref = (id) => refs.get(id)?.deref();
 
 // Classes for the styles of src/dev/formatters.js, by the name it gives them.
-const TONES = {
+export const TONES = {
 	plain: "",
 	name: "font-bold text-warning",
 	key: "text-secondary",

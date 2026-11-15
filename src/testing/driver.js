@@ -2,11 +2,11 @@
 // headless or rendered, and keeps what it reports. Tests, stress runs and the live storybook
 // drive apps through it: it sends messages, answers asks and fires DOM events as a user would.
 import { isProblem, problemLines } from "../core/host/records.js";
+import { CheckCache } from "../dev/check-cache.js";
 import { DevChecks } from "../dev/checks.js";
 import {
 	Address,
 	AnswerTask,
-	CheckCache,
 	CopyCache,
 	DispatchPath,
 	Frame,

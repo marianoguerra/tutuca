@@ -2,10 +2,10 @@
 // its render (conds, loops, components) and what reads a provided value, without rendering.
 // Dev mode checks the deps the render cache recorded against it (render-cache.js); it's also
 // the first pass of a two-pass cache, which scripts/bench-render.js measures.
-import { specOf } from "../model/spec.js";
-import { mergeDeps, ownDeps, viewFacts } from "./render-cache.js";
-import { loopEntries, loopOf, RenderContext } from "./view.js";
-import { Walker } from "./walk.js";
+import { specOf } from "../core/model/spec.js";
+import { mergeDeps, ownDeps, viewFacts } from "../core/view/render-cache.js";
+import { loopEntries, loopOf, RenderContext } from "../core/view/view.js";
+import { Walker } from "../core/view/walk.js";
 
 // The provided entries the subtree of instance, rendered in ctx with viewName, reads, as pairs,
 // found without rendering: it evaluates only what picks a branch, an item or a component and

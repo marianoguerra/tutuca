@@ -7,11 +7,11 @@
 // keep them. And it times DepsWalker's pass alone: what a two-pass cache (walk the tree for the
 // provided values it reads, then render keyed by them) adds to a cached render.
 import { renderView } from "../../src/core/view/view.js";
+import { DepsWalker } from "../../src/tutuca.dev.js";
 import {
 	$if,
 	CopyCache,
 	component,
-	DepsWalker,
 	field,
 	Host,
 	h,
