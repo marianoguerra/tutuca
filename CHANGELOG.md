@@ -15,6 +15,10 @@
 
 - `CheckCache` and `DepsWalker` are dev tools: they moved to `src/dev/` and are exported from
   `tutuca/dev`, not `tutuca`.
+- A component's render no longer depends on its depth, and is reused wherever it is: a frame
+  whose source is a provided value says how many frames up its provider is
+  (`Frame.provider` is `{ name, up, keys }`, its marker `{ v, u, k }`), not the provider's depth.
+  `WeakMapCache` finds an instance moved to another level of a tree.
 
 ## 1.0.0-beta.4
 

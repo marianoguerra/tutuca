@@ -2,8 +2,9 @@
 // when nothing it depends on changed (docs/render-cache.md).
 //
 // A component's render is a function of its instance (immutable: an unchanged one is the same
-// object), the view picked for it, the view stack its descendants inherit, its depth (provider
-// frames inside it say their depth) and the provided values read anywhere in its subtree. What's
+// object), the view picked for it, the view stack its descendants inherit and the provided values
+// read anywhere in its subtree, each with how far up its provider is. Not of where it is: the
+// frames that say where it is wrap it, and those inside it are relative (markers.js). What's
 // provided is tracked as it's read (RenderContext.readProvided) and bubbles up from each
 // component to its parent, less the names the component provides itself: reads of those below
 // it are of its own provides.
@@ -71,23 +72,26 @@ const sameKeys = (a, b) => {
 	for (let i = 0; i < a.length; i++) if (a[i] !== b[i]) return false;
 	return true;
 };
-// Two provided entries render the same: the same value, from a provider at the same place.
-export const sameProvided = (a, b) =>
-	a === b ||
-	(a !== undefined &&
-		b !== undefined &&
-		a.value === b.value &&
-		a.depth === b.depth &&
-		sameKeys(a.keys, b.keys));
-const depsHold = (deps, provided) => {
+// Two provided entries, a read at depth aDepth and b at bDepth, render the same: the same value,
+// from a provider as many frames up, at the same keys.
+export const sameProvided = (a, aDepth, b, bDepth) =>
+	a === undefined || b === undefined
+		? a === b
+		: a.value === b.value &&
+			aDepth - a.depth === bDepth - b.depth &&
+			(a === b || sameKeys(a.keys, b.keys));
+const depsHold = (entry, ctx) => {
+	const { deps } = entry;
 	for (let i = 0; i < deps.length; i++) {
-		if (!sameProvided(deps[i][1], provided[deps[i][0]])) return false;
+		if (!sameProvided(deps[i][1], entry.depth, ctx.provided[deps[i][0]], ctx.depth)) return false;
 	}
 	return true;
 };
-// Whether entry is of a render of view in ctx's place: depth and view stack.
-export const samePlace = (e, view, ctx) =>
-	e.view === view && e.depth === ctx.depth && sameStack(e.viewStack, ctx.viewStack);
+// The deps an entry rendered at another depth read, as what's provided in ctx: what they are here.
+const depsIn = (entry, ctx) =>
+	entry.depth === ctx.depth ? entry.deps : entry.deps.map(([name]) => [name, ctx.provided[name]]);
+// Whether entry is of a render of view with ctx's view stack, wherever it was.
+export const samePlace = (e, view, ctx) => e.view === view && sameStack(e.viewStack, ctx.viewStack);
 const placeIndex = (entries, view, ctx) => {
 	for (let i = 0; i < entries.length; i++) if (samePlace(entries[i], view, ctx)) return i;
 	return -1;
@@ -114,13 +118,13 @@ export class DepsCache extends RenderCache {
 	}
 	render(instance, spec, view, ctx) {
 		const { hit, old } = this.find(instance, view, ctx);
-		const stable = hit !== null && depsHold(hit.deps, ctx.provided);
+		const stable = hit !== null && depsHold(hit, ctx);
 		if (stable && hit.result !== null) {
 			hit.misses = 0;
 			this.keep(hit, ctx, true);
 			this.trace?.push(hit);
 			this.last = hit;
-			mergeDeps(ctx, hit.deps);
+			mergeDeps(ctx, depsIn(hit, ctx));
 			return hit.result;
 		}
 		const { readsProvided, rendersChildren } = viewFacts(view);

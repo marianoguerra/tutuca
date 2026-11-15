@@ -22,16 +22,17 @@ export const isMarkerOpen = (text) => text.startsWith("ยง{") && text.endsWith("ย
 export const parseMarker = (text) => JSON.parse(text.slice(1, -1));
 
 // What a marker says, as its json: a component rendered here, { t: "component" }, or a frame of
-// the path to what's inside, { t: "frame", p, k, i }, its provider (v name, d depth, k keys),
-// keys and item in short form.
+// the path to what's inside, { t: "frame", p, k, i }, its provider (v name, u how many frames up
+// it is, k keys), keys and item in short form. Every frame is relative to where it's rendered, so a
+// component's render holds nothing of its place: the cache reuses it anywhere.
 const frameMarker = (frame) => {
 	const { provider: p } = frame;
-	const base = p === null ? null : { v: p.name, d: p.depth, k: p.keys };
+	const base = p === null ? null : { v: p.name, u: p.up, k: p.keys };
 	return { t: "frame", p: base, k: frame.keys, i: frame.item };
 };
 // The frame a frame marker holds.
 export const frameOfMarker = ({ p, k, i }) => {
-	const provider = p === null ? null : { name: p.v, depth: p.d, keys: p.k };
+	const provider = p === null ? null : { name: p.v, up: p.u, keys: p.k };
 	return new Frame(k, i, provider);
 };
 export const isComponentMarker = (marker) => marker?.t === "component";

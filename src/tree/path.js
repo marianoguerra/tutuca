@@ -26,8 +26,9 @@ export class KeyPath {
 	}
 }
 // One step of a DispatchPath: keys into the value, then the item of a collection there, if any.
-// A frame with a provider starts from the frame at the provider's depth, plus its keys, instead
-// of from the frame before it: what a node reads from an ancestor that provides it.
+// A frame with a provider, { name, up, keys }, starts from the frame up frames before it (0 being
+// the frame before it), plus its keys, instead of from the frame before it: what a node reads from
+// an ancestor that provides it.
 // isNode marks the frames that reach a node.
 export class Frame {
 	constructor(keys, item = null, provider = null, isNode = false) {
@@ -56,7 +57,7 @@ export class Frame {
 }
 // What tells two frames apart: where each starts, its keys and its item.
 const frameText = ({ provider: p, keys, item }) =>
-	JSON.stringify([p === null ? null : [p.name, p.depth, p.keys], keys, item]);
+	JSON.stringify([p === null ? null : [p.name, p.up, p.keys], keys, item]);
 // The frames a message went through from the root: spec/tree's π.
 export class DispatchPath {
 	/** @param {Frame[]} frames */
@@ -83,8 +84,9 @@ export class DispatchPath {
 		const prefixes = [[]];
 		for (const frame of this.frames) {
 			const { provider } = frame;
+			const at = prefixes.length - 1;
 			const start =
-				provider === null ? prefixes.at(-1) : [...prefixes[provider.depth], ...provider.keys];
+				provider === null ? prefixes[at] : [...prefixes[at - provider.up], ...provider.keys];
 			prefixes.push([...start, ...frame.accessKeys]);
 		}
 		return new KeyPath(prefixes.at(-1));

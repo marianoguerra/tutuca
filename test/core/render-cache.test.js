@@ -17,6 +17,7 @@ import {
 	pushView,
 	render,
 	renderEach,
+	send,
 	t,
 	ViewNode,
 	WeakMapCache,
@@ -343,3 +344,90 @@ test("DepsWalker finds the provided names a subtree reads, less the ones it prov
 	// The walker renders nothing.
 	assert.deepEqual(counts, {});
 });
+
+// A Group that provides its items to the Panel inside it, which renders them: every frame inside
+// the Group is relative to it, so it renders the same wherever it is.
+const movingSpecs = (counts) => ({
+	Item: component({
+		name: "Item",
+		fields: { n: t.number() },
+		view: h("button", { "on:click": send("inc") }, new Count(counts, "item"), field("n")),
+		on: {
+			inc(next) {
+				next.n++;
+			},
+		},
+	}),
+	Panel: component({
+		name: "Panel",
+		view: h("div", {}, new Count(counts, "panel"), renderEach(provided("items"))),
+	}),
+	Group: component({
+		name: "Group",
+		fields: { items: t.array(), panel: t.component("Panel") },
+		provides: { items: (pb) => pb.field("items") },
+		view: h("section", {}, render(field("panel"))),
+	}),
+	Wrap: component({
+		name: "Wrap",
+		fields: { groups: t.array() },
+		view: h("div", {}, renderEach(field("groups"))),
+	}),
+	Root: component({
+		name: "Root",
+		fields: { groups: t.array(), wrap: t.component("Wrap") },
+		view: h("main", {}, renderEach(field("groups")), render(field("wrap"))),
+	}),
+});
+
+cacheTest(
+	"a subtree moved a level deeper renders what it rendered, and its events still arrive",
+	({ cacheName, setup, expectCounts }) => {
+		const counts = {};
+		const { change, text, host, rootNode, click } = setup(movingSpecs(counts), (C) =>
+			C.Root({
+				groups: [C.Group({ items: [C.Item({ n: 1 }), C.Item({ n: 2 })], panel: C.Panel() })],
+				wrap: C.Wrap({ groups: [] }),
+			}),
+		);
+		assert.equal(text(), "12");
+		change((r) => {
+			r.wrap.groups.push(r.groups.pop());
+		});
+		assert.equal(text(), "12");
+		// WeakMapCache finds the Group's render at its new depth; CopyCache only looks under the
+		// same parent.
+		expectCounts(counts, cacheName === "weakmap" ? { panel: 1, item: 2 } : { panel: 2, item: 4 });
+		click(rootNode.querySelectorAll("button")[1]);
+		assert.equal(host.root.wrap.groups[0].items[1].n, 3);
+		assert.equal(text(), "13");
+	},
+);
+
+cacheTest(
+	"a provided value read farther from its provider than before renders again",
+	({ setup, expectCounts }) => {
+		const counts = {};
+		const Leaf = specs(counts).Leaf;
+		const Wrap = component({
+			name: "Wrap",
+			fields: { leaves: t.array() },
+			view: h("div", {}, renderEach(field("leaves"))),
+		});
+		const Root = component({
+			name: "Root",
+			fields: { leaves: t.array(), wrap: t.component("Wrap"), theme: t.string() },
+			provides: { theme: (pb) => pb.field("theme") },
+			view: h("main", {}, renderEach(field("leaves")), render(field("wrap"))),
+		});
+		const { change, text } = setup({ Leaf, Wrap, Root }, (C) =>
+			C.Root({ theme: "dark", leaves: [C.Leaf({ label: "x" })], wrap: C.Wrap({ leaves: [] }) }),
+		);
+		assert.equal(text(), "x:dark");
+		change((r) => {
+			r.wrap.leaves.push(r.leaves.pop());
+		});
+		assert.equal(text(), "x:dark");
+		expectCounts(counts, { leaf: 2 });
+	},
+);

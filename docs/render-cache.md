@@ -37,8 +37,13 @@ are uncached.
 - the **instance**: immutable, so an unchanged one is the same object (Immer shares what a change
   didn't touch);
 - the **view** picked for it, and the **view stack** its descendants inherit;
-- its **depth**: a provider frame rendered inside it writes its depth into the marker;
-- the **provided values read anywhere in its subtree**.
+- the **provided values read anywhere in its subtree**, each with how many frames up its provider is.
+
+Not of where it is. The frame markers that say where a component is wrap its render, outside it,
+and every marker inside it is relative: a render site or a loop item says its keys and item, and a
+frame whose source is a provided value says how many frames up its provider is (`u`), not the
+provider's depth. So the same render is right at any depth, and a `WeakMapCache` reuses an instance
+moved to another level of a tree.
 
 It doesn't depend on binds: every way into `renderView` starts the component with empty binds.
 
@@ -51,8 +56,9 @@ It doesn't depend on binds: every way into `renderView` starts the component wit
   provides, which follow from its instance.
 
 So an entry lists every provided value its whole subtree read. A hit needs the same instance in the
-same place (view, view stack, depth) and every recorded value unchanged: the same `value` (`===`),
-from a provider at the same depth and keys. Unchanged inputs render the same and, by induction, read
+same place (view and view stack) and every recorded value unchanged: the same `value` (`===`),
+from a provider as many frames up, at the same keys. A value read farther from its provider than
+before renders again, even if it's only read as a value. Unchanged inputs render the same and, by induction, read
 the same names, so the deps recorded last time are the right ones to check.
 
 `DepsCache` also does three things for both strategies:

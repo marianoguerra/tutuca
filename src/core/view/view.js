@@ -83,7 +83,7 @@ export class ProvidedNode extends ViewNode {
 	}
 	toFrame(ctx) {
 		const { depth, keys } = ctx.readProvided(this.name);
-		return new Frame([], null, { name: this.name, depth, keys }, true);
+		return new Frame([], null, { name: this.name, up: ctx.depth - depth, keys }, true);
 	}
 }
 export const provided = (name) => new ProvidedNode(name);

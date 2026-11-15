@@ -162,7 +162,7 @@ const typeHeader = (t) => [span(STYLES.fn, typeText(t))];
 const keyParts = (key) =>
 	typeof key === "string" ? [".", span(STYLES.key, key)] : ["[", prim(key), "]"];
 const providerParts = (p) =>
-	p === null ? [] : [span(STYLES.key, `@${p.name}^${p.depth}`), ...p.keys.flatMap(keyParts)];
+	p === null ? [] : [span(STYLES.key, `@${p.name}^${p.up}`), ...p.keys.flatMap(keyParts)];
 const frameParts = (frame) => [
 	...providerParts(frame.provider),
 	...frame.keys.flatMap(keyParts),

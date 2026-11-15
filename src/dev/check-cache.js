@@ -8,11 +8,14 @@ import { RenderContext, renderView } from "../core/view/view.js";
 import { childrenEqual, toVChildren } from "../vdom/index.js";
 import { DepsWalker } from "./deps-walker.js";
 
-const sameDeps = (recorded, walked) => {
+// Whether the deps an entry rendered at depth recorded are those walked at walkedDepth.
+const sameDeps = ({ deps: recorded, depth }, walked, walkedDepth) => {
 	const byName = new Map(walked);
 	return (
 		recorded.length === byName.size &&
-		recorded.every(([name, e]) => byName.has(name) && sameProvided(e, byName.get(name)))
+		recorded.every(
+			([name, e]) => byName.has(name) && sameProvided(e, depth, byName.get(name), walkedDepth),
+		)
 	);
 };
 
@@ -55,7 +58,7 @@ export class CheckCache extends RenderCache {
 				const entry = traced.get(instance)?.find((e) => samePlace(e, view, ctx));
 				if (entry === undefined) return;
 				console.assert(
-					sameDeps(entry.deps, deps),
+					sameDeps(entry, deps, ctx.depth),
 					"A cached render's deps differ from DepsWalker's",
 					{
 						recorded: entry.deps.map(([name]) => name),
