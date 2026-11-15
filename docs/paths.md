@@ -54,9 +54,9 @@ new Frame(keys, item, provider, isNode)
 - **`keys`**: the properties the frame reads.
 - **`item`**: the collection key the frame selects, or `null`. It is kept separate from
   `keys` because it is the frame's `sourceKey` (see below).
-- **`provider`**: when set, `{ name, depth, keys }`. The frame doesn't start from the
-  previous frame's value. It starts from the value captured by the provider at `depth`,
-  reached by its `keys`.
+- **`provider`**: when set, `{ name, up, keys }`. The frame doesn't start from the
+  previous frame's value. It starts from the value captured by the provider `up` frames
+  before it (0 being the component the frame is in), reached by its `keys`.
 - **`isNode`**: a component boundary follows the frame. Loop items whose bodies are
   part of the enclosing component's own view are not component frames. Items rendered
   with `renderEach` or `renderIt` are.
@@ -69,7 +69,7 @@ These are the frames each render source produces:
 |---|---|
 | `field("child")` | `keys: ["child"]` |
 | `seqItem("tabs", "selected")` | `keys: ["tabs"], item: it.selected` |
-| `provided("tab")` | `keys: [], provider: { name: "tab", depth, keys }` |
+| `provided("tab")` | `keys: [], provider: { name: "tab", up, keys }` |
 | a loop item `k` over any of the above | the source's `accessKeys` as `keys`, `item: k`, the same provider |
 
 A `DispatchPath` is the list of frames from the root component down to a node. It records
@@ -84,12 +84,25 @@ comment before the nodes it covers, and a closing comment after them:
 
 ```
 §{"t":"frame","p":null,"k":["tabs"],"i":1}§ … §/§
-§{"t":"frame","p":{"v":"tab","d":0,"k":["tabs",1]},"k":[],"i":null}§ … §/§
+§{"t":"frame","p":{"v":"tab"},"k":[],"i":null}§ … §/§
 §{"t":"component"}§ … §/§
+§{"t":"component","p":{"tab":["tabs",1]}}§ … §/§
 ```
 
 `isNode` is not written. When an event is routed, the frame just before a component
 comment becomes a component frame.
+
+A frame whose source is a provided value writes only its name (`p.v`). Where the value is, is
+written once, by the component that provides it: its comment's `p` has the keys to each value
+it provides. A provider's `up` and `keys` are worked out when the comments are read
+(`pathOfMarkers`): the frame's provider is the nearest component comment above it that
+provides the name, `up` is the number of frames between the two, and `keys` are that
+comment's.
+
+So nothing a component renders says where it is, or where its providers are. A frame comment
+depends on the instance it's rendered in, and a component comment on its own instance. The
+render cache relies on this: the same instance with the same provided values renders the same
+comments anywhere (`docs/render-cache.md`).
 
 ### Event routing
 
@@ -129,17 +142,18 @@ is reported the same way.
 
 `toKeyPath()` turns a dispatch path into a key path, going left to right:
 - An ordinary frame continues from where the previous frame ended.
-- A frame with a provider at depth `d` restarts from where the first `d` frames ended,
-  followed by the provider's `keys`.
+- A frame with a provider `up` frames before it restarts from where the frames before
+  those ended (with `up` 0, where the previous frame ended), followed by the provider's
+  `keys`.
 - Either way, the frame then appends its `accessKeys`.
 
 `toNodeKeyPath()` is `toNodePath().toKeyPath()`. `Address.at(path, root)` fixes a dispatch
 path's address: `{ path, keyPath: path.toNodeKeyPath(), id }`, `id` that of the component
 at the key path in `root`.
 
-Depth is what ties providers to frames. The root component is entered at depth 0 and every
-frame adds one, so "captured at depth d" and "the first d frames" refer to the same
-component.
+Counting frames is what ties providers to frames. Every frame is one render depth, loop
+items included, so "the provider `up` frames before" and "the component entered `up`
+depths above" refer to the same component.
 
 ### sourceKey
 
@@ -305,11 +319,12 @@ renders `render(provided("cur"))`, and `b` renders a button.
 
 1. **Render.** The button is preceded by these metadata comments:
    - `{k:["panel"]}`
+   - `{t:"component",p:{cur:["items",1]}}`
+   - `{p:{v:"cur"},k:[]}`
    - `{t:"component"}`
-   - `{p:{v:"cur",d:1,k:["items",1]},k:[]}`
-   - `{t:"component"}`
-2. **Click.** Routing rebuilds the dispatch path from them. The path has two component
-   frames: `[["panel"]]` and `[provider cur at depth 1, keys ["items",1]]`.
+2. **Click.** Routing rebuilds the dispatch path from them. The frame that reads `cur` finds
+   it in the component comment above it, no frames away. The path has two component
+   frames: `[["panel"]]` and `[provider cur, 0 frames up, keys ["items",1]]`.
 3. **Resolve.** Frame 2 restarts from the end of frame 1 (`["panel"]`) and adds
    `["items", 1]`, so the key path is `["panel", "items", 1]`, which reaches `b`.
 4. **Handle.** The handler runs on a draft of `b`, and `setIn` writes it back.

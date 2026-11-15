@@ -405,8 +405,8 @@ cacheTest(
 );
 
 cacheTest(
-	"a provided value read farther from its provider than before renders again",
-	({ setup, expectCounts }) => {
+	"a provided value read farther from its provider than before renders what it rendered",
+	({ cacheName, setup, expectCounts }) => {
 		const counts = {};
 		const Leaf = specs(counts).Leaf;
 		const Wrap = component({
@@ -428,6 +428,118 @@ cacheTest(
 			r.wrap.leaves.push(r.leaves.pop());
 		});
 		assert.equal(text(), "x:dark");
-		expectCounts(counts, { leaf: 2 });
+		// CopyCache only looks under the same parent.
+		expectCounts(counts, { leaf: cacheName === "weakmap" ? 1 : 2 });
 	},
 );
+
+// A Box provides the selected one of its items as cur; the Viewer in it renders it. What the
+// Viewer renders says cur only by name: the Box's marker says where it is.
+const boxSpecs = (counts) => ({
+	Item: component({
+		name: "Item",
+		fields: { n: t.number() },
+		view: h("button", { "on:click": send("inc") }, field("n")),
+		on: {
+			inc(next) {
+				next.n++;
+			},
+		},
+	}),
+	Viewer: component({
+		name: "Viewer",
+		view: h("p", {}, new Count(counts, "viewer"), render(provided("cur"))),
+	}),
+	Mid: component({
+		name: "Mid",
+		fields: { viewer: t.component("Viewer") },
+		view: h("div", {}, render(field("viewer"))),
+	}),
+	Box: component({
+		name: "Box",
+		fields: { items: t.array(), selected: t.number(), viewer: t.any() },
+		provides: { cur: (pb) => pb.seqItem("items", "selected") },
+		view: h("section", {}, render(field("viewer"))),
+	}),
+	Root: component({
+		name: "Root",
+		fields: { boxes: t.array() },
+		view: h("main", {}, renderEach(field("boxes"))),
+	}),
+});
+
+cacheTest(
+	"a provided value at other keys of its provider renders what it rendered, and its events arrive there",
+	({ setup, expectCounts }) => {
+		const counts = {};
+		const { change, host, rootNode, click, text } = setup(boxSpecs(counts), (C) => {
+			const item = C.Item({ n: 1 });
+			return C.Root({ boxes: [C.Box({ items: [item, item], selected: 0, viewer: C.Viewer() })] });
+		});
+		expectCounts(counts, { viewer: 1 });
+		change((r) => {
+			r.boxes[0].selected = 1;
+		});
+		expectCounts(counts, { viewer: 1 });
+		click(rootNode.querySelector("button"));
+		assert.deepEqual(
+			host.root.boxes[0].items.map((i) => i.n),
+			[1, 2],
+		);
+		assert.equal(text(), "2");
+	},
+);
+
+cacheTest(
+	"the same value from another provider, at other keys and another distance, renders the same",
+	({ cacheName, setup, expectCounts }) => {
+		const counts = {};
+		const { host, rootNode, click } = setup(boxSpecs(counts), (C) => {
+			const item = C.Item({ n: 1 });
+			const viewer = C.Viewer();
+			return C.Root({
+				boxes: [
+					C.Box({ items: [item], selected: 0, viewer }),
+					C.Box({ items: [C.Item({ n: 5 }), item], selected: 1, viewer: C.Mid({ viewer }) }),
+				],
+			});
+		});
+		// CopyCache only looks under the same parent.
+		expectCounts(counts, { viewer: cacheName === "weakmap" ? 1 : 2 });
+		const [first, second] = rootNode.querySelectorAll("p");
+		assert.equal(first.innerHTML, second.innerHTML);
+		click(second.querySelector("button"));
+		assert.equal(host.root.boxes[0].items[0].n, 1);
+		assert.deepEqual(
+			host.root.boxes[1].items.map((i) => i.n),
+			[5, 2],
+		);
+		click(rootNode.querySelector("p button"));
+		assert.equal(host.root.boxes[0].items[0].n, 2);
+	},
+);
+
+cacheTest("a provided value is found at the nearest component that provides it", ({ setup }) => {
+	const base = boxSpecs({});
+	// An Own provides cur itself, and reads it in its own view: under a Box, its is the nearest.
+	const Own = component({
+		name: "Own",
+		fields: { item: t.component("Item") },
+		provides: { cur: (pb) => pb.field("item") },
+		view: h("p", {}, render(provided("cur"))),
+	});
+	const { host, rootNode, click } = setup({ ...base, Own }, (C) =>
+		C.Root({
+			boxes: [
+				C.Box({
+					items: [C.Item({ n: 1 })],
+					selected: 0,
+					viewer: C.Own({ item: C.Item({ n: 7 }) }),
+				}),
+			],
+		}),
+	);
+	click(rootNode.querySelector("button"));
+	assert.equal(host.root.boxes[0].viewer.item.n, 8);
+	assert.equal(host.root.boxes[0].items[0].n, 1);
+});

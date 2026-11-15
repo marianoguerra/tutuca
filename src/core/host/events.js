@@ -11,6 +11,8 @@ import {
 	isTutucaMarker,
 	MARKER_CLOSE,
 	parseMarker,
+	providedNameOf,
+	providesOfMarker,
 } from "../view/markers.js";
 
 function* enclosingMarkers(node) {
@@ -56,13 +58,32 @@ const walkUp = (node, rootNode) => {
 	}
 	return node === rootNode ? { markers, components, eids } : null;
 };
+// Where the value a frame at index at reads as name is: { name, up, keys }, from the nearest
+// of providers, the components above it that provide something ({ at, provides }, outermost first).
+const providerOf = (name, at, providers) => {
+	for (let i = providers.length - 1; i >= 0; i--) {
+		const keys = providers[i].provides[name];
+		if (keys !== undefined) return { name, up: at - providers[i].at, keys };
+	}
+	throw new Error(`No component provides ${name} above the frame that reads it`);
+};
 // The path the markers, innermost first, describe; a render outside the DOM (tutuca/llm's
-// tools) finds its component's from the markers in its vnodes.
+// tools) finds its component's from the markers in its vnodes. A frame that reads a provided
+// value says its name only: the nearest component above it that provides it says where it is.
 export const pathOfMarkers = (markers) => {
 	const frames = [];
-	for (const marker of [...markers].reverse()) {
-		if (isFrameMarker(marker)) frames.push(frameOfMarker(marker));
-		else if (frames.length > 0) frames.push(frames.pop().asNode());
+	const providers = [];
+	for (let i = markers.length - 1; i >= 0; i--) {
+		const marker = markers[i];
+		if (isFrameMarker(marker)) {
+			const name = providedNameOf(marker);
+			const provider = name === null ? null : providerOf(name, frames.length, providers);
+			frames.push(frameOfMarker(marker, provider));
+			continue;
+		}
+		if (frames.length > 0) frames.push(frames.pop().asNode());
+		const provides = providesOfMarker(marker);
+		if (provides !== null) providers.push({ at: frames.length, provides });
 	}
 	return new DispatchPath(frames);
 };

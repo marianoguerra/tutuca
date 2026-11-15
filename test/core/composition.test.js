@@ -7,6 +7,7 @@ import {
 	field,
 	h,
 	lookupBind,
+	provided,
 	pushView,
 	render,
 	renderEach,
@@ -145,6 +146,32 @@ test("render(seqItem) is a frame selecting the item", () => {
 	assert.deepEqual(metas(rootNode), [
 		{ t: "component" },
 		{ t: "frame", p: null, k: ["tabs"], i: 1 },
+		{ t: "component" },
+	]);
+});
+
+test("render(provided) is a frame naming the value; its provider's marker says where it is", () => {
+	const Viewer = component({ name: "Viewer", view: h("p", {}, render(provided("cur"))) });
+	const Tabs = component({
+		name: "Tabs",
+		fields: { tabs: t.array(t.component("Item")), selected: t.number(), viewer: t.any() },
+		provides: { cur: (pb) => pb.seqItem("tabs", "selected") },
+		view: h("div", {}, render(field("viewer"))),
+	});
+	const { host, rootNode, C } = setup({ Tabs, Viewer, Item });
+	host.start(
+		C.Tabs({
+			tabs: [C.Item({ label: "a" }), C.Item({ label: "b" })],
+			selected: 1,
+			viewer: C.Viewer(),
+		}),
+	);
+	assert.equal(rootNode.textContent, "b");
+	assert.deepEqual(metas(rootNode), [
+		{ t: "component", p: { cur: ["tabs", 1] } },
+		{ t: "frame", p: null, k: ["viewer"], i: null },
+		{ t: "component" },
+		{ t: "frame", p: { v: "cur" }, k: [], i: null },
 		{ t: "component" },
 	]);
 });

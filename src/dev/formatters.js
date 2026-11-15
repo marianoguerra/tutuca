@@ -8,6 +8,8 @@ import {
 	isMarkerOpen,
 	MARKER_CLOSE,
 	parseMarker,
+	providedNameOf,
+	providesOfMarker,
 } from "../core/view/markers.js";
 import {
 	ComponentSpec,
@@ -185,8 +187,21 @@ const targetParts = (target) =>
 
 // Labels the §{marker}§ comments tutuca wraps rendered components and loop items in.
 const markerParts = (marker) => {
-	if (isComponentMarker(marker)) return [span(STYLES.name, "component")];
-	if (isFrameMarker(marker)) return frameParts(frameOfMarker(marker));
+	if (isComponentMarker(marker)) {
+		const provides = Object.entries(providesOfMarker(marker) ?? {});
+		const parts = provides.flatMap(([name, keys]) => [
+			" ",
+			span(STYLES.key, `@${name}`),
+			"=",
+			...orRoot(keys.flatMap(keyParts)),
+		]);
+		return [span(STYLES.name, "component"), ...parts];
+	}
+	if (isFrameMarker(marker)) {
+		const name = providedNameOf(marker);
+		const from = name === null ? [] : [span(STYLES.key, `@${name}`)];
+		return [...from, ...frameParts(frameOfMarker(marker))];
+	}
 	return [span(STYLES.muted, JSON.stringify(marker))];
 };
 const markerComment = (text) => {

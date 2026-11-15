@@ -37,13 +37,16 @@ are uncached.
 - the **instance**: immutable, so an unchanged one is the same object (Immer shares what a change
   didn't touch);
 - the **view** picked for it, and the **view stack** its descendants inherit;
-- the **provided values read anywhere in its subtree**, each with how many frames up its provider is.
+- the **provided values read anywhere in its subtree**, as values.
 
-Not of where it is. The frame markers that say where a component is wrap its render, outside it,
-and every marker inside it is relative: a render site or a loop item says its keys and item, and a
-frame whose source is a provided value says how many frames up its provider is (`u`), not the
-provider's depth. So the same render is right at any depth, and a `WeakMapCache` reuses an instance
-moved to another level of a tree.
+Not of where it is, or of where its providers are. The frame markers that say where a component is
+wrap its render, outside it, and every marker inside it is relative: a render site or a loop item
+says its keys and item, and a frame whose source is a provided value says only its name. Where a
+provided value is, is in the marker of the component that provides it (`{ t: "component", p: { name:
+keys } }`), which follows from that component's instance; an event's path finds it there
+(`docs/paths.md`). So the same render is right at any depth, at any distance from its providers and
+under any provider of the same values, and a `WeakMapCache` reuses an instance moved to another
+level of a tree.
 
 It doesn't depend on binds: every way into `renderView` starts the component with empty binds.
 
@@ -57,9 +60,9 @@ It doesn't depend on binds: every way into `renderView` starts the component wit
 
 So an entry lists every provided value its whole subtree read. A hit needs the same instance in the
 same place (view and view stack) and every recorded value unchanged: the same `value` (`===`),
-from a provider as many frames up, at the same keys. A value read farther from its provider than
-before renders again, even if it's only read as a value. Unchanged inputs render the same and, by induction, read
-the same names, so the deps recorded last time are the right ones to check.
+whichever component provides it, however far up and at whatever keys. Unchanged inputs render the
+same and, by induction, read the same names, so the deps recorded last time are the right ones to
+check.
 
 `DepsCache` also does three things for both strategies:
 - **Static facts.** `viewFacts` says whether a view reads anything provided or renders components.

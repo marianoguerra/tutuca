@@ -9,8 +9,13 @@ const MARKER_END = new VComment(MARKER_CLOSE);
 const open = (marker) => new VComment(`§${JSON.stringify(marker)}§`);
 // One shared comment opens every component, too.
 const COMPONENT_OPEN = open({ t: "component" });
-// node, a component's view, between the comments that say a component rendered here.
-export const wrapComponent = (node) => [COMPONENT_OPEN, node, MARKER_END];
+// node, a component's view, between the comments that say a component rendered here; provides,
+// when the component provides values, is where each one is in it: { name: keys }.
+export const wrapComponent = (node, provides = null) => [
+	provides === null ? COMPONENT_OPEN : open({ t: "component", p: provides }),
+	node,
+	MARKER_END,
+];
 // node between the comments that say frame is the path to what's inside.
 export const wrapFrame = (frame, node) => wrapOpen(frameOpen(frame), node);
 // The comment that opens frame, and node between it and a closing one: wrapFrame in two steps,
@@ -21,20 +26,23 @@ export const isMarkerOpen = (text) => text.startsWith("§{") && text.endsWith("�
 // The marker an opening comment's text holds; throws on bad json.
 export const parseMarker = (text) => JSON.parse(text.slice(1, -1));
 
-// What a marker says, as its json: a component rendered here, { t: "component" }, or a frame of
-// the path to what's inside, { t: "frame", p, k, i }, its provider (v name, u how many frames up
-// it is, k keys), keys and item in short form. Every frame is relative to where it's rendered, so a
-// component's render holds nothing of its place: the cache reuses it anywhere.
+// What a marker says, as its json: a component rendered here, { t: "component" }, with p, the
+// keys to each value it provides ({ name: keys }), when it provides any; or a frame of the path
+// to what's inside, { t: "frame", p, k, i }, its keys and item in short form, p being { v: name }
+// when its source is a provided value. A frame says what it reads and the component that
+// provides it says where it is, so a render holds nothing of its place, or of where its providers
+// are: the cache reuses it anywhere the same values are provided.
 const frameMarker = (frame) => {
 	const { provider: p } = frame;
-	const base = p === null ? null : { v: p.name, u: p.up, k: p.keys };
-	return { t: "frame", p: base, k: frame.keys, i: frame.item };
+	return { t: "frame", p: p === null ? null : { v: p.name }, k: frame.keys, i: frame.item };
 };
-// The frame a frame marker holds.
-export const frameOfMarker = ({ p, k, i }) => {
-	const provider = p === null ? null : { name: p.v, up: p.u, keys: p.k };
-	return new Frame(k, i, provider);
-};
+// The name of the provided value a frame marker's frame starts from, null when it's none.
+export const providedNameOf = (marker) => marker.p?.v ?? null;
+// What a component marker's component provides, { name: keys }; null when it's nothing.
+export const providesOfMarker = (marker) => marker.p ?? null;
+// The frame a frame marker holds; provider, { name, up, keys }, is where the value it names is,
+// as whoever reads the markers around it found (pathOfMarkers).
+export const frameOfMarker = ({ k, i }, provider = null) => new Frame(k, i, provider);
 export const isComponentMarker = (marker) => marker?.t === "component";
 export const isFrameMarker = (marker) => marker?.t === "frame";
 // Whether marker is one of tutuca's: comments from unmanaged DOM can look alike.

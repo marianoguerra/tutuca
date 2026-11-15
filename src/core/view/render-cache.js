@@ -3,8 +3,9 @@
 //
 // A component's render is a function of its instance (immutable: an unchanged one is the same
 // object), the view picked for it, the view stack its descendants inherit and the provided values
-// read anywhere in its subtree, each with how far up its provider is. Not of where it is: the
-// frames that say where it is wrap it, and those inside it are relative (markers.js). What's
+// read anywhere in its subtree, as values. Not of where it is, or of where their providers are:
+// the frames that say where it is wrap it, a frame inside it names the provided value it reads
+// and the component that provides it says where it is (markers.js). What's
 // provided is tracked as it's read (RenderContext.readProvided) and bubbles up from each
 // component to its parent, less the names the component provides itself: reads of those below
 // it are of its own provides.
@@ -46,10 +47,13 @@ export class RenderCache {
 // Renders everything, keeps nothing.
 export class NullCache extends RenderCache {
 	render(instance, spec, view, ctx) {
-		if (ctx.deps === null) return wrapComponent(view.eval(ctx.with({ component: instance })));
+		const provides = providesIn(spec, ctx);
+		if (ctx.deps === null) {
+			return wrapComponent(view.eval(ctx.with({ component: instance })), provides);
+		}
 		// Inside a render that collects what's read (DepsWalker's fallback).
 		const deps = [];
-		const result = wrapComponent(view.eval(ctx.with({ component: instance, deps })));
+		const result = wrapComponent(view.eval(ctx.with({ component: instance, deps })), provides);
 		mergeDeps(ctx, ownDeps(spec, deps));
 		return result;
 	}
@@ -67,29 +71,16 @@ const sameStack = (a, b) => {
 	for (let i = 0; i < a.length; i++) if (a[i] !== b[i]) return false;
 	return true;
 };
-const sameKeys = (a, b) => {
-	if (a.length !== b.length) return false;
-	for (let i = 0; i < a.length; i++) if (a[i] !== b[i]) return false;
-	return true;
-};
-// Two provided entries, a read at depth aDepth and b at bDepth, render the same: the same value,
-// from a provider as many frames up, at the same keys.
-export const sameProvided = (a, aDepth, b, bDepth) =>
-	a === undefined || b === undefined
-		? a === b
-		: a.value === b.value &&
-			aDepth - a.depth === bDepth - b.depth &&
-			(a === b || sameKeys(a.keys, b.keys));
+// Two provided entries render the same: the same value, wherever each provider is.
+export const sameProvided = (a, b) =>
+	a === b || (a !== undefined && b !== undefined && a.value === b.value);
 const depsHold = (entry, ctx) => {
 	const { deps } = entry;
 	for (let i = 0; i < deps.length; i++) {
-		if (!sameProvided(deps[i][1], entry.depth, ctx.provided[deps[i][0]], ctx.depth)) return false;
+		if (!sameProvided(deps[i][1], ctx.provided[deps[i][0]])) return false;
 	}
 	return true;
 };
-// The deps an entry rendered at another depth read, as what's provided in ctx: what they are here.
-const depsIn = (entry, ctx) =>
-	entry.depth === ctx.depth ? entry.deps : entry.deps.map(([name]) => [name, ctx.provided[name]]);
 // Whether entry is of a render of view with ctx's view stack, wherever it was.
 export const samePlace = (e, view, ctx) => e.view === view && sameStack(e.viewStack, ctx.viewStack);
 const placeIndex = (entries, view, ctx) => {
@@ -102,7 +93,7 @@ const inPlace = (entries, view, ctx) => {
 	return i === -1 ? null : entries[i];
 };
 
-// A cache of entries, { instance, view, viewStack, depth, deps, result, misses, fragment,
+// A cache of entries, { instance, view, viewStack, deps, result, misses, fragment,
 // children }: deps the [name, entry] pairs the subtree read, result null when it isn't kept
 // (churn), fragment the loop item fragment the result was last wrapped in and children what
 // CopyCache keeps of the components it rendered. Subclasses say where entries live:
@@ -124,21 +115,22 @@ export class DepsCache extends RenderCache {
 			this.keep(hit, ctx, true);
 			this.trace?.push(hit);
 			this.last = hit;
-			mergeDeps(ctx, depsIn(hit, ctx));
+			mergeDeps(ctx, hit.deps);
 			return hit.result;
 		}
 		const { readsProvided, rendersChildren } = viewFacts(view);
 		// OPT: a view that reads nothing provided and renders no components depends on nothing.
 		const deps = readsProvided || rendersChildren ? [] : null;
-		const { viewStack, depth } = ctx;
+		const { viewStack } = ctx;
 		const children = rendersChildren ? this.newChildren() : null;
 		const misses = hit === null || stable ? 0 : hit.misses + 1;
-		const entry = { instance, view, viewStack, depth, deps: NO_DEPS, result: null, misses };
+		const entry = { instance, view, viewStack, deps: NO_DEPS, result: null, misses };
 		entry.fragment = null;
 		entry.children = children;
 		const cacheScope = this.childScope(entry, old);
 		const result = wrapComponent(
 			view.eval(ctx.with({ component: instance, deps, slot: "", cacheScope })),
+			providesIn(spec, ctx),
 		);
 		entry.deps = deps === null ? NO_DEPS : ownDeps(spec, deps);
 		mergeDeps(ctx, entry.deps);
@@ -264,6 +256,15 @@ export const ownDeps = (spec, deps) => {
 export const providesAny = (provides) => {
 	for (const _ in provides) return true;
 	return false;
+};
+// Where each value a component provides is in it, { name: keys }, as ctx, the one the component
+// was entered with, has them; null when it provides nothing. It follows from the instance.
+export const providesIn = (spec, ctx) => {
+	const { provides } = spec;
+	if (!providesAny(provides)) return null;
+	const keysOf = {};
+	for (const name in provides) keysOf[name] = ctx.provided[name].keys;
+	return keysOf;
 };
 // A child's deps are its parent's too.
 export const mergeDeps = (ctx, deps) => {
