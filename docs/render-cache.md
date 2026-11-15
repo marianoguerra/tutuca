@@ -150,16 +150,16 @@ Browser, 2000 items (update = render + morph; render = render alone):
 
 | shape | none | WeakMapCache | CopyCache |
 | --- | --- | --- | --- |
-| list, one item edited | 12.8 ms (render 3.1) | 5.1 ms (2.0), 2.5x | 6.1 ms (3.1), 2.1x |
-| tree of 2047, one leaf edited | 6.4 ms (3.2) | 0.13 ms (0.04), 48x | 0.10 ms (0.03), 64x |
-| list reading a provided value, one item edited | 13.2 ms (3.4) | 4.5 ms (2.1), 2.9x | 6.1 ms (3.3), 2.2x |
-| two tabs of 2000, switched every update | 4.9 ms (3.1) | 0.7 ms (0.09), 7.0x | 7.5 ms (5.8), 0.6x |
-| worst case: every item reads a provided value that changes every update | 19.7 ms (3.4) | 22.3 ms (6.8), 0.9x | 21.6 ms (5.8), 0.9x |
+| list, one item edited | 11.4 ms (render 3.0) | 5.3 ms (2.3), 2.1x | 6.0 ms (3.3), 1.9x |
+| tree of 2047, one leaf edited | 5.7 ms (3.0) | 0.11 ms (0.03), 53x | 0.10 ms (0.04), 55x |
+| list reading a provided value, one item edited | 12.9 ms (3.6) | 5.0 ms (2.0), 2.6x | 7.1 ms (3.0), 1.8x |
+| two tabs of 2000, switched every update | 4.9 ms (3.3) | 1.3 ms (0.09), 3.6x | 7.7 ms (6.2), 0.6x |
+| worst case: every item reads a provided value that changes every update | 18.9 ms (3.5) | 21.7 ms (5.7), 0.9x | 20.7 ms (5.6), 0.9x |
 
 At 5000 items in the browser:
-- The list updates 2.4x faster with WeakMapCache and 2.0x with CopyCache.
-- The tree updates 103x and 125x faster.
-- The tabs update 3.6x faster with WeakMapCache and 0.8x as fast with CopyCache.
+- The list updates 2.6x faster with WeakMapCache and 1.9x with CopyCache.
+- The tree updates 116x and 105x faster.
+- The tabs update 3.2x faster with WeakMapCache and 0.7x as fast with CopyCache.
 - The worst case is 0.9x with both.
 
 jsdom's DOM is slower than a browser's, so its gains are smaller: the list updates about 1.7x faster
