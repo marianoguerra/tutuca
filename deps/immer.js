@@ -1,4 +1,4 @@
-/*! immer 11.1.21 (https://github.com/immerjs/immer), vendored by scripts/vendor.js.
+/*! immer 11.2.10 (https://github.com/immerjs/immer), vendored by scripts/vendor.js.
  *
  * MIT License
  *
@@ -76,6 +76,11 @@ var ENUMERABLE = "enumerable";
 var WRITABLE = "writable";
 var VALUE = "value";
 var isDraft = (value) => !!value && !!value[DRAFT_STATE];
+function isModified(value) {
+  if (!isDraft(value))
+    return false;
+  return value[DRAFT_STATE].modified_;
+}
 function isDraftable(value) {
   if (!value)
     return false;
@@ -629,7 +634,7 @@ function peek(draft, prop) {
   return source[prop];
 }
 function isRelocatedBaseRef(state, prop, value) {
-  if (state.type_ !== 1 || !state.allIndicesReassigned_ || state.assigned_?.get(prop) || !isDraftable(value) || value[DRAFT_STATE]) {
+  if (state.type_ !== 1 || !state.allIndicesReassigned_ || !isDraftable(value) || value[DRAFT_STATE]) {
     return false;
   }
   return state.baseRefs_.has(value);
@@ -739,8 +744,9 @@ var Immer2 = class {
     };
     if (isBoolean(config?.autoFreeze))
       this.setAutoFreeze(config.autoFreeze);
-    if (isBoolean(config?.useStrictShallowCopy))
-      this.setUseStrictShallowCopy(config.useStrictShallowCopy);
+    const strictShallowCopy = config?.useStrictShallowCopy;
+    if (isBoolean(strictShallowCopy) || strictShallowCopy === "class_only")
+      this.setUseStrictShallowCopy(strictShallowCopy);
     if (isBoolean(config?.useStrictIteration))
       this.setUseStrictIteration(config.useStrictIteration);
   }
@@ -852,8 +858,11 @@ function currentImpl(value) {
   } else {
     copy = shallowCopy(value, true);
   }
+  const source = copy;
+  if (isSet(copy))
+    copy = /* @__PURE__ */ new Set();
   each(
-    copy,
+    source,
     (key, childValue) => {
       set(copy, key, currentImpl(childValue));
     },
@@ -886,7 +895,7 @@ function enablePatches() {
       if (valueAtKey === void 0) {
         return null;
       }
-      if (valueAtKey !== state.draft_ && valueAtKey !== state.base_ && valueAtKey !== state.copy_) {
+      if (valueAtKey !== state.draft_ && valueAtKey !== state.copy_) {
         return null;
       }
       if (proxyDraft != null && proxyDraft.base_ !== state.base_) {
@@ -901,6 +910,9 @@ function enablePatches() {
         key = state.key_;
       }
       if (!(isSet2 && parentCopy.size > key || has(parentCopy, key))) {
+        return null;
+      }
+      if (state.parent_.type_ === 1 && state.parent_.allIndicesReassigned_) {
         return null;
       }
       path.push(key);
@@ -1245,6 +1257,7 @@ function enableMapSet() {
     forEach(cb, thisArg) {
       const state = this[DRAFT_STATE];
       assertUnrevoked(state);
+      prepareMapCopy(state);
       latest(state).forEach((_value, key, _map) => {
         cb.call(thisArg, this.get(key), key, this);
       });
@@ -1267,6 +1280,7 @@ function enableMapSet() {
     keys() {
       const state = this[DRAFT_STATE];
       assertUnrevoked(state);
+      prepareMapCopy(state);
       return latest(state).keys();
     }
     values() {
@@ -1580,6 +1594,7 @@ function enableArrayMethods() {
               }
             }
             prepareCopy(state);
+            const lengthBefore = state.copy_.length;
             const res = state.copy_.splice(
               ...args
             );
@@ -1589,10 +1604,7 @@ function enableArrayMethods() {
             markArrayChanged(state);
             markAllIndicesReassigned(state);
             if (insertCount > 0) {
-              const startIndex = normalizeSliceIndex(
-                args[0] ?? 0,
-                state.copy_.length
-              );
+              const startIndex = normalizeSliceIndex(args[0] ?? 0, lengthBefore);
               handleInsertedValues(state, startIndex, args.slice(2));
             }
             return res;
@@ -1611,7 +1623,8 @@ function enableArrayMethods() {
       const predicate = args[0];
       const thisArg = args[1];
       const result = [];
-      for (let i = 0; i < source.length; i++) {
+      const length = source.length;
+      for (let i = 0; i < length; i++) {
         if (predicate.call(thisArg, source[i], i, source)) {
           result.push(state.draft_[i]);
         }
@@ -1621,10 +1634,11 @@ function enableArrayMethods() {
     if (FIND_METHODS.has(method)) {
       const predicate = args[0];
       const thisArg = args[1];
+      const length = source.length;
       const isForward = method === "find";
       const step = isForward ? 1 : -1;
-      const start = isForward ? 0 : source.length - 1;
-      for (let i = start; i >= 0 && i < source.length; i += step) {
+      const start = isForward ? 0 : length - 1;
+      for (let i = start; i >= 0 && i < length; i += step) {
         if (predicate.call(thisArg, source[i], i, source)) {
           return state.draft_[i];
         }
@@ -1676,6 +1690,7 @@ export {
   DRAFTABLE as immerable,
   isDraft,
   isDraftable,
+  isModified,
   NOTHING as nothing,
   original,
   produce,

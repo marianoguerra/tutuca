@@ -34,8 +34,7 @@ export const MODEL_RULES = [
 	// Xiaomi MiMo V2.6: Flash and Pro; no middle size.
 	{ family: "MiMo", size: "small", match: /^mimo-v2\.6-flash$/ },
 	{ family: "MiMo", size: "large", match: /^mimo-v2\.6-pro$/ },
-	// Grok: 4.1 Fast (the latest small), 4.3 (the middle tier), 4.7.
-	{ family: "Grok", size: "small", match: /^grok-4\.1-fast-reasoning$/ },
+	// Grok: 4.3 (the middle tier), 4.7; no small size (pi-ai's catalog dropped 4.1 Fast).
 	{ family: "Grok", size: "middle", match: /^grok-4\.3$/ },
 	{ family: "Grok", size: "large", match: /^grok-4\.7$/ },
 ];

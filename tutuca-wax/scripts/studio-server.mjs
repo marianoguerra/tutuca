@@ -27,7 +27,6 @@
 // functions from src/abi.wax, so editing them needs no restart.
 import { readdir, readFile } from "node:fs/promises";
 import { fileURLToPath } from "node:url";
-import { Type } from "@earendil-works/pi-ai";
 import { builtinModels } from "@earendil-works/pi-ai/providers/all";
 import { apiHandler, availableModels, inferenceRoutes, json, loadEnv, modelsReport, offeredModel, readJson } from "./inference-api.mjs";
 import { createStaticServer } from "./serve.mjs";
@@ -43,10 +42,13 @@ export const TOOLS = [
 		name: "write_component",
 		description:
 			"Replace the component module's files with new versions. Give the whole text of each file you change; leave out a file you don't change. The studio builds the module and answers with tcd's diagnostics, or with the types it registers when it built.",
-		parameters: Type.Object({
-			tcd: Type.Optional(Type.String({ description: "The whole new .tcd file: the component definition." })),
-			wax: Type.Optional(Type.String({ description: "The whole new .wax file: the functions the .tcd needs." })),
-		}),
+		parameters: {
+			type: "object",
+			properties: {
+				tcd: { type: "string", description: "The whole new .tcd file: the component definition." },
+				wax: { type: "string", description: "The whole new .wax file: the functions the .tcd needs." },
+			},
+		},
 	},
 ];
 
