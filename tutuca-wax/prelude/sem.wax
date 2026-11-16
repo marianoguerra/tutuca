@@ -98,8 +98,15 @@ rec {
     type snode_comment: snode = { .., text: js_string };
     // An explicit fragment: a sibling key scope.
     type snode_group: snode = { .., key: js_string_opt, childs: &snode_array };
-    // The render of an instance of the named component type.
-    type snode_component: snode = { .., name: js_string, childs: &snode_array };
+    // The render of an instance of the named component type. meta is its
+    // opening comment's text when it provides values (where each one is in
+    // it), null when it provides nothing.
+    type snode_component: snode = {
+        ..,
+        name: js_string,
+        meta: js_string_opt,
+        childs: &snode_array
+    };
     // Rendered at a frame: a field, the selected item of a field, a provided value.
     type snode_enter: snode = { .., frame: &frame, childs: &snode_array };
     // A loop, one entry per item.

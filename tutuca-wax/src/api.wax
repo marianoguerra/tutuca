@@ -670,3 +670,35 @@ fn api_views_walk_loops(views: &view_array) -> &value {
     walk_all(walker_new(s, vt), views);
     s.kinds;
 }
+
+#[export = "path_key_array_array_new"]
+fn api_path_key_array_array_new(n: i32) -> &path_key_array_array {
+    [path_key_array_array|null; n];
+}
+
+#[export = "path_key_array_array_set"]
+fn api_path_key_array_array_set(a: &path_key_array_array, i: i32, keys: &path_key_array) {
+    a[i] = keys;
+}
+
+// A component's render that provides names[i] at keys[i].
+#[export = "snode_component_providing"]
+fn api_snode_component_providing(
+    name: js_string,
+    names: &str_array,
+    keys: &path_key_array_array,
+    childs: &snode_array,
+) -> &snode {
+    snode_component(name, meta_component_text(names, keys), childs);
+}
+
+// The keys to the component (and loop item) node was rendered in, as the DOM's
+// metadata says; null outside container or any component.
+#[export = "dom_key_path_of"]
+fn api_dom_key_path_of(container: dom_node, node: dom_node) -> &?value {
+    let p = path_of(container, node);
+    if !p {
+        return null;
+    }
+    keys_to_list(dispatch_path_to_key_path(p!).keys);
+}

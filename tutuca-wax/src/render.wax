@@ -59,7 +59,32 @@ fn render_context_provided_frame(ctx: &render_context, name: js_string) -> &?fra
 // renderView: a component's view (the one named, the first of ctx.views it
 // has, or its main view) inside its component wrapper.
 fn render_view(c: &component, view: js_string_opt, ctx: &render_context) -> &snode {
-    snode_component(c.spec.name, view_eval_component(c, view, ctx));
+    snode_component(
+        c.spec.name,
+        render_provides_meta(c.spec, ctx),
+        view_eval_component(c, view, ctx),
+    );
+}
+
+// providesIn: the opening comment of a component that provides values, where
+// each one is in it as ctx, the one it was entered with, has them; null when
+// it provides nothing. A frame below that reads one writes its name only.
+fn render_provides_meta(spec: &component_spec, ctx: &render_context) -> js_string_opt {
+    let n = spec.provide_names.length();
+    if n == 0 {
+        return null;
+    }
+    let keys = [path_key_array_array|null; n];
+    let i = 0;
+    while i <s n {
+        let p = render_context_provided(ctx, spec.provide_names[i]!);
+        if !p {
+            host_fail(js_string_concat(s_err_no_provider, spec.provide_names[i]!));
+        }
+        keys[i] = (p!).keys;
+        i += 1;
+    }
+    meta_component_text(spec.provide_names, keys);
 }
 
 // A child component rendered at a frame, the way the spec's x-render does:

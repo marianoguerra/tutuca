@@ -649,7 +649,15 @@ function makeApi(w) {
 		text: (s) => snode(w.snode_text(String(s))),
 		comment: (s) => snode(w.snode_comment(String(s))),
 		group: (children, key = null) => snode(w.snode_group(optKey(key), snodeArray(children))),
-		component: (name, children) => snode(w.snode_component(name, snodeArray(children))),
+		// provides, { name: keys }, is where each value the component provides is in it.
+		component: (name, children, provides = null) => {
+			if (provides === null) return snode(w.snode_component(name, snodeArray(children)));
+			const names = Object.keys(provides);
+			const out = w.str_array_new(names.length);
+			names.forEach((n, i) => w.str_array_set(out, i, n));
+			const keys = arrayOf(w.path_key_array_array_new, w.path_key_array_array_set, names, (n) => pathKeys(provides[n]));
+			return snode(w.snode_component_providing(name, out, keys, snodeArray(children)));
+		},
 		enter: (f, children) => snode(w.snode_enter(f, snodeArray(children))),
 		// A loop: entries are [{ key, frame, body }].
 		items: (entries) =>

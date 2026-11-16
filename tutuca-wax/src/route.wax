@@ -145,6 +145,21 @@ fn frame_for_item(f: &frame, key: &path_key) -> &frame {
     {frame| keys: frame_access_keys(f), item: key, provider: f.provider, is_component: 0 };
 }
 
+// Whether two frames start at the same place and have the same keys and item
+// (frameText in tutuca's src/tree/path.js): the marker text has the provider's
+// name only, so where it is is compared too.
+fn frame_same(a: &frame, b: &frame) -> i32 {
+    if !str_eq(meta_frame_text(a), meta_frame_text(b)) {
+        return 0;
+    }
+    if !a.provider {
+        return 1;
+    }
+    let pa = a.provider!;
+    let pb = b.provider!;
+    (pa.depth == pb.depth) & str_eq(path_keys_text(pa.keys), path_keys_text(pb.keys));
+}
+
 fn dispatch_path_is_root(p: &dispatch_path) -> i32 {
     p.frames.length() == 0;
 }
@@ -204,7 +219,7 @@ fn dispatch_path_source_key_in(p: &dispatch_path, receiver: &dispatch_path) -> &
     // null unless p goes through receiver: another branch's component sent.
     let j = 0;
     while j <s i {
-        if !str_eq(meta_frame_text(receiver.frames[j]!), meta_frame_text(p.frames[j]!)) {
+        if !frame_same(receiver.frames[j]!, p.frames[j]!) {
             return null;
         }
         j += 1;

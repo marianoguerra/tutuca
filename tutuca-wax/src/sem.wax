@@ -245,8 +245,8 @@ fn snode_group(key: js_string_opt, childs: &snode_array) -> &snode {
     out;
 }
 
-fn snode_component(name: js_string, childs: &snode_array) -> &snode {
-    let out: &snode_component = { kind: snode_kind_component, name, childs };
+fn snode_component(name: js_string, meta: js_string_opt, childs: &snode_array) -> &snode {
+    let out: &snode_component = { kind: snode_kind_component, name, meta, childs };
     out;
 }
 

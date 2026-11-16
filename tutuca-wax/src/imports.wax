@@ -93,8 +93,10 @@ import "'" {
     const s_meta_frame_open: js_string;
     #[import = "{\"v\":"]
     const s_meta_provider_open: js_string;
-    #[import = ",\"d\":"]
-    const s_meta_depth: js_string;
+    #[import = "§{\"t\":\"component\",\"p\":{"]
+    const s_meta_component_provides_open: js_string;
+    #[import = "}}§"]
+    const s_meta_component_provides_close: js_string;
     #[import = ",\"k\":"]
     const s_meta_keys: js_string;
     #[import = ",\"i\":"]
@@ -112,8 +114,6 @@ import "'" {
     const s_i: js_string;
     #[import = "v"]
     const s_v: js_string;
-    #[import = "d"]
-    const s_d: js_string;
     #[import = "component"]
     const s_component: js_string;
     #[import = "frame"]

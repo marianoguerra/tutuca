@@ -297,10 +297,17 @@ test("lowering: a loop is an unkeyed group of keyed items, each between its fram
 
 test("lowering: provider frames and keys are written as JSON", ({ vdom }) => {
 	const { sem } = vdom;
+	// A frame names the value it reads; where it is, is its provider's to write.
 	const f = sem.frame({ keys: [], item: 2, provider: { name: "sel", depth: 0, keys: ["items", 1] } });
-	assert.equal(sem.frameMeta(f), '§{"t":"frame","p":{"v":"sel","d":0,"k":["items",1]},"k":[],"i":2}§');
+	assert.equal(sem.frameMeta(f), '§{"t":"frame","p":{"v":"sel"},"k":[],"i":2}§');
 	const odd = sem.frame({ keys: ['a"b\\c\n', "é😀", "\ud800"], item: "§" });
 	assert.equal(sem.frameMeta(odd), `§${JSON.stringify({ t: "frame", p: null, k: ['a"b\\c\n', "é😀", "\ud800"], i: "§" })}§`);
+});
+
+test("lowering: a component that provides values writes where each one is in it", ({ vdom, document, container }) => {
+	const { sem } = vdom;
+	sem.render(document, container, [sem.component("Shop", ["S"], { sel: ["items", 1], user: ["me"] })]);
+	assert.equal(container.innerHTML, `<!--§{"t":"component","p":{"sel":["items",1],"user":["me"]}}§-->S${E}`);
 });
 
 test("lowering: an unchanged re-render of a semantic tree writes nothing", async ({ vdom, window, document, container }) => {
@@ -2036,7 +2043,7 @@ test("modules: the loader takes only modules that import the ABI, of the runtime
 	const scope = vdom.runtime.scope();
 	// The runtime itself imports the DOM and the host.
 	await assert.rejects(vdom.loadComponent(modules.runtime, scope), /imports only from tutuca, wasm:js-string and ', not from dom, env, host/);
-	await assert.rejects(vdom.loadComponent(OTHER_ABI, scope), /for ABI version 99, the runtime's is 15/);
+	await assert.rejects(vdom.loadComponent(OTHER_ABI, scope), /for ABI version 99, the runtime's is 16/);
 });
 
 // What every case gets besides its DOM, from the runtime vdom and bytesOf,

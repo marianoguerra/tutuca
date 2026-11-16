@@ -13,7 +13,8 @@ type path_key_index: path_key = { .., index: i32 };
 type path_key_array = [mut &?path_key];
 
 // Where a provider captured the value a frame starts from: the frame at
-// depth, then these keys. Frames without one start where the previous ended.
+// depth (the frames up to and including that of the component that provides
+// it), then these keys. Frames without one start where the previous ended.
 type provider = { name: js_string, depth: i32, keys: &path_key_array };
 
 // One step of rendered ancestry: a render source, or a loop item entered.

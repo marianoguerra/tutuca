@@ -318,7 +318,7 @@ fn abi_snode_group(key: js_string_opt, childs: &snode_array) -> &snode {
 
 #[export = "snode_component"]
 fn abi_snode_component(name: js_string, childs: &snode_array) -> &snode {
-    snode_component(name, childs);
+    snode_component(name, null, childs);
 }
 
 #[export = "snode_enter"]
