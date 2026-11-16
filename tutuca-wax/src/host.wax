@@ -23,27 +23,46 @@ type drag = { path: &dispatch_path, drag_type: js_string_opt, node: dom_node, va
 type task = {
     kind: i32,
     name: js_string,
-    args: &value_array,
-    // The dispatch path of the component that sent it.
-    source: &dispatch_path,
+    // A progress message's are set as it runs (watch_progress_args).
+    args: mut &value_array,
+    // The sender (tutuca's from): the route of the component that sent it,
+    // its path and its identity then; for what comes from outside the tree
+    // (a host send, an event, an ask's answer), the host's, with from_host
+    // set, which has no handlers to reply to.
+    from: &route,
+    from_host: i32,
     target: &target,
-    // Fixed for events and async replies; every other task's is frozen from
-    // its target against the root when it's queued.
-    route: &?route,
-    // For event tasks: the event and what was being dragged when it
-    // happened (null otherwise), the action's arguments, evaluated when the
-    // task runs, and the element with the handler, whose value a
-    // target-value argument reads.
+    // Where it goes (tutuca's to): fixed for events, replies, asks and
+    // answers; every other task's is frozen from its target against the root
+    // when its sender commits.
+    route: mut &?route,
+    // For event tasks: the event and what was being dragged when it happened
+    // (null otherwise), and the element with the handler. Its arguments were
+    // evaluated when it arrived.
     event: &value,
     drag: &?drag,
-    action_args: &?arg_array,
     node: dom_node_opt,
     // For notifications: whether a hop so far had a handler for it. One that
     // reaches the root with none is reported unhandled, once.
     any_hop_handled: mut i32,
     // For an ask and its answer: the request's id, which the answer's handler
     // reads as ctx.request; 0 otherwise.
-    request: mut i32
+    request: mut i32,
+    // A notification's hop after its first: a bubble under way, which is one
+    // turn, so an event that arrives waits behind it.
+    hop: i32,
+    // Its number, given as it's first queued (0 before), counted per host so
+    // runs repeat; cause, the number of the task that sent it (0 for the
+    // host's); origin, the number its chain started with.
+    seq: mut i32,
+    cause: i32,
+    origin: mut i32,
+    // The watch it's in (watch.wax), its sender's unless it opens one or is
+    // detached; for a progress message, the watch it tells about; whether
+    // its watch was cancelled before it ran (dropped).
+    watch: mut &?watch,
+    progress_of: mut &?watch,
+    dropped: mut i32
 };
 
 type task_array = [mut &?task];
@@ -69,7 +88,7 @@ fn task_queue_push(q: &task_queue, t: &task) {
 }
 
 // t first, before what's queued: a notification's next hop, so a bubble's
-// hops run back to back.
+// hops run back to back, and an ask's answer given now.
 fn task_queue_push_front(q: &task_queue, t: &task) {
     if q.head == 0 {
         let live = q.len;
@@ -82,6 +101,32 @@ fn task_queue_push_front(q: &task_queue, t: &task) {
     }
     q.head = q.head - 1;
     q.items[q.head] = t;
+}
+
+// t after the queued tasks a bubble under way has, ahead of the rest: an
+// event's place (tutuca's Scheduler.arrive, the spec's env rule).
+fn task_queue_arrive(q: &task_queue, t: &task) {
+    let i = q.head;
+    let more = 1;
+    while more & (i <s q.len) {
+        if (q.items[i]!).hop {
+            i += 1;
+        } else {
+            more = 0;
+        }
+    }
+    if i == q.head {
+        task_queue_push_front(q, t);
+        return;
+    }
+    // Room for one more at the back, then the ones from i move up one.
+    task_queue_push(q, t);
+    let j = q.len - 1;
+    while j >s i {
+        q.items[j] = q.items[j - 1];
+        j -= 1;
+    }
+    q.items[i] = t;
 }
 
 fn task_queue_pop(q: &task_queue) -> &?task {
@@ -98,14 +143,17 @@ fn task_queue_pop(q: &task_queue) -> &?task {
     t;
 }
 
-// An ask whose reply hasn't arrived: the reply goes to the asker.
-// asker: the identity of the component that asked, for the reply's route.
+// An ask whose answer hasn't arrived: the answer goes to the asker, as it
+// was when it asked, and is caused by the ask.
 type pending_reply = {
     id: i32,
     name: js_string,
-    source: &dispatch_path,
-    asker: i32,
-    request: i32
+    asker: &route,
+    request: i32,
+    cause: i32,
+    origin: i32,
+    // The ask, whose watch its answer is in.
+    ask: &task
 };
 
 // A host renders into container, in doc; a headless host has neither, and
@@ -135,8 +183,39 @@ type host = {
     // The path from the root of the component the task running (or the last
     // one run) is for, as a list of keys (names and indices); null while
     // rendering. What's reported, a log, an issue, a failure, came from there.
-    at: mut &value
+    at: mut &value,
+    // The number the last task queued got.
+    seqs: mut i32,
+    // What became of the task host_step last ran (tutuca's Transition):
+    // the task, its outcome (transition_*), what its handler sent ({ kind,
+    // name, args } each) and the messages it made that nobody handles.
+    cur: mut &?task,
+    outcome: mut i32,
+    emitted: mut &value,
+    unhandled: mut &value,
+    // The ids of the asks and watches made in its tasks, counted per host so
+    // runs repeat; the watches that haven't settled; and the records for
+    // host.listen made besides each task's transition (a dropped task's, a
+    // watch opening and settling), until the JS side takes them.
+    ids: &id_counter,
+    watches: mut &pv_vector,
+    events: mut &value,
+    // Whether renders reuse what the last one rendered where nothing it
+    // depends on changed (render.wax's cache), and its entries.
+    render_cache: mut i32,
+    cache_tree: mut &cache_children,
+    cache_stats: &cache_stats
 };
+
+// What became of a task (tutuca's TRANSITION_OUTCOMES, but failed, which
+// the JS side sees as host_step throws, and lost, dropped, which can't
+// happen here yet). A fieldless enum that is only compared, so an i32.
+const transition_handled = 0; // its handler ran
+const transition_passed = 1; // a notification's hop with no handler, which passes it on
+const transition_unhandled = 2; // nobody handles it
+const transition_stale = 3; // another component took the place it was for
+const transition_orphaned = 4; // no component is at the place it was for
+const transition_asked = 5; // an ask, handed to its handler
 
 fn empty_selector() -> &selector {
     {selector| steps: [selector_step_array|null; 0] };
@@ -144,6 +223,16 @@ fn empty_selector() -> &selector {
 
 fn empty_args() -> &value_array {
     [value_array|null; 0];
+}
+
+fn root_dispatch_path() -> &dispatch_path {
+    {dispatch_path| frames: [frame_array|null; 0] };
+}
+
+// The host's address (tutuca's HOST): the root's parent, what host sends,
+// events and ask answers come from. It has no handlers.
+fn host_route() -> &route {
+    route_for(root_dispatch_path());
 }
 
 fn host_new(doc: dom_document_opt, container: dom_node_opt, root: &value) -> &host {
@@ -161,90 +250,156 @@ fn host_new(doc: dom_document_opt, container: dom_node_opt, root: &value) -> &ho
         dev: 0,
         settled_root: root,
         at: VALUE_NULL,
+        seqs: 0,
+        cur: null,
+        outcome: transition_handled,
+        emitted: VALUE_NULL,
+        unhandled: VALUE_NULL,
+        ids: {id_counter| n: 0 },
+        watches: pv_empty(),
+        events: list_empty(),
+        render_cache: 1,
+        cache_tree: cache_children_new(),
+        cache_stats: {cache_stats| hits: 0, misses: 0 },
     };
 }
 
-// A task to target, with no route yet.
+// A task from the component at from to target, sent by cause (its number
+// and its origin's), with no route yet.
 fn task_new(
     kind: i32,
     name: js_string,
     args: &value_array,
-    source: &dispatch_path,
+    from: &route,
     target: &target,
+    cause: &task,
 ) -> &task {
     {task|
         kind,
         name,
         args,
-        source,
+        from,
+        from_host: 0,
         target,
         route: null,
         event: VALUE_NULL,
         drag: null,
-        action_args: null,
         node: null,
         any_hop_handled: 0,
         request: 0,
+        hop: 0,
+        seq: 0,
+        cause: cause.seq,
+        origin: cause.origin,
+        watch: cause.watch,
+        progress_of: null,
+        dropped: 0,
+    };
+}
+
+// A task from the host to target: the first of its chain.
+fn host_task(kind: i32, name: js_string, args: &value_array, target: &target) -> &task {
+    {task|
+        kind,
+        name,
+        args,
+        from: host_route(),
+        from_host: 1,
+        target,
+        route: null,
+        event: VALUE_NULL,
+        drag: null,
+        node: null,
+        any_hop_handled: 0,
+        request: 0,
+        hop: 0,
+        seq: 0,
+        cause: 0,
+        origin: 0,
+        watch: null,
+        progress_of: null,
+        dropped: 0,
+    };
+}
+
+// A notification's next hop: the same message from the same sender, to the
+// parent, remembering whether a hop so far handled it.
+fn task_notify_hop(t: &task, parent: &target, any_hop_handled: i32) -> &task {
+    {task|
+        kind: task_kind_notify,
+        name: t.name,
+        args: t.args,
+        from: t.from,
+        from_host: t.from_host,
+        target: parent,
+        route: null,
+        event: VALUE_NULL,
+        drag: null,
+        node: null,
+        any_hop_handled,
+        request: 0,
+        hop: 1,
+        seq: 0,
+        cause: t.seq,
+        origin: t.origin,
+        watch: t.watch,
+        progress_of: null,
+        dropped: 0,
     };
 }
 
 // The task with its route: frozen from its target against root unless fixed.
-// A notification's next hop: the same message from the same sender, to the
-// parent, remembering whether a hop so far handled it.
-fn task_notify_hop(t: &task, parent: &target, any_hop_handled: i32) -> &task {
-    let next = task_new(task_kind_notify, t.name, t.args, t.source, parent);
-    next.any_hop_handled = any_hop_handled;
-    next;
-}
-
 fn task_prepare(t: &task, root: &value) -> &task {
-    if !!t.route {
-        return t;
+    if !t.route {
+        t.route = route_at(target_freeze(t.target, root), root);
     }
-    {task|
-        kind: t.kind,
-        name: t.name,
-        args: t.args,
-        source: t.source,
-        target: t.target,
-        route: route_at(target_freeze(t.target, root), root),
-        event: t.event,
-        drag: t.drag,
-        action_args: t.action_args,
-        node: t.node,
-        any_hop_handled: t.any_hop_handled,
-        request: t.request,
-    };
+    t;
 }
 
-// Queues a task, freezing its target against the current root.
+// Numbers t as it's first queued (tutuca's Scheduler.enter), the first of
+// its chain when nothing sent it, and counts it in its watch; 0 when its
+// watch was cancelled, so it isn't queued.
+fn host_enter(h: &host, t: &task) -> i32 {
+    if t.seq == 0 {
+        h.seqs = h.seqs + 1;
+        t.seq = h.seqs;
+        if t.origin == 0 {
+            t.origin = t.seq;
+        }
+    }
+    watch_enter(h, t);
+}
+
+// Queues a task at the back, freezing its target against the current root.
 fn host_push(h: &host, t: &task) {
-    task_queue_push(h.queue, task_prepare(t, h.root));
+    let prepared = task_prepare(t, h.root);
+    if host_enter(h, prepared) {
+        task_queue_push(h.queue, prepared);
+    }
 }
 
-// A message to the root component, from outside it.
-fn host_send(h: &host, name: js_string, args: &value_array) {
-    let root_path = {dispatch_path| frames: [frame_array|null; 0] };
-    host_push(
-        h,
-        task_new(
+// A message from the host to the component sel reaches from the root, its
+// number. Sent now (as an event is: tutuca's send with now, the spec's env
+// rule) it goes ahead of the queue, behind a bubble under way; otherwise at
+// the back.
+fn host_send(h: &host, name: js_string, args: &value_array, sel: &selector, now: i32) -> i32 {
+    let t =
+        host_task(
             task_kind_plain,
             name,
             args,
-            root_path,
-            {target| base: root_path, selector: empty_selector() },
-        ),
-    );
-}
-
-// A message to the component the selector reaches from the root, from
-// outside it.
-fn host_send_at(h: &host, name: js_string, args: &value_array, sel: &selector) {
-    let root_path = {dispatch_path| frames: [frame_array|null; 0] };
-    host_push(
-        h,
-        task_new(task_kind_plain, name, args, root_path, {target| base: root_path, selector: sel }),
-    );
+            {target| base: root_dispatch_path(), selector: sel },
+        );
+    let queued = task_prepare(t, h.root);
+    // A task from the host is in no watch: it's always queued.
+    if host_enter(h, queued) {
+        if now {
+            task_queue_arrive(h.queue, queued);
+        } else {
+            task_queue_push(h.queue, queued);
+        }
+    }
+    t.seq;
 }
 
 // a's steps, then b's.
@@ -266,6 +421,14 @@ fn host_step(h: &host) -> i32 {
     if !t {
         return 0;
     }
+    h.cur = t;
+    h.outcome = transition_handled;
+    h.emitted = list_empty();
+    h.unhandled = list_empty();
+    // A progress message says how its watch is when it runs.
+    if !!(t!).progress_of {
+        (t!).args = watch_progress_args((t!).progress_of!);
+    }
     let tx =
         {transaction|
             children: [task_array|null; 4],
@@ -273,6 +436,8 @@ fn host_step(h: &host) -> i32 {
             next_hop: null,
             pending: h.pending,
             issues: list_empty(),
+            cancels: list_empty(),
+            ask_pending: 0,
         };
     let prev = h.root;
     let root = host_transaction(h, t!, tx);
@@ -281,12 +446,34 @@ fn host_step(h: &host) -> i32 {
     h.pending = tx.pending;
     let i = 0;
     while i <s tx.count {
-        task_queue_push(h.queue, tx.children[i]!);
+        let child = tx.children[i]!;
+        if host_enter(h, child) {
+            task_queue_push(h.queue, child);
+        }
         i += 1;
     }
-    // A bubble's hops run back to back; what each hop sends waits behind them.
+    // A bubble's hops run back to back; what each hop sends waits behind
+    // them. An ask's answer given now runs next too.
     if !!tx.next_hop {
-        task_queue_push_front(h.queue, tx.next_hop!);
+        if host_enter(h, tx.next_hop!) {
+            task_queue_push_front(h.queue, tx.next_hop!);
+        }
+    }
+    // The watches it cancels, once it committed; progress for the watches
+    // it ran in; and it's done, but an ask whose answer is on its way.
+    i = 0;
+    while i <s list_count(tx.cancels) {
+        watch_cancel_id(h, (list_get(tx.cancels, i)! as &value_int).value, watch_cancelled);
+        i += 1;
+    }
+    let ran =
+        (h.outcome == transition_handled) | (h.outcome == transition_passed)
+            | (h.outcome == transition_unhandled);
+    if ran {
+        watch_ran(h, t!);
+    }
+    if !tx.ask_pending {
+        watch_leave(h, t!);
     }
     if h.dev {
         host_check_task(h, t!, prev, tx.issues);
@@ -303,7 +490,11 @@ type transaction = {
     // A notification's next hop, which runs right after this task.
     next_hop: mut &?task,
     pending: mut &pv_vector,
-    issues: mut &value
+    issues: mut &value,
+    // The ids of the watches its handler cancels (ctx_cancel), and whether,
+    // an ask, its answer is on its way.
+    cancels: mut &value,
+    ask_pending: mut i32
 };
 
 fn transaction_push(tx: &transaction, t: &task) {
@@ -329,43 +520,71 @@ fn has_dot(s: js_string) -> i32 {
     0;
 }
 
+// The component at r in h's root, or null when r reaches none (orphaned,
+// reported) or another took its place since r was fixed (stale: it was
+// replaced, or a list shifted, so the message, for the one before, is
+// dropped and reported): tutuca's Scheduler.receiver.
+fn host_receiver(h: &host, t: &task, r: &route) -> &?component {
+    let found = key_path_find(r.key_path, h.root);
+    let c: &?component = null;
+    if !!found {
+        c = value_as_component(found!);
+    }
+    if !c {
+        h.outcome = transition_orphaned;
+        observe_orphaned(t.name);
+        return null;
+    }
+    if (c!).id != r.id {
+        h.outcome = transition_stale;
+        observe_stale(t.name);
+        return null;
+    }
+    c;
+}
+
 fn host_transaction(h: &host, t: &task, tx: &transaction) -> &value {
     let r = t.route!;
     h.at = key_path_value(r.key_path);
-    let c = value_as_component(key_path_get_in(r.key_path, h.root));
-    if !c {
-        host_fail(js_string_concat(s_err_not_a_component, t.name));
-        unreachable;
+    // A notification starts from its sender, found as any address is.
+    if (t.kind == task_kind_notify) & !t.hop & !t.from_host {
+        if !host_receiver(h, t, t.from) {
+            return h.root;
+        }
     }
-    let comp = c!;
-    // Another component took its place (it was replaced, or a list shifted):
-    // the message was for the one before, so it's dropped and reported, not
-    // given to this one.
-    if (r.id != 0) & (comp.id != r.id) {
-        observe_stale(t.name);
+    let c = host_receiver(h, t, r);
+    if !c {
         return h.root;
     }
+    let comp = c!;
     let path = dispatch_path_to_component(r.path);
     // Only an ask's answer has a dotted name (name.ok): a message named so,
     // from a send or from outside, can't forge one.
     if (t.kind != task_kind_answer) & has_dot(t.name) {
-        observe_unhandled(t.name);
+        note_unhandled(h, t.name);
+        h.outcome = transition_unhandled;
         return h.root;
+    }
+    // The child the message came through; for one from the host, such as
+    // an event, the loop item it reached, below the component.
+    let through = t.from.path;
+    if t.from_host {
+        through = r.path;
     }
     let ctx =
         {context|
             scope: comp.scope,
             path,
-            source_key: dispatch_path_source_key_in(t.source, path),
+            source_key: dispatch_path_source_key_in(through, path),
             event: t.event,
             drag: drag_value(t.drag, path),
             effects: effect_buf_new(),
             request: t.request,
+            ids: h.ids,
         };
     let args = t.args;
-    if !!t.action_args {
-        args = eval_args(t.action_args!, ctx, t.node, comp);
-    }
+    // Where what the handler sends comes from: here, as this component.
+    let me = {route| path, key_path: r.key_path, id: comp.id };
     // The message the component handles: the task's, or for an ask the reply
     // the ask's handler gives (none while it's pending).
     let msg: &?message = {message| name: t.name, args };
@@ -390,7 +609,7 @@ fn host_transaction(h: &host, t: &task, tx: &transaction) -> &value {
     }
     // Effects first, so the logs of a handler that rejects its message are
     // observed, as a throwing handler's are.
-    let stop = effect_tasks(t, args, ctx, tx);
+    let stop = effect_tasks(h, t, args, ctx, me, tx);
     let leaf: &?value = null;
     if result.kind == message_result_kind_updated {
         let instance = (result as &message_result_updated).instance;
@@ -410,7 +629,7 @@ fn host_transaction(h: &host, t: &task, tx: &transaction) -> &value {
             // any other message is reported here.
             handled = 0;
             if t.kind != task_kind_notify {
-                observe_unhandled((msg!).name);
+                note_unhandled(h, (msg!).name);
             }
         } else {
             reject_message(comp, (msg!).name, error);
@@ -428,11 +647,24 @@ fn host_transaction(h: &host, t: &task, tx: &transaction) -> &value {
         let any_handled = t.any_hop_handled | handled;
         if dispatch_path_is_root(path) {
             if !any_handled {
-                observe_unhandled(t.name);
+                note_unhandled(h, t.name);
             }
         } else {
             let parent = {target| base: dispatch_path_to_parent(path), selector: empty_selector() };
             tx.next_hop = task_notify_hop(t, parent, any_handled);
+        }
+    }
+    // What became of it: an ask was handed to its handler; a message no
+    // handler ran for is unhandled when nobody handles it, and passed on
+    // otherwise (a notification's hop).
+    if t.kind == task_kind_ask {
+        h.outcome = transition_asked;
+    } else {
+        if !handled {
+            h.outcome = transition_passed;
+            if list_has_string(h.unhandled, t.name) {
+                h.outcome = transition_unhandled;
+            }
         }
     }
     // The same root when nothing changed, so nothing renders.
@@ -451,28 +683,37 @@ fn host_transaction(h: &host, t: &task, tx: &transaction) -> &value {
     root;
 }
 
-// A reply to an ask: a message to the asker, routed to its path and its
-// identity, so it reaches the asker or is dropped stale.
+// An ask's answer: a message from the host to the asker, routed to its
+// path and its identity, so it reaches the asker or is dropped stale.
 fn reply_task(
     name: js_string,
     args: &value_array,
-    source: &dispatch_path,
-    asker: i32,
+    asker: &route,
     request: i32,
+    cause: i32,
+    origin: i32,
+    watch: &?watch,
 ) -> &task {
     {task|
         kind: task_kind_answer,
         name,
         args,
-        source,
-        target: {target| base: source, selector: empty_selector() },
-        route: route_with_id(route_for(source), asker),
+        from: host_route(),
+        from_host: 1,
+        target: {target| base: asker.path, selector: empty_selector() },
+        route: asker,
         event: VALUE_NULL,
         drag: null,
-        action_args: null,
         node: null,
         any_hop_handled: 0,
         request,
+        hop: 0,
+        seq: 0,
+        cause,
+        origin,
+        watch,
+        progress_of: null,
+        dropped: 0,
     };
 }
 
@@ -503,6 +744,7 @@ fn ask_reply(
                 drag: ctx.drag,
                 effects: effect_buf_new(),
                 request: ctx.request,
+                ids: ctx.ids,
             };
         answer = (found!).handler(t.name, args, own);
         let i = 0;
@@ -515,15 +757,17 @@ fn ask_reply(
             i += 1;
         }
     }
-    let asker = (t.route!).id;
+    let asker = t.route!;
     if answer.kind == ask_result_kind_not_found {
         tx.next_hop =
             reply_task(
                 js_string_concat(t.name, s_answer_unhandled),
                 empty_args(),
-                t.source,
                 asker,
                 t.request,
+                t.seq,
+                t.origin,
+                t.watch,
             );
         return null;
     }
@@ -532,21 +776,37 @@ fn ask_reply(
         tx.pending =
             pv_push(
                 tx.pending,
-                {pending_reply| id, name: t.name, source: t.source, asker, request: t.request },
+                {pending_reply|
+                    id,
+                    name: t.name,
+                    asker,
+                    request: t.request,
+                    cause: t.seq,
+                    origin: t.origin,
+                    ask: t,
+                },
             );
+        tx.ask_pending = 1;
         return null;
     }
     let result = (answer as &ask_result_reply).result as &value_result;
     let reply = [value_array|null; 1];
     reply[0] = result.value;
     let name = js_string_concat(t.name, result.ok?s_answer_ok:s_answer_error);
-    tx.next_hop = reply_task(name, reply, t.source, asker, t.request);
+    tx.next_hop = reply_task(name, reply, asker, t.request, t.seq, t.origin, t.watch);
     null;
 }
 
-// The handler's effects, in order, as child tasks; whether it stopped a
-// notify. Logs are observed as they come.
-fn effect_tasks(t: &task, args: &value_array, ctx: &context, tx: &transaction) -> i32 {
+// The handler's effects, in order, as child tasks from me, the component
+// that ran it; whether it stopped a notify. Logs are observed as they come.
+fn effect_tasks(
+    h: &host,
+    t: &task,
+    args: &value_array,
+    ctx: &context,
+    me: &route,
+    tx: &transaction,
+) -> i32 {
     let stop = 0;
     let here = ctx.path;
     let i = 0;
@@ -555,53 +815,112 @@ fn effect_tasks(t: &task, args: &value_array, ctx: &context, tx: &transaction) -
         let kind = e.kind;
         if kind == effect_kind_notify {
             let n = e as &effect_notify;
+            note_emitted(h, s_e_notify, n.name, n.args);
             if dispatch_path_is_root(here) {
                 // The root has no ancestors: nobody can handle it.
-                observe_unhandled(n.name);
+                note_unhandled(h, n.name);
             } else {
                 let parent =
                     {target| base: dispatch_path_to_parent(here), selector: empty_selector() };
-                transaction_push(tx, task_new(task_kind_notify, n.name, n.args, here, parent));
+                transaction_push(tx, task_new(task_kind_notify, n.name, n.args, me, parent, t));
             }
         }
         if kind == effect_kind_ask {
             let a = e as &effect_ask;
+            note_emitted(h, s_e_ask, a.name, a.args);
+            // To the asker as it is now: the answer comes back here.
             let ask =
                 task_new(
                     task_kind_ask,
                     a.name,
                     a.args,
-                    here,
+                    me,
                     {target| base: here, selector: empty_selector() },
+                    t,
                 );
+            ask.route = me;
             ask.request = a.request;
+            // Detached, the ask and its answer are in no watch.
+            if a.detached {
+                ask.watch = null;
+            }
             transaction_push(tx, ask);
         }
         if kind == effect_kind_send_at {
             let s = e as &effect_send_at;
-            transaction_push(
-                tx,
+            note_emitted(h, s_e_send_at, s.name, s.args);
+            let sent =
                 task_new(
                     task_kind_plain,
                     s.name,
                     s.args,
-                    here,
+                    me,
                     {target| base: here, selector: s.selector },
-                ),
-            );
+                    t,
+                );
+            // Detached it's in no watch; with a watch it opens one, inside
+            // the one this task is in unless detached.
+            if s.detached {
+                sent.watch = null;
+            }
+            if s.watch_id != 0 {
+                let outer = t.watch;
+                if s.detached {
+                    outer = null;
+                }
+                sent.watch =
+                    watch_new(
+                        s.watch_id,
+                        me,
+                        s.settled,
+                        s.settled_args,
+                        s.progress,
+                        s.progress_args,
+                        s.timeout,
+                        outer,
+                    );
+            }
+            transaction_push(tx, sent);
         }
         if kind == effect_kind_forward_at {
             let f = e as &effect_forward_at;
+            note_emitted(h, s_e_send_at, t.name, args);
             transaction_push(
                 tx,
                 task_new(
                     task_kind_plain,
                     t.name,
                     args,
-                    here,
+                    me,
                     {target| base: here, selector: f.selector },
+                    t,
                 ),
             );
+        }
+        if kind == effect_kind_reply {
+            // To the sender, where and as it was when it sent the message (a
+            // notification keeps its sender at every hop); the host has no
+            // handlers, so one to it is unhandled.
+            let rp = e as &effect_reply;
+            note_emitted(h, s_e_reply, rp.name, rp.args);
+            if t.from_host {
+                note_unhandled(h, rp.name);
+            } else {
+                let reply =
+                    task_new(
+                        task_kind_plain,
+                        rp.name,
+                        rp.args,
+                        me,
+                        {target| base: t.from.path, selector: empty_selector() },
+                        t,
+                    );
+                reply.route = t.from;
+                transaction_push(tx, reply);
+            }
+        }
+        if kind == effect_kind_cancel {
+            tx.cancels = list_push(tx.cancels, value_int((e as &effect_cancel).id));
         }
         if kind == effect_kind_stop_next {
             stop = 1;
@@ -612,6 +931,130 @@ fn effect_tasks(t: &task, args: &value_array, ctx: &context, tx: &transaction) -
         i += 1;
     }
     stop;
+}
+
+// A message nobody handles, made by the task running: observed, and kept
+// for its transition.
+fn note_unhandled(h: &host, name: js_string) {
+    h.unhandled = list_push(h.unhandled, value_string(name));
+    observe_unhandled(name);
+}
+
+// What the task running's handler sent, for its transition.
+fn note_emitted(h: &host, kind: js_string, name: js_string, args: &value_array) {
+    let m = map_assoc(map_empty(), s_kind, value_string(kind));
+    m = map_assoc(m, s_name, value_string(name));
+    h.emitted = list_push(h.emitted, map_assoc(m, s_args, values_to_list(args)));
+}
+
+fn list_has_string(list: &value, s: js_string) -> i32 {
+    let i = 0;
+    while i <s list_count(list) {
+        let v = value_string_of(list_get(list, i)!);
+        if !!v {
+            if str_eq(v!, s) {
+                return 1;
+            }
+        }
+        i += 1;
+    }
+    0;
+}
+
+// A route as tutuca's Address reads: { path: its keys, id }; the host's,
+// null.
+fn route_value(r: &route, from_host: i32) -> &value {
+    if from_host {
+        return VALUE_NULL;
+    }
+    let m = map_assoc(map_empty(), s_path, key_path_value(r.key_path));
+    map_assoc(m, s_id, value_int(r.id));
+}
+
+fn transition_outcome_name(o: i32) -> js_string {
+    if o == transition_passed {
+        return s_t_passed;
+    }
+    if o == transition_unhandled {
+        return s_t_unhandled;
+    }
+    if o == transition_stale {
+        return s_t_stale;
+    }
+    if o == transition_orphaned {
+        return s_t_orphaned;
+    }
+    if o == transition_asked {
+        return s_t_asked;
+    }
+    s_t_handled;
+}
+
+fn task_mode_name(t: &task) -> js_string {
+    if t.kind == task_kind_notify {
+        return s_e_notify;
+    }
+    if t.kind == task_kind_ask {
+        return s_e_ask;
+    }
+    if t.kind == task_kind_answer {
+        return s_t_answer;
+    }
+    s_t_send;
+}
+
+// What became of the task host_step last ran, as tutuca's Transition has
+// it: { kind: "transition", seq, cause, origin, mode, name, args, from, to,
+// outcome, emitted, unhandled, watch }, cause null for the host's, from
+// null for the host, watch the id of the watch it ran in or null; outcome
+// as of when host_step returned or threw (a task that throws failed, which
+// the JS side says). Null before any task ran.
+fn host_transition(h: &host) -> &value {
+    if !h.cur {
+        return VALUE_NULL;
+    }
+    task_transition_value(h.cur!, transition_outcome_name(h.outcome), h.emitted, h.unhandled);
+}
+
+fn task_transition_value(
+    t: &task,
+    outcome: js_string,
+    emitted: &value,
+    unhandled: &value,
+) -> &value {
+    let m = map_assoc(map_empty(), s_kind, value_string(s_transition));
+    m = map_assoc(m, s_seq, value_int(t.seq));
+    let cause = VALUE_NULL;
+    if t.cause != 0 {
+        cause = value_int(t.cause);
+    }
+    m = map_assoc(m, s_cause, cause);
+    m = map_assoc(m, s_origin, value_int(t.origin));
+    m = map_assoc(m, s_mode, value_string(task_mode_name(t)));
+    m = map_assoc(m, s_name, value_string(t.name));
+    m = map_assoc(m, s_args, values_to_list(t.args));
+    m = map_assoc(m, s_from, route_value(t.from, t.from_host));
+    let to = VALUE_NULL;
+    if !!t.route {
+        to = route_value(t.route!, 0);
+    }
+    m = map_assoc(m, s_to, to);
+    m = map_assoc(m, s_outcome, value_string(outcome));
+    m = map_assoc(m, s_emitted, emitted);
+    m = map_assoc(m, s_unhandled_key, unhandled);
+    let watch = VALUE_NULL;
+    if !!t.watch {
+        watch = value_int((t.watch!).id);
+    }
+    map_assoc(m, s_w_watch, watch);
+}
+
+// The records made besides the tasks' transitions since the last call, in
+// order, and none after it.
+fn host_take_events(h: &host) -> &value {
+    let out = h.events;
+    h.events = list_empty();
+    out;
 }
 
 // Send arguments, evaluated on dispatch against the message context and the
@@ -690,8 +1133,11 @@ fn eval_arg(a: &arg, ctx: &context, node: dom_node_opt, receiver: &component) ->
 }
 
 // Routes a DOM event, e, of type kind on target: queues the task of the
-// handler it reaches, if any, with its route fixed now and what is being
-// dragged. 1 when it reached one. The drop events reach the nearest
+// handler it reaches, if any, from the host, with its route fixed now, its
+// arguments evaluated now against the tree it happened on (tutuca's
+// eventSend: one that fails fails the event, before anything is queued)
+// and what is being dragged, ahead of the queue behind a bubble under way
+// (the env rule). Its number when it reached one, 0 otherwise. The drop events reach the nearest
 // enclosing component that handles them, so a drop on a child's elements
 // gets to the parent's on:drop; before that, the drag they're about is
 // tracked from dragstart to dragend.
@@ -725,24 +1171,46 @@ fn host_dispatch_event(
             dom_stop_propagation(e);
         }
         let r = route_at(i.route.path, h.root);
-        task_queue_push(
-            h.queue,
+        let path = dispatch_path_to_component(r.path);
+        let receiver = value_as_component(key_path_get_in(r.key_path, h.root))!;
+        let ctx =
+            {context|
+                scope: receiver.scope,
+                path,
+                source_key: dispatch_path_source_key_in(r.path, path),
+                event,
+                drag: drag_value(h.drag, path),
+                effects: effect_buf_new(),
+                request: 0,
+                ids: h.ids,
+            };
+        let args = eval_args(i.handler.action.args, ctx, i.node, receiver);
+        let t =
             {task|
                 kind: task_kind_event,
                 name: i.handler.action.name,
-                args: empty_args(),
-                source: r.path,
+                args,
+                from: host_route(),
+                from_host: 1,
                 target: {target| base: r.path, selector: empty_selector() },
                 route: r,
                 event,
                 drag: h.drag,
-                action_args: i.handler.action.args,
                 node: i.node,
                 any_hop_handled: 0,
                 request: 0,
-            },
-        );
-        queued = 1;
+                hop: 0,
+                seq: 0,
+                cause: 0,
+                origin: 0,
+                watch: null,
+                progress_of: null,
+                dropped: 0,
+            };
+        if host_enter(h, t) {
+            task_queue_arrive(h.queue, t);
+        }
+        queued = t.seq;
     }
     if str_eq(kind, s_dragend) {
         host_end_drag(h);
@@ -780,7 +1248,8 @@ fn host_start_drag(h: &host, container: dom_node, e: dom_event, target: dom_node
 
 // Over a drop target, an element with a drop handler, lets the drop happen
 // and marks it: the browser shows a move cursor over a drop target, a
-// not-allowed one elsewhere.
+// not-allowed one elsewhere. A drag from outside the page (a file) is
+// copied: the browser forbids moving most.
 fn host_drag_over(
     h: &host,
     container: dom_node,
@@ -806,7 +1275,7 @@ fn host_drag_over(
         return;
     }
     dom_prevent_default(e);
-    dom_drop_effect_move(e);
+    dom_drop_effect(e, !h.drag?0:1);
     host_mark_drag_over(h, (info!).node);
 }
 
@@ -920,7 +1389,12 @@ fn host_settle(h: &host, id: i32, result: &value) -> i32 {
             let reply = [value_array|null; 1];
             reply[0] = r.value;
             let name = js_string_concat(p.name, r.ok?s_answer_ok:s_answer_error);
-            task_queue_push(h.queue, reply_task(name, reply, p.source, p.asker, p.request));
+            host_push(
+                h,
+                reply_task(name, reply, p.asker, p.request, p.cause, p.origin, p.ask.watch),
+            );
+            // The ask is done once its answer is queued.
+            watch_leave(h, p.ask);
             return 1;
         }
         i += 1;
@@ -952,9 +1426,65 @@ fn host_render(h: &host) -> i32 {
             return 0;
         }
     }
-    let vnodes = lower_all(render_root(h.root));
+    let level: &?cache_level = null;
+    if h.render_cache {
+        level = {cache_level| from: h.cache_tree, to: cache_children_new(), stats: h.cache_stats };
+    }
+    let vnodes = lower_all(render_root(h.root, level));
+    // Rendered: what this render reached is the cache from now on.
+    if !!level {
+        h.cache_tree = (level!).to;
+    }
     render(h.doc!, h.container!, vnodes, h.rendered);
     h.rendered = vnodes;
     h.rendered_root = h.root;
     1;
+}
+
+// ---- Applying from outside (tutuca's host.apply) --------------------------------------
+
+// The route sel reaches from the root, fixed against it now (tutuca's
+// addressOf).
+fn host_route_at(h: &host, sel: &selector) -> &route {
+    route_at(target_freeze({target| base: root_dispatch_path(), selector: sel }, h.root), h.root);
+}
+
+// Applies the pure message name(args) to the component sel reaches, at
+// once, as a change from outside: no task, no queue (tutuca's host.apply).
+// Its invariants are checked: a change that breaks them, or a broken
+// contract, changes nothing. What component_try_apply gives: an ok result
+// with the component it is now, or an error one ({ code, ... }; code
+// not-component when nothing is there). Reported as a transition of mode
+// apply, handled or failed.
+fn host_apply(h: &host, name: js_string, args: &value_array, sel: &selector) -> &value {
+    let r = host_route_at(h, sel);
+    h.seqs = h.seqs + 1;
+    let seq = h.seqs;
+    let t =
+        host_task(
+            task_kind_plain,
+            name,
+            args,
+            {target| base: root_dispatch_path(), selector: sel },
+        );
+    t.route = r;
+    t.seq = seq;
+    t.origin = seq;
+    let result =
+        value_try_apply(key_path_get_or_null(r.key_path, h.root), name, args, 1) as &value_result;
+    let outcome = s_t_failed;
+    if result.ok {
+        outcome = s_t_handled;
+        let next = result.value;
+        if next != key_path_get_or_null(r.key_path, h.root) {
+            h.root = key_path_set_in(r.key_path, h.root, next);
+        }
+    }
+    let record = task_transition_value(t, outcome, list_empty(), list_empty());
+    record = map_assoc(record, s_mode, value_string(s_t_apply));
+    if !result.ok {
+        record = map_assoc(record, s_error, result.value);
+    }
+    h.events = list_push(h.events, record);
+    result;
 }

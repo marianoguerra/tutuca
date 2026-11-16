@@ -17,7 +17,7 @@
 
 // The version of the interface between the runtime and component modules: a
 // component's tutuca_abi_version must return the runtime's.
-const tutuca_abi_version_current = 16;
+const tutuca_abi_version_current = 17;
 
 // What a handler asks for besides its next state: src/component.wax has the
 // cases, which only the runtime makes and reads.
@@ -137,8 +137,12 @@ rec {
         schema: mut &?component_schema,
         // What it says about itself to hosts (tutuca's component({ meta })):
         // a map of URIs, each a namespace, to maps of what it says there.
-        meta: mut &value
+        meta: mut &value,
+        // Its views for render targets other than the page (tutuca's
+        // renders: { md, tui, ... }): target name -> view_set.
+        renders: mut &phm_map
     };
+    type view_set = { names: &str_array, views: &view_array };
 
     // A message's schema (tutuca's HandlerSpec): its arguments, the type of
     // the source key it arrives with, its contract (pre on the state before
@@ -159,7 +163,11 @@ rec {
         // synchronously (component_apply) as well as send it.
         pure: mut i32,
         // Why pre doesn't hold, in words, when it doesn't (tutuca's why).
-        why: mut js_string_opt
+        why: mut js_string_opt,
+        // For a query, what it returns (tutuca's QuerySpec returns): its
+        // type and constraints, checked against what it gives; null when it
+        // doesn't say.
+        returns: mut &?field_schema
     };
     type message_schema_array = [mut &?message_schema];
     type pre_fn = fn(&eq, &value_array, &context) -> i32;
@@ -177,9 +185,14 @@ rec {
         fields: &field_schema_array,
         gets: &field_schema_array,
         messages: &message_schema_array,
-        // Its queries, each with the schema of its arguments: an implementing
-        // type has each, taking the same types.
-        queries: mut &message_schema_array
+        // Its queries, each with the schema of its arguments and what it
+        // returns: an implementing type has each, taking the same types and
+        // returning the same type when the interface says what it returns.
+        queries: mut &message_schema_array,
+        // The messages an implementing type notifies up with, each with its
+        // arguments (tutuca's Interface notifies): what a holder can hear,
+        // not checked, as a handler need not declare what it emits.
+        notifies: mut &message_schema_array
     };
 
     type component_schema = {
@@ -259,8 +272,12 @@ rec {
         effects: &effect_buf,
         // In an answer's handler, the id of the ask it answers (what ctx_ask
         // returned); 0 elsewhere.
-        request: i32
+        request: i32,
+        // Where the ids of the asks and watches made from here come from: the
+        // host's count, so runs repeat (tutuca's nextId).
+        ids: &id_counter
     };
+    type id_counter = { n: mut i32 };
 
     // What handling a message did.
     type message_result = open { kind: i32 };

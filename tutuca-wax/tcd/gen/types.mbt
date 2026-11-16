@@ -72,6 +72,13 @@ fn names_first(pkg : @check.Package) -> Strings {
       if m.source_key is Some(k) {
         members([k])
       }
+      // A reply's message is the sender's, which this package may not
+      // declare: its name is claimed here, for ctx_reply.
+      for e in m.emits.unwrap_or([]) {
+        if e.kind is Reply {
+          claim(e.name)
+        }
+      }
     }
   }
   for c in pkg.components {
@@ -102,9 +109,15 @@ fn names_first(pkg : @check.Package) -> Strings {
     }
     for pr in c.provides {
       claim(pr.name)
+      if pr.key is Some(k) {
+        claim(k)
+      }
     }
     for v in c.views {
       claim(v.name)
+      if v.target is Some(t) {
+        claim(t)
+      }
     }
   }
   for i in pkg.interfaces {
@@ -421,7 +434,20 @@ fn Gen::field_schema(
 ) -> String {
   let vt = self.vtype(b, f.ty)
   let cs = self.constraints(b, f.norm, owner, f.name)
-  "field_schema_new(\{self.s(f.name)}, \{vt}, \{cs}, \{sync_const(f.sync)})"
+  let fs = "field_schema_new(\{self.s(f.name)}, \{vt}, \{cs}, \{sync_const(f.sync)})"
+  // The default runtime.schema says: the written one, or the type's, when
+  // it's a value (not a made component).
+  if f.make is Some(_) {
+    return fs
+  }
+  let v = match f.default {
+    Some(e) => @check.literal_val(e)
+    None => @check.field_default(f.ty, f.norm).unwrap_or(Unknown)
+  }
+  match v {
+    Unknown => fs
+    known => "field_schema_set_default(\{fs}, \{self.typed_val(f.ty, known)})"
+  }
 }
 
 ///|

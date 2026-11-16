@@ -140,7 +140,20 @@ fn field_schema_new(
     constraints: &constraint_array,
     sync: i32,
 ) -> &field_schema {
-    {field_schema| name, vtype, constraints, sync };
+    {field_schema| name, vtype, constraints, sync, default: null, is_public: 0 };
+}
+
+// Marks f a public field; gives f back.
+fn field_schema_set_public(f: &field_schema) -> &field_schema {
+    f.is_public = 1;
+    f;
+}
+
+// The value init gives f when it isn't given one; gives f back, so a schema
+// is built in one expression.
+fn field_schema_set_default(f: &field_schema, v: &value) -> &field_schema {
+    f.default = v;
+    f;
 }
 
 fn field_schema_array_new(n: i32) -> &field_schema_array {
@@ -156,7 +169,18 @@ fn message_schema_new(
     changes: &?str_array,
     emits: &?emit_array,
 ) -> &message_schema {
-    {message_schema| name, args, source_key, pre, post, changes, emits, pure: 0, why: null };
+    {message_schema|
+        name,
+        args,
+        source_key,
+        pre,
+        post,
+        changes,
+        emits,
+        pure: 0,
+        why: null,
+        returns: null,
+    };
 }
 
 // Marks ms pure: its handler takes no context, and component_apply runs it.
@@ -169,6 +193,13 @@ fn message_schema_set_pure(ms: &message_schema) -> &message_schema {
 // Why ms's pre doesn't hold, in words, for when it doesn't.
 fn message_schema_set_why(ms: &message_schema, why: js_string) -> &message_schema {
     ms.why = why;
+    ms;
+}
+
+// What query ms returns: a field schema whose type and constraints the
+// result must meet.
+fn message_schema_set_returns(ms: &message_schema, returns: &field_schema) -> &message_schema {
+    ms.returns = returns;
     ms;
 }
 
@@ -198,11 +229,22 @@ fn interface_schema_new(
     gets: &field_schema_array,
     messages: &message_schema_array,
 ) -> &interface_schema {
-    {interface_schema| name, fields, gets, messages, queries: [message_schema_array|null; 0] };
+    {interface_schema|
+        name,
+        fields,
+        gets,
+        messages,
+        queries: [message_schema_array|null; 0],
+        notifies: [message_schema_array|null; 0],
+    };
 }
 
 fn interface_schema_set_queries(iface: &interface_schema, queries: &message_schema_array) {
     iface.queries = queries;
+}
+
+fn interface_schema_set_notifies(iface: &interface_schema, notifies: &message_schema_array) {
+    iface.notifies = notifies;
 }
 
 fn component_schema_new(
@@ -278,6 +320,45 @@ fn str_array_has(names: &str_array, name: js_string) -> i32 {
             return 1;
         }
         i += 1;
+    }
+    0;
+}
+
+// Whether c is of the named type or implements the named interface, the
+// name resolved in s, where what holds c is (tutuca's ComponentType): an
+// interface there c implements, or a type there that c is of. A name s
+// doesn't know is checked as component_is does.
+fn component_is_in(c: &component, name: js_string, s: &?scope) -> i32 {
+    if !s {
+        return component_is(c, name);
+    }
+    let iface = scope_lookup_interface(s!, name);
+    if !!iface {
+        return component_implements(c, iface!);
+    }
+    let entry = scope_lookup(s!, name);
+    if !!entry {
+        return (entry!).spec == c.spec;
+    }
+    component_is(c, name);
+}
+
+// Whether c implements iface (tutuca's implementsIface): it says so and its
+// scope has iface by that name, or its scope makes it by iface's name.
+fn component_implements(c: &component, iface: &interface_schema) -> i32 {
+    if !!c.spec.schema {
+        if str_array_has((c.spec.schema!).interfaces, iface.name) {
+            let here = scope_lookup_interface(c.scope, iface.name);
+            if !!here {
+                if here! == iface {
+                    return 1;
+                }
+            }
+        }
+    }
+    let entry = scope_lookup(c.scope, iface.name);
+    if !!entry {
+        return (entry!).spec == c.spec;
     }
     0;
 }
@@ -482,6 +563,13 @@ fn is_finite(n: f64) -> i32 {
 // Why v isn't of type t, or null when it is: "expected s32, got "a"", "item
 // 2: expected string, got 1", "key "b": expected bool, got null".
 fn vtype_problem(t: &vtype, v: &value) -> js_string_opt {
+    vtype_problem_in(t, v, null);
+}
+
+// vtype_problem with a component type's names resolved in s, the scope of
+// the component the value is in (tutuca's ComponentType resolves them in
+// the owner's scope); in the value's own scope without one.
+fn vtype_problem_in(t: &vtype, v: &value, s: &?scope) -> js_string_opt {
     let kind = t.kind;
     let vk = v.kind;
     if kind == vtype_kind_any {
@@ -517,13 +605,13 @@ fn vtype_problem(t: &vtype, v: &value) -> js_string_opt {
         if vk == value_kind_null {
             return null;
         }
-        return vtype_problem((t as &vtype_of).item, v);
+        return vtype_problem_in((t as &vtype_of).item, v, s);
     }
     if (kind == vtype_kind_list) & (vk == value_kind_list) {
         let item = (t as &vtype_of).item;
         let i = 0;
         while i <s list_count(v) {
-            let problem = vtype_problem(item, list_get(v, i)!);
+            let problem = vtype_problem_in(item, list_get(v, i)!, s);
             if !!problem {
                 return
                     js_string_concat(
@@ -541,7 +629,7 @@ fn vtype_problem(t: &vtype, v: &value) -> js_string_opt {
         let i = 0;
         while i <s list_count(keys) {
             let key = (list_get(keys, i)! as &value_string).value;
-            let problem = vtype_problem(item, map_get(v, key)!);
+            let problem = vtype_problem_in(item, map_get(v, key)!, s);
             if !!problem {
                 return key_problem(key, problem!);
             }
@@ -557,7 +645,7 @@ fn vtype_problem(t: &vtype, v: &value) -> js_string_opt {
             if !found {
                 return key_problem(r.names[i]!, s_p_missing);
             }
-            let problem = vtype_problem(r.types[i]!, found!);
+            let problem = vtype_problem_in(r.types[i]!, found!, s);
             if !!problem {
                 return key_problem(r.names[i]!, problem!);
             }
@@ -578,7 +666,7 @@ fn vtype_problem(t: &vtype, v: &value) -> js_string_opt {
         let types = (t as &vtype_one_of).types;
         let i = 0;
         while i <s types.length() {
-            if !vtype_problem(types[i]!, v) {
+            if !vtype_problem_in(types[i]!, v, s) {
                 return null;
             }
             i += 1;
@@ -592,7 +680,7 @@ fn vtype_problem(t: &vtype, v: &value) -> js_string_opt {
         let c = value_as_component(v)!;
         let i = 0;
         while i <s names.length() {
-            if component_is(c, names[i]!) {
+            if component_is_in(c, names[i]!, s) {
                 return null;
             }
             i += 1;
@@ -601,7 +689,7 @@ fn vtype_problem(t: &vtype, v: &value) -> js_string_opt {
     if (kind == vtype_kind_result) & (vk == value_kind_result) {
         let r = v as &value_result;
         let rt = t as &vtype_result;
-        return vtype_problem(r.ok?rt.ok:rt.err, r.value);
+        return vtype_problem_in(r.ok?rt.ok:rt.err, r.value, s);
     }
     if fits {
         return null;
@@ -915,7 +1003,11 @@ fn fields_coerce(schema: &?component_schema, fields: &value) -> &value {
 // its type takes (an option's) meets the constraints, which are about the
 // value it's an option of.
 fn field_problem(f: &field_schema, v: &value, owner: &?component) -> js_string_opt {
-    let problem = vtype_problem(f.vtype, v);
+    let at: &?scope = null;
+    if !!owner {
+        at = (owner!).scope;
+    }
+    let problem = vtype_problem_in(f.vtype, v, at);
     if !!problem {
         return problem;
     }
@@ -1011,18 +1103,19 @@ fn missing_problem(what: js_string, name: js_string) -> js_string {
     js_string_concat(js_string_concat(s_i_it_has_no, what), name);
 }
 
-// Why spec doesn't implement iface, or null when it does: it declares it,
-// and has each of its fields and properties (as a field or a property), each
-// of its messages (a pure one pure) and each of its queries, of the same
-// types.
-fn interface_problem(spec: &component_spec, iface: &interface_schema) -> js_string_opt {
+// What spec lacks to implement iface, as a list of problems, empty when it
+// implements it (tutuca's interfaceProblems): each of its fields and
+// properties (as a field or a property), each of its messages (a pure one
+// pure) and each of its queries, of the same types, a query returning the
+// same type when iface says what it returns. Whether spec declares iface is
+// the caller's to check: a type made by an interface's name implements it
+// without saying so.
+fn interface_problems(spec: &component_spec, iface: &interface_schema) -> &value {
+    let out = list_empty();
     if !spec.schema {
-        return s_i_no_schema;
+        return list_push(out, value_string(s_i_no_schema));
     }
     let schema = spec.schema!;
-    if !str_array_has(schema.interfaces, iface.name) {
-        return js_string_concat(s_i_doesnt_declare, iface.name);
-    }
     let i = 0;
     while i <s iface.fields.length() + iface.gets.length() {
         let f =
@@ -1036,10 +1129,12 @@ fn interface_problem(spec: &component_spec, iface: &interface_schema) -> js_stri
             found = field_schema_named(schema.gets, f.name);
         }
         if !found {
-            return missing_problem(s_i_field, f.name);
-        }
-        if !vtype_equal((found!).vtype, f.vtype) {
-            return mismatch_problem(s_i_field, f.name, (found!).vtype, iface, f.vtype);
+            out = list_push(out, value_string(missing_problem(s_i_field, f.name)));
+        } else {
+            if !vtype_equal((found!).vtype, f.vtype) {
+                let problem = mismatch_problem(s_i_field, f.name, (found!).vtype, iface, f.vtype);
+                out = list_push(out, value_string(problem));
+            }
         }
         i += 1;
     }
@@ -1048,14 +1143,21 @@ fn interface_problem(spec: &component_spec, iface: &interface_schema) -> js_stri
         let m = iface.messages[i]!;
         let found = message_schema_named(schema.messages, m.name);
         if !found {
-            return missing_problem(m.pure?s_i_pure_message:s_i_message, m.name);
-        }
-        if m.pure & !(found!).pure {
-            return js_string_concat(js_string_concat(s_i_its_message, m.name), s_i_isnt_pure);
-        }
-        let problem = signature_problem(s_i_message, found!, m, iface);
-        if !!problem {
-            return problem;
+            out =
+                list_push(
+                    out,
+                    value_string(missing_problem(m.pure?s_i_pure_message:s_i_message, m.name)),
+                );
+        } else {
+            if m.pure & !(found!).pure {
+                let problem =
+                    js_string_concat(js_string_concat(s_i_its_message, m.name), s_i_isnt_pure);
+                out = list_push(out, value_string(problem));
+            }
+            let problem = signature_problem(s_i_message, found!, m, iface);
+            if !!problem {
+                out = list_push(out, value_string(problem!));
+            }
         }
         i += 1;
     }
@@ -1064,15 +1166,55 @@ fn interface_problem(spec: &component_spec, iface: &interface_schema) -> js_stri
         let q = iface.queries[i]!;
         let found = message_schema_named(schema.queries, q.name);
         if !found {
-            return missing_problem(s_i_query, q.name);
-        }
-        let problem = signature_problem(s_i_query, found!, q, iface);
-        if !!problem {
-            return problem;
+            out = list_push(out, value_string(missing_problem(s_i_query, q.name)));
+        } else {
+            let problem = signature_problem(s_i_query, found!, q, iface);
+            if !!problem {
+                out = list_push(out, value_string(problem!));
+            }
+            let returns = returns_problem(found!, q, iface);
+            if !!returns {
+                out = list_push(out, value_string(returns!));
+            }
         }
         i += 1;
     }
-    null;
+    out;
+}
+
+// Why query have doesn't return what want, iface's, says it returns, or null
+// when it does or want doesn't say.
+fn returns_problem(
+    have: &message_schema,
+    want: &message_schema,
+    iface: &interface_schema,
+) -> js_string_opt {
+    if !want.returns {
+        return null;
+    }
+    if !have.returns {
+        return
+            js_string_concat(
+                js_string_concat(js_string_concat(s_i_its, s_i_query), want.name),
+                s_i_no_returns,
+            );
+    }
+    let theirs = (have.returns!).vtype;
+    let ours = (want.returns!).vtype;
+    if vtype_equal(theirs, ours) {
+        return null;
+    }
+    let b = text_builder_new();
+    text_push(b, s_i_its);
+    text_push(b, s_i_query);
+    text_push(b, want.name);
+    text_push(b, s_i_returns);
+    text_push_vtype(b, theirs);
+    text_push(b, s_comma_space);
+    text_push(b, iface.name);
+    text_push(b, s_i_s_returns);
+    text_push_vtype(b, ours);
+    text_finish(b);
 }
 
 // Why have, a message or a query (what) of a type, doesn't take the
@@ -1125,55 +1267,64 @@ fn scope_lookup_interface(s: &scope, name: js_string) -> &?interface_schema {
     null;
 }
 
-// "TodoCard can't be a TodoItem: its field done is s32, TodoItem's is bool".
-fn interface_error(spec: &component_spec, name: js_string, problem: js_string) -> js_string {
+// Why spec can't be registered or made under name in s, or null: it doesn't
+// implement an interface it declares, or the interface registered as name,
+// each problem said (tutuca's scope.check). An interface isn't an object a
+// module imports but a name, which another module may register later: one
+// that isn't visible yet isn't a problem, and is checked when a component
+// is made once it is.
+fn scope_entry_problem(s: &scope, name: js_string, spec: &component_spec) -> js_string_opt {
     let b = text_builder_new();
+    let under = scope_lookup_interface(s, name);
+    let under_declared = 0;
+    if !!spec.schema {
+        let declared = (spec.schema!).interfaces;
+        let i = 0;
+        while i <s declared.length() {
+            let it = declared[i]!;
+            let iface = scope_lookup_interface(s, it);
+            if !!iface {
+                if str_eq(it, name) {
+                    under_declared = 1;
+                }
+                text_push_interface_problems(b, spec, iface!);
+            }
+            i += 1;
+        }
+    }
+    if !!under & !under_declared {
+        text_push_interface_problems(b, spec, under!);
+    }
+    if b.len >s 0 {
+        return text_finish(b);
+    }
+    scope_meta_problem(s, spec);
+}
+
+// "TodoCard can't be a TodoItem: its field done is s32, TodoItem's is bool;
+// it has no message toggle", after what b has, when spec lacks anything to
+// implement iface.
+fn text_push_interface_problems(b: &text_builder, spec: &component_spec, iface: &interface_schema) {
+    let problems = interface_problems(spec, iface);
+    let n = list_count(problems);
+    if n == 0 {
+        return;
+    }
+    if b.len >s 0 {
+        text_push(b, s_semicolon_space);
+    }
     text_push(b, spec.name);
     text_push(b, s_i_cant_be);
-    text_push(b, name);
+    text_push(b, iface.name);
     text_push(b, s_colon_space);
-    text_push(b, problem);
-    text_finish(b);
-}
-
-fn scope_interface_problem(s: &scope, name: js_string, spec: &component_spec) -> js_string_opt {
-    let iface = scope_lookup_interface(s, name);
-    if !iface {
-        return null;
-    }
-    let problem = interface_problem(spec, iface!);
-    if !problem {
-        return null;
-    }
-    interface_error(spec, name, problem!);
-}
-
-// Why spec can't be registered or made under name in s, or null: an
-// interface of that name, or one spec declares it implements, is visible
-// there and spec doesn't implement it. Interfaces registered after a type
-// are checked when it's made.
-fn scope_entry_problem(s: &scope, name: js_string, spec: &component_spec) -> js_string_opt {
-    let problem = scope_interface_problem(s, name, spec);
-    if !!problem {
-        return problem;
-    }
-    let meta = scope_meta_problem(s, spec);
-    if !!meta {
-        return meta;
-    }
-    if !spec.schema {
-        return null;
-    }
-    let declared = (spec.schema!).interfaces;
     let i = 0;
-    while i <s declared.length() {
-        let problem = scope_interface_problem(s, declared[i]!, spec);
-        if !!problem {
-            return problem;
+    while i <s n {
+        if i >s 0 {
+            text_push(b, s_semicolon_space);
         }
+        text_push(b, (list_get(problems, i)! as &value_string).value);
         i += 1;
     }
-    null;
 }
 
 // ---- Meta ---------------------------------------------------------------------------------
@@ -1187,8 +1338,80 @@ fn meta_schema_new(uri: js_string, fields: &field_schema_array, defaults: &value
     {meta_schema| uri, fields, defaults };
 }
 
+// What spec says about itself, a map of URIs to records (tutuca's toMeta):
+// a key that isn't a URI (scheme:rest) or a value that isn't a record
+// fails, as it does there.
 fn spec_set_meta(spec: &component_spec, meta: &value) {
+    if meta.kind != value_kind_map {
+        host_fail(js_string_concat(spec.name, s_m_not_record));
+    }
+    let uris = map_keys(meta);
+    let i = 0;
+    while i <s list_count(uris) {
+        let uri = value_string_of(list_get(uris, i)!)!;
+        if !is_uri(uri) {
+            host_fail(
+                js_string_concat(
+                    js_string_concat(js_string_concat(spec.name, s_m_key), uri),
+                    s_m_not_uri,
+                ),
+            );
+        }
+        if (map_get(meta, uri)!).kind != value_kind_map {
+            host_fail(
+                js_string_concat(
+                    js_string_concat(js_string_concat(spec.name, s_m_s_meta), uri),
+                    s_m_must_record,
+                ),
+            );
+        }
+        i += 1;
+    }
     spec.meta = meta;
+}
+
+// Whether s is an absolute URI: a scheme (a letter, then letters, digits,
+// +, - or .), a colon, then something.
+fn is_uri(s: js_string) -> i32 {
+    let n = js_string_length(s);
+    if n <s 3 {
+        return 0;
+    }
+    let first = js_string_char_code_at(s, 0);
+    if !((first >=s 'a') & (first <=s 'z') | (first >=s 'A') & (first <=s 'Z')) {
+        return 0;
+    }
+    let i = 1;
+    while i <s n {
+        let u = js_string_char_code_at(s, i);
+        if u == ':' {
+            return i <s n - 1;
+        }
+        let ok =
+            (u >=s 'a') & (u <=s 'z') | (u >=s 'A') & (u <=s 'Z') | (u >=s '0') & (u <=s '9')
+                | (u == '+') | (u == '-') | (u == '.');
+        if !ok {
+            return 0;
+        }
+        i += 1;
+    }
+    0;
+}
+
+// What's wrong with what c says under uri, against the meta schema its
+// scope has for it (tutuca's metaShapeProblems): a list of problems, empty
+// when it says nothing there or there's no schema.
+fn component_meta_problems(c: &component, uri: js_string) -> &value {
+    let given = map_get(c.spec.meta, uri);
+    let schema = scope_lookup_meta_schema(c.scope, uri);
+    if !given | !schema {
+        return list_empty();
+    }
+    let problem = meta_schema_problem(schema!, given!);
+    if !problem {
+        return list_empty();
+    }
+    list_push(list_empty(), value_string(problem!));
 }
 
 // Types registered or made here and below are checked against it from now on.
@@ -1368,7 +1591,8 @@ fn sync_name(sync: i32) -> js_string {
     s_sync_shared;
 }
 
-// { name, type, constraints: [text], sync }
+// { name, type, constraints: [text], sync, default } (default null when
+// there's none known)
 fn field_schema_value(f: &field_schema) -> &value {
     let cs = list_empty();
     let i = 0;
@@ -1379,7 +1603,15 @@ fn field_schema_value(f: &field_schema) -> &value {
     let m = map_assoc(map_empty(), s_name, value_string(f.name));
     m = map_assoc(m, s_type, value_string(vtype_text(f.vtype)));
     m = map_assoc(m, s_constraints, cs);
-    map_assoc(m, s_sync, value_string(sync_name(f.sync)));
+    m = map_assoc(m, s_sync, value_string(sync_name(f.sync)));
+    if f.is_public {
+        m = map_assoc(m, s_public, value_bool(1));
+    }
+    let d = VALUE_NULL;
+    if !!f.default {
+        d = f.default!;
+    }
+    map_assoc(m, s_default, d);
 }
 
 fn field_schemas_value(fields: &field_schema_array) -> &value {
@@ -1406,13 +1638,16 @@ fn emit_kind_name(kind: i32) -> js_string {
     if kind == emit_kind_ask {
         return s_e_ask;
     }
+    if kind == emit_kind_reply {
+        return s_e_reply;
+    }
     if kind == emit_kind_send_at {
         return s_e_send_at;
     }
     s_e_notify;
 }
 
-// { name, args, sourceKey, pre, post, changes, emits }
+// { name, args, sourceKey, pre, post, changes, emits, returns }
 fn message_schema_value(ms: &message_schema) -> &value {
     let m = map_assoc(map_empty(), s_name, value_string(ms.name));
     m = map_assoc(m, s_args, field_schemas_value(ms.args));
@@ -1441,7 +1676,17 @@ fn message_schema_value(ms: &message_schema) -> &value {
         }
         emits = list;
     }
-    map_assoc(m, s_emits, emits);
+    m = map_assoc(m, s_emits, emits);
+    map_assoc(m, s_a_returns, returns_value(ms));
+}
+
+// What query ms returns, as a field schema value, or null when it doesn't
+// say.
+fn returns_value(ms: &message_schema) -> &value {
+    if !ms.returns {
+        return VALUE_NULL;
+    }
+    field_schema_value(ms.returns!);
 }
 
 fn message_schemas_value(messages: &message_schema_array) -> &value {
@@ -1476,10 +1721,12 @@ fn spec_schema_value(spec: &component_spec) -> &value {
     map_assoc(m, s_interfaces, strs_value(schema.interfaces));
 }
 
-// An interface: { name, fields, gets, messages }.
+// An interface: { name, fields, gets, messages, queries, notifies }.
 fn interface_schema_value(iface: &interface_schema) -> &value {
     let m = map_assoc(map_empty(), s_name, value_string(iface.name));
     m = map_assoc(m, s_fields, field_schemas_value(iface.fields));
     m = map_assoc(m, s_gets, field_schemas_value(iface.gets));
-    map_assoc(m, s_messages, message_schemas_value(iface.messages));
+    m = map_assoc(m, s_messages, message_schemas_value(iface.messages));
+    m = map_assoc(m, s_queries, message_schemas_value(iface.queries));
+    map_assoc(m, s_notifies, message_schemas_value(iface.notifies));
 }

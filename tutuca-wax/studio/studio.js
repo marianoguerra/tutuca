@@ -289,10 +289,11 @@ const screenRows = () => screensInOrder().map(({ id, name, scope, created }) => 
 
 let studioHost = null;
 // Messages to the studio, sent once what's running now is done: an ask's
-// handler or a report doesn't send in the middle of a task.
-const tell = (name, ...args) => queueMicrotask(() => studioHost?.send(name, args));
+// handler or a report doesn't send in the middle of a task. Then they run
+// at once.
+const tell = (name, ...args) => queueMicrotask(() => studioHost?.send(name, args, { now: true }));
 // The same, to the editor (studio.tcd's Studio holds it in its field editor).
-const tellEditor = (name, ...args) => queueMicrotask(() => studioHost?.sendAt(["editor"], name, args));
+const tellEditor = (name, ...args) => queueMicrotask(() => studioHost?.send(name, args, { to: ["editor"], now: true }));
 const say = (message) => tell("say", message);
 const note = (kind, message) => tell("note", kind, message);
 
@@ -374,7 +375,7 @@ const asks = {
 	toggle_screen: () => {
 		const screen = runtime.get(studioHost.root(), "shown");
 		if (!screen) return false;
-		studioHost.sendAt(["shown"], "toggle_editing");
+		studioHost.send("toggle_editing", [], { to: ["shown"] });
 		return !runtime.get(screen, "editing");
 	},
 	save_screen: async (id, name, scope, created) => {

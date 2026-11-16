@@ -244,8 +244,14 @@ import "'" {
     const s_i_it_has_no: js_string;
     #[import = "it has no schema"]
     const s_i_no_schema: js_string;
-    #[import = "it doesn't declare that it implements "]
-    const s_i_doesnt_declare: js_string;
+    #[import = " doesn't say what it returns"]
+    const s_i_no_returns: js_string;
+    #[import = " returns "]
+    const s_i_returns: js_string;
+    #[import = "'s returns "]
+    const s_i_s_returns: js_string;
+    #[import = "; "]
+    const s_semicolon_space: js_string;
     #[import = "field "]
     const s_i_field: js_string;
     #[import = "message "]
@@ -283,6 +289,14 @@ import "'" {
     const s_a_arg: js_string;
     #[import = "failed"]
     const s_a_failed: js_string;
+    #[import = "returns"]
+    const s_a_returns: js_string;
+    #[import = "resolved"]
+    const s_resolved: js_string;
+    #[import = "interface"]
+    const s_interface: js_string;
+    #[import = "notifies"]
+    const s_notifies: js_string;
     #[import = "invariant:"]
     const s_a_invariant: js_string;
     #[import = "not-component"]
@@ -374,8 +388,116 @@ import "'" {
     const s_e_notify: js_string;
     #[import = "ask"]
     const s_e_ask: js_string;
+    #[import = "reply"]
+    const s_e_reply: js_string;
     #[import = "sendAt"]
     const s_e_send_at: js_string;
+    // Transitions (host.wax's host_transition): tutuca's Transition fields.
+    #[import = "id"]
+    const s_id: js_string;
+    #[import = "seq"]
+    const s_seq: js_string;
+    #[import = "cause"]
+    const s_cause: js_string;
+    #[import = "origin"]
+    const s_origin: js_string;
+    #[import = "mode"]
+    const s_mode: js_string;
+    #[import = "from"]
+    const s_from: js_string;
+    #[import = "to"]
+    const s_to: js_string;
+    #[import = "outcome"]
+    const s_outcome: js_string;
+    #[import = "emitted"]
+    const s_emitted: js_string;
+    #[import = "unhandled"]
+    const s_unhandled_key: js_string;
+    #[import = "handled"]
+    const s_t_handled: js_string;
+    #[import = "passed"]
+    const s_t_passed: js_string;
+    #[import = "unhandled"]
+    const s_t_unhandled: js_string;
+    #[import = "stale"]
+    const s_t_stale: js_string;
+    #[import = "orphaned"]
+    const s_t_orphaned: js_string;
+    #[import = "asked"]
+    const s_t_asked: js_string;
+    #[import = "answer"]
+    const s_t_answer: js_string;
+    #[import = "send"]
+    const s_t_send: js_string;
+    #[import = "transition"]
+    const s_transition: js_string;
+    // The classes meta (collect.wax's spec_class_names).
+    #[import = "https://tutuca.dev/meta/classes"]
+    const s_classes_meta: js_string;
+    #[import = "classes"]
+    const s_classes: js_string;
+    #[import = "default"]
+    const s_default: js_string;
+    #[import = "public"]
+    const s_public: js_string;
+    // Render targets (render.wax).
+    #[import = "tag"]
+    const s_tag: js_string;
+    #[import = "attrs"]
+    const s_attrs: js_string;
+    #[import = "children"]
+    const s_children: js_string;
+    #[import = "Component "]
+    const s_err_no_render: js_string;
+    #[import = " has no "]
+    const s_err_has_no: js_string;
+    #[import = " render"]
+    const s_err_render_word: js_string;
+    // A spec's meta (schema.wax's spec_set_meta).
+    #[import = "'s meta must be a record of URIs to records"]
+    const s_m_not_record: js_string;
+    #[import = "'s meta key "]
+    const s_m_key: js_string;
+    #[import = " isn't a URI"]
+    const s_m_not_uri: js_string;
+    #[import = " must be a record"]
+    const s_m_must_record: js_string;
+    #[import = "hits"]
+    const s_hits: js_string;
+    #[import = "misses"]
+    const s_misses: js_string;
+    // $query in a view (eval.wax).
+    #[import = "A view's query reads a component, not a value: "]
+    const s_err_query_not_component: js_string;
+    #[import = "A view's query failed: "]
+    const s_err_query_failed: js_string;
+    #[import = "apply"]
+    const s_t_apply: js_string;
+    #[import = "failed"]
+    const s_t_failed: js_string;
+    #[import = "dropped"]
+    const s_t_dropped: js_string;
+    // Watches (watch.wax).
+    #[import = "ok"]
+    const s_w_ok: js_string;
+    #[import = "cancelled"]
+    const s_w_cancelled: js_string;
+    #[import = "timeout"]
+    const s_w_timeout: js_string;
+    #[import = "tasks"]
+    const s_w_tasks: js_string;
+    #[import = "open"]
+    const s_w_open: js_string;
+    #[import = "watch"]
+    const s_w_watch: js_string;
+    #[import = "watcher"]
+    const s_w_watcher: js_string;
+    #[import = "watchOpened"]
+    const s_w_opened: js_string;
+    #[import = "watchSettled"]
+    const s_w_settled: js_string;
+    #[import = "hostEvent"]
+    const s_host_event: js_string;
     // Event modifiers (sem.wax).
     #[import = "enter"]
     const s_mod_enter: js_string;
@@ -679,7 +801,8 @@ import "dom" {
     fn dom_contains(container: dom_node, node: dom_node_opt) -> i32;
     // The event's: preventDefault(), its relatedTarget, and its dataTransfer
     // (when it has one) set up for a move: data, so Firefox starts the drag,
-    // and the effect allowed at dragstart; the drop effect over a target.
+    // and the effect allowed at dragstart; the drop effect over a target, a
+    // move for a drag from the page (move 1), a copy for one from outside it.
     #[import = "prevent_default"]
     fn dom_prevent_default(e: dom_event);
     #[import = "stop_propagation"]
@@ -688,8 +811,8 @@ import "dom" {
     fn dom_related_target(e: dom_event) -> dom_node_opt;
     #[import = "drag_start"]
     fn dom_drag_start(e: dom_event);
-    #[import = "drop_effect_move"]
-    fn dom_drop_effect_move(e: dom_event);
+    #[import = "drop_effect"]
+    fn dom_drop_effect(e: dom_event, move: i32);
 
     // Throws a JS Error with this message; never returns.
     #[import = "fail"]
@@ -716,8 +839,16 @@ import "host" {
     #[import = "observe_unhandled"]
     fn observe_unhandled(name: js_string);
 
+    // A message for a component another took the place of since it was
+    // sent (stale), or for a place no component is at (orphaned): dropped.
     #[import = "observe_stale"]
     fn observe_stale(name: js_string);
+    #[import = "observe_orphaned"]
+    fn observe_orphaned(name: js_string);
+    // The ask answered later with this id (the one ask returned) is no
+    // longer waited for: its watch was cancelled. Its signal aborts.
+    #[import = "abort_ask"]
+    fn host_abort_ask(id: i32);
     // An ask the host answers (see scope_register_host_ask): its name and its
     // arguments as a list Value. Returns its answer: a result value when it
     // answers now, an int, the id host_settle gets back, when it answers

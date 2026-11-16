@@ -149,7 +149,7 @@ document.addEventListener("drop", async (e) => {
 				if (agent) styles.add(agent.classes ?? []);
 			} else app.dropJson(JSON.parse(await file.text()));
 		} catch (error) {
-			host.send("say", [`${file.name}: ${error.message}`]);
+			host.send("say", [`${file.name}: ${error.message}`], { now: true });
 		}
 	}
 });

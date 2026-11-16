@@ -30,6 +30,7 @@ rec {
         scope: mut &visit_fn,
         push_view: mut &visit_fn,
         eq: mut &visit_fn,
+        query: mut &visit_fn,
         // An element's attr (the key too, as "key"), child and handler.
         attr: mut &attr_fn,
         child: mut &child_fn,
@@ -63,6 +64,7 @@ fn walker_vtable_default() -> &walker_vtable {
         scope: walk_kind_default,
         push_view: walk_kind_default,
         eq: walk_kind_default,
+        query: walk_kind_default,
         attr: walk_attr_default,
         child: walk_child_default,
         handler: walk_handler_default,
@@ -133,6 +135,10 @@ fn walk(w: &walker, n: &view) {
         vt.eq(w, n);
         return;
     }
+    if kind == view_kind_query {
+        vt.query(w, n);
+        return;
+    }
     unreachable;
 }
 
@@ -191,6 +197,10 @@ fn walk_children: visit_fn (w: &walker, n: &view) {
         }
         q: &view_eq => {
             walk(w, q.left);
+            return;
+        }
+        q: &view_query => {
+            walk_all(w, q.args);
             return;
         }
         _ => {

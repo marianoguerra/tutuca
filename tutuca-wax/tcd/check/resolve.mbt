@@ -625,7 +625,16 @@ fn member_names(
       Loop(l) => out.push(("a loop", l.name))
       Scope(s) => out.push(("a scope", s.name))
       Provide(p) => out.push(("a provided value", p.name))
-      View(v) => out.push(("a view", v.name))
+      View(v) =>
+        out.push(
+          (
+            match v.target {
+              Some(t) => "a view for \{t.text}"
+              None => "a view"
+            },
+            v.name,
+          ),
+        )
       Init(_) | Meta(_) => ()
     }
   }
@@ -872,21 +881,52 @@ fn Resolver::component_decl(self : Resolver, d : @syntax.Decl) -> ComponentM {
                 "no field \{f.text} to provide\{did_you_mean(f.text, ftys.keys().collect())}",
               )
             }
-            provides.push({ name: p.name.text, field: f.text, span: p.span, })
+            provides.push({ name: p.name.text, field: f.text, key: None, span: p.span })
+          }
+          // The item of a list or map field at the key another field holds,
+          // as tutuca's provides take any selector.
+          Call({ text: "seq_item", .. }, [], [Name(f), Name(k)], ..) => {
+            match ftys.get(f.text).map(unoption) {
+              Some(List(_)) | Some(Map(_)) => ()
+              Some(t) =>
+                self.error(
+                  "tcd.provide.field",
+                  f.span,
+                  "seq_item provides an item of a list or a map, but \{f.text} is \{ty_text(t)}",
+                )
+              None =>
+                self.error(
+                  "tcd.provide.field",
+                  f.span,
+                  "no field \{f.text} to provide\{did_you_mean(f.text, ftys.keys().collect())}",
+                )
+            }
+            if !ftys.contains(k.text) {
+              self.error(
+                "tcd.provide.field",
+                k.span,
+                "no field \{k.text} to key the item by\{did_you_mean(k.text, ftys.keys().collect())}",
+              )
+            }
+            provides.push({ name: p.name.text, field: f.text, key: Some(k.text), span: p.span })
           }
           other =>
             self.error(
               "tcd.provide.source",
               other.span(),
-              "a component provides one of its fields: provide \{p.name.text} = field(name)",
+              "a component provides one of its fields, or an item of one: provide \{p.name.text} = field(name), or seq_item(items, current)",
             )
         }
       }
       Meta(meta) => self.meta(meta, metas)
       View(v) => {
         self.snake(v.name, "view")
+        if v.target is Some(t) {
+          self.snake(t, "render target")
+        }
         views.push({
           name: v.name.text,
+          target: v.target.map(t => t.text),
           body: v.body,
           doc: v.doc,
           span: v.span,
@@ -896,13 +936,32 @@ fn Resolver::component_decl(self : Resolver, d : @syntax.Decl) -> ComponentM {
   }
   // A component with no views only handles messages and renders nothing; one
   // with views renders main where none is asked for.
-  if !views.is_empty() && !views.iter().any(v => v.name == "main") {
-    self.error(
-      "tcd.view.main",
-      d.name.span,
-      "\{d.name.text} has views but no main one, which renders it where no view is asked for",
-      hint="add view main = ...;",
-    )
+  // Each render target's views have a main one too.
+  let targets : Array[String?] = []
+  for v in views {
+    if !targets.contains(v.target) {
+      targets.push(v.target)
+    }
+  }
+  for t in targets {
+    if !views.iter().any(v => v.target == t && v.name == "main") {
+      match t {
+        None =>
+          self.error(
+            "tcd.view.main",
+            d.name.span,
+            "\{d.name.text} has views but no main one, which renders it where no view is asked for",
+            hint="add view main = ...;",
+          )
+        Some(target) =>
+          self.error(
+            "tcd.view.main",
+            d.name.span,
+            "\{d.name.text} has views for \{target} but no main one",
+            hint="add view main @target(\{target}) = ...;",
+          )
+      }
+    }
   }
   {
     name: d.name.text,
@@ -918,6 +977,13 @@ fn Resolver::component_decl(self : Resolver, d : @syntax.Decl) -> ComponentM {
     loops,
     scopes,
     provides,
+    publics: d.members
+      .iter()
+      .filter_map(m => match m {
+        Field(f) => if f.public_ { Some(f.name.text) } else { None }
+        _ => None
+      })
+      .collect(),
     metas,
     views,
     checks: [],
@@ -1089,6 +1155,7 @@ fn Resolver::emits(
         }
         out.push({ kind: Make, name: t.text, target: None, })
       }
+      (Reply, [n]) => out.push({ kind: Reply, name: n.text, target: None })
       _ =>
         self.error(
           "tcd.emits.shape",
@@ -1481,6 +1548,22 @@ fn Resolver::implements(
       }
     }
     for q in iface.queries {
+      // A public field is a query that takes nothing and gives the field.
+      let public_field = if q.params.is_empty() && c.publics.contains(q.name) {
+        c.field(q.name)
+      } else {
+        None
+      }
+      if public_field is Some(f) {
+        if q.result is Some(want) && want != f.ty {
+          self.error(
+            "tcd.interface.type",
+            f.span,
+            "\{c.name}'s public field \{q.name} is \{ty_text(f.ty)}, but \{iface.name}'s query \{q.name} gives \{ty_text(want)}",
+          )
+        }
+        continue
+      }
       match c.queries.iter().find_first(x => x.name == q.name) {
         None =>
           self.error(

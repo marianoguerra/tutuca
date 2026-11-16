@@ -117,6 +117,8 @@ pub(all) struct Field {
   default : Expr?
   where_ : Expr?
   sync : Name?
+  /// `public field`: also a query other components and tools read it by.
+  public_ : Bool
   span : @diag.Span
 } derive(Eq, Debug, ToJson)
 
@@ -133,6 +135,7 @@ pub(all) enum EmitKind {
   Ask
   Send
   Make
+  Reply
 } derive(Eq, Debug, ToJson)
 
 ///|
@@ -224,6 +227,8 @@ pub(all) struct MetaDecl {
 pub(all) struct ViewDecl {
   doc : String?
   name : Name
+  /// `@target(md)`: a view for that render target, not the page.
+  target : Name?
   body : ViewExpr
   span : @diag.Span
 } derive(Eq, Debug, ToJson)

@@ -1426,9 +1426,9 @@ types above:
   `asks` has none); a pending ask is an int id, not a handle; `Env` is the
   host's `env` import rather than a struct of functions, so `Context` has no
   `env`; a failing task throws out of the transaction instead of returning
-  an error, and the JS side, which runs one task per call, reports it; event
-  arguments are evaluated when the task runs, as JS does, rather than when the
-  event is routed (`Event` above).
+  an error, and the JS side, which runs one task per call, reports it. Event
+  arguments are evaluated when the event arrives, as tutuca's JS does, and
+  the task carries their values.
 - Component modules are implemented (README.md, "Modules: prelude, runtime,
   ABI, components"): the types this note describes are shared by building the
   runtime and each component module with the same prelude (types and i32

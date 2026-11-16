@@ -71,7 +71,18 @@ const sync_none = 2;
 
 // A field, a computed property or a message argument: its name, type,
 // constraints and sync level.
-type field_schema = { name: js_string, vtype: &vtype, constraints: &constraint_array, sync: i32 };
+// default: the value init gives it when it isn't given one (tutuca's
+// Type.default), when that's a value known as it's built: null for none, or
+// for one made (a component default).
+type field_schema = {
+    name: js_string,
+    vtype: &vtype,
+    constraints: &constraint_array,
+    sync: i32,
+    default: mut &?value,
+    // A component's public field (tutuca's .public()): also a query.
+    is_public: mut i32
+};
 type field_schema_array = [mut &?field_schema];
 
 // A meta namespace's schema (tutuca's registerMetaSchemas): what a component
@@ -84,6 +95,7 @@ type meta_schema = { uri: js_string, fields: &field_schema_array, defaults: &val
 const emit_kind_notify = 0;
 const emit_kind_ask = 1;
 const emit_kind_send_at = 2;
+const emit_kind_reply = 3;
 
 type emit_spec = { kind: i32, name: js_string };
 type emit_array = [mut &?emit_spec];

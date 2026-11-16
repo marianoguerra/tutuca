@@ -31,6 +31,11 @@ fn view_eq(left: &view, value: &value, negate: i32) -> &view {
     out;
 }
 
+fn view_query(name: js_string, args: &view_array) -> &view {
+    let out: &view_query = { kind: view_kind_query, name, args };
+    out;
+}
+
 fn view_if(test: &view, then: &view, otherwise: &view) -> &view {
     let out: &view_if = { kind: view_kind_if, test, then, otherwise };
     out;

@@ -72,7 +72,17 @@ type on_attr_array = [mut &?on_attr];
 // into the next; its handlers are the type's table entry for its id, which
 // routing an event finds through the element's data-eid. An element with
 // handlers gets data-eid as a static attr, since its id never changes.
-type template = { tid: i32, shape: &shape, handlers: &on_attr_array };
+// constant: the element renders the same every time (its attrs and key
+// constants, its children constants or constant elements, tutuca's
+// planElement constant), so it's lowered once, to vnode (a vnode), which
+// morph skips by identity.
+type template = {
+    tid: i32,
+    shape: &shape,
+    handlers: &on_attr_array,
+    constant: mut i32,
+    vnode: mut &?eq
+};
 
 const snode_kind_el = 0;
 const snode_kind_text = 1;
@@ -105,7 +115,11 @@ rec {
         ..,
         name: js_string,
         meta: js_string_opt,
-        childs: &snode_array
+        childs: &snode_array,
+        // What lowering it gave (a vnode_array), once it's lowered: a
+        // render the cache reuses lowers to the same vnodes, which morph
+        // skips by identity.
+        lowered: mut &?eq
     };
     // Rendered at a frame: a field, the selected item of a field, a provided value.
     type snode_enter: snode = { .., frame: &frame, childs: &snode_array };

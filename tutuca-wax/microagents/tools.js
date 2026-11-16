@@ -259,7 +259,7 @@ const argsFrom = (args, named = {}) => args.map((a) => named?.[a.name] ?? null);
 const read = (runtime, root, name, args, isQuery) => {
 	if (!isQuery) return { value: runtime.get(root, name) };
 	const out = runtime.query(root, name, args);
-	return "ok" in out ? { value: out.ok } : failed(`${name} can't run with these arguments: ${out.err}`);
+	return "ok" in out ? { value: out.ok } : failed(`${name} can't run with these arguments: ${out.err.detail || out.err.code}`);
 };
 
 const runMessage = async (runtime, env, tool, call) => {
@@ -329,7 +329,7 @@ export async function runToolCall(runtime, env, agent, call) {
 	};
 }
 
-// The env for the root steps reach in host (steps as host.sendAt takes
+// The env for the root steps reach in host (steps as host.send's to takes
 // them; [] for the root itself). restore(prev) puts prev back: by default
 // with the message set_workspace at the steps' parent, as the shell's
 // Session takes it.
@@ -346,14 +346,13 @@ export function hostEnv(runtime, host, steps, { restore } = {}) {
 		reports: () => host.reports,
 		send: async (name, args) => {
 			try {
-				if (steps.length === 0) host.send(name, args);
-				else host.sendAt(steps, name, args);
+				host.send(name, args, { to: steps });
 				await host.settled();
 				return {};
 			} catch (error) {
 				return { error: error?.message ?? String(error) };
 			}
 		},
-		restore: restore ?? ((prev) => host.sendAt(steps.slice(0, -1), "set_workspace", [prev])),
+		restore: restore ?? ((prev) => host.send("set_workspace", [prev], { to: steps.slice(0, -1) })),
 	};
 }

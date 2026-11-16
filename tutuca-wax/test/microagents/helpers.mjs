@@ -49,6 +49,6 @@ export async function session(a, json) {
 		call,
 		text: async (name, args) => (await call(name, args)).content[0].text,
 		json: async (name, args) => JSON.parse((await call(name, args)).content[0].text),
-		send: (name, ...args) => host.send(name, args),
+		send: (name, ...args) => host.send(name, args, { now: true }),
 	};
 }

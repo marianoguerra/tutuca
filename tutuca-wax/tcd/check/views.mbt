@@ -3,10 +3,15 @@
 
 ///|
 let constructs : Array[String] = [
-  "field", "seq_item", "provided", "bind", "if", "frag", "render", "render_each",
+  "field", "seq_item", "provided", "bind", "query", "if", "frag", "render", "render_each",
   "render_it", "each", "scope", "push_view", "send", "target_value", "source_key",
   "drag_key", "event", "el",
 ]
+
+///|
+/// The classes meta's URI (tutuca's CLASSES_META): a component that says
+/// something under it lists the classes its views compute.
+pub let classes_meta : String = "https://tutuca.dev/meta/classes"
 
 ///|
 /// The modifiers an on_<event>+... key may add (src/sem.wax in tutuca-wax).
@@ -174,6 +179,79 @@ fn ViewCtx::value_ty(self : ViewCtx, v : @syntax.ViewExpr) -> Ty? {
       }
       Some(item)
     }
+    "query" => {
+      // The component's query, with arguments that are literals or value
+      // reads of its parameters' types (tutuca's $query).
+      self.only_attrs(n, attrs, [])
+      if args.is_empty() {
+        self.err(
+          "tcd.view.arity",
+          span,
+          "query takes the query's name, then its arguments: query(total, field(n))",
+        )
+        return Some(Any)
+      }
+      guard self.name_arg(args[0], "the query") is Some(q) else {
+        return Some(Any)
+      }
+      if self.it is Some(_) {
+        self.err(
+          "tcd.view.query",
+          q.span,
+          "query(\{q.text}) runs the component's query, and in an each body what's read is the item",
+        )
+        return Some(Any)
+      }
+      guard self.comp.queries.iter().find_first(x => x.name == q.text)
+        is Some(sig) else {
+        self.err(
+          "tcd.view.query",
+          q.span,
+          "\{self.comp.name} has no query \{q.text}\{did_you_mean(q.text, self.comp.queries.map(x => x.name))}",
+        )
+        return Some(Any)
+      }
+      let given = args[1:].to_owned()
+      if given.length() != sig.params.length() {
+        self.err(
+          "tcd.view.arity",
+          span,
+          "\{q.text} takes \{sig.params.length()} argument\{if sig.params.length() == 1 { "" } else { "s" }}, not \{given.length()}",
+        )
+      } else {
+        for i, a in given {
+          let p = sig.params[i]
+          match a {
+            Lit(l, span~) =>
+              if !lit_fits_ty(l, unoption(p.ty)) && !(l is Null) {
+                self.err(
+                  "tcd.view.query",
+                  span,
+                  "\{lit_text(l)} isn't a value of \{ty_text(p.ty)}, \{q.text}'s \{p.name}",
+                )
+              }
+            _ =>
+              match self.value_ty(a) {
+                Some(t) =>
+                  if !ty_fits_param(t, p.ty) {
+                    self.err(
+                      "tcd.view.query",
+                      a.span(),
+                      "\{name_text([a])} is \{ty_text(t)}, but \{q.text}'s \{p.name} is \{ty_text(p.ty)}",
+                    )
+                  }
+                None =>
+                  self.err(
+                    "tcd.view.query",
+                    a.span(),
+                    "a query's argument is a literal or a value read: field(x), seq_item(s, k), provided(x), bind(x)",
+                  )
+              }
+          }
+        }
+      }
+      Some(sig.result.unwrap_or(Any))
+    }
     "provided" => {
       self.only_attrs(n, attrs, [])
       guard self.arity(n, args, 1, 1, span) else { return Some(Any) }
@@ -188,7 +266,13 @@ fn ViewCtx::value_ty(self : ViewCtx, v : @syntax.ViewExpr) -> Ty? {
               .iter()
               .find_first(c => c.provides.iter().any(x => x.name == pv.name))
             match owner.bind(o => o.field(pv.field)) {
-              Some(f) => return Some(f.ty)
+              Some(f) =>
+                match (pv.key, unoption(f.ty)) {
+                  (None, _) => return Some(f.ty)
+                  (Some(_), List(item)) | (Some(_), Map(item)) =>
+                    return Some(item)
+                  _ => ()
+                }
               None => ()
             }
           }
@@ -530,13 +614,17 @@ fn ViewCtx::element(
         hint="namespace: \"http://www.w3.org/2000/svg\"",
       )
     }
-    if k == "class" && !is_constant_class(a.value) {
+    // A component that lists its classes under the classes meta has told
+    // the CSS compiler what its computed ones can be.
+    if k == "class" &&
+      !is_constant_class(a.value) &&
+      !self.comp.metas.iter().any(m => m.uri == classes_meta) {
       self.diags.push(
         @diag.warning(
           "tcd.view.class",
           a.value.span(),
           "this class is computed from the state, so the CSS compiler won't see it",
-          hint="write classes as constants, or an if of constants",
+          hint="write classes as constants, or an if of constants, or list the ones it can be: meta \"https://tutuca.dev/meta/classes\" = { classes: \"a b\" };",
         ),
       )
     }
@@ -637,7 +725,7 @@ fn ViewCtx::child(self : ViewCtx, v : @syntax.ViewExpr) -> Unit {
       )
     Call(n, attrs, args, span~) =>
       match n.text {
-        "field" | "seq_item" | "provided" | "bind" | "==" | "!=" =>
+        "field" | "seq_item" | "provided" | "bind" | "query" | "==" | "!=" =>
           ignore(self.value_ty(v))
         "if" => {
           self.only_attrs(n, attrs, [])

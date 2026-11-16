@@ -328,7 +328,7 @@ const replay = (runtime, scope, typeName, fields, trace) => {
 	const ran = [];
 	for (const step of trace) {
 		if (runtime.messageProblem(host.root(), step.name, step.args) !== null) continue;
-		host.send(step.name, step.args);
+		host.send(step.name, step.args, { now: true });
 		ran.push(step);
 		if (host.issues.length > 0 || host.failures.length > 0) {
 			return { trace: ran, issues: host.issues, failures: host.failures.map((e) => e.rejection ?? e.message) };
@@ -395,7 +395,7 @@ export const walk = ({ runtime, scope, model, component, runs = 50, steps = 25, 
 			if (!comp) break;
 			const msg = nextMessage(runtime, m, comp, host.root(), rand);
 			if (msg === null) break;
-			host.send(msg.name, msg.args);
+			host.send(msg.name, msg.args, { now: true });
 			trace.push(msg);
 			if (host.issues.length > 0 || host.failures.length > 0) {
 				const failure = { trace, issues: host.issues, failures: host.failures.map((e) => e.rejection ?? e.message) };
@@ -474,7 +474,7 @@ export const exhaust = ({ runtime, scope, model, component, start = {}, maxState
 				any = true;
 				enabled.add(msg.name);
 				const host = runtime.createHost(null, null, root, { dev: true });
-				host.send(msg.name, args);
+				host.send(msg.name, args, { now: true });
 				transitions++;
 				if (host.issues.length > 0 || host.failures.length > 0) {
 					issues.push({ from: state, message: msg.name, args, issues: host.issues, failures: host.failures.map((e) => e.rejection ?? e.message) });
@@ -515,7 +515,7 @@ export const examples = ({ runtime, scope, model }) => {
 		for (const step of ex.steps) {
 			if ("send" in step) {
 				const seen = host.reports.length;
-				host.send(step.send, step.args);
+				host.send(step.send, step.args, { now: true });
 				for (const r of host.reports.slice(seen)) {
 					if (r.type === "taskFailed") failures.push(`${step.send}: ${r.error.message}`);
 					if (r.type === "stateInvalid" || r.type === "messageInvalid") failures.push(`${step.send}: ${JSON.stringify(r)}`);

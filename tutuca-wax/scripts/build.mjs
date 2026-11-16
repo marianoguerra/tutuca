@@ -62,6 +62,7 @@ export const SOURCES = [
 	"src/render.wax", // rendering components into the semantic tree
 	"src/eval.wax", // evaluating views; making specs from them
 	"src/decode.wax", // routing a DOM event to a handler
+	"src/watch.wax", // watches: settling and cancelling what a message causes
 	"src/host.wax", // tasks, transactions, rendering
 	"src/check.wax", // what the host checks with schemas: arguments, contracts, the state
 	"src/api.wax", // exports for the JS side

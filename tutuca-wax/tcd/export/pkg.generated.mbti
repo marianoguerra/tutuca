@@ -2,14 +2,15 @@
 package "tutuca/tcd/export"
 
 import {
+  "moonbitlang/core/json",
   "tutuca/tcd/check",
   "tutuca/tcd/syntax",
 }
 
 // Values
-pub fn cond_json(@syntax.Expr) -> Json
+pub fn cond_json(@syntax.Expr) -> @json.Json
 
-pub fn model(@check.Package) -> Json
+pub fn model(@check.Package) -> @json.Json
 
 // Errors
 

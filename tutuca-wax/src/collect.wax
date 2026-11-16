@@ -43,7 +43,65 @@ fn view_to_on_attr(h: &view_on) -> &on_attr {
 // as a property each render (value, checked, is, dangerouslySetInnerHTML),
 // which stays dynamic, as optimize.js does.
 fn view_el_attr_static(e: &view_el, i: i32) -> i32 {
-    ((e.attr_values[i]!).kind == view_kind_const) & !is_dynamic_only(e.attr_names[i]!);
+    view_is_constant(e.attr_values[i]!) & !is_dynamic_only(e.attr_names[i]!);
+}
+
+// Whether v evaluates to the same value every render, as element-plan.js's
+// isConstant: a constant, an if whose test and branches are, or an element
+// whose attrs, key and children are (its handlers don't count: they're
+// evaluated when an event arrives).
+fn view_is_constant(v: &view) -> i32 {
+    match v {
+        c: &view_if => {
+            return
+                view_is_constant(c.test) & view_is_constant(c.then) & view_is_constant(c.otherwise);
+        }
+        e: &view_el => {
+            return view_el_is_constant(e);
+        }
+        _ => {
+            return v.kind == view_kind_const;
+        }
+    }
+}
+
+fn view_el_is_constant(e: &view_el) -> i32 {
+    if !!e.key {
+        if !view_is_constant(e.key!) {
+            return 0;
+        }
+    }
+    let i = 0;
+    while i <s e.attr_values.length() {
+        if !view_is_constant(e.attr_values[i]!) {
+            return 0;
+        }
+        i += 1;
+    }
+    i = 0;
+    while i <s e.childs.length() {
+        if !view_is_constant(e.childs[i]!) {
+            return 0;
+        }
+        i += 1;
+    }
+    1;
+}
+
+// What a constant view evaluates to: the constant, or the branch its if
+// picks.
+fn view_constant_value(v: &view) -> &value {
+    match v {
+        c: &view_if => {
+            if value_truthy(view_constant_value(c.test)) {
+                return view_constant_value(c.then);
+            }
+            return view_constant_value(c.otherwise);
+        }
+        _ => {
+            return (v as &view_const).value;
+        }
+    }
 }
 
 fn view_el_template(e: &view_el, tid: i32) -> &template {
@@ -66,7 +124,7 @@ fn view_el_template(e: &view_el, tid: i32) -> &template {
         let v = e.attr_values[i]!;
         if view_el_attr_static(e, i) {
             static_names[si] = e.attr_names[i];
-            static_values[si] = (v as &view_const).value;
+            static_values[si] = view_constant_value(v);
             si += 1;
         } else {
             names[di] = e.attr_names[i];
@@ -80,7 +138,9 @@ fn view_el_template(e: &view_el, tid: i32) -> &template {
         handlers[i] = view_to_on_attr(e.handlers[i]!);
         i += 1;
     }
-    template_new(tid, e.tag_name, e.ns, static_names, static_values, names, handlers);
+    let t = template_new(tid, e.tag_name, e.ns, static_names, static_values, names, handlers);
+    t.constant = view_el_is_constant(e);
+    t;
 }
 
 fn collect_templates_element: visit_fn (w: &walker, n: &view) {
@@ -172,6 +232,18 @@ fn collect_classes_attr: attr_fn (w: &walker, e: &view_el, name: js_string, valu
     s.in_class = outer;
 }
 
+// A condition picks a class, it isn't one.
+fn collect_classes_cond: visit_fn (w: &walker, n: &view) {
+    let s = w.state as &collect_classes_state;
+    let c = n as &view_if;
+    let outer = s.in_class;
+    s.in_class = 0;
+    walk(w, c.test);
+    s.in_class = outer;
+    walk(w, c.then);
+    walk(w, c.otherwise);
+}
+
 fn collect_classes_add(s: &collect_classes_state, b: &text_builder) {
     if b.len == 0 {
         return;
@@ -196,7 +268,12 @@ fn collect_classes_constant: visit_fn (w: &walker, n: &view) {
     if !s.in_class | (v.kind != value_kind_string) {
         return;
     }
-    let text = (v as &value_string).value;
+    collect_classes_text(s, (v as &value_string).value);
+}
+
+// The class names in text, separated by whitespace as a class attribute
+// holds them.
+fn collect_classes_text(s: &collect_classes_state, text: js_string) {
     let b = text_builder_new();
     let i = 0;
     while i <s js_string_length(text) {
@@ -217,7 +294,31 @@ fn views_collect_classes(views: &view_array) -> &value {
     let vt = walker_vtable_default();
     vt.attr = collect_classes_attr;
     vt.constant = collect_classes_constant;
+    vt.cond = collect_classes_cond;
     let s = {collect_classes_state| in_class: 0, seen: smap_empty(), names: list_empty() };
     walk_all(walker_new(s, vt), views);
+    s.names;
+}
+
+// The class names a type's views can be in: their constant ones, then the
+// ones its classes meta declares (tutuca's CLASSES_META, { classes: "a b"
+// }), which list what its views compute from the state; each once.
+fn spec_class_names(spec: &component_spec) -> &value {
+    let vt = walker_vtable_default();
+    vt.attr = collect_classes_attr;
+    vt.constant = collect_classes_constant;
+    vt.cond = collect_classes_cond;
+    let s = {collect_classes_state| in_class: 0, seen: smap_empty(), names: list_empty() };
+    walk_all(walker_new(s, vt), spec.views);
+    let declared = map_get(spec.meta, s_classes_meta);
+    if !!declared {
+        let classes = map_get(declared!, s_classes);
+        if !!classes {
+            let text = value_string_of(classes!);
+            if !!text {
+                collect_classes_text(s, text!);
+            }
+        }
+    }
     s.names;
 }

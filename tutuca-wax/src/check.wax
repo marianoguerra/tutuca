@@ -243,6 +243,9 @@ fn check_message_contract(
             if e.kind == effect_kind_forward_at {
                 issues = emit_issue(issues, emits, emit_kind_send_at, t.name);
             }
+            if e.kind == effect_kind_reply {
+                issues = emit_issue(issues, emits, emit_kind_reply, (e as &effect_reply).name);
+            }
             i += 1;
         }
     }
@@ -425,39 +428,44 @@ fn host_check(h: &host) {
 // when it can: the arguments don't fit its schema, or its guard (when)
 // doesn't hold on c's state. A runner generating messages only sends the
 // ones c can take. No schema, or no such message: null (the vtable decides).
-// Why c can't run the query name with args (no such query, or arguments
-// that don't fit its schema), or null when it can.
-fn query_problem(c: &component, name: js_string, args: &value_array) -> js_string_opt {
+// Runs c's query name with args (tutuca's query): an ok result with its
+// value, or an error result as applying gives one ({ code, issues, detail,
+// component, message }): "unknown" (no such query), "args", "arg:<i>",
+// "failed" (the vtable couldn't answer) or "returns" (what it gave doesn't
+// meet the query's returns).
+fn component_query(c: &component, name: js_string, args: &value_array) -> &value {
     let qs = spec_query_schema(c.spec, name);
     if !qs | !c.vtable.query {
-        return s_no_such_query;
+        return apply_fail(c, name, s_a_unknown, s_no_such_query);
     }
     let q = qs!;
     if args.length() != q.args.length() {
-        return arity_problem(q.args.length(), args.length());
+        return apply_fail(c, name, s_args, arity_problem(q.args.length(), args.length()));
     }
     let i = 0;
     while i <s args.length() {
         let f = q.args[i]!;
         let problem = field_problem(f, args[i]!, c);
         if !!problem {
-            return arg_problem(i, f.name, problem!);
+            return
+                apply_fail(
+                    c,
+                    name,
+                    js_string_concat(s_a_arg, int_text(i)),
+                    arg_problem(i, f.name, problem!),
+                );
         }
         i += 1;
     }
-    null;
-}
-
-// Runs c's query name with args: an ok result with its value, or an error
-// result saying why it couldn't run.
-fn component_query(c: &component, name: js_string, args: &value_array) -> &value {
-    let problem = query_problem(c, name, args);
-    if !!problem {
-        return value_err(value_string(problem!));
-    }
     let (code, got) = (c.vtable.query!)(c.instance, name, args);
     if code != (property_ok | !got) {
-        return value_err(value_string(s_query_failed));
+        return apply_fail(c, name, s_a_failed, s_query_failed);
+    }
+    if !!q.returns {
+        let problem = field_problem(q.returns!, got!, c);
+        if !!problem {
+            return apply_fail(c, name, s_a_returns, problem!);
+        }
     }
     value_ok(got!);
 }
@@ -475,6 +483,7 @@ fn detached_ctx(c: &component) -> &context {
         drag: VALUE_NULL,
         effects: effect_buf_new(),
         request: 0,
+        ids: {id_counter| n: 0 },
     };
 }
 
@@ -617,28 +626,46 @@ fn component_apply(v: &value, name: js_string, args: &value_array) -> &value {
     unreachable;
 }
 
+// The error result of applying or querying name on what isn't a component:
+// code not-component.
+fn not_component_error(name: js_string) -> &value {
+    let m = map_assoc(map_empty(), s_code, value_string(s_a_not_component));
+    m = map_assoc(m, s_issues, list_push(list_empty(), value_string(s_a_not_component)));
+    m = map_assoc(m, s_detail, value_string(s_empty));
+    m = map_assoc(m, s_component, VALUE_NULL);
+    value_err(map_assoc(m, s_message, value_string(name)));
+}
+
 // component_try_apply for a value: an error result for one that isn't a
 // component.
 fn value_try_apply(v: &value, name: js_string, args: &value_array, invariants: i32) -> &value {
     let c = value_as_component(v);
     if !c {
-        let m = map_assoc(map_empty(), s_code, value_string(s_a_not_component));
-        m = map_assoc(m, s_issues, list_push(list_empty(), value_string(s_a_not_component)));
-        m = map_assoc(m, s_detail, value_string(s_empty));
-        return value_err(map_assoc(m, s_message, value_string(name)));
+        return not_component_error(name);
     }
     component_try_apply(c!, name, args, invariants);
 }
 
-// What c offers (tutuca's contractOf): { name, implements, messages: [{
-// name, pure, args }], queries: [{ name, args }] }, args as field schemas;
-// null for a type without a schema.
+// What c offers (tutuca's contractOf): { name, implements: [{ name,
+// resolved, interface }], messages: [{ name, pure, args }], queries: [{
+// name, args, returns }], notifies }, args and returns as field schemas,
+// each interface it declares resolved in its scope (interface: the
+// interface's value, when resolved), notifies the names its messages
+// declare they notify with; null for a type without a schema.
 fn component_contract(c: &component) -> &value {
-    if !c.spec.schema {
+    spec_contract(c.spec, c.scope);
+}
+
+// What a type offers, its interfaces resolved in s (unresolved without
+// one): component_contract for a spec.
+fn spec_contract(spec: &component_spec, s: &?scope) -> &value {
+    if !spec.schema {
         return VALUE_NULL;
     }
-    let schema = c.spec.schema!;
+    let schema = spec.schema!;
     let messages = list_empty();
+    let notifies = list_empty();
+    let seen = smap_empty();
     let i = 0;
     while i <s schema.messages.length() {
         let ms = schema.messages[i]!;
@@ -646,6 +673,18 @@ fn component_contract(c: &component) -> &value {
             let m = map_assoc(map_empty(), s_name, value_string(ms.name));
             m = map_assoc(m, s_pure, value_bool(ms.pure));
             messages = list_push(messages, map_assoc(m, s_args, field_schemas_value(ms.args)));
+            if !!ms.emits {
+                let es = ms.emits!;
+                let j = 0;
+                while j <s es.length() {
+                    let e = es[j]!;
+                    if (e.kind == emit_kind_notify) & !smap_get(seen, e.name) {
+                        seen = smap_assoc(seen, e.name, value_null());
+                        notifies = list_push(notifies, value_string(e.name));
+                    }
+                    j += 1;
+                }
+            }
         }
         i += 1;
     }
@@ -654,27 +693,42 @@ fn component_contract(c: &component) -> &value {
     while i <s schema.queries.length() {
         let qs = schema.queries[i]!;
         let q = map_assoc(map_empty(), s_name, value_string(qs.name));
-        queries = list_push(queries, map_assoc(q, s_args, field_schemas_value(qs.args)));
+        q = map_assoc(q, s_args, field_schemas_value(qs.args));
+        queries = list_push(queries, map_assoc(q, s_a_returns, returns_value(qs)));
         i += 1;
     }
-    let m = map_assoc(map_empty(), s_name, value_string(c.spec.name));
-    m = map_assoc(m, s_implements, strs_value(schema.interfaces));
+    let implemented = list_empty();
+    i = 0;
+    while i <s schema.interfaces.length() {
+        let name = schema.interfaces[i]!;
+        let iface: &?interface_schema = null;
+        if !!s {
+            iface = scope_lookup_interface(s!, name);
+        }
+        let it = map_assoc(map_empty(), s_name, value_string(name));
+        it = map_assoc(it, s_resolved, value_bool(!!iface));
+        if !!iface {
+            it = map_assoc(it, s_interface, interface_schema_value(iface!));
+        }
+        implemented = list_push(implemented, it);
+        i += 1;
+    }
+    let m = map_assoc(map_empty(), s_name, value_string(spec.name));
+    m = map_assoc(m, s_implements, implemented);
     m = map_assoc(m, s_messages, messages);
-    map_assoc(m, s_queries, queries);
+    m = map_assoc(m, s_queries, queries);
+    map_assoc(m, s_notifies, notifies);
 }
 
-// What c lacks to implement the interface registered as name in its scope,
-// as a list of problems (tutuca's supports): empty when it implements it.
+// What c lacks to implement face, the interface registered as name in its
+// scope, as a list of problems (tutuca's interfaceGaps): empty when it
+// implements it.
 fn component_supports(c: &component, name: js_string) -> &value {
     let iface = scope_lookup_interface(c.scope, name);
     if !iface {
         return list_push(list_empty(), value_string(js_string_concat(s_a_no_interface, name)));
     }
-    let problem = interface_problem(c.spec, iface!);
-    if !problem {
-        return list_empty();
-    }
-    list_push(list_empty(), value_string(problem!));
+    interface_problems(c.spec, iface!);
 }
 
 fn message_problem(c: &component, name: js_string, args: &value_array) -> js_string_opt {
@@ -706,6 +760,7 @@ fn message_problem(c: &component, name: js_string, args: &value_array) -> js_str
                 drag: VALUE_NULL,
                 effects: effect_buf_new(),
                 request: 0,
+                ids: {id_counter| n: 0 },
             };
         if !(m.pre!)(c.instance, args, ctx) {
             return s_pre;

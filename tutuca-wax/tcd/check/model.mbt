@@ -110,6 +110,8 @@ pub(all) enum EmitKindM {
   Ask
   SendAt
   Make
+  /// A message back to the sender (ctx_reply), whose type isn't known here.
+  Reply
 } derive(Eq, Debug, ToJson)
 
 ///|
@@ -227,14 +229,18 @@ pub(all) struct MetaSchemaM {
 ///|
 pub(all) struct ProvideM {
   name : String
-  /// The field it provides.
+  /// The field it provides, or that holds the item it provides.
   field : String
+  /// For seq_item(field, key): the field holding the item's key.
+  key : String?
   span : @diag.Span
 } derive(Debug, ToJson)
 
 ///|
 pub(all) struct ViewM {
   name : String
+  /// The render target it's for (tutuca's renders), None for the page.
+  target : String?
   body : @syntax.ViewExpr
   doc : String?
   span : @diag.Span
@@ -257,6 +263,9 @@ pub(all) struct ComponentM {
   loops : Array[LoopM]
   scopes : Array[ScopeM]
   provides : Array[ProvideM]
+  /// Its public fields (`public field`), by name: each is also a query that
+  /// takes nothing and gives the field (tutuca's .public()).
+  publics : Array[String]
   /// What it says about itself to hosts, by URI, in the order written.
   metas : Array[MetaM]
   views : Array[ViewM]

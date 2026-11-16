@@ -18,6 +18,15 @@ meta_schema Display "https://tutuca.dev/meta/display" {
     field description: option<string>;
 }
 
+/// The class names a component's views compute (tutuca's classes meta),
+/// for a CSS compiler, which only sees the constant ones.
+meta_schema Classes "https://tutuca.dev/meta/classes" {
+    /// Every class the component's views can compute from the state,
+    /// separated by whitespace, as a class attribute holds them: what a CSS
+    /// compiler can't see in the views.
+    field classes: string = "";
+}
+
 /// What a component says to a canvas holding it: how big its item starts
 /// (null: the canvas's), and whether the item is see-through, without a
 /// background.

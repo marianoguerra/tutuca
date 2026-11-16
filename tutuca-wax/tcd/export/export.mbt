@@ -214,6 +214,7 @@ fn emit_json(e : @check.EmitM) -> Json {
     Notify => "notify"
     Ask => "ask"
     SendAt => "sendAt"
+    Reply => "reply"
     Make => "make"
   }
   {

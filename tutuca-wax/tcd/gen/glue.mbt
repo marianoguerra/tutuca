@@ -76,6 +76,7 @@ fn Gen::emit_array(
           Notify => "emit_kind_notify"
           Ask => "emit_kind_ask"
           SendAt => "emit_kind_send_at"
+          Reply => "emit_kind_reply"
           Make => continue
         }
         items.push("emit_spec_new(\{kind}, \{self.s(e.name)})")
@@ -142,7 +143,17 @@ fn Gen::reply_schemas(
 fn Gen::schema_fn(self : Gen, c : @check.ComponentM) -> String {
   let cw = @check.wax_part(c.name)
   let b = Block::new()
-  let fields = self.field_schemas(b, c.fields, cw)
+  let fields = b.array(
+    "field_schema_array",
+    c.fields.map(f => {
+      let fs = self.field_schema(b, f, cw)
+      if c.publics.contains(f.name) {
+        "field_schema_set_public(\{fs})"
+      } else {
+        fs
+      }
+    }),
+  )
   let gets = self.field_schemas(b, c.gets, cw)
   let messages = b.array(
     "message_schema_array",
@@ -156,16 +167,18 @@ fn Gen::schema_fn(self : Gen, c : @check.ComponentM) -> String {
     }),
   )
   let interfaces = b.array("str_array", c.implements.map(i => self.s(i)))
-  let queries = if c.queries.is_empty() {
+  // A public field is a query too: no arguments, the field's type.
+  let public_queries = c.publics.filter_map(name => c.field(name)).map(f => {
+    let returns = self.field_schema(b, f, cw)
+    "message_schema_set_returns(message_schema_new(\{self.s(f.name)}, [field_schema_array|null; 0], null, null, null, null, null), \{returns})"
+  })
+  let queries = if c.queries.is_empty() && public_queries.is_empty() {
     None
   } else {
     Some(
       b.array(
         "message_schema_array",
-        c.queries.map(q => {
-          let args = self.field_schemas(b, q.params, cw)
-          "message_schema_new(\{self.s(q.name)}, \{args}, null, null, null, null, null)"
-        }),
+        c.queries.map(q => self.query_schema(b, q, cw)) + public_queries,
       ),
     )
   }
@@ -197,11 +210,22 @@ fn Gen::schema_fn(self : Gen, c : @check.ComponentM) -> String {
 fn Gen::spec_fn(self : Gen, c : @check.ComponentM) -> String {
   let cw = @check.wax_part(c.name)
   let b = Block::new()
-  let names = b.array("str_array", c.views.map(v => self.s(v.name)))
-  let views = b.array(
-    "view_array",
-    c.views.map(v => "\{cw}_view_\{@check.wax_part(v.name)}()"),
-  )
+  let page = c.views.filter(v => v.target is None)
+  let names = b.array("str_array", page.map(v => self.s(v.name)))
+  let views = b.array("view_array", page.map(v => "\{view_fn_name(cw, v)}()"))
+  // The views for each render target, set on the spec after it's made.
+  let targets : Array[String] = []
+  for v in c.views {
+    if v.target is Some(t) && !targets.contains(t) {
+      targets.push(t)
+    }
+  }
+  let renders = targets.map(t => {
+    let of = c.views.filter(v => v.target == Some(t))
+    let tnames = b.array("str_array", of.map(v => self.s(v.name)))
+    let tviews = b.array("view_array", of.map(v => "\{view_fn_name(cw, v)}()"))
+    "    spec_set_render(spec, \{self.s(t)}, \{tnames}, \{tviews});"
+  })
   let loops = b.array(
     "loop_def_array",
     c.loops.map(l => {
@@ -229,7 +253,10 @@ fn Gen::spec_fn(self : Gen, c : @check.ComponentM) -> String {
   let pnames = b.array("str_array", c.provides.map(p => self.s(p.name)))
   let selectors = b.array(
     "selector_array",
-    c.provides.map(p => "selector_field(\{self.s(p.field)})"),
+    c.provides.map(p => match p.key {
+      None => "selector_field(\{self.s(p.field)})"
+      Some(k) => "selector_seq_item(\{self.s(p.field)}, \{self.s(k)})"
+    }),
   )
   let out = Out::new()
   out.line("let \{cw}_spec_made: &?component_spec = null;")
@@ -242,6 +269,7 @@ fn Gen::spec_fn(self : Gen, c : @check.ComponentM) -> String {
   out.line(
     "    let spec = spec_new(\{self.s(c.name)}, \{names}, \{views}, \{loops}, \{scopes}, \{pnames}, \{selectors});",
   )
+  renders.each(l => out.line(l))
   out.line("    spec_set_schema(spec, \{cw}_schema());")
   if !c.metas.is_empty() {
     let mut meta = "map_empty()"
@@ -265,7 +293,7 @@ fn Gen::view_fns(self : Gen, c : @check.ComponentM) -> String {
     let b = Block::new()
     let e = self.view(b, v.body)
     out.write(doc_lines(v.doc))
-    out.line("fn \{cw}_view_\{@check.wax_part(v.name)}() -> &view {")
+    out.line("fn \{view_fn_name(cw, v)}() -> &view {")
     if !b.lines.is_empty() {
       out.line(b.render("    "))
     }
@@ -433,12 +461,19 @@ fn Gen::init_fn(self : Gen, c : @check.ComponentM) -> String {
     let wrong = self.s("wrong type")
     let invalid = self.s("invalid")
     // What a field that falls back to its default takes, besides the issue.
+    // A made default that can't be made fails init, saying where.
     let fallback = f.make.map(m => {
-      "\{fw} = value_component(init_ctx_make(ctx, \{self.s(m)}, map_empty()));"
+      [
+        "let made = init_make_field(ctx, \{self.s(c.name)}, \{name}, \{self.s(m)});",
+        "if !(made as &value_result).ok {", "    return init_made_fail(issues, made);",
+        "}", "\{fw} = (made as &value_result).value;",
+      ]
     })
     let fall_back = (indent : String) => {
-      if fallback is Some(l) {
-        out.line(indent + l)
+      if fallback is Some(ls) {
+        for l in ls {
+          out.line(indent + l)
+        }
       }
     }
     out.line("    let \{fw}: \{wax_ty(f.ty)} = \{self.start_value(f)};")
@@ -508,8 +543,15 @@ fn Gen::init_fn(self : Gen, c : @check.ComponentM) -> String {
     } else {
       out.line("        issues = init_issue(issues, \{name}, \{invalid});")
       let start = match f.make {
-        Some(m) =>
-          "value_component(init_ctx_make(ctx, \{self.s(m)}, map_empty()))"
+        Some(m) => {
+          out.line(
+            "        let made = init_make_field(ctx, \{self.s(c.name)}, \{name}, \{self.s(m)});",
+          )
+          out.line("        if !(made as &value_result).ok {")
+          out.line("            return init_made_fail(issues, made);")
+          out.line("        }")
+          "(made as &value_result).value"
+        }
         None => self.start_value(f)
       }
       out.line("        state = \{cw}_with_\{fw}(state, \{start});")
@@ -652,7 +694,7 @@ fn Gen::get_set_fns(self : Gen, c : @check.ComponentM) -> String {
   out.line("    (property_no_such_property, null);")
   out.line("}")
   out.line("")
-  let query = if c.queries.is_empty() {
+  let query = if c.queries.is_empty() && c.publics.is_empty() {
     "null"
   } else {
     out.line(
@@ -670,6 +712,14 @@ fn Gen::get_set_fns(self : Gen, c : @check.ComponentM) -> String {
       out.line("    if str_eq(name, \{self.s(q.name)}) {")
       out.line(
         "        return (property_ok, \{self.encode(q.result.unwrap_or(Any), call)});",
+      )
+      out.line("    }")
+    }
+    for name in c.publics {
+      guard c.field(name) is Some(f) else { continue }
+      out.line("    if str_eq(name, \{self.s(name)}) {")
+      out.line(
+        "        return (property_ok, \{self.encode(f.ty, "state.\{@check.wax(name)}")});",
       )
       out.line("    }")
     }
@@ -705,9 +755,19 @@ fn Gen::interface_fn(self : Gen, i : @check.InterfaceM) -> String {
     Some(
       b.array(
         "message_schema_array",
-        i.queries.map(q => {
-          let args = self.field_schemas(b, q.params, iw)
-          "message_schema_new(\{self.s(q.name)}, \{args}, null, null, null, null, null)"
+        i.queries.map(q => self.query_schema(b, q, iw)),
+      ),
+    )
+  }
+  let notifies = if i.notifies.is_empty() {
+    None
+  } else {
+    Some(
+      b.array(
+        "message_schema_array",
+        i.notifies.map(n => {
+          let args = self.field_schemas(b, n.params, iw)
+          "message_schema_new(\{self.s(n.name)}, \{args}, null, null, null, null, null)"
         }),
       ),
     )
@@ -719,6 +779,9 @@ fn Gen::interface_fn(self : Gen, i : @check.InterfaceM) -> String {
   )
   if queries is Some(qs) {
     out.line("    interface_schema_set_queries(iface, \{qs});")
+  }
+  if notifies is Some(ns) {
+    out.line("    interface_schema_set_notifies(iface, \{ns});")
   }
   out.line("    iface;")
   out.line("}")
@@ -863,4 +926,47 @@ pub fn Gen::glue(self : Gen) -> String {
   out.line("")
   out.write(self.enum_helpers())
   out.to_string()
+}
+
+///|
+/// A query's schema: its arguments, and what it returns when it says.
+fn Gen::query_schema(
+  self : Gen,
+  b : Block,
+  q : @check.SignalM,
+  owner : String,
+) -> String {
+  let args = self.field_schemas(b, q.params, owner)
+  let ms = "message_schema_new(\{self.s(q.name)}, \{args}, null, null, null, null, null)"
+  match q.result {
+    None => ms
+    Some(t) => {
+      let returns = self.field_schema(
+        b,
+        {
+          name: "returns",
+          ty: t,
+          norm: @check.Norm::new(),
+          default: None,
+          required: true,
+          make: None,
+          sync: Local,
+          doc: None,
+          span: q.span,
+        },
+        owner,
+      )
+      "message_schema_set_returns(\{ms}, \{returns})"
+    }
+  }
+}
+
+///|
+/// The function that builds view v of component cw: cw_view_name, or for a
+/// render target's, cw_view_target_name.
+fn view_fn_name(cw : String, v : @check.ViewM) -> String {
+  match v.target {
+    None => "\{cw}_view_\{@check.wax_part(v.name)}"
+    Some(t) => "\{cw}_view_\{@check.wax_part(t)}_\{@check.wax_part(v.name)}"
+  }
 }

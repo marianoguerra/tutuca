@@ -116,8 +116,8 @@ function domImports(late) {
 			e.dataTransfer.setData("text/plain", ""); // Firefox starts no drag without data.
 			e.dataTransfer.effectAllowed = "move";
 		},
-		drop_effect_move: (e) => {
-			if (e.dataTransfer) e.dataTransfer.dropEffect = "move";
+		drop_effect: (e, move) => {
+			if (e.dataTransfer) e.dataTransfer.dropEffect = move ? "move" : "copy";
 		},
 		fail: (message) => {
 			throw new Error(message);
@@ -212,6 +212,9 @@ export function withCustomSection(source, name, text) {
 // a canvas holding it.
 export const DISPLAY_META = "https://tutuca.dev/meta/display";
 export const CANVAS_META = "https://tutuca.dev/meta/canvas";
+// What a component's views can compute as classes: { classes: "a b" }, which
+// loadComponent's classes include.
+export const CLASSES_META = "https://tutuca.dev/meta/classes";
 // A display meta's icon and title, as a label ("📝 Notes"), or null when it
 // has no title: tutuca's displayLabel.
 export function displayLabel(display) {
@@ -311,6 +314,8 @@ export async function instantiate(bytes, { builtins = true } = {}) {
 			observe_log: (v) => late.host?.report("log", { value: late.fromValue(v) }),
 			observe_unhandled: (name) => late.host?.report("unhandled", { message: name }),
 			observe_stale: (name) => late.host?.report("stale", { message: name }),
+			observe_orphaned: (name) => late.host?.report("orphaned", { message: name }),
+			abort_ask: (id) => late.host?.abortAsk(id),
 			ask: (name, args) => late.host.ask(name, late.fromValue(args)),
 			call: (name, args) => {
 				const w = late.exports;
@@ -718,6 +723,7 @@ function makeApi(w) {
 			"scope",
 			"pushView",
 			"eq",
+			"query",
 		],
 		constant: (v) => viewNode(w.view_const(toValue(v))),
 		field: (name) => viewNode(w.view_field(name)),
@@ -726,6 +732,8 @@ function makeApi(w) {
 		lookupBind: (name) => viewNode(w.view_lookup_bind(name)),
 		// left == value, or != with negate: a bool, as conditions compare.
 		eq: (left, value, negate = false) => viewNode(w.view_eq(toView(left), toValue(value), negate ? 1 : 0)),
+		// $query(name, ...args): the rendered component's query name.
+		query: (name, ...args) => viewNode(w.view_query(name, viewArray(args))),
 		// An if of send arguments, when a branch is one, is a send argument too.
 		if: (test, then, otherwise) =>
 			[test, then, otherwise].some(isSendArg)
@@ -826,9 +834,29 @@ function makeRuntime(w, api, late) {
 	// and to onReport(type, info) as it happens. One module instance drives
 	// one host.
 	const errorText = (error) => String(error?.message ?? error);
+	// A selector from the root for to: a list of steps, each a field
+	// ("child") or an item of a list or map field (["items", 0]).
+	const selectorKey = (k) => (typeof k === "number" ? w.path_key_index(k) : w.path_key_name(k));
+	const selectorStep = (s) => (Array.isArray(s) ? w.selector_item(s[0], selectorKey(s[1])) : w.selector_field(s));
+	const selectorOf = (to) => to.map(selectorStep).reduce((a, b) => w.selector_join(a, b), w.selector_root());
 	const ISSUES = new Set(["stateInvalid", "messageInvalid"]);
-	const createHost = (document, container, root, { env = {}, asks = {}, dev = false, onReport = null } = {}) => {
+	// renderCache: whether a render reuses what the last one rendered for a
+	// component where nothing it depends on changed (tutuca's CopyCache, the
+	// default); false renders everything every time (NullCache).
+	const createHost = (document, container, root, { env = {}, asks = {}, dev = false, onReport = null, publish = null, renderCache = true } = {}) => {
 		const h = w.host_new(document, container, root);
+		if (!renderCache) w.host_set_render_cache(h, 0);
+		// What host.listen hears (tutuca's Transition and HostEvent records),
+		// numbered as reported; the dev issues found since the last record
+		// that took them, for the record of what caused them.
+		const listeners = new Set();
+		let reported = 0;
+		let lastSeq = null; // The number of the last task run, for upTo.
+		let taskIssues = [];
+		let settledIssues = [];
+		let settledRoot = null; // The root last reported settled.
+		const watchTimers = new Map(); // A watch's id -> its timeout's timer.
+		const controllers = new Map(); // An ask answered later's id -> its AbortController.
 		const inflight = new Set();
 		let nextAsk = 0; // The id of the next ask answered later.
 		const listener = (e) => host.dispatch(e);
@@ -847,7 +875,8 @@ function makeRuntime(w, api, late) {
 			// What happened, in order: log { value }, unhandled { message },
 			// taskFailed { error }, renderFailed { error }, eventFailed
 			// { error } (an event the DOM couldn't route), stale { message }
-			// (one for a component another took the place of), render, and in dev
+			// (one for a component another took the place of), orphaned
+			// { message } (one for a place no component is at), render, and in dev
 			// mode stateInvalid and messageInvalid { message, component, ... }.
 			// Each but render and eventFailed says where it came from: path,
 			// the keys from the root to the component the task was for
@@ -858,6 +887,73 @@ function makeRuntime(w, api, late) {
 				const r = untasked ? { type, ...info } : { type, ...info, path: values.to(w.host_task_path(h)) };
 				host.reports.push(r);
 				onReport?.(type, r);
+				if (type === "stateInvalid") {
+					const into = r.settled ? settledIssues : taskIssues;
+					for (const i of r.issues) into.push({ check: "state", ...i, reason: i.problem ?? i.reason, path: r.path });
+				} else if (type === "messageInvalid") taskIssues.push({ check: "message", ...r });
+			},
+			// fn(record) hears what the host reports, each after what caused it,
+			// in order (tutuca's host.listen): a Transition ({ kind:
+			// "transition", seq, cause, origin, mode, name, args, from, to,
+			// outcome, error, emitted, unhandled, watch, issues }) for what
+			// became of each task, outcome one of handled, passed, unhandled,
+			// failed, stale, orphaned and asked; a HostEvent ({ kind:
+			// "hostEvent", type, issues, ... }) for the rest: started,
+			// stopped, rendered { upTo }, renderFailed { error, upTo },
+			// eventFailed { eventType, error } and settled { upTo }. Each has
+			// n, its number, and at, env.now() when reported. Returns a
+			// function that stops it.
+			listen(fn) {
+				listeners.add(fn);
+				return () => listeners.delete(fn);
+			},
+			// Numbers record and stamps it, then tells the listeners after the
+			// current task, or createHost's publish at once. Unheard, it isn't
+			// stamped: the clock isn't read for nobody.
+			announce(record) {
+				record.n = ++reported;
+				if (publish === null && listeners.size === 0) return;
+				record.at = host.env.now();
+				if (publish !== null) return publish(record);
+				setTimeout(() => {
+					for (const fn of listeners) fn(record);
+				}, 0);
+			},
+			// A HostEvent of type: fields plain, issues what dev checks found.
+			hostEvent(type, fields = {}, issues = []) {
+				host.announce({ kind: "hostEvent", type, ...fields, issues });
+			},
+			// The records the runtime made besides the tasks' transitions:
+			// dropped tasks', and watches opening (whose timeout is armed
+			// here, tutuca's startWatchTimer) and settling (cleared).
+			takeEvents() {
+				for (const r of values.to(w.host_take_events(h))) {
+					if (r.kind === "transition") {
+						host.announce({ ...r, error: null, issues: [] });
+						continue;
+					}
+					const { kind: _, type, ...fields } = r;
+					if (type === "watchOpened" && fields.timeout !== null) {
+						const timer = setTimeout(() => {
+							watchTimers.delete(fields.watch);
+							late.host = host;
+							if (w.host_cancel_watch(h, fields.watch, 1)) {
+								host.takeEvents();
+								host.run();
+							}
+						}, fields.timeout);
+						watchTimers.set(fields.watch, timer);
+					}
+					if (type === "watchSettled") {
+						clearTimeout(watchTimers.get(fields.watch));
+						watchTimers.delete(fields.watch);
+					}
+					host.hostEvent(type, fields);
+				}
+			},
+			abortAsk(id) {
+				controllers.get(id)?.abort();
+				controllers.delete(id);
 			},
 			// Views of reports, by type.
 			get logs() {
@@ -882,6 +978,9 @@ function makeRuntime(w, api, late) {
 			},
 			// The root component, as a value.
 			root: () => w.host_root(h),
+			// How many components its renders reused from the render cache,
+			// and rendered: { hits, misses }.
+			cacheStats: () => values.to(w.host_cache_stats(h)),
 			// Runs the queued tasks, one transaction each, for up to 16ms, then
 			// renders and listens to the events the registered types handle;
 			// the tasks left run on the next tick, after the browser had a
@@ -897,28 +996,56 @@ function makeRuntime(w, api, late) {
 				const start = Date.now();
 				try {
 					while (w.host_has_tasks(h)) {
+						let error = null;
 						try {
 							w.host_step(h);
-						} catch (error) {
+						} catch (e) {
+							error = e;
 							host.report("taskFailed", { error });
 							w.host_after_failure(h);
 						}
+						const record = values.to(w.host_transition(h));
+						if (error !== null) {
+							record.outcome = "failed";
+							record.emitted = [];
+							record.unhandled = [];
+						}
+						const issues = taskIssues;
+						taskIssues = [];
+						lastSeq = record.seq;
+						host.announce({ ...record, error, issues });
+						host.takeEvents();
 						if (Date.now() - start > 16) break;
 					}
 					try {
-						if (w.host_render(h)) host.report("render");
+						if (w.host_render(h)) {
+							host.report("render");
+							host.hostEvent("rendered", { upTo: lastSeq });
+						}
 					} catch (error) {
 						host.report("renderFailed", { error });
+						host.hostEvent("renderFailed", { error, upTo: lastSeq });
 					}
-					host.listen();
+					host.listenToEvents();
 				} finally {
 					running = false;
 					if (w.host_has_tasks(h)) schedule();
+					else host.reportSettled();
 				}
+			},
+			// The root settled: nothing is left to run. Reported, with the
+			// invariants it breaks, once per root that settles.
+			reportSettled() {
+				const now = w.host_root(h);
+				if (now === settledRoot) return;
+				settledRoot = now;
+				const issues = settledIssues;
+				settledIssues = [];
+				host.hostEvent("settled", { upTo: lastSeq }, issues);
 			},
 			// Listens on the container for the events the types registered
 			// so far handle, in any scope, the ones loaded since included.
-			listen() {
+			listenToEvents() {
 				if (host.headless) return;
 				for (const type of values.to(w.host_new_event_names(h))) {
 					container.addEventListener(type, listener);
@@ -928,31 +1055,70 @@ function makeRuntime(w, api, late) {
 			// Stops: no more listening, runs or renders, and the container
 			// emptied, so another host can mount there.
 			unmount() {
+				if (stopped) return;
 				stopped = true;
 				clearTimeout(tick);
 				tick = null;
+				// Nothing more runs: what's queued and the answers on their way.
+				w.host_clear(h);
+				for (const timer of watchTimers.values()) clearTimeout(timer);
+				watchTimers.clear();
+				for (const c of controllers.values()) c.abort();
+				controllers.clear();
+				host.hostEvent("stopped");
 				for (const type of listening.splice(0)) container?.removeEventListener(type, listener);
 				container?.replaceChildren();
 			},
-			// A message to the root, from outside it.
-			send(name, args = []) {
+			// Sends name(...args) from the host (tutuca's host.send) to the
+			// component to reaches from the root, the root by default: to is a
+			// list of steps, each a field ("child") or an item of a list or map
+			// field (["items", 0], ["byId", "a"]). One sent now has run when
+			// send returns: it goes ahead of the queue, behind a bubble under
+			// way. Any other waits at the back of the queue for the next tick
+			// (await host.settled()). Returns its number.
+			send(name, args = [], { to = [], now = false } = {}) {
+				const sel = selectorOf(to);
 				late.host = host;
-				w.host_send(h, name, values.from(args));
-				host.run();
+				const seq = w.host_send(h, name, values.from(args), sel, now ? 1 : 0);
+				if (now) host.run();
+				else if (!running) schedule();
+				return seq;
 			},
-			// A message to the component steps reach from the root: each step
-			// a field ("child") or an item of a list or map field
-			// (["items", 0], ["byId", "a"]).
-			sendAt(steps, name, args = []) {
-				const key = (k) => (typeof k === "number" ? w.path_key_index(k) : w.path_key_name(k));
-				const step = (s) => (Array.isArray(s) ? w.selector_item(s[0], key(s[1])) : w.selector_field(s));
+			// Applies the pure message name(...args) to the component to
+			// reaches (as send takes it) at once, as a change from outside
+			// (tutuca's host.apply): no task, no queue, rendered when it
+			// returns. Throws a ContractError-shaped error ({ code, issues,
+			// detail, component, message }) when the component there doesn't
+			// support it or breaks its contract, its invariants included, and
+			// then nothing changes. Reported as a transition of mode apply.
+			// Returns the component it is now.
+			apply(name, args = [], { to = [] } = {}) {
 				late.host = host;
-				w.host_send_at(h, name, values.from(args), steps.map(step).reduce((a, b) => w.selector_join(a, b)));
+				const result = w.host_apply(h, name, values.from(args), selectorOf(to));
+				host.takeEvents();
+				const out = values.to(result);
+				if ("err" in out) {
+					const e = out.err;
+					const text = `${e.component ?? "not a component"}.${e.message}: ${e.issues.join(", ")}${e.detail ? ` (${e.detail})` : ""}`;
+					throw Object.assign(new Error(text), { name: "ContractError", ...e });
+				}
 				host.run();
+				return w.value_result_value(result);
 			},
-			// Routes a DOM event to the handler it reaches, if any, and runs.
-			// One the DOM can't route (it doesn't match the root, after a
-			// render failed) is reported, instead of escaping the listener.
+			// What component to reaches, now, runs its query name(...args)
+			// with: what runtime.query gives.
+			query(name, args = [], { to = [] } = {}) {
+				return values.to(w.component_query(w.host_value_at(h, selectorOf(to)), name, values.from(args)));
+			},
+			// Where to reaches from the root, now: { path, id } (tutuca's
+			// addressOf).
+			addressOf(to = []) {
+				return values.to(w.host_address_of(h, selectorOf(to)));
+			},
+			// Routes a DOM event to the handler it reaches, if any, and runs it
+			// now. One the DOM can't route (it doesn't match the root, after a
+			// render failed), or whose arguments fail, is reported, instead of
+			// escaping the listener.
 			dispatch(e) {
 				late.host = host;
 				let queued;
@@ -960,19 +1126,23 @@ function makeRuntime(w, api, late) {
 					queued = w.host_dispatch_event(h, e, e.target, e.type, values.from(eventFields(e)));
 				} catch (error) {
 					host.report("eventFailed", { error });
+					host.hostEvent("eventFailed", { eventType: e.type, error });
 					return;
 				}
 				if (queued) host.run();
 			},
 			// Renders, and listens to the events its components handle.
 			mount() {
+				const issues = taskIssues;
+				taskIssues = [];
+				host.hostEvent("started", {}, issues);
 				host.run();
 				return host;
 			},
 			// Resolves once the asks in flight are answered and the tasks left
 			// for later have run.
 			async settled() {
-				while (inflight.size > 0 || tick !== null) {
+				while (!stopped && (inflight.size > 0 || tick !== null)) {
 					if (inflight.size > 0) await Promise.allSettled([...inflight]);
 					else await new Promise((resolve) => setTimeout(resolve, 0));
 				}
@@ -981,24 +1151,31 @@ function makeRuntime(w, api, late) {
 			// a value replies now, a promise later (with the id host_settle
 			// gets back), a throw or a rejection with .error, and a name
 			// asks lacks with .unhandled.
+			// The handler reads this.signal, aborted when the watch the ask is in
+			// is cancelled (tutuca's read ctx signal).
 			ask(name, args) {
 				if (!Object.hasOwn(asks, name)) return values.from(null);
+				const controller = new AbortController();
 				let answer;
 				try {
-					answer = asks[name](...args);
+					answer = asks[name].call({ signal: controller.signal }, ...args);
 				} catch (error) {
 					return w.value_err(values.from(errorText(error)));
 				}
 				if (typeof answer?.then !== "function") return w.value_ok(values.from(answer));
 				const id = nextAsk++;
+				controllers.set(id, controller);
 				const done = Promise.resolve(answer)
 					.then(
 						(v) => w.value_ok(values.from(v)),
 						(error) => w.value_err(values.from(errorText(error))),
 					)
 					.then((result) => {
+						controllers.delete(id);
+						if (stopped || controller.signal.aborted) return; // Nothing waits for it.
 						late.host = host;
 						w.host_settle(h, id, result);
+						host.takeEvents();
 						host.run();
 					});
 				inflight.add(done);
@@ -1033,7 +1210,9 @@ function makeRuntime(w, api, late) {
 		// Why component can't take the message name with args now (they don't
 		// fit its schema, or its guard doesn't hold), or null when it can.
 		messageProblem: (component, name, args = []) => values.to(w.component_message_problem(component, name, values.from(args))),
-		// Runs component's query name with args: { ok: value } or { err: why }.
+		// Runs component's query name with args (tutuca's query): { ok: value },
+		// or { err: { code, issues, detail, component, message } } as apply
+		// gives, code one of unknown, args, arg:<i>, failed, returns.
 		query: (component, name, args = []) => values.to(w.component_query(component, name, values.from(args))),
 		// Applies component's pure message name with args outside any task
 		// (tutuca's apply): { ok: the component after it } (the same one
@@ -1042,18 +1221,30 @@ function makeRuntime(w, api, late) {
 		// not-pure, args, arg:<i>, pre (detail: its why), failed, post,
 		// invariant:<name>.
 		apply: (component, name, args = []) => values.to(w.component_apply_js(component, name, values.from(args))),
-		// What component offers (tutuca's contractOf): { name, implements,
-		// messages: [{ name, pure, args }], queries: [{ name, args }] }, or
-		// null for a type without a schema.
+		// What component offers (tutuca's contractOf): { name, implements:
+		// [{ name, resolved, interface }], messages: [{ name, pure, args }],
+		// queries: [{ name, args, returns }], notifies }, or null for a type
+		// without a schema.
 		contractOf: (component) => values.to(w.component_contract(component)),
+		// The same for the type registered as name, visible from scope, its
+		// interfaces resolved there; null when none is.
+		typeContractOf: (scope, name) => values.to(w.scope_contract(scope, name)),
 		// What component lacks to implement the interface registered as name
-		// in its scope: a list of problems, empty when it implements it.
+		// in its scope (tutuca's interfaceGaps): every problem, empty when it
+		// implements it.
 		supports: (component, name) => values.to(w.component_supports(component, name)),
 		// Whether component has the pure message name, or the query name.
 		canApply: (component, name) => values.to(w.component_contract(component))?.messages.some((m) => m.name === name && m.pure) ?? false,
 		canQuery: (component, name) => values.to(w.component_contract(component))?.queries.some((q) => q.name === name) ?? false,
 		// The interface registered as name, visible from scope, or null.
 		interface: (scope, name) => values.to(w.scope_interface(scope, name)),
+		// A copy of component (or a value holding components) in which every
+		// component is a new one, with a fresh identity at any depth, as
+		// tutuca's copy: what to put in the tree a second time.
+		copy: (component) => w.value_copy(component),
+		// A component's identity (tutuca's idOf): fresh when it's made, kept
+		// by its updates; null for what isn't one.
+		idOf: (component) => w.component_id(component) || null,
 		// A component's property, as a JS value.
 		get: (component, name) => values.to(w.component_get(component, name)),
 		// What a component says about itself under uri (a meta URI such as
@@ -1063,6 +1254,21 @@ function makeRuntime(w, api, late) {
 		// The same for the type registered as name, visible from scope; null
 		// when none is.
 		typeMetaOf: (scope, name, uri) => values.to(w.scope_meta_of(scope, name, uri)),
+		// What component renders for the render target named target (tutuca's
+		// renders, renderedVNodes): its views for target (view, or main),
+		// as plain data for target's renderer: a list of elements { tag,
+		// attrs, key?, children }, each tag the target's node type (md's
+		// Paragraph), and texts. A component without views for target fails,
+		// unless fallsBackToViews, when it renders its page views.
+		renderTarget: (component, target, { view = null, fallsBackToViews = false } = {}) =>
+			values.to(w.render_target(component, target, view, fallsBackToViews ? 1 : 0)),
+		// Whether component says anything under uri (tutuca's hasMeta).
+		hasMeta: (component, uri) => w.component_has_meta(component, uri) === 1,
+		// What's wrong with what component says under uri, against the
+		// schema its scope has for it (tutuca's metaShapeProblems): a list,
+		// empty when it says nothing there or there's no schema. metaOf is
+		// what it says over the schema's defaults (tutuca's filledMeta).
+		metaProblems: (component, uri) => values.to(w.component_meta_problems(component, uri)),
 		// The meta schema registered for uri, visible from scope: { uri,
 		// fields, defaults }, or null.
 		metaSchema: (scope, uri) => values.to(w.scope_meta_schema(scope, uri)),

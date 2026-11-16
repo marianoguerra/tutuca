@@ -161,8 +161,8 @@ await tw.loadComponent(new URL("./dist/components/counter.wasm", import.meta.url
 const root = tw.runtime.make(scope, "Board", { counters: [], total: 0 });
 const host = tw.runtime.createHost(document, container, root).mount();
 // Clicks in container now reach the components' handlers.
-host.send("add_counter"); // a message to the root, from outside
-host.sendAt([["counters", 0]], "reset"); // to the component steps reach from the root
+host.send("add_counter", [], { now: true }); // a message to the root, from outside, run now
+host.send("reset", [], { to: [["counters", 0]] }); // to the component steps reach, on the next tick
 
 // The vdom alone.
 const { h } = tw;
@@ -190,7 +190,11 @@ styles.add((await tw.loadComponent(url, scope)).classes);
 The compiled CSS has no theme: load `vendor/margaui/themes/light.css` (which
 also applies to `:root`) and `dark.css` (under `[data-theme="dark"]`), as
 `demos/demos.js` does. A class computed from the state isn't seen: write
-classes as constants, or `if`s of constants.
+classes as constants, or `if`s of constants, or list the ones a type's views
+can compute under the classes meta, as tutuca's JS does (`meta
+"https://tutuca.dev/meta/classes" = { classes: "dark light" };`,
+`CLASSES_META`, the `Classes` schema of `components/meta`), which
+`classes` then includes, and tcd doesn't warn about (`tcd.view.class`).
 
 ## Layout
 
@@ -604,8 +608,9 @@ selectors freeze against the state; targets are a base path and a selector.
 
 **Handlers** get a `context` (`context.wax`): the scope, their component's
 path, the source key, the event, and an effects buffer that `ctx_notify`,
-`ctx_ask`, `ctx_send_at`, `ctx_forward_at`, `ctx_stop_next` and `ctx_log`
-add to; `ctx_now`, `ctx_random` and `ctx_uuid` read the world through the
+`ctx_ask`, `ctx_send_at`, `ctx_forward_at`, `ctx_reply` (to the sender of
+the message being handled, tcd's `emits reply x`), `ctx_stop_next` and
+`ctx_log` add to; `ctx_now`, `ctx_random` and `ctx_uuid` read the world through the
 host's `env` import; `ctx_make` makes components in the handling component's
 scope (for a Swapped result), failing the task when it can't, and
 `ctx_try_make` makes them as a result instead: Ok(the component), or
@@ -615,10 +620,17 @@ sorted (with `walk`, the parents' too, each name once, as `ctx_make` resolves
 them): `components/layout`'s Hole asks for them and swaps itself for the one
 picked, or stays, saying why, when it can't be made.
 
-**The host** (`host.wax`) runs one task per `host_step`, as one transaction:
-the handler runs on the component the route reaches, its effects become child
-tasks (a notify to the parent, an ask to the asker, a send or forward below
-by selector), a notify that wasn't stopped bubbles, its next hop running
+**The host** (`host.wax`) runs one task per `host_step`, as one transaction.
+A task is tutuca's envelope: its sender (`from`, the route of the component
+that sent it, or the host's for a host send, an event or an ask's answer),
+where it goes (`route`), and its number (`seq`, given as it's queued,
+counted per host), the number of the task that sent it (`cause`) and of the
+one its chain started with (`origin`). The handler runs on the component
+the route reaches, its effects become child tasks from it (a notify to the
+parent, an ask to the asker, a send or forward below by selector, a reply
+to the sender as it was when it sent the message, at any hop of a
+notification the component that notified, and from the host's messages
+`unhandled`), a notify that wasn't stopped bubbles, its next hop running
 right after, before anything else queued (an ancestor without a
 handler passes it on silently; one no hop handled is reported `unhandled`
 once, at the root, as is a notify the root sends), the new root is set
@@ -626,25 +638,60 @@ through the key path, and the children's targets freeze against it. Every
 component has an identity (`id`, fresh when it's made, kept by its updates),
 and a route records the identity of the component it reached when it was
 fixed: a task whose path another component took meanwhile (it was replaced,
-or a list shifted) is dropped and reported `stale`, as tutuca's JS does. A
+or a list shifted) is dropped and reported `stale`, and one whose path
+reaches no component `orphaned`, as tutuca's JS does; a notification is
+checked against its sender first. A
 failure throws (the host's `fail`) or traps out of `host_step` before
 anything is committed: the root stays and the children are dropped. The JS
 side calls `host_step` once per task and reports what failed, so the host
 goes on with the next task. What a host reports is one list,
-`host.reports`, of `{ type, ...info }` with the types tutuca's JS
-`Host.notify` uses (and the spec's observations): `log`, `unhandled`,
-`taskFailed`, `renderFailed`, `eventFailed`, `stale`, `render`, and in dev mode `stateInvalid` and
+`host.reports`, of `{ type, ...info }` (the spec's observations; tutuca's
+JS gives `host.listen` a Transition per task and a HostEvent per lifecycle
+step instead): `log`, `unhandled`,
+`taskFailed`, `renderFailed`, `eventFailed`, `stale`, `orphaned`, `render`, and in dev mode `stateInvalid` and
 `messageInvalid`; `createHost`'s `onReport(type, info)` gets each as it
 happens, and `host.logs`, `.unhandled`, `.failures` and `.issues` are views
-of the list. An ask runs no handler on the asker: once what asked has
+of the list. `host.listen(fn)` hears what tutuca's JS host reports, after
+what caused it (`createHost`'s `publish(record)` hears it at once instead):
+a Transition per task (`{ kind: "transition", seq, cause, origin, mode,
+name, args, from, to, outcome, error, emitted, unhandled, watch, issues }`,
+outcome `handled`, `passed`, `unhandled`, `failed`, `stale`, `orphaned` or
+`asked`; from and to `{ path, id }`, from null for the host) and a HostEvent
+for the rest (`started`, `stopped`, `rendered`, `renderFailed`,
+`eventFailed`, `settled`), each numbered (`n`) and stamped (`at`), with the
+dev issues it caused (`{ check: "state" | "message", reason, ... }`): the
+started event the state's, a transition its task's, settled the
+invariants. An unmounted host runs nothing more, and drops what's queued
+and the answers on their way. An ask runs no handler on the asker: once what asked has
 committed it starts the scope's handler, and the answer comes back as a reply
 task of its own, routed to the asker's path and identity: `name.ok` /
 `name.error`, or `name.unhandled` with no handler. Answers aren't messages:
 a dotted name only reaches a component as an ask's answer, never from a send.
 `ctx_ask` returns the request's id, which the answer's handler reads as
-`ctx.request`. One answered
+`ctx.request`; its ids, and the watches', are counted per host, so runs
+repeat. One answered
 now runs next, ahead of the queue; a pending one is queued by `host_settle`
-when it's answered. A reply that fails fails only itself. After the
+when it's answered. A reply that fails fails only itself. A host ask's
+function reads `this.signal`, aborted when the watch it's in is cancelled.
+
+**Watches** (`watch.wax`, tutuca's `src/tree/watch.js`): a message sent
+with `ctx_send_watched(ctx, name, args, selector, settled, settled_args,
+progress, progress_args, timeout, detached)` (tutuca's `sendAt` with `{
+settled, progress, timeout, detached }`) opens one, whose id it returns:
+it and everything it causes (what it sends, the notifications it bubbles,
+its asks and their answers, recursively) are in it, and once none of it is
+left the sender gets `settled` with `settled_args` and the report `{ id,
+outcome, tasks, failed }` after them, outcome `ok`, `failed` (a task in it
+threw), `cancelled` or `timeout`; `progress` likewise, `{ id, tasks, open,
+failed }`, after what runs in it, one queued at a time. A watch inside
+another is one open unit of it, so the outer settles after it.
+`ctx_cancel(ctx, id)` cancels one once the handler commits: what it has
+queued is dropped (a `dropped` transition each), the asks it waits for are
+aborted and their answers ignored, the watches inside it are cancelled, and
+it settles `cancelled` once what was running is done; `timeout` (ms, the JS
+side's timer) cancels it as `timeout`. Detached (`detached`, or
+`ctx_ask_detached` for an ask) a message is in no watch. host.listen hears
+`watchOpened` and `watchSettled`, and each transition's `watch`. After the
 queue drains, `host_render` renders the root if it isn't the same reference
 as the last one rendered. The JS side runs tasks for up to 16ms, as
 tutuca's JS host does, then renders and leaves the rest for the next tick
@@ -653,6 +700,38 @@ container for the events it doesn't yet: `host_new_event_names` gives the
 ones the types registered so far in any scope of the module instance handle
 (a component can be made in one scope and held by a component of another),
 so a module loaded later brings its events with it.
+
+**The render cache** (`render.wax`, tutuca's `CopyCache`, on by default;
+`createHost`'s `renderCache: false` renders everything, as `NullCache`): a
+component's render is a function of its instance, the view picked for it,
+the view stack its descendants inherit and the provided values read below
+it, not of where it is, which the frames around it say. A host keeps the
+last render's entries as a tree, each component's under its parent's, and
+a render reuses an entry whose instance, view and view stack are the same
+and whose provided values still are, subtree and all; a miss renders
+again, finding its children among the old entry's. What a render doesn't
+reach is dropped. Entries are found by the component's identity, which
+updates and moves keep, where tutuca's are by instance and then by slot.
+A reused render lowers to the same vnodes (`snode_component` keeps what it
+lowered to), so morph skips it by identity, and a shared fragment keeps its
+nodes, only placed; a constant element (constant attrs, key and children)
+is lowered once per template and shared by every render. `host.cacheStats()`
+says how many components were reused (`hits`) and rendered (`misses`).
+
+**Render targets** (tutuca's `RenderTarget`, `renders` and `viewsFor`): a
+type's views for a target other than the page (`spec_set_render(spec,
+target, names, views)`; tcd's `view main @target(md) = ...`) are picked by
+a render for that target, for every component it reaches (`render`,
+`render_each`, `render_it` and `push_view` included), and a component
+without them fails ("Component Plain has no md render"), unless the target
+falls back to the page's views, as a terminal does.
+`runtime.renderTarget(component, target, { view, fallsBackToViews })` gives
+what it renders as plain data, for the target's renderer to lower (to
+mdast, a terminal's DOM, ...): elements `{ tag, attrs, key?, children }`,
+their tags the target's node types, and texts, without the metadata
+comments a page routes events by. The renderers and printers themselves
+(tutuca/mdast, tutuca/tui, ...) are tutuca's JS, not here; renders for a
+target aren't cached, as tutuca's aren't either.
 
 **Views** (`view.wax`) are data, the spec's `view.rkt` expressions: constants,
 fields, seq items, provided values, binds, `if`, elements, fragments,
@@ -693,9 +772,18 @@ met before the first component boundary, and the metadata comments of every
 ancestor's previous siblings, read back by a JSON reader for what `meta.wax`
 writes; the frames give the route, the route's component's spec the template
 with that eid, and its handlers the one for the event. Its arguments are
-evaluated when the task runs, against its context: literals, the value of
-the element with the handler (checked for a checkbox), the source key, the
-drag key, and conditionals.
+evaluated as it arrives, against the tree it happened on, as tutuca's
+`eventSend` does (one that fails is reported `eventFailed`, and nothing is
+queued): literals, the value of the element with the handler (checked for a
+checkbox), the source key, the drag key, and conditionals. It's queued from
+the host as one sent now is.
+
+**Sending from JS**: `host.send(name, args, { to, now })` (tutuca's): to
+the component `to` reaches from the root (a list of steps: a field, or
+`[field, key]` for an item; the root by default), from the host. Sent now
+it goes ahead of the queue, behind a bubble under way (the env rule), and
+has run when send returns; otherwise it waits at the back of the queue for
+the next tick (`await host.settled()`). It returns the task's number.
 
 **Drag and drop** (`host.wax`), as in tutuca's JS: from `dragstart` to
 `dragend` the host keeps what is dragged, the closest `draggable="true"`
@@ -738,7 +826,10 @@ wrongArity | wrongArgType | invalidArg | failed, index, problem, detail }`,
 `problem` saying why in words ("argument 0 (n): must be at least 1, got 0").
 `runtime.schema(component)` reads a type's schema, types written as TCD
 writes them (`list<TodoItem>`, `option<s32>`, constraints as `>= 1`,
-`in keys(items)`). Counter, the todos and Probe have schemas; the rest don't,
+`in keys(items)`), each field with the `default` init gives it
+(`field_schema_set_default`; null for none known, or a made component). A
+made default that can't be made fails init saying each field on the way,
+as tutuca's prefixed does ("Outer.mid: Mid.leaf: ..."). Counter, the todos and Probe have schemas; the rest don't,
 and the runtime can't check inside them.
 
 **Dev mode** (`check.wax`; `createHost(..., { dev: true })`): the host
@@ -751,16 +842,22 @@ changed since it last was, since a task can leave them broken for the tasks
 it queued. What fails is reported as `stateInvalid` and `messageInvalid`, as
 in tutuca's JS (`host.issues` is those reports); the tasks still commit.
 
-**Interfaces**: an `interface_schema` (fields, properties and messages, each
-of its type) registered in a scope by name (`scope_register_interface`)
-means a type registered or made under that name, or one that declares it
-implements it, must have all of it, of the same types; registering or
-making one that doesn't fails, saying what's missing ("Impostor can't be a
-TodoItem: its field done is s32, TodoItem's is bool"). TodoList registers
-TodoItem's; todo_item and todo_card implement it. `vtype_component` accepts
-a component of a named type (by its name, or one its scope makes it by, as
-tutuca's JS checks by lookup, so a type loaded under another name is of
-that name) or of a type implementing a named interface.
+**Interfaces**: an `interface_schema` (fields, properties, messages and
+queries, each of its type, a query's returns too, and the notifies an
+implementing type sends up, `interface_schema_set_notifies`, which aren't
+checked) registered in a scope by name (`scope_register_interface`) means a
+type registered or made under that name, whether or not it declares it, or
+one that declares it implements it, must have all of it, of the same types;
+registering or making one that doesn't fails, saying everything that's
+missing ("Impostor can't be a TodoItem: its field done is s32, TodoItem's
+is bool"), as tutuca's scope check does. TodoList registers TodoItem's;
+todo_item and todo_card implement it. `vtype_component` accepts a component
+of a named type or of a type implementing a named interface, the name
+resolved in the scope of the component holding it (tutuca's ComponentType):
+an interface there the component implements (it declares it and its scope
+has that interface, or its scope makes it by the interface's name), or a
+type there it is of; a name that scope doesn't know is checked by the
+component's own name and scope.
 
 **Meta** (tutuca's `component({ meta })`, `registerMetaSchemas` and
 `metaOf`): what a type says about itself to hosts, a map of URIs (each a
@@ -774,7 +871,11 @@ urn:example:sizes: it has no key color"). URIs without a schema aren't
 checked. `ctx_meta_of(ctx, name, uri)` (a handler, or an ask handler for its
 asker) and `runtime.metaOf(component, uri)`, `runtime.typeMetaOf(scope,
 name, uri)` and `runtime.metaSchema(scope, uri)` (JS) read it over the
-schema's defaults. `components/meta` declares the well-known ones, as
+schema's defaults, `runtime.hasMeta` and `runtime.metaProblems` (tutuca's
+hasMeta and metaShapeProblems) say whether a component says anything under
+a URI and what of it breaks its schema; `spec_set_meta` fails on a key that
+isn't a URI or a value that isn't a record, as tutuca's toMeta does.
+`components/meta` declares the well-known ones, as
 tutuca's JS has them: `Display` (`DISPLAY_META`, `title`, `icon`,
 `description`, for whoever shows components to people; `displayLabel` makes
 "➡️ Horizontal box" of it) and `Canvas` (`CANVAS_META`, `width`, `height`,
@@ -796,9 +897,14 @@ error result instead: `{ code, issues, detail }`, the codes tutuca's
 ContractError has (`unknown`, `not-pure`, `args`, `arg:<i>`, `pre`,
 `failed`, `post`, `invariant:<name>`). A pure message is sent like any
 other too. From JS, `runtime.apply(component, name, args)` applies one
-outside any task, checking invariants too, and `runtime.contractOf`,
-`runtime.supports`, `runtime.canApply` and `runtime.canQuery` say what a
-component offers. Interfaces declare pure messages and queries as well:
+outside any task, checking invariants too; `runtime.query(component, name,
+args)` runs a query, failing as apply does (`unknown`, `args`, `arg:<i>`,
+`failed`, and `returns` when what it gives doesn't meet its returns,
+`message_schema_set_returns`, tcd's `-> T`); and `runtime.contractOf`
+(`{ name, implements: [{ name, resolved, interface }], messages, queries,
+notifies }`, as tutuca's), `runtime.typeContractOf(scope, name)`,
+`runtime.supports` (every gap, as `interfaceGaps`), `runtime.canApply` and
+`runtime.canQuery` say what a component offers. Interfaces declare pure messages and queries as well:
 an implementing type's must be pure, and take the same types. TodoList's
 complete_all and Kanban's moves apply their items' and lanes' pure messages.
 
@@ -834,7 +940,7 @@ their views and schemas with `lib/author.wax`'s helpers).
   routing an event reads.
 - `closest_draggable`, `dataset_get` / `_set` / `_delete`, `contains`, and
   the event's `prevent_default`, `stop_propagation`, `related_target`, `drag_start` and
-  `drop_effect_move`: what tracking a drag does.
+  `drop_effect`: what tracking a drag does.
 
 ## Differences from tutuca's JS vdom
 
@@ -876,6 +982,24 @@ mean different things, on purpose or for now:
   identity only through the runtime (its own handlers, and applying its pure
   messages), so there's nothing for tutuca's dev-mode foreign-write check to
   report.
+- A render whose source is null renders nothing (an empty
+  `option<component>`), where tutuca's JS fails finding its spec.
+- A component in a text position fails the render; JS writes
+  `[object Object]`.
+- A loop runs over a list or a map; JS takes the entries of any object, and
+  an `iter` any iterable of `[key, value]` pairs where here it gives a list
+  of two-item lists.
+- A notification's next hop is worked out from where the last one was,
+  instead of the hops being fixed when it starts, so it can't be `lost`: a
+  hop whose component was replaced meanwhile goes to the replacement.
+- A field that isn't public can still be read from outside (a view's
+  `field(x)` in an `each` body reads the item's, and `runtime.get` any):
+  `public field` puts one in the contract as a query, as tutuca's
+  `.public()` does, but doesn't hide the others.
+- An interface is a name, not an object a module imports: a type that says
+  it implements one its scope doesn't have (yet) registers, where tutuca's
+  JS fails, and is checked when it's made once another module registers
+  it.
 - What only this has: a message's `changes`, an init hook with an
   init context, typed computed properties, results as values, `ctx_make`,
   `ctx_try_make` and `ctx_component_names`, event modifiers

@@ -60,13 +60,14 @@ export async function createApp({ tw, base, shellScope, client, store = null, bu
 	let opened = 0;
 	let model = "";
 
-	const tell = (name, ...args) => queueMicrotask(() => host?.send(name, args));
+	// Deferred to a microtask, out of the run that asked, then run at once.
+	const tell = (name, ...args) => queueMicrotask(() => host?.send(name, args, { now: true }));
 	const say = (text) => tell("say", text);
 	const sessionIndex = (id) => runtime.get(host.root(), "sessions").findIndex((s) => runtime.get(s, "id") === id);
 	const tellSession = (id, name, ...args) =>
 		queueMicrotask(() => {
 			const i = sessionIndex(id);
-			if (i >= 0) host.sendAt([["sessions", i]], name, args);
+			if (i >= 0) host.send(name, args, { to: [["sessions", i]], now: true });
 		});
 
 	// The agents as the shell lists them: its AgentCards.
@@ -252,8 +253,8 @@ export async function createApp({ tw, base, shellScope, client, store = null, bu
 			if (fitting.length === 1) {
 				const session = asks.open_dropped(fitting[0].meta.id);
 				queueMicrotask(() => {
-					host.send("say", [""]);
-					host.send("add_session", [session]);
+					host.send("say", [""], { now: true });
+					host.send("add_session", [session], { now: true });
 				});
 				return fitting;
 			}

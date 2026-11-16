@@ -1,0 +1,405 @@
+// Watches (tutuca's src/tree/watch.js): structured concurrency over the
+// causal tree of tasks. A message sent with a watch (ctx_send_watched's
+// settled or progress) opens one: that task and everything it causes, the
+// messages it sends, the notifications it bubbles, its asks and their
+// answers, recursively, are in it. When nothing in it is left to run or to
+// answer, it settles, and the watcher, the component that sent it, gets its
+// settled message, with a report of how it went.
+//
+// Every task knows its watch when it's made, from the task that sent it (an
+// answer's is its ask's, so a watch spans the async boundary); one sent or
+// asked detached is in none. open goes up as a task of the watch is queued
+// and down once it ran (or failed, or was dropped as stale or orphaned); an
+// ask stays open until its answer is queued. A watch inside another counts
+// as one open unit of it until it settles, so watches make a tree, and a
+// watch settles after every watch inside it.
+//
+// A cancelled watch queues nothing more: its queued tasks are dropped, the
+// asks it waits for are aborted and their answers ignored, and the watches
+// inside it are cancelled too. It settles once what was running finished,
+// as cancelled (or timeout).
+
+// How a watch ended (tutuca's WATCH_OUTCOMES): ok, failed (a task in it
+// threw), cancelled or timeout. A fieldless enum, so an i32.
+const watch_ok = 0;
+const watch_failed = 1;
+const watch_cancelled = 2;
+const watch_timeout = 3;
+
+type watch = {
+    id: i32,
+    // What gets settled and progress: the component that opened it.
+    watcher: &route,
+    settled: js_string_opt,
+    settled_args: &value_array,
+    progress: js_string_opt,
+    progress_args: &value_array,
+    // Milliseconds after it opens it's cancelled as timeout, if it hasn't
+    // settled; negative for none.
+    timeout: f64,
+    // The watch the watcher's message was in.
+    outer: &?watch,
+    // Its tasks queued or running, its asks waiting for their answers and
+    // the watches inside it that haven't settled (tutuca's open).
+    live: mut i32,
+    // Tasks run in it and in the watches inside it, and of those, the ones
+    // whose handler threw.
+    tasks: mut i32,
+    failed: mut i32,
+    registered: mut i32,
+    // watch_cancelled or watch_timeout once cancelled; watch_ok before.
+    cancelled: mut i32,
+    done: mut i32,
+    progress_queued: mut i32
+};
+
+fn watch_new(
+    id: i32,
+    watcher: &route,
+    settled: js_string_opt,
+    settled_args: &value_array,
+    progress: js_string_opt,
+    progress_args: &value_array,
+    timeout: f64,
+    outer: &?watch,
+) -> &watch {
+    {watch|
+        id,
+        watcher,
+        settled,
+        settled_args,
+        progress,
+        progress_args,
+        timeout,
+        outer,
+        live: 0,
+        tasks: 0,
+        failed: 0,
+        registered: 0,
+        cancelled: watch_ok,
+        done: 0,
+        progress_queued: 0,
+    };
+}
+
+// Whether w, or a watch it's inside, was cancelled: nothing more is queued
+// in it.
+fn watch_is_cancelled(w: &watch) -> i32 {
+    let x: &?watch = w;
+    while !!x {
+        if (x!).cancelled != watch_ok {
+            return 1;
+        }
+        x = (x!).outer;
+    }
+    0;
+}
+
+// Whether w is in, or is, outer.
+fn watch_is_in(w: &?watch, outer: &watch) -> i32 {
+    let x = w;
+    while !!x {
+        if x! == outer {
+            return 1;
+        }
+        x = (x!).outer;
+    }
+    0;
+}
+
+fn watch_outcome(w: &watch) -> i32 {
+    if w.cancelled != watch_ok {
+        return w.cancelled;
+    }
+    if w.failed >s 0 {
+        return watch_failed;
+    }
+    watch_ok;
+}
+
+fn watch_outcome_name(o: i32) -> js_string {
+    if o == watch_failed {
+        return s_t_failed;
+    }
+    if o == watch_cancelled {
+        return s_w_cancelled;
+    }
+    if o == watch_timeout {
+        return s_w_timeout;
+    }
+    s_w_ok;
+}
+
+// What its watcher is told once it settles: { id, outcome, tasks, failed }.
+fn watch_report(w: &watch) -> &value {
+    let m = map_assoc(map_empty(), s_id, value_int(w.id));
+    m = map_assoc(m, s_outcome, value_string(watch_outcome_name(watch_outcome(w))));
+    m = map_assoc(m, s_w_tasks, value_int(w.tasks));
+    map_assoc(m, s_t_failed, value_int(w.failed));
+}
+
+// What a progress message says, as it runs: { id, tasks, open, failed }.
+fn watch_progress_report(w: &watch) -> &value {
+    let m = map_assoc(map_empty(), s_id, value_int(w.id));
+    m = map_assoc(m, s_w_tasks, value_int(w.tasks));
+    m = map_assoc(m, s_w_open, value_int(w.live));
+    map_assoc(m, s_t_failed, value_int(w.failed));
+}
+
+// args, then v.
+fn values_push(args: &value_array, v: &value) -> &value_array {
+    let out = [value_array|null; args.length() + 1];
+    out.copy(0, args, 0, args.length());
+    out[args.length()] = v;
+    out;
+}
+
+// A host event record for host.listen: { kind: "hostEvent", type, ... }.
+fn host_event(h: &host, kind: js_string, fields: &value) {
+    let m = map_assoc(fields, s_kind, value_string(s_host_event));
+    h.events = list_push(h.events, map_assoc(m, s_type, value_string(kind)));
+}
+
+// Counts t in its watch as it's queued (tutuca's Watches.enter); 0 when the
+// watch was cancelled, so it isn't queued, and is reported dropped.
+fn watch_enter(h: &host, t: &task) -> i32 {
+    if !t.watch {
+        return 1;
+    }
+    let w = t.watch!;
+    if w.done {
+        // Made after its watch settled: nothing waits for it.
+        t.watch = null;
+        return 1;
+    }
+    if watch_is_cancelled(w) {
+        task_drop(h, t);
+        return 0;
+    }
+    if !w.registered {
+        watch_register(h, w);
+    }
+    w.live = w.live + 1;
+    let x: &?watch = w;
+    while !!x {
+        (x!).tasks = (x!).tasks + 1;
+        x = (x!).outer;
+    }
+    1;
+}
+
+// A watch starts counting with its first task, as one open unit of the
+// watch it's in.
+fn watch_register(h: &host, w: &watch) {
+    w.registered = 1;
+    h.watches = pv_push(h.watches, w);
+    if !!w.outer {
+        (w.outer!).live = (w.outer!).live + 1;
+    }
+    let m = map_assoc(map_empty(), s_w_watch, value_int(w.id));
+    m = map_assoc(m, s_w_watcher, route_value(w.watcher, 0));
+    let timeout = VALUE_NULL;
+    if w.timeout >= 0.0 {
+        timeout = value_float(w.timeout);
+    }
+    host_event(h, s_w_opened, map_assoc(m, s_w_timeout, timeout));
+}
+
+// t is done: it ran, failed, was dropped or (an ask) its answer is queued.
+fn watch_leave(h: &host, t: &task) {
+    if !t.watch | t.dropped {
+        return;
+    }
+    let w = t.watch!;
+    if w.done {
+        return;
+    }
+    watch_release(h, w);
+}
+
+fn watch_release(h: &host, w: &watch) {
+    w.live = w.live - 1;
+    if w.live == 0 {
+        watch_settle(h, w);
+    }
+}
+
+// Nothing in w is left: its watcher is told, in the watch it was in, which
+// it then leaves.
+fn watch_settle(h: &host, w: &watch) {
+    w.done = 1;
+    watches_remove(h, w);
+    let m = map_assoc(watch_report(w), s_w_watch, value_int(w.id));
+    host_event(h, s_w_settled, m);
+    if !!w.settled {
+        let told =
+            watcher_task(w, w.settled!, values_push(w.settled_args, watch_report(w)), w.outer);
+        host_push(h, told);
+    }
+    if !!w.outer {
+        watch_release(h, w.outer!);
+    }
+}
+
+// A message to w's watcher, from it, in the watch outer: the first of its
+// chain.
+fn watcher_task(w: &watch, name: js_string, args: &value_array, outer: &?watch) -> &task {
+    {task|
+        kind: task_kind_plain,
+        name,
+        args,
+        from: w.watcher,
+        from_host: 0,
+        target: {target| base: w.watcher.path, selector: empty_selector() },
+        route: w.watcher,
+        event: VALUE_NULL,
+        drag: null,
+        node: null,
+        any_hop_handled: 0,
+        request: 0,
+        hop: 0,
+        seq: 0,
+        cause: 0,
+        origin: 0,
+        watch: outer,
+        progress_of: null,
+        dropped: 0,
+    };
+}
+
+fn watches_remove(h: &host, w: &watch) {
+    let kept = pv_empty();
+    let i = 0;
+    while i <s pv_count(h.watches) {
+        let x = pv_at(h.watches, i)! as &watch;
+        if x != w {
+            kept = pv_push(kept, x);
+        }
+        i += 1;
+    }
+    h.watches = kept;
+}
+
+// t's handler threw: counted in its watch and the ones around it.
+fn watch_task_failed(t: &task) {
+    let x = t.watch;
+    while !!x {
+        (x!).failed = (x!).failed + 1;
+        x = (x!).outer;
+    }
+}
+
+// t ran: a progress message for the watcher of its watch and of the ones
+// around it.
+fn watch_ran(h: &host, t: &task) {
+    let x = t.watch;
+    while !!x {
+        watch_queue_progress(h, x!);
+        x = (x!).outer;
+    }
+}
+
+// A progress message for w's watcher, unless one is queued already. It says
+// how its watch is when it runs, not when it was queued.
+fn watch_queue_progress(h: &host, w: &watch) {
+    if !w.progress | w.progress_queued | w.done {
+        return;
+    }
+    let told = watcher_task(w, w.progress!, w.progress_args, w.outer);
+    told.progress_of = w;
+    w.progress_queued = 1;
+    host_push(h, told);
+}
+
+// The args of a progress message as it runs: its watch as it is now.
+fn watch_progress_args(w: &watch) -> &value_array {
+    w.progress_queued = 0;
+    values_push(w.progress_args, watch_progress_report(w));
+}
+
+// Cancels the open watch id, with outcome watch_cancelled or watch_timeout;
+// 0 when there's none such open.
+fn watch_cancel_id(h: &host, id: i32, outcome: i32) -> i32 {
+    let i = 0;
+    while i <s pv_count(h.watches) {
+        let w = pv_at(h.watches, i)! as &watch;
+        if w.id == id {
+            watch_cancel(h, w, outcome);
+            return 1;
+        }
+        i += 1;
+    }
+    0;
+}
+
+// w and the watches inside it queue nothing more: their queued tasks are
+// dropped, their asks aborted and their answers ignored. It settles once
+// what's running is done.
+fn watch_cancel(h: &host, w: &watch, outcome: i32) {
+    if w.done | (w.cancelled != watch_ok) {
+        return;
+    }
+    w.cancelled = outcome;
+    let watches = h.watches;
+    let i = 0;
+    while i <s pv_count(watches) {
+        let c = pv_at(watches, i)! as &watch;
+        if !!c.outer {
+            if c.outer! == w {
+                watch_cancel(h, c, outcome);
+            }
+        }
+        i += 1;
+    }
+    let dropped = task_queue_drop_in(h.queue, w);
+    let pending = pv_empty();
+    let n = pv_count(h.pending);
+    i = 0;
+    while i <s n {
+        let p = pv_at(h.pending, i)! as &pending_reply;
+        if watch_is_in(p.ask.watch, w) {
+            host_abort_ask(p.id);
+            dropped = pv_push(dropped, p.ask);
+        } else {
+            pending = pv_push(pending, p);
+        }
+        i += 1;
+    }
+    h.pending = pending;
+    i = 0;
+    while i <s pv_count(dropped) {
+        let t = pv_at(dropped, i)! as &task;
+        watch_leave(h, t);
+        task_drop(h, t);
+        i += 1;
+    }
+}
+
+// The queued tasks in w, taken out of the queue.
+fn task_queue_drop_in(q: &task_queue, w: &watch) -> &pv_vector {
+    let dropped = pv_empty();
+    let kept = [task_array|null; q.items.length()];
+    let n = 0;
+    let i = q.head;
+    while i <s q.len {
+        let t = q.items[i]!;
+        if watch_is_in(t.watch, w) {
+            dropped = pv_push(dropped, t);
+        } else {
+            kept[n] = t;
+            n += 1;
+        }
+        i += 1;
+    }
+    q.items = kept;
+    q.head = 0;
+    q.len = n;
+    dropped;
+}
+
+// t won't run (or, an ask, its answer won't): its watch was cancelled.
+fn task_drop(h: &host, t: &task) {
+    t.dropped = 1;
+    h.events =
+        list_push(h.events, task_transition_value(t, s_t_dropped, list_empty(), list_empty()));
+}

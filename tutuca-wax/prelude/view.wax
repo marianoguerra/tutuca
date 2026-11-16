@@ -19,6 +19,7 @@ const view_kind_render_it = 11;
 const view_kind_scope = 12;
 const view_kind_push_view = 13;
 const view_kind_eq = 14;
+const view_kind_query = 15;
 
 rec {
     type view = open { kind: i32 };
@@ -65,6 +66,9 @@ rec {
     // left == value (left != value with negate): a bool, as a condition
     // compares (cond_eq).
     type view_eq: view = { .., left: &view, value: &value, negate: i32 };
+    // $query(name, ...args): the rendered component's query name with the
+    // args' values.
+    type view_query: view = { .., name: js_string, args: &view_array };
     // on:<event>: send(name, ...args), with the arguments as the handler
     // table keeps them (prelude/sem.wax's arg: a literal, the target's
     // value, the source key, the drag key, a field of the event, or an if

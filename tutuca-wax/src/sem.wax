@@ -217,7 +217,13 @@ fn template_new(
         all_values.copy(0, static_values, 0, n);
         all_values[n] = value_int(tid);
     }
-    {template| tid, shape: shape_new(tag_name, ns, all_names, all_values, names), handlers };
+    {template|
+        tid,
+        shape: shape_new(tag_name, ns, all_names, all_values, names),
+        handlers,
+        constant: 0,
+        vnode: null,
+    };
 }
 
 fn snode_el(
@@ -246,7 +252,7 @@ fn snode_group(key: js_string_opt, childs: &snode_array) -> &snode {
 }
 
 fn snode_component(name: js_string, meta: js_string_opt, childs: &snode_array) -> &snode {
-    let out: &snode_component = { kind: snode_kind_component, name, meta, childs };
+    let out: &snode_component = { kind: snode_kind_component, name, meta, childs, lowered: null };
     out;
 }
 

@@ -169,7 +169,7 @@ function demo({ title, description, type, fields, inspect, actions = [], asks = 
 		c.actions.append(
 			el("button", { class: UI.action, title: hint ?? "", onclick: () => {
 				c.note("note", `send ${send}(${args.map((a) => JSON.stringify(a)).join(", ")})`);
-				host.send(send, args);
+				host.send(send, args, { now: true });
 			} }, label),
 		);
 	}

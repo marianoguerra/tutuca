@@ -111,19 +111,25 @@ be of the field's type and need no fields).
 guard that the fields' constraints make impossible, an `ensures` about a
 field outside `changes`, an invariant the defaults break: reported.
 
-**Members**: `field`, `get`, `query name(args) -> T` (a property that
+**Members**: `field`, `public field` (also a query that takes nothing and
+gives the field, as tutuca's `.public()`: in the contract, read by
+`runtime.query`, and meeting an interface's query of its name and type),
+`get`, `query name(args) -> T` (a property that
 takes arguments: the runtime checks them against their types and `where`s,
-then runs it; `runtime.query(component, name, args)` gives `{ ok }` or
-`{ err }`), `[pure] message name(args) [-> swap] [source_key: T]
+then runs it, and checks what it returns against `T`;
+`runtime.query(component, name, args)` gives `{ ok }` or `{ err: { code,
+... } }`), `[pure] message name(args) [-> swap] [source_key: T]
 [when c [why "text"]] [changes a, b | nothing] [ensures c] [emits notify x,
-ask x, send type.msg, make type | nothing]` (a `pure` one's handler takes no
+ask x, send type.msg, reply x, make type | nothing]` (`reply x` a message
+back to the sender, `ctx_reply(ctx, gs_x, args)`; a `pure` one's handler takes no
 context, so it has no `source_key` and emits nothing, and a holder applies it
 to a child it holds, in its own task, as well as sends it; `why` says in
 words why `when` doesn't hold, which a failed apply reports), `notify`, `ask name(args) -> T [emits ...]`
 (what its reply's handlers may emit),
 `invariant name: c`, `init;`, `loop name { prepare: T; iter; key: T; filter;
 enrich { b: T } ; view: v }`, `scope name { b: T }`, `provide name =
-field(f);`, `meta "uri" = { key: value, ... };` (what the component says
+field(f);` or `provide name = seq_item(items, current);` (the item of a list
+or map field at the key another holds), `meta "uri" = { key: value, ... };` (what the component says
 about itself to hosts, under an absolute URI that keeps conventions apart,
 like `"https://tutuca.dev/meta/display"` with `title`, `icon` and
 `description`: a record of literals, lists and records, one per URI, set on
@@ -136,11 +142,19 @@ defaults; `use "x.tcd".{ Name }` takes one from another file, as
 `components/meta/meta.tcd`'s `Display` and `Canvas`), `register`,
 `ask_handler name(args) -> T;`, `host_ask name;`, `use`, `example`.
 
+**Views for render targets**: `view main @target(md) = Root(Heading(depth:
+1, field(title)), ...);` is a view for the `md` target, not the page
+(tutuca's `renders: { md }`), written in the target's nodes, which are
+elements named for them; each target's views have a main one
+(`tcd.view.main`). `runtime.renderTarget(component, "md")` renders them.
+
 **Views** are calls, attributes (named arguments) before children
 (positional), never interleaved: `div(class: "x", on_click: send(m),
 field(count), " left")`. A bare name is always a name (`field(count)`), text
-is always quoted. Constructs: `field`, `seq_item`, `provided`, `bind`, `if`,
-`frag`, `render(view: v, src)`, `render_each(loop: l, src)`, `each(loop: l,
+is always quoted. Constructs: `field`, `seq_item`, `provided`, `bind`,
+`query(name, args...)` (the component's query, tutuca's `$query`, its
+arguments literals or value reads of its parameters' types; not in an
+`each` body), `if`, `frag`, `render(view: v, src)`, `render_each(loop: l, src)`, `each(loop: l,
 src, body)`, `render_it(view: v)`, `scope`, `push_view`, `el("tag", ...)`;
 `send(msg, args)` in `on_<event>` attributes (quoted for modifiers:
 `"on_keydown+enter+prevent"`), whose arguments are literals,
@@ -151,7 +165,9 @@ item, a send's too (the item at the event's source key, in the list or map
 field the `each` goes over). A value read compares with a literal:
 `if(field(show) == "all", ...)`, `"aria-pressed": field(id) != "a"`. Two attributes aren't attributes: `key:`
 keys the element among its siblings, and `namespace:`, a constant URI, makes
-it (and what's in it) in that namespace (`svg` and `math` set theirs).
+it (and what's in it) in that namespace (`svg` and `math` set theirs). A
+`button` without a `type` is `type: "button"`, as tutuca's `tag.button`, so it
+doesn't submit its form.
 
 ## The naming convention
 

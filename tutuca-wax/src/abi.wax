@@ -364,6 +364,11 @@ fn abi_view_if(test: &view, then: &view, otherwise: &view) -> &view {
     view_if(test, then, otherwise);
 }
 
+#[export = "view_query"]
+fn abi_view_query(name: js_string, args: &view_array) -> &view {
+    view_query(name, args);
+}
+
 #[export = "view_eq"]
 fn abi_view_eq(left: &view, value: &value, negate: i32) -> &view {
     view_eq(left, value, negate);
@@ -543,6 +548,55 @@ fn abi_ctx_send_at(ctx: &context, name: js_string, args: &value_array, selector:
     ctx_send_at(ctx, name, args, selector);
 }
 
+// A copy of v with a fresh identity for every component in it (tutuca's
+// copy): what to put in the tree a second time.
+#[export = "value_copy"]
+fn abi_value_copy(v: &value) -> &value {
+    value_copy(v);
+}
+
+#[export = "ctx_ask_detached"]
+fn abi_ctx_ask_detached(ctx: &context, name: js_string, args: &value_array) -> i32 {
+    ctx_ask_detached(ctx, name, args);
+}
+
+#[export = "ctx_send_watched"]
+fn abi_ctx_send_watched(
+    ctx: &context,
+    name: js_string,
+    args: &value_array,
+    selector: &selector,
+    settled: js_string_opt,
+    settled_args: &value_array,
+    progress: js_string_opt,
+    progress_args: &value_array,
+    timeout: f64,
+    detached: i32,
+) -> i32 {
+    ctx_send_watched(
+        ctx,
+        name,
+        args,
+        selector,
+        settled,
+        settled_args,
+        progress,
+        progress_args,
+        timeout,
+        detached,
+    );
+}
+
+#[export = "ctx_cancel"]
+fn abi_ctx_cancel(ctx: &context, id: i32) {
+    ctx_cancel(ctx, id);
+}
+
+#[export = "ctx_reply"]
+fn abi_ctx_reply(ctx: &context, name: js_string, args: &value_array) {
+    ctx_reply(ctx, name, args);
+}
+
 #[export = "ctx_forward_at"]
 fn abi_ctx_forward_at(ctx: &context, selector: &selector) {
     ctx_forward_at(ctx, selector);
@@ -642,6 +696,11 @@ fn abi_selector_item(name: js_string, key: &path_key) -> &selector {
 #[export = "selector_field"]
 fn abi_selector_field(name: js_string) -> &selector {
     selector_field(name);
+}
+
+#[export = "selector_seq_item"]
+fn abi_selector_seq_item(name: js_string, key_field: js_string) -> &selector {
+    selector_seq_item(name, key_field);
 }
 
 #[export = "no_provides"]
@@ -1070,6 +1129,36 @@ fn abi_message_schema_set_why(ms: &message_schema, why: js_string) -> &message_s
     message_schema_set_why(ms, why);
 }
 
+#[export = "spec_set_render"]
+fn abi_spec_set_render(
+    spec: &component_spec,
+    target: js_string,
+    names: &str_array,
+    views: &view_array,
+) {
+    spec_set_render(spec, target, names, views);
+}
+
+#[export = "field_schema_set_public"]
+fn abi_field_schema_set_public(f: &field_schema) -> &field_schema {
+    field_schema_set_public(f);
+}
+
+#[export = "field_schema_set_default"]
+fn abi_field_schema_set_default(f: &field_schema, v: &value) -> &field_schema {
+    field_schema_set_default(f, v);
+}
+
+#[export = "message_schema_set_returns"]
+fn abi_message_schema_set_returns(ms: &message_schema, returns: &field_schema) -> &message_schema {
+    message_schema_set_returns(ms, returns);
+}
+
+#[export = "interface_schema_set_notifies"]
+fn abi_interface_schema_set_notifies(iface: &interface_schema, notifies: &message_schema_array) {
+    interface_schema_set_notifies(iface, notifies);
+}
+
 #[export = "interface_schema_set_queries"]
 fn abi_interface_schema_set_queries(iface: &interface_schema, queries: &message_schema_array) {
     interface_schema_set_queries(iface, queries);
@@ -1186,6 +1275,21 @@ fn abi_field_value(fields: &value, name: js_string) -> &?value {
 #[export = "init_issue"]
 fn abi_init_issue(issues: &value, field: js_string, problem: js_string) -> &value {
     init_issue(issues, field, problem);
+}
+
+#[export = "init_make_field"]
+fn abi_init_make_field(
+    ctx: &init_context,
+    owner: js_string,
+    field: js_string,
+    name: js_string,
+) -> &value {
+    init_make_field(ctx, owner, field, name);
+}
+
+#[export = "init_made_fail"]
+fn abi_init_made_fail(issues: &value, made: &value) -> &init_result {
+    init_made_fail(issues, made);
 }
 
 #[export = "init_fail"]

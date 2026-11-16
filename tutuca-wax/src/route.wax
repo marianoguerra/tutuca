@@ -81,6 +81,49 @@ fn set_key(v: &value, key: &path_key, item: &value) -> &value {
     unreachable;
 }
 
+// The value at key in v, or null when v isn't a container for key (no
+// component there, a field of a scalar), where get_key fails: what a lookup
+// that tells a missing component from one there uses. A component's
+// property that can't be read still fails.
+fn get_key_opt(v: &value, key: &path_key) -> &?value {
+    let kind = v.kind;
+    if key.kind == path_key_kind_name {
+        if (kind == value_kind_component) | (kind == value_kind_map) {
+            return get_key(v, key);
+        }
+        return null;
+    }
+    if kind == value_kind_list {
+        return get_key(v, key);
+    }
+    null;
+}
+
+// The value at path in root, or null when something on the way isn't a
+// container for the next key (tutuca's getIn, undefined-safe).
+fn key_path_find(path: &key_path, root: &value) -> &?value {
+    let v = root;
+    let i = 0;
+    while i <s path.keys.length() {
+        let got = get_key_opt(v, path.keys[i]!);
+        if !got {
+            return null;
+        }
+        v = got!;
+        i += 1;
+    }
+    v;
+}
+
+// key_path_find, null as a value.
+fn key_path_get_or_null(path: &key_path, root: &value) -> &value {
+    let got = key_path_find(path, root);
+    if !got {
+        return VALUE_NULL;
+    }
+    got!;
+}
+
 fn key_path_get_in(path: &key_path, root: &value) -> &value {
     let v = root;
     let i = 0;
@@ -241,7 +284,7 @@ fn route_for(path: &dispatch_path) -> &route {
 // root (0 when it reaches none).
 fn route_at(path: &dispatch_path, root: &value) -> &route {
     let key_path = dispatch_path_to_component_key_path(path);
-    let c = value_as_component(key_path_get_in(key_path, root));
+    let c = value_as_component(key_path_get_or_null(key_path, root));
     let id = 0;
     if !!c {
         id = (c!).id;
@@ -275,14 +318,17 @@ fn selector_freeze(sel: &selector, start: &value) -> &frame_array {
             } else {
                 let s = step as &selector_step_seq_item;
                 name = s.name;
-                item = key_from_value(get_key(v, path_key_name(s.key_field)));
+                let key = get_key_opt(v, path_key_name(s.key_field));
+                if !!key {
+                    item = key_from_value(key!);
+                }
             }
         }
         let keys = [path_key_array|null; 1];
         keys[0] = path_key_name(name);
         let f = {frame| keys, item, provider: null, is_component: 1 };
         frames[i] = f;
-        v = key_path_get_in({key_path| keys: frame_access_keys(f) }, v);
+        v = key_path_get_or_null({key_path| keys: frame_access_keys(f) }, v);
         i += 1;
     }
     frames;
@@ -314,6 +360,99 @@ fn value_from_key(key: &path_key) -> &value {
 // The dispatch path a target reaches in root: its base, then the frames its
 // selector freezes to below it.
 fn target_freeze(t: &target, root: &value) -> &dispatch_path {
-    let start = key_path_get_in(dispatch_path_to_key_path(t.base), root);
+    let start = key_path_get_or_null(dispatch_path_to_key_path(t.base), root);
     {dispatch_path| frames: frames_concat(t.base.frames, selector_freeze(t.selector, start)) };
+}
+
+// ---- Copies with fresh identities -------------------------------------------------------
+
+// A copy of v in which every component is a new one (tutuca's copy,
+// spec/tree's M8): the same type, scope and state, and a fresh identity for
+// each component at any depth, the fields of a component with a schema
+// copied too. Lists, maps and results holding a component are rebuilt
+// around its copy; what holds none is shared, as an update shares it.
+// Putting v in the tree twice instead would put two components with one
+// identity there, and a route would reach either.
+fn value_copy(v: &value) -> &value {
+    let copied = value_copy_nodes(v);
+    if !copied {
+        return v;
+    }
+    copied!;
+}
+
+// The copy of v, or null when v holds no component.
+fn value_copy_nodes(v: &value) -> &?value {
+    let kind = v.kind;
+    if kind == value_kind_list {
+        let out = v;
+        let changed = 0;
+        let i = 0;
+        while i <s list_count(v) {
+            let item = value_copy_nodes(list_get(v, i)!);
+            if !!item {
+                out = list_assoc(out, i, item!);
+                changed = 1;
+            }
+            i += 1;
+        }
+        if !changed {
+            return null;
+        }
+        return out;
+    }
+    if kind == value_kind_map {
+        let out = v;
+        let changed = 0;
+        let keys = map_keys(v);
+        let i = 0;
+        while i <s list_count(keys) {
+            let key = (list_get(keys, i)! as &value_string).value;
+            let item = value_copy_nodes(map_get(v, key)!);
+            if !!item {
+                out = map_assoc(out, key, item!);
+                changed = 1;
+            }
+            i += 1;
+        }
+        if !changed {
+            return null;
+        }
+        return out;
+    }
+    if kind == value_kind_result {
+        let r = v as &value_result;
+        let inner = value_copy_nodes(r.value);
+        if !inner {
+            return null;
+        }
+        if r.ok {
+            return value_ok(inner!);
+        }
+        return value_err(inner!);
+    }
+    if kind == value_kind_component {
+        let c = value_as_component(v)!;
+        let instance = c.instance;
+        if !!c.spec.schema {
+            let fields = (c.spec.schema!).fields;
+            let i = 0;
+            while i <s fields.length() {
+                let name = (fields[i]!).name;
+                let (code, got) = c.vtable.get(instance, name);
+                if (code == property_ok) & !!got {
+                    let item = value_copy_nodes(got!);
+                    if !!item {
+                        let (set_code, next) = c.vtable.set(instance, name, item!);
+                        if (set_code == property_ok) & !!next {
+                            instance = next!;
+                        }
+                    }
+                }
+                i += 1;
+            }
+        }
+        return value_component(component_new(c.spec, instance, c.vtable, c.scope));
+    }
+    null;
 }

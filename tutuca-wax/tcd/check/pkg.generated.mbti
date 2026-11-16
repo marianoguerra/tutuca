@@ -3,6 +3,7 @@ package "tutuca/tcd/check"
 
 import {
   "moonbitlang/core/debug",
+  "moonbitlang/core/json",
   "tutuca/tcd/diag",
   "tutuca/tcd/syntax",
 }
@@ -11,6 +12,8 @@ import {
 pub fn check(@syntax.File, Map[String, @syntax.File]) -> (Package, Array[@diag.Diagnostic])
 
 pub fn check_views(Package, ComponentM, Array[@diag.Diagnostic]) -> Unit
+
+pub let classes_meta : String
 
 pub fn closest(String, Array[String]) -> String?
 
@@ -71,11 +74,13 @@ pub fn wax_part(String) -> String
 // Errors
 
 // Types and methods
+#derive(Eq, @debug.Debug, @json.ToJson)
 pub(all) struct Bound {
   value : Double
   exclusive : Bool
-} derive(Eq, ToJson, @debug.Debug)
+}
 
+#derive(@debug.Debug, @json.ToJson)
 pub(all) struct ComponentM {
   name : String
   implements : Array[String]
@@ -90,37 +95,43 @@ pub(all) struct ComponentM {
   loops : Array[LoopM]
   scopes : Array[ScopeM]
   provides : Array[ProvideM]
+  publics : Array[String]
   metas : Array[MetaM]
   views : Array[ViewM]
   checks : Array[(String, Ty?)]
   doc : String?
   span : @diag.Span
-} derive(ToJson, @debug.Debug)
+}
 pub fn ComponentM::field(Self, String) -> FieldM?
 pub fn ComponentM::message(Self, String) -> MessageM?
 pub fn ComponentM::property(Self, String) -> FieldM?
 
+#derive(Eq, @debug.Debug, @json.ToJson)
 pub(all) enum EmitKindM {
   Notify
   Ask
   SendAt
   Make
-} derive(Eq, ToJson, @debug.Debug)
+  Reply
+}
 
+#derive(@debug.Debug, @json.ToJson)
 pub(all) struct EmitM {
   kind : EmitKindM
   name : String
   target : String?
-} derive(ToJson, @debug.Debug)
+}
 
+#derive(@debug.Debug, @json.ToJson)
 pub(all) struct ExampleM {
   name : String
   component : String
   start : Array[(String, @syntax.Expr)]
   steps : Array[StepM]
   span : @diag.Span
-} derive(ToJson, @debug.Debug)
+}
 
+#derive(@debug.Debug, @json.ToJson)
 pub(all) struct FieldM {
   name : String
   ty : Ty
@@ -131,8 +142,9 @@ pub(all) struct FieldM {
   sync : SyncLevel
   doc : String?
   span : @diag.Span
-} derive(ToJson, @debug.Debug)
+}
 
+#derive(@debug.Debug, @json.ToJson)
 pub(all) struct InterfaceM {
   name : String
   fields : Array[FieldM]
@@ -143,15 +155,17 @@ pub(all) struct InterfaceM {
   declared_here : Bool
   doc : String?
   span : @diag.Span
-} derive(ToJson, @debug.Debug)
+}
 
+#derive(@debug.Debug, @json.ToJson)
 pub(all) struct InvariantM {
   name : String
   cond : @syntax.Expr
   doc : String?
   span : @diag.Span
-} derive(ToJson, @debug.Debug)
+}
 
+#derive(@debug.Debug, @json.ToJson)
 pub(all) struct LoopM {
   name : String
   prepare : Ty?
@@ -161,8 +175,9 @@ pub(all) struct LoopM {
   enrich : Array[FieldM]?
   view : String?
   span : @diag.Span
-} derive(ToJson, @debug.Debug)
+}
 
+#derive(@debug.Debug, @json.ToJson)
 pub(all) struct MessageM {
   name : String
   params : Array[FieldM]
@@ -176,15 +191,17 @@ pub(all) struct MessageM {
   emits : Array[EmitM]?
   doc : String?
   span : @diag.Span
-} derive(ToJson, @debug.Debug)
+}
 
+#derive(@debug.Debug, @json.ToJson)
 pub(all) struct MetaM {
   uri : String
   value : @syntax.Expr
   span : @diag.Span
-} derive(ToJson, @debug.Debug)
-pub fn MetaM::json(Self) -> Json
+}
+pub fn MetaM::json(Self) -> @json.Json
 
+#derive(@debug.Debug, @json.ToJson)
 pub(all) struct MetaSchemaM {
   name : String
   uri : String
@@ -192,8 +209,9 @@ pub(all) struct MetaSchemaM {
   declared_here : Bool
   doc : String?
   span : @diag.Span
-} derive(ToJson, @debug.Debug)
+}
 
+#derive(Eq, @debug.Debug, @json.ToJson)
 pub(all) struct Norm {
   mut lo : Bound?
   mut hi : Bound?
@@ -205,10 +223,11 @@ pub(all) struct Norm {
   key_of : Array[String]
   member_of : Array[String]
   checks : Array[String]
-} derive(Eq, ToJson, @debug.Debug)
+}
 pub fn Norm::is_empty(Self) -> Bool
 pub fn Norm::new() -> Self
 
+#derive(@debug.Debug, @json.ToJson)
 pub(all) struct Package {
   full_name : String
   name : String
@@ -219,28 +238,33 @@ pub(all) struct Package {
   ask_handlers : Array[SignalM]
   host_asks : Array[String]
   examples : Array[ExampleM]
-} derive(ToJson, @debug.Debug)
+}
 pub fn Package::component(Self, String) -> ComponentM?
 pub fn Package::interface_named(Self, String) -> InterfaceM?
 pub fn Package::meta_schema_for(Self, String) -> MetaSchemaM?
 
+#derive(@debug.Debug, @json.ToJson)
 pub(all) struct ProvideM {
   name : String
   field : String
+  key : String?
   span : @diag.Span
-} derive(ToJson, @debug.Debug)
+}
 
+#derive(@debug.Debug, @json.ToJson)
 pub(all) struct RegisterM {
   component : String
   as_ : String
-} derive(ToJson, @debug.Debug)
+}
 
+#derive(@debug.Debug, @json.ToJson)
 pub(all) struct ScopeM {
   name : String
   binds : Array[FieldM]
   span : @diag.Span
-} derive(ToJson, @debug.Debug)
+}
 
+#derive(@debug.Debug, @json.ToJson)
 pub(all) struct SignalM {
   name : String
   params : Array[FieldM]
@@ -248,19 +272,22 @@ pub(all) struct SignalM {
   emits : Array[EmitM]?
   doc : String?
   span : @diag.Span
-} derive(ToJson, @debug.Debug)
+}
 
+#derive(@debug.Debug, @json.ToJson)
 pub(all) enum StepM {
   Send(String, Array[@syntax.Expr])
   Expect(@syntax.Expr)
-} derive(ToJson, @debug.Debug)
+}
 
+#derive(Eq, @debug.Debug, @json.ToJson)
 pub(all) enum SyncLevel {
   Shared
   Local
   NoSync
-} derive(Eq, ToJson, @debug.Debug)
+}
 
+#derive(Eq, @debug.Debug, @json.ToJson)
 pub(all) enum Ty {
   Bool
   S32
@@ -276,8 +303,9 @@ pub(all) enum Ty {
   OneOf(Array[Ty])
   Comp(Array[String])
   Result(Ty, Ty)
-} derive(Eq, ToJson, @debug.Debug)
+}
 
+#derive(Eq, @debug.Debug)
 pub(all) enum Val {
   VNull
   VBool(Bool)
@@ -286,14 +314,16 @@ pub(all) enum Val {
   VList(Array[Val])
   VMap(Array[(String, Val)])
   Unknown
-} derive(Eq, @debug.Debug)
+}
 
+#derive(@debug.Debug, @json.ToJson)
 pub(all) struct ViewM {
   name : String
+  target : String?
   body : @syntax.ViewExpr
   doc : String?
   span : @diag.Span
-} derive(ToJson, @debug.Debug)
+}
 
 // Type aliases
 

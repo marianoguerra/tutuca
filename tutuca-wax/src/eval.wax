@@ -40,6 +40,7 @@ fn spec_new(
             event_names: views_collect_event_names(views),
             schema: null,
             meta: map_empty(),
+            renders: smap_empty(),
         };
     if !spec_view_named(spec, s_main) {
         host_fail(js_string_concat(s_err_no_main_view, name));
@@ -48,34 +49,79 @@ fn spec_new(
 }
 
 fn spec_view_named(spec: &component_spec, name: js_string) -> &?view {
+    views_named(spec.view_names, spec.views, name);
+}
+
+fn views_named(names: &str_array, views: &view_array, name: js_string) -> &?view {
     let i = 0;
-    while i <s spec.view_names.length() {
-        if str_eq(spec.view_names[i], name) {
-            return spec.views[i];
+    while i <s names.length() {
+        if str_eq(names[i], name) {
+            return views[i];
         }
         i += 1;
     }
     null;
 }
 
+// Its views for target (tutuca's renders[target], spec.viewsFor), its
+// templates collected; main among them.
+fn spec_set_render(
+    spec: &component_spec,
+    target: js_string,
+    names: &str_array,
+    views: &view_array,
+) {
+    if names.length() != views.length() {
+        host_fail(js_string_concat(s_err_view_names, spec.name));
+    }
+    _ = views_collect_templates(views);
+    if !views_named(names, views, s_main) {
+        host_fail(js_string_concat(s_err_no_main_view, spec.name));
+    }
+    spec.renders = smap_assoc(spec.renders, target, {view_set| names, views });
+}
+
 // getBestViewFor: the view named, else the first of the views pushed that
 // the spec has, else its main view.
+// For a render target, among its views for it (tutuca's viewsFor): a spec
+// without them renders its page views when the target falls back to them,
+// and fails otherwise.
 fn spec_best_view(spec: &component_spec, name: js_string_opt, ctx: &render_context) -> &view {
+    let names = spec.view_names;
+    let views = spec.views;
+    if !!ctx.target {
+        let set = smap_get(spec.renders, ctx.target!);
+        if !!set {
+            names = (set! as &view_set).names;
+            views = (set! as &view_set).views;
+        } else {
+            if !ctx.falls_back {
+                let b = text_builder_new();
+                text_push(b, s_err_no_render);
+                text_push(b, spec.name);
+                text_push(b, s_err_has_no);
+                text_push(b, ctx.target!);
+                text_push(b, s_err_render_word);
+                host_fail(text_finish(b));
+                unreachable;
+            }
+        }
+    }
     if !!name {
-        let named = spec_view_named(spec, name!);
+        let named = views_named(names, views, name!);
         if !!named {
             return named!;
         }
     }
     let i = 0;
     while i <s ctx.views.length() {
-        let pushed = spec_view_named(spec, ctx.views[i]!);
+        let pushed = views_named(names, views, ctx.views[i]!);
         if !!pushed {
             return pushed!;
         }
         i += 1;
     }
-    spec_view_named(spec, s_main)!;
+    views_named(names, views, s_main)!;
 }
 
 fn spec_loop(spec: &component_spec, name: js_string) -> &loop_def {
@@ -149,7 +195,11 @@ fn entry_buf_push(buf: &entry_buf, e: &entry) {
 
 // A component's view, as the children of its component wrapper.
 fn view_eval_component(c: &component, name: js_string_opt, rc: &render_context) -> &snode_array {
-    let v = spec_best_view(c.spec, name, rc);
+    view_eval_view(c, spec_best_view(c.spec, name, rc), rc);
+}
+
+// c's view v, rendered in rc.
+fn view_eval_view(c: &component, v: &view, rc: &render_context) -> &snode_array {
     let e = {eval_ctx| rc, it: value_component(c), component: c, binds: map_empty() };
     let out = snode_buf_new();
     view_eval_into(out, v, e);
@@ -192,6 +242,15 @@ fn view_value(v: &view, e: &eval_ctx) -> &value {
         q: &view_eq => {
             let same = cond_eq(view_value(q.left, e), q.value);
             return value_bool(q.negate?!same:same);
+        }
+        q: &view_query => {
+            let args = [value_array|null; q.args.length()];
+            let i = 0;
+            while i <s q.args.length() {
+                args[i] = view_value(q.args[i]!, e);
+                i += 1;
+            }
+            return view_query_value(e.it, q.name, args);
         }
         _ => {
             host_fail(s_err_not_a_value);
@@ -559,4 +618,26 @@ fn loop_entry(p: &loop_pass, key: &value, item: &value) {
             body: snode_buf_finish(nodes),
         },
     );
+}
+
+// What it's query name gives with args (tutuca's QueryNode): it is the
+// rendered component; the render fails when it isn't one, or when the
+// query can't run.
+fn view_query_value(it: &value, name: js_string, args: &value_array) -> &value {
+    let c = value_as_component(it);
+    if !c {
+        host_fail(js_string_concat(s_err_query_not_component, name));
+        unreachable;
+    }
+    let result = component_query(c!, name, args) as &value_result;
+    if !result.ok {
+        let b = text_builder_new();
+        text_push(b, s_err_query_failed);
+        text_push(b, name);
+        text_push(b, s_colon_space);
+        text_push(b, value_string_of(map_get(result.value, s_code)!)!);
+        host_fail(text_finish(b));
+        unreachable;
+    }
+    result.value;
 }

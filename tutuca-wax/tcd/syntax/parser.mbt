@@ -539,6 +539,7 @@ fn Parser::field(
   self : Parser,
   doc : String?,
   is_get : Bool,
+  public_~ : Bool = false,
 ) -> Field raise ParseFailed {
   let start = self.prev_span()
   let name = self.name(what="a field name")
@@ -564,7 +565,7 @@ fn Parser::field(
     where_ = self.where_clause()
   }
   let end = self.end_member()
-  { doc, name, ty, default, where_, sync, span: start.merge(end), }
+  { doc, name, ty, default, where_, sync, public_, span: start.merge(end) }
 }
 
 ///|
@@ -574,18 +575,19 @@ fn Parser::emits(self : Parser) -> Array[Emit] raise ParseFailed {
   }
   let out = []
   for ;; {
-    let k = self.name(what="notify, ask, send or make")
+    let k = self.name(what="notify, ask, send, reply or make")
     let kind : EmitKind = match k.text {
       "notify" => Notify
       "ask" => Ask
       "send" => Send
       "make" => Make
+      "reply" => Reply
       _ =>
         raise ParseFailed(
           @diag.error(
             "tcd.syntax.emit",
             k.span,
-            "an emit is notify, ask, send or make, not \{k.text}",
+            "an emit is notify, ask, send, reply or make, not \{k.text}",
           ),
         )
     }
@@ -769,11 +771,16 @@ fn Parser::one_member(self : Parser) -> Member raise ParseFailed {
   guard t.tok is Ident(word) else {
     self.i -= 1
     raise self.fail(
-      "a member: field, get, query, message, pure message, notify, ask, invariant, init, loop, scope, provide, meta or view",
+      "a member: field, public field, get, query, message, pure message, notify, ask, invariant, init, loop, scope, provide, meta or view",
     )
   }
   match word {
     "field" => Field(self.field(doc, false))
+    // A public field is also a query (tutuca's .public()).
+    "public" => {
+      self.expect_word("field")
+      Field(self.field(doc, false, public_=true))
+    }
     "get" => Get(self.field(doc, true))
     "message" => Message(self.message(doc))
     "pure" => {
@@ -818,15 +825,25 @@ fn Parser::one_member(self : Parser) -> Member raise ParseFailed {
     }
     "view" => {
       let name = self.name(what="a view name")
+      // view main @target(md) = ...: a view for a render target.
+      let target = if self.eat_punct("@") {
+        self.expect_word("target")
+        ignore(self.expect_punct("("))
+        let t = self.name(what="a render target: md, tui, ...")
+        ignore(self.expect_punct(")"))
+        Some(t)
+      } else {
+        None
+      }
       ignore(self.expect_punct("="))
       let body = self.view()
       let end = self.end_member()
-      View({ doc, name, body, span: t.span.merge(end), })
+      View({ doc, name, target, body, span: t.span.merge(end) })
     }
     _ => {
       self.i -= 1
       raise self.fail(
-        "a member: field, get, query, message, pure message, notify, ask, invariant, init, loop, scope, provide, meta or view",
+        "a member: field, public field, get, query, message, pure message, notify, ask, invariant, init, loop, scope, provide, meta or view",
       )
     }
   }

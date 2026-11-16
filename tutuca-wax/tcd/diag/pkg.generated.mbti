@@ -3,6 +3,7 @@ package "tutuca/tcd/diag"
 
 import {
   "moonbitlang/core/debug",
+  "moonbitlang/core/json",
 }
 
 // Values
@@ -21,6 +22,7 @@ pub fn warning(String, Span, String, hint? : String, related? : Array[Related]) 
 // Errors
 
 // Types and methods
+#derive(Eq, @debug.Debug, @json.ToJson)
 pub(all) struct Diagnostic {
   code : String
   severity : Severity
@@ -28,31 +30,35 @@ pub(all) struct Diagnostic {
   message : String
   hint : String?
   related : Array[Related]
-} derive(Eq, ToJson, @debug.Debug)
+}
 
+#derive(Eq, @debug.Debug, @json.ToJson)
 pub(all) struct Pos {
   line : Int32
   col : Int32
   offset : Int32
-} derive(Eq, ToJson, @debug.Debug)
+}
 
+#derive(Eq, @debug.Debug, @json.ToJson)
 pub(all) struct Related {
   span : Span
   message : String
-} derive(Eq, ToJson, @debug.Debug)
+}
 
+#derive(Eq, @debug.Debug)
 pub(all) enum Severity {
   Error
   Warning
   Note
-} derive(Eq, @debug.Debug)
-pub impl ToJson for Severity
+}
+pub impl @json.ToJson for Severity
 
+#derive(Eq, @debug.Debug, @json.ToJson)
 pub(all) struct Span {
   file : String
   start : Pos
   end : Pos
-} derive(Eq, ToJson, @debug.Debug)
+}
 pub fn Span::merge(Self, Self) -> Self
 pub fn Span::none(String) -> Self
 

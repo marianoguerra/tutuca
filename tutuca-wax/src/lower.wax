@@ -66,8 +66,16 @@ fn lower_entry(e: &entry) -> &vnode {
 fn lower_into(out: &vnode_buf, node: &snode) {
     match node {
         n: &snode_el => {
-            let shape = n.template.shape;
-            vnode_buf_push(out, vnode_elem(shape, n.values, lower_all(n.childs), n.key));
+            let t = n.template;
+            // A constant element is lowered once, and every render shares it.
+            if t.constant {
+                if !t.vnode {
+                    t.vnode = vnode_elem(t.shape, n.values, lower_all(n.childs), n.key);
+                }
+                vnode_buf_push(out, t.vnode! as &vnode);
+                return;
+            }
+            vnode_buf_push(out, vnode_elem(t.shape, n.values, lower_all(n.childs), n.key));
             return;
         }
         n: &snode_text => {
@@ -83,11 +91,22 @@ fn lower_into(out: &vnode_buf, node: &snode) {
             return;
         }
         n: &snode_component => {
-            if !n.meta {
-                wrap_into(out, VNODE_META_COMPONENT, n.childs);
-                return;
+            // Lowered once: a render the cache reuses gives the same vnodes.
+            if !n.lowered {
+                let own = vnode_buf_new();
+                if !n.meta {
+                    wrap_into(own, VNODE_META_COMPONENT, n.childs);
+                } else {
+                    wrap_into(own, vnode_comment(n.meta!), n.childs);
+                }
+                n.lowered = vnode_buf_finish(own);
             }
-            wrap_into(out, vnode_comment(n.meta!), n.childs);
+            let lowered = n.lowered! as &vnode_array;
+            let i = 0;
+            while i <s lowered.length() {
+                vnode_buf_push(out, lowered[i]!);
+                i += 1;
+            }
             return;
         }
         n: &snode_enter => {

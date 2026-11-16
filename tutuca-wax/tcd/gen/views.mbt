@@ -45,6 +45,13 @@ fn Gen::view(self : Gen, b : Block, v : @syntax.ViewExpr) -> String {
         "seq_item" =>
           "view_seq_item(\{self.s(name_of(args[0]))}, \{self.s(name_of(args[1]))})"
         "provided" => "view_provided(\{self.s(name_of(args[0]))})"
+        "query" => {
+          let qargs = b.array(
+            "view_array",
+            args[1:].to_owned().map(a => self.view(b, a)),
+          )
+          b.bind("view_query(\{self.s(name_of(args[0]))}, \{qargs})")
+        }
         "bind" => "view_lookup_bind(\{self.s(name_of(args[0]))})"
         "==" | "!=" => {
           let left = self.view(b, args[0])
@@ -192,6 +199,12 @@ fn Gen::element(
       names.push(self.s(k))
       values.push(self.view(b, a.value))
     }
+  }
+  // A button doesn't submit its form unless it says type, as tutuca's
+  // tag.button.
+  if tag == "button" && !attrs.iter().any(a => a.key.text == "type") {
+    names.push(self.s("type"))
+    values.push("view_const(value_string(\{self.s("button")}))")
   }
   let name_arr = b.array("str_array", names)
   let value_arr = b.array("view_array", values)

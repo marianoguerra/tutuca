@@ -4,7 +4,7 @@
 // value, push_view, render_it, and drag and drop.
 package tutuca:showcase@0.1.0;
 
-use "../meta/meta.tcd".{ Display };
+use "../meta/meta.tcd".{ Display, Classes };
 
 /// A shelf of books. The books loop keeps only the unread ones when
 /// only_unread, keys them by title, and binds label as "title (year)"; the
@@ -75,9 +75,11 @@ component Shelf {
                 span(class: "text-xs opacity-60", "Drop a book on a note to write its title there."))));
 }
 
-/// A note: its text, in a paragraph, or small in the provided theme.
+/// A note: its text, in a paragraph, or small in the provided theme, whose
+/// classes it lists for the CSS compiler.
 component Note {
     meta "https://tutuca.dev/meta/display" = { title: "Note", icon: "📝", description: "A note's text." };
+    meta "https://tutuca.dev/meta/classes" = { classes: "dark light" };
     field text: string;
 
     pure message set_text(text: string) changes text ensures next.text == text;

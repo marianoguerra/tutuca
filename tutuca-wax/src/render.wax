@@ -2,10 +2,223 @@
 // in tutuca's src/core/view.js; the spec's view/view.rkt): what crosses component
 // boundaries while a view renders, and wrapping a component's render.
 
+// ---- The render cache (tutuca's CopyCache, src/core/view/render-cache.js) ------------
+//
+// A component's render is a function of its instance (an unchanged one is
+// the same reference), the view picked for it, the view stack its
+// descendants inherit and the provided values read anywhere below it: not of
+// where it is, which the frames around it say. The cache keeps the last
+// render's entries as a tree, each component's under its parent's, found by
+// the component's identity, which updates and moves keep: a render reuses an
+// entry whose instance, view and view stack are the same and whose provided
+// values still are, and its subtree comes with it; a miss renders again,
+// finding its children among the old entry's. What a render doesn't reach
+// goes with the last tree, so memory is the current render's. A place whose
+// deps changed THRASH renders in a row stops keeping its render, but for one
+// in RETRY.
+
+const cache_thrash = 2;
+const cache_retry = 16;
+
+// A provided value a render read, as it was.
+type dep = { name: js_string, value: &value };
+type dep_buf = { items: mut &pv_vector };
+
+// Entries by component identity, written as text (the maps' keys are
+// strings).
+type cache_children = { by_id: mut &phm_map };
+
+// A component's last render: what it was of, what provided values it read
+// ({ name, value } each, the ones it provides itself left out), what it
+// rendered (null when it isn't kept), and its children's entries.
+type cache_entry = {
+    spec: &component_spec,
+    instance: &eq,
+    view: &view,
+    views: &str_array,
+    deps: mut &dep_buf,
+    result: mut &?snode,
+    misses: i32,
+    children: &cache_children
+};
+
+// How many components a host's renders reused and rendered again.
+type cache_stats = { hits: mut i32, misses: mut i32 };
+
+// Where a render finds the entries of the components it renders (from, the
+// last render's) and keeps them (to, this render's).
+type cache_level = { from: &cache_children, to: &cache_children, stats: &cache_stats };
+
 // What a render gets from where it happens: what ancestors provide (name ->
 // provided), the view names they pushed, innermost first, and the frames
-// entered from the root.
-type render_context = { provided: &phm_map, views: &str_array, depth: i32 };
+// entered from the root; with a render cache, the level of it the
+// components rendered here are found and kept in, and what's provided that
+// the component rendering reads, which its entry depends on.
+type render_context = {
+    provided: &phm_map,
+    views: &str_array,
+    depth: i32,
+    cache: &?cache_level,
+    deps: &?dep_buf,
+    // The render target whose views it picks (null for the page's), and
+    // whether a component without views for it shows its page views.
+    target: js_string_opt,
+    falls_back: i32
+};
+
+fn cache_children_new() -> &cache_children {
+    {cache_children| by_id: smap_empty() };
+}
+
+fn dep_buf_new() -> &dep_buf {
+    {dep_buf| items: pv_empty() };
+}
+
+// Notes that name was read as value: deps are few, a scan is cheaper than a
+// map.
+fn dep_buf_add(deps: &dep_buf, name: js_string, value: &value) {
+    let i = 0;
+    while i <s pv_count(deps.items) {
+        if str_eq((pv_at(deps.items, i)! as &dep).name, name) {
+            return;
+        }
+        i += 1;
+    }
+    deps.items = pv_push(deps.items, {dep| name, value });
+}
+
+// A child's deps are its parent's too.
+fn dep_buf_merge(into: &?dep_buf, deps: &dep_buf) {
+    if !into {
+        return;
+    }
+    let i = 0;
+    while i <s pv_count(deps.items) {
+        let d = pv_at(deps.items, i)! as &dep;
+        dep_buf_add(into!, d.name, d.value);
+        i += 1;
+    }
+}
+
+// Whether what entry read is provided as it was.
+fn cache_deps_hold(entry: &cache_entry, ctx: &render_context) -> i32 {
+    let i = 0;
+    while i <s pv_count(entry.deps.items) {
+        let d = pv_at(entry.deps.items, i)! as &dep;
+        let now = smap_get(ctx.provided, d.name);
+        if !now {
+            return 0;
+        }
+        if !value_same((now! as &provided).value, d.value) {
+            return 0;
+        }
+        i += 1;
+    }
+    1;
+}
+
+fn str_arrays_same(a: &str_array, b: &str_array) -> i32 {
+    if a == b {
+        return 1;
+    }
+    if a.length() != b.length() {
+        return 0;
+    }
+    let i = 0;
+    while i <s a.length() {
+        if !str_eq(a[i]!, b[i]!) {
+            return 0;
+        }
+        i += 1;
+    }
+    1;
+}
+
+// The deps a component's subtree read, less the names it provides itself.
+fn cache_own_deps(spec: &component_spec, deps: &dep_buf) -> &dep_buf {
+    if spec.provide_names.length() == 0 {
+        return deps;
+    }
+    let own = dep_buf_new();
+    let i = 0;
+    while i <s pv_count(deps.items) {
+        let d = pv_at(deps.items, i)! as &dep;
+        if !str_array_has(spec.provide_names, d.name) {
+            own.items = pv_push(own.items, d);
+        }
+        i += 1;
+    }
+    own;
+}
+
+// c's render in ctx, of view v: the last one when it still holds, a new one
+// otherwise, kept in ctx's level.
+fn cache_render(c: &component, v: &view, ctx: &render_context, level: &cache_level) -> &snode {
+    let key = int_text(c.id);
+    let found = smap_get(level.from.by_id, key);
+    let old: &?cache_entry = null;
+    if !!found {
+        let e = found! as &cache_entry;
+        if (e.spec == c.spec) & (e.view == v) & str_arrays_same(e.views, ctx.views) {
+            old = e;
+        }
+    }
+    if !!old {
+        let e = old!;
+        if (e.instance == c.instance) & !!e.result & cache_deps_hold(e, ctx) {
+            level.to.by_id = smap_assoc(level.to.by_id, key, e);
+            dep_buf_merge(ctx.deps, e.deps);
+            level.stats.hits = level.stats.hits + 1;
+            return e.result!;
+        }
+    }
+    level.stats.misses = level.stats.misses + 1;
+    let misses = 0;
+    let from = cache_children_new();
+    if !!old {
+        from = (old!).children;
+        if (old!).instance == c.instance {
+            // The same instance, but what it read changed: churn.
+            misses = (old!).misses + 1;
+        }
+    }
+    let children = cache_children_new();
+    let deps = dep_buf_new();
+    let inner =
+        {render_context|
+            provided: ctx.provided,
+            views: ctx.views,
+            depth: ctx.depth,
+            cache: {cache_level| from, to: children, stats: level.stats },
+            deps,
+            target: ctx.target,
+            falls_back: ctx.falls_back,
+        };
+    let result =
+        snode_component(
+            c.spec.name,
+            render_provides_meta(c.spec, inner),
+            view_eval_view(c, v, inner),
+        );
+    let own = cache_own_deps(c.spec, deps);
+    dep_buf_merge(ctx.deps, own);
+    let entry =
+        {cache_entry|
+            spec: c.spec,
+            instance: c.instance,
+            view: v,
+            views: ctx.views,
+            deps: own,
+            result: null,
+            misses,
+            children,
+        };
+    if (misses <s cache_thrash) | (misses %s cache_retry == 0) {
+        entry.result = result;
+    }
+    level.to.by_id = smap_assoc(level.to.by_id, key, entry);
+    result;
+}
 
 // enterFrame: one frame further, capturing what the value entered provides at
 // its depth; its provides shadow outer ones.
@@ -25,7 +238,15 @@ fn render_context_enter_frame(ctx: &render_context, entered: &value) -> &render_
             i += 1;
         }
     }
-    {render_context| provided, views: ctx.views, depth };
+    {render_context|
+        provided,
+        views: ctx.views,
+        depth,
+        cache: ctx.cache,
+        deps: ctx.deps,
+        target: ctx.target,
+        falls_back: ctx.falls_back,
+    };
 }
 
 // pushView: name first among the views the components below prefer.
@@ -34,16 +255,29 @@ fn render_context_push_view(ctx: &render_context, name: js_string) -> &render_co
     let views = [str_array|null; n + 1];
     views[0] = name;
     views.copy(1, ctx.views, 0, n);
-    {render_context| provided: ctx.provided, views, depth: ctx.depth };
+    {render_context|
+        provided: ctx.provided,
+        views,
+        depth: ctx.depth,
+        cache: ctx.cache,
+        deps: ctx.deps,
+        target: ctx.target,
+        falls_back: ctx.falls_back,
+    };
 }
 
-// The value an ancestor provides under name, or null.
+// The value an ancestor provides under name, or null; read, it's what the
+// component rendering depends on (tutuca's readProvided).
 fn render_context_provided(ctx: &render_context, name: js_string) -> &?provided {
     let found = smap_get(ctx.provided, name);
     if !found {
         return null;
     }
-    found! as &provided;
+    let p = found! as &provided;
+    if !!ctx.deps {
+        dep_buf_add(ctx.deps!, name, p.value);
+    }
+    p;
 }
 
 // The frame a provided source enters: a jump to where it was captured.
@@ -59,11 +293,11 @@ fn render_context_provided_frame(ctx: &render_context, name: js_string) -> &?fra
 // renderView: a component's view (the one named, the first of ctx.views it
 // has, or its main view) inside its component wrapper.
 fn render_view(c: &component, view: js_string_opt, ctx: &render_context) -> &snode {
-    snode_component(
-        c.spec.name,
-        render_provides_meta(c.spec, ctx),
-        view_eval_component(c, view, ctx),
-    );
+    let v = spec_best_view(c.spec, view, ctx);
+    if !!ctx.cache {
+        return cache_render(c, v, ctx, ctx.cache!);
+    }
+    snode_component(c.spec.name, render_provides_meta(c.spec, ctx), view_eval_view(c, v, ctx));
 }
 
 // providesIn: the opening comment of a component that provides values, where
@@ -100,15 +334,123 @@ fn render_child(f: &frame, child: &value, view: js_string_opt, ctx: &render_cont
     snode_enter(f, childs);
 }
 
-// The root render: the root component, entered from depth -1.
-fn render_root(root: &value) -> &snode_array {
+// The root render: the root component, entered from depth -1; with a
+// cache's level, finding and keeping its renders there.
+fn render_root(root: &value, cache: &?cache_level) -> &snode_array {
     let c = value_as_component(root);
     if !c {
         host_fail(s_err_render_not_component);
         unreachable;
     }
-    let start = {render_context| provided: smap_empty(), views: [str_array|null; 0], depth: -1 };
+    let start =
+        {render_context|
+            provided: smap_empty(),
+            views: [str_array|null; 0],
+            depth: -1,
+            cache,
+            deps: null,
+            target: null,
+            falls_back: 0,
+        };
     let out = [snode_array|null; 1];
     out[0] = render_view(c!, null, render_context_enter_frame(start, root));
     out;
+}
+
+// ---- Render targets (tutuca's RenderTarget, renders and viewsFor) ----------------------
+
+// What v, a component, renders for target, as plain data a target's renderer
+// lowers (tutuca's renderedVNodes): a list of nodes, an element { tag,
+// attrs, key?, children } (its tag the target's node type, md's Paragraph),
+// a text a string; the metadata comments, and the frames and loops they
+// mark, aren't there, as a target has no DOM to route events from. view
+// picks one of its views; falls_back renders a component without views for
+// target with its page views, as a terminal does.
+fn render_target(root: &value, target: js_string, view: js_string_opt, falls_back: i32) -> &value {
+    let c = value_as_component(root);
+    if !c {
+        host_fail(s_err_render_not_component);
+        unreachable;
+    }
+    let start =
+        {render_context|
+            provided: smap_empty(),
+            views: [str_array|null; 0],
+            depth: -1,
+            cache: null,
+            deps: null,
+            target,
+            falls_back,
+        };
+    let ctx = render_context_enter_frame(start, root);
+    let out = list_empty();
+    let rendered = [snode_array|null; 1];
+    rendered[0] = render_view(c!, view, ctx);
+    snodes_data_into(out, rendered);
+}
+
+fn snodes_data_into(out: &value, nodes: &snode_array) -> &value {
+    let acc = out;
+    let i = 0;
+    while i <s nodes.length() {
+        acc = snode_data_into(acc, nodes[i]!);
+        i += 1;
+    }
+    acc;
+}
+
+fn snode_data_into(out: &value, node: &snode) -> &value {
+    match node {
+        n: &snode_el => {
+            let shape = n.template.shape;
+            let attrs = map_empty();
+            let i = 0;
+            while i <s shape.static_names.length() {
+                if !str_eq(shape.static_names[i]!, s_data_eid) {
+                    attrs = map_assoc(attrs, shape.static_names[i]!, shape.static_values[i]!);
+                }
+                i += 1;
+            }
+            i = 0;
+            while i <s shape.names.length() {
+                attrs = map_assoc(attrs, shape.names[i]!, n.values[i]!);
+                i += 1;
+            }
+            let m = map_assoc(map_empty(), s_tag, value_string(shape.tag_name));
+            m = map_assoc(m, s_attrs, attrs);
+            if !!n.key {
+                m = map_assoc(m, s_key, value_string(n.key!));
+            }
+            m = map_assoc(m, s_children, snodes_data_into(list_empty(), n.childs));
+            return list_push(out, m);
+        }
+        n: &snode_text => {
+            return list_push(out, value_string(n.text));
+        }
+        n: &snode_comment => {
+            return out;
+        }
+        n: &snode_group => {
+            return snodes_data_into(out, n.childs);
+        }
+        n: &snode_component => {
+            return snodes_data_into(out, n.childs);
+        }
+        n: &snode_enter => {
+            return snodes_data_into(out, n.childs);
+        }
+        n: &snode_items => {
+            let acc = out;
+            let i = 0;
+            while i <s n.entries.length() {
+                acc = snodes_data_into(acc, (n.entries[i]!).body);
+                i += 1;
+            }
+            return acc;
+        }
+        _ => {
+            unreachable;
+        }
+    }
+    unreachable;
 }

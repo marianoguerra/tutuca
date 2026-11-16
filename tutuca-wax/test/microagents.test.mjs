@@ -140,10 +140,10 @@ describe("the shell", () => {
 			[{ name: "set_pointer", arguments: { id: "zz", pointer: "/x" } }, { name: "resolve", arguments: { pointer: "/name" } }],
 			["Fixed q3: the array has two servers."],
 		]);
-		host.send("open_sample", ["jsonpointer-lab", "config"]);
+		host.send("open_sample", ["jsonpointer-lab", "config"], { now: true });
 		await host.settled();
-		host.sendAt([["sessions", 0]], "set_draft", ["fix q3"]);
-		host.sendAt([["sessions", 0]], "send_chat", []);
+		host.send("set_draft", ["fix q3"], { to: [["sessions", 0]], now: true });
+		host.send("send_chat", [], { to: [["sessions", 0]], now: true });
 		await host.settled();
 		for (let i = 0; i < 20 && t.runtime.get(t.runtime.get(host.root(), "sessions")[0], "busy"); i++) {
 			await tick();
@@ -186,9 +186,9 @@ describe("the shell", () => {
 
 	test("export downloads the workspace's data", async () => {
 		const { host, downloads } = await shellWith([]);
-		host.send("open_sample", ["jsonpointer-lab", "empty"]);
+		host.send("open_sample", ["jsonpointer-lab", "empty"], { now: true });
 		await host.settled();
-		host.sendAt([["sessions", 0]], "export", []);
+		host.send("export", [], { to: [["sessions", 0]], now: true });
 		await host.settled();
 		assert.equal(downloads.length, 1);
 		assert.deepEqual(JSON.parse(downloads[0].text), { pointers: [{ id: "q1", pointer: "" }], document: {} });

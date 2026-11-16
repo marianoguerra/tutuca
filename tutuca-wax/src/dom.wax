@@ -526,6 +526,20 @@ fn place(
     let old_nodes = old_groups[index]!;
     let source_frag = source.kind == vnode_kind_frag;
     let target_frag = target.kind == vnode_kind_frag;
+    // A shared fragment (a cached render's loop) has the nodes it had: only
+    // placed.
+    if source_frag & (source == target) {
+        if old_nodes.len >s 0 {
+            if !same_node(next_owned_sibling(ext_buf_at(old_nodes, old_nodes.len - 1)), before) {
+                let i = 0;
+                while i <s old_nodes.len {
+                    dom_insert_before(parent, ext_buf_at(old_nodes, i), before);
+                    i += 1;
+                }
+            }
+        }
+        return old_nodes;
+    }
     if source_frag & target_frag {
         return
             morph_children(

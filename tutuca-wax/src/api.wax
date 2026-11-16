@@ -316,6 +316,22 @@ fn api_host_new(doc: dom_document_opt, container: dom_node_opt, root: &value) ->
 }
 
 // Dev mode: checks the whole state now, then after each task.
+// Whether h's renders reuse what the last one rendered where nothing it
+// depends on changed (on by default, as tutuca's CopyCache).
+#[export = "host_set_render_cache"]
+fn api_host_set_render_cache(h: &host, enabled: i32) {
+    h.render_cache = enabled;
+    h.cache_tree = cache_children_new();
+}
+
+// How many components h's renders reused from the cache, and rendered:
+// { hits, misses }.
+#[export = "host_cache_stats"]
+fn api_host_cache_stats(h: &host) -> &value {
+    let m = map_assoc(map_empty(), s_hits, value_int(h.cache_stats.hits));
+    map_assoc(m, s_misses, value_int(h.cache_stats.misses));
+}
+
 #[export = "host_set_dev"]
 fn api_host_set_dev(h: &host, dev: i32) {
     h.dev = dev;
@@ -355,7 +371,7 @@ fn api_component_message_problem(v: &value, name: js_string, args: &value) -> &v
 fn api_component_query(v: &value, name: js_string, args: &value) -> &value {
     let c = value_as_component(v);
     if !c {
-        return value_err(value_string(s_no_such_query));
+        return not_component_error(name);
     }
     component_query(c!, name, list_to_values(args));
 }
@@ -368,6 +384,17 @@ fn api_component_apply(v: &value, name: js_string, args: &value) -> &value {
     value_try_apply(v, name, list_to_values(args), 1);
 }
 
+// The identity of the component v (tutuca's idOf), or 0 for a value that
+// isn't one.
+#[export = "component_id"]
+fn api_component_id(v: &value) -> i32 {
+    let c = value_as_component(v);
+    if !c {
+        return 0;
+    }
+    (c!).id;
+}
+
 // What the component v offers (component_contract), or null.
 #[export = "component_contract"]
 fn api_component_contract(v: &value) -> &value {
@@ -376,6 +403,18 @@ fn api_component_contract(v: &value) -> &value {
         return VALUE_NULL;
     }
     component_contract(c!);
+}
+
+// What the type registered as name, visible from s, offers, its interfaces
+// resolved in s (spec_contract); null for no such type or one without a
+// schema.
+#[export = "scope_contract"]
+fn api_scope_contract(s: &scope, name: js_string) -> &value {
+    let entry = scope_lookup(s, name);
+    if !entry {
+        return VALUE_NULL;
+    }
+    spec_contract((entry!).spec, s);
 }
 
 // What the component v lacks to implement the interface name, as a list of
@@ -416,6 +455,33 @@ fn api_component_meta_of(v: &value, uri: js_string) -> &value {
     spec_meta_in((c!).scope, (c!).spec, uri);
 }
 
+// What the component v renders for target (render_target), as data.
+#[export = "render_target"]
+fn api_render_target(v: &value, target: js_string, view: js_string_opt, falls_back: i32) -> &value {
+    render_target(v, target, view, falls_back);
+}
+
+// Whether the component v says anything under uri (tutuca's hasMeta).
+#[export = "component_has_meta"]
+fn api_component_has_meta(v: &value, uri: js_string) -> i32 {
+    let c = value_as_component(v);
+    if !c {
+        return 0;
+    }
+    !!map_get((c!).spec.meta, uri);
+}
+
+// What's wrong with what the component v says under uri, against its
+// scope's schema for it (component_meta_problems).
+#[export = "component_meta_problems"]
+fn api_component_meta_problems(v: &value, uri: js_string) -> &value {
+    let c = value_as_component(v);
+    if !c {
+        return list_empty();
+    }
+    component_meta_problems(c!, uri);
+}
+
 // The meta schema registered for uri, visible from s, as a value: { uri,
 // fields, defaults }, or null.
 #[export = "scope_meta_schema"]
@@ -435,10 +501,17 @@ fn api_host_root(h: &host) -> &value {
     h.root;
 }
 
-// A message to the root component; args is a list value.
+// A message from the host to the component sel reaches from the root, now
+// (ahead of the queue) or at the back; args is a list value. Its number.
 #[export = "host_send"]
-fn api_host_send(h: &host, name: js_string, args: &value) {
-    host_send(h, name, list_to_values(args));
+fn api_host_send(h: &host, name: js_string, args: &value, sel: &selector, now: i32) -> i32 {
+    host_send(h, name, list_to_values(args), sel, now);
+}
+
+// The empty selector: the root.
+#[export = "selector_root"]
+fn api_selector_root() -> &selector {
+    empty_selector();
 }
 
 // The path of the component the task running, or the last one run, is for
@@ -446,11 +519,6 @@ fn api_host_send(h: &host, name: js_string, args: &value) {
 #[export = "host_task_path"]
 fn api_host_task_path(h: &host) -> &value {
     h.at;
-}
-
-#[export = "host_send_at"]
-fn api_host_send_at(h: &host, name: js_string, args: &value, sel: &selector) {
-    host_send_at(h, name, list_to_values(args), sel);
 }
 
 #[export = "selector_join"]
@@ -481,8 +549,63 @@ fn api_constraint_problem(c: &constraint, v: &value) -> &value {
 
 // After a task failed: a dev host whose queue that emptied checks the
 // invariants of the settled state, as it does after a task that committed.
+// What became of the task host_step last ran (host_transition), or null.
+#[export = "host_transition"]
+fn api_host_transition(h: &host) -> &value {
+    host_transition(h);
+}
+
+// Applies the pure message name(args) to the component sel reaches, now
+// (host_apply); args is a list value.
+#[export = "host_apply"]
+fn api_host_apply(h: &host, name: js_string, args: &value, sel: &selector) -> &value {
+    host_apply(h, name, list_to_values(args), sel);
+}
+
+// What sel reaches from the root, now (a component, or null), and where:
+// { path, id } (tutuca's addressOf).
+#[export = "host_value_at"]
+fn api_host_value_at(h: &host, sel: &selector) -> &value {
+    key_path_get_or_null(host_route_at(h, sel).key_path, h.root);
+}
+
+#[export = "host_address_of"]
+fn api_host_address_of(h: &host, sel: &selector) -> &value {
+    route_value(host_route_at(h, sel), 0);
+}
+
+// The records made besides the tasks' transitions since the last call
+// (host_take_events): dropped tasks' transitions, watches opening and
+// settling.
+#[export = "host_take_events"]
+fn api_host_take_events(h: &host) -> &value {
+    host_take_events(h);
+}
+
+// Cancels the open watch id, as timed out when timeout (its timer fired);
+// 0 when there's none such open.
+#[export = "host_cancel_watch"]
+fn api_host_cancel_watch(h: &host, id: i32, timeout: i32) -> i32 {
+    watch_cancel_id(h, id, timeout?watch_timeout:watch_cancelled);
+}
+
+// Drops every queued task and the asks pending: for a host that stops.
+#[export = "host_clear"]
+fn api_host_clear(h: &host) {
+    h.queue.head = 0;
+    h.queue.len = 0;
+    h.queue.items = [task_array|null; 16];
+    h.pending = pv_empty();
+    h.watches = pv_empty();
+}
+
 #[export = "host_after_failure"]
 fn api_host_after_failure(h: &host) {
+    // It failed: counted in its watches, and done.
+    if !!h.cur {
+        watch_task_failed(h.cur!);
+        watch_leave(h, h.cur!);
+    }
     if h.dev & !host_has_tasks(h) {
         host_check_settled(h);
     }
@@ -628,7 +751,7 @@ fn api_view_el_template(v: &view) -> &?template {
 // loadComponent reports for the types a module registers, to compile CSS for.
 #[export = "spec_classes"]
 fn api_spec_classes(spec: &component_spec) -> &value {
-    views_collect_classes(spec.views);
+    spec_class_names(spec);
 }
 
 // A walker that records the kinds it visits, as a list of ints.

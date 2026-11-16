@@ -48,6 +48,8 @@ test "generated contract and glue of a small component" {
       #|    const gt_btn: js_string;
       #|    #[import = "click"]
       #|    const gt_click: js_string;
+      #|    #[import = "type"]
+      #|    const gt_type: js_string;
       #|    #[import = "button"]
       #|    const gt_button: js_string;
       #|    #[import = "missing"]
@@ -83,6 +85,7 @@ test "generated contract and glue of a small component" {
       #|}
       #|
       #|
+
     ),
   )
   inspect(
@@ -109,10 +112,12 @@ test "generated contract and glue of a small component" {
       #|fn tally_view_main() -> &view {
       #|    let t0 = [arg_array|null; 1];
       #|    t0[0] = arg_value(value_int(1));
-      #|    let t1 = [str_array|null; 1];
+      #|    let t1 = [str_array|null; 2];
       #|    t1[0] = gt_class;
-      #|    let t2 = [view_array|null; 1];
+      #|    t1[1] = gt_type;
+      #|    let t2 = [view_array|null; 2];
       #|    t2[0] = view_const(value_string(gt_btn));
+      #|    t2[1] = view_const(value_string(gt_button));
       #|    let t3 = [view_array|null; 1];
       #|    t3[0] = view_field(gs_count);
       #|    let t4 = [view_on_array|null; 1];
@@ -136,13 +141,13 @@ test "generated contract and glue of a small component" {
       #|    t1[1] = gs_down;
       #|    let t2 = [constraint_array|null; 0];
       #|    let t3 = [field_schema_array|null; 2];
-      #|    t3[0] = field_schema_new(gs_count, vtype_int(), t0, sync_shared);
-      #|    t3[1] = field_schema_new(gs_mode, vtype_enum(t1), t2, sync_shared);
+      #|    t3[0] = field_schema_set_default(field_schema_new(gs_count, vtype_int(), t0, sync_shared), value_int(0));
+      #|    t3[1] = field_schema_set_default(field_schema_new(gs_mode, vtype_enum(t1), t2, sync_shared), value_string(gs_up));
       #|    let t4 = [field_schema_array|null; 0];
       #|    let t5 = [constraint_array|null; 1];
       #|    t5[0] = constraint_min(1.0, 0);
       #|    let t6 = [field_schema_array|null; 1];
-      #|    t6[0] = field_schema_new(gs_n, vtype_int(), t5, sync_shared);
+      #|    t6[0] = field_schema_set_default(field_schema_new(gs_n, vtype_int(), t5, sync_shared), value_int(1));
       #|    let t7 = [str_array|null; 1];
       #|    t7[0] = gs_count;
       #|    let t8 = [emit_array|null; 1];
@@ -305,6 +310,8 @@ test "generated contract and glue of a small component" {
       #|}
       #|
       #|
+
+
     ),
   )
   debug_inspect(
@@ -385,11 +392,12 @@ test "make defaults and the init hook take the init context" {
       #|[
       #|  "fn leaf_vt_init: init_fn (fields: &value, ctx: &init_context) -> &init_result {",
       #|  "fn holder_vt_init: init_fn (fields: &value, ctx: &init_context) -> &init_result {",
-      #|  "f_child = value_component(init_ctx_make(ctx, gs_Leaf, map_empty()));",
-      #|  "f_child = value_component(init_ctx_make(ctx, gs_Leaf, map_empty()));",
-      #|  "f_child = value_component(init_ctx_make(ctx, gs_Leaf, map_empty()));",
+      #|  "let made = init_make_field(ctx, gs_Holder, gs_child, gs_Leaf);",
+      #|  "let made = init_make_field(ctx, gs_Holder, gs_child, gs_Leaf);",
+      #|  "let made = init_make_field(ctx, gs_Holder, gs_child, gs_Leaf);",
       #|  "init_ok(holder_init(state, ctx), issues);",
       #|]
+
     ),
   )
 }

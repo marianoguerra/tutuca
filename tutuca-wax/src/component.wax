@@ -10,20 +10,40 @@ const effect_kind_send_at = 2;
 const effect_kind_forward_at = 3;
 const effect_kind_stop_next = 4;
 const effect_kind_log = 5;
+const effect_kind_reply = 6;
+const effect_kind_cancel = 7;
 
 // To the parent, bubbling up until a handler stops it.
 type effect_notify: effect = { .., name: js_string, args: &value_array };
 // To the scope's ask handler; the reply comes back as name_reply_ok or
 // name_reply_error, or name_handler_not_found.
 // request: its id, which the answer's handler reads as ctx.request.
-type effect_ask: effect = { .., name: js_string, args: &value_array, request: i32 };
+type effect_ask: effect = { .., name: js_string, args: &value_array, request: i32, detached: i32 };
 // To a component below, by selector.
-type effect_send_at: effect = { .., name: js_string, args: &value_array, selector: &selector };
+// With a watch (watch_id not 0), what its watcher is told (watch.wax);
+// detached, the message is in no watch.
+type effect_send_at: effect = {
+    ..,
+    name: js_string,
+    args: &value_array,
+    selector: &selector,
+    watch_id: i32,
+    settled: js_string_opt,
+    settled_args: &value_array,
+    progress: js_string_opt,
+    progress_args: &value_array,
+    timeout: f64,
+    detached: i32
+};
 // The message being handled, to a component below.
 type effect_forward_at: effect = { .., selector: &selector };
 // Stops the notify being handled from bubbling further up.
 type effect_stop_next: effect = { .. };
 type effect_log: effect = { .., value: &value };
+// A message to the sender of the one being handled (ctx_reply).
+type effect_reply: effect = { .., name: js_string, args: &value_array };
+// A watch to cancel once the handler commits (ctx_cancel).
+type effect_cancel: effect = { .., id: i32 };
 
 const EFFECT_STOP_NEXT: &effect = {effect_stop_next| kind: effect_kind_stop_next };
 
