@@ -17,6 +17,7 @@
 			"!_site",
 			"!tutuca-mb",
 			"!tutuca-wax",
+			"!grow",
 			"!tdata/mbt/_build",
 			"!tdata/mbt/dist",
 			"!tutuca-core.*"

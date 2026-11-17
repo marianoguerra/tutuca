@@ -1,27 +1,17 @@
 # Changelog
 
-## Unreleased
+## 1.0.0-beta.6
+
+`src/` exports less: what nothing outside a module used is gone, each concept has one name
+(a `renderTarget` is where a render goes, a `Target` where a message goes, a `binding` what an
+`on:` attr is), and two bugs are fixed.
 
 ### Added
 
-- **The path tree**: the steps a render takes from the root (`.field`, `.seq[.key=value]`,
-  `*provided ^up.keys`, `each .seq`, `[key]`, `it`), found without rendering, with the steps on
-  a focus path active and the ones they don't take inactive. `src/dev/path-tree.js` walks it,
-  `src/dev/path-tree-text.js` prints it as an outline for a terminal or a model's context, and
-  the storybook and playground panels have a Tree tab that follows the story's app, focused
-  where the last message went. `pathTree` and `pathTreeText` are exported from `tutuca/dev`.
+- `pathTree` and `pathTreeText` are exported from `tutuca/dev`.
 
 ### Changed
 
-- `CheckCache` and `DepsWalker` are dev tools: they moved to `src/dev/` and are exported from
-  `tutuca/dev`, not `tutuca`.
-- A component's render no longer depends on its depth or on where its providers are, and is
-  reused wherever the same values are provided. A frame whose source is a provided value writes
-  only its name (its marker's `p` is `{ v }`), and the component that provides it writes where it
-  is (`{ t: "component", p: { name: keys } }`); reading a path finds the nearest provider and
-  counts the frames up to it (`Frame.provider` is `{ name, up, keys }`, not the provider's depth).
-  The render cache compares provided values by value alone. `WeakMapCache` finds an instance
-  moved to another level of a tree.
 - `Host`'s `target` option and field, and `RenderContext`'s, are `renderTarget`
   (`new Host({ renderTarget: tuiTarget })`, `RenderContext.root(root, { renderTarget })`):
   a `Target` is where a message goes. A `Host` with a render target throws when it's given a
@@ -50,6 +40,7 @@
   Setting `innerHTML` throws.
 - `src/core/model/component.js` is `src/core/component.js` and `src/core/model/targets.js` is
   `src/core/view/targets.js`: nothing in `src/core/model/` imports the views.
+- `deps/immer.js` is immer 11.2.10.
 
 ### Removed
 
@@ -79,6 +70,32 @@
   component it's a field of, as one inside `t.option` or `t.oneOf` is: `t.array(t.index("items"))`
   takes only keys of `items`, where it took any integer or string.
 
+## 1.0.0-beta.5
+
+A component's render no longer depends on where it is or where its providers are, so the render
+cache reuses it wherever the same values are provided, and the path tree shows the steps a
+render takes from the root.
+
+### Added
+
+- **The path tree**: the steps a render takes from the root (`.field`, `.seq[.key=value]`,
+  `*provided ^up.keys`, `each .seq`, `[key]`, `it`), found without rendering, with the steps on
+  a focus path active and the ones they don't take inactive. `src/dev/path-tree.js` walks it,
+  `src/dev/path-tree-text.js` prints it as an outline for a terminal or a model's context, and
+  the storybook and playground panels have a Tree tab that follows the story's app, focused
+  where the last message went.
+
+### Changed
+
+- `CheckCache` and `DepsWalker` are dev tools: they moved to `src/dev/` and are exported from
+  `tutuca/dev`, not `tutuca`.
+- A component's render no longer depends on its depth or on where its providers are, and is
+  reused wherever the same values are provided. A frame whose source is a provided value writes
+  only its name (its marker's `p` is `{ v }`), and the component that provides it writes where it
+  is (`{ t: "component", p: { name: keys } }`); reading a path finds the nearest provider and
+  counts the frames up to it (`Frame.provider` is `{ name, up, keys }`, not the provider's depth).
+  The render cache compares provided values by value alone. `WeakMapCache` finds an instance
+  moved to another level of a tree.
 ## 1.0.0-beta.4
 
 A component renders more than a page: a terminal UI, JavaScript, markdown, what a model is
