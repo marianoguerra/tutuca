@@ -1,0 +1,228 @@
+{
+ "exit": 3,
+ "stage": "check",
+ "codes": [
+  "immutable-target"
+ ],
+ "tree": {
+  "type": "PureModule",
+  "items": [
+   {
+    "type": "ExportNamedDeclaration",
+    "declaration": {
+     "type": "TypeAlias",
+     "id": {
+      "type": "Identifier",
+      "name": "Task"
+     },
+     "typeAnnotation": {
+      "type": "TypeObject",
+      "members": [
+       {
+        "type": "TypeProperty",
+        "name": "done",
+        "optional": false,
+        "readonly": false,
+        "value": {
+         "type": "TypeKeyword",
+         "name": "boolean"
+        }
+       }
+      ]
+     }
+    },
+    "specifiers": [],
+    "attributes": []
+   },
+   {
+    "type": "FunctionDeclaration",
+    "id": {
+     "type": "Identifier",
+     "name": "finish"
+    },
+    "expression": false,
+    "generator": false,
+    "async": false,
+    "params": [
+     {
+      "type": "Identifier",
+      "name": "xs",
+      "typeAnnotation": {
+       "type": "TypeRef",
+       "name": "Readonly",
+       "args": [
+        {
+         "type": "TypeArray",
+         "element": {
+          "type": "TypeRef",
+          "name": "Task",
+          "args": []
+         }
+        }
+       ]
+      }
+     }
+    ],
+    "body": {
+     "type": "BlockStatement",
+     "body": [
+      {
+       "type": "ExpressionStatement",
+       "expression": {
+        "type": "CallExpression",
+        "callee": {
+         "type": "MemberExpression",
+         "object": {
+          "type": "Identifier",
+          "name": "xs"
+         },
+         "property": {
+          "type": "Identifier",
+          "name": "push"
+         },
+         "computed": false,
+         "optional": false
+        },
+        "arguments": [
+         {
+          "type": "ObjectExpression",
+          "properties": [
+           {
+            "type": "Property",
+            "method": false,
+            "shorthand": false,
+            "computed": false,
+            "key": {
+             "type": "Identifier",
+             "name": "done"
+            },
+            "value": {
+             "type": "Literal",
+             "value": true,
+             "raw": "true"
+            },
+            "kind": "init"
+           }
+          ]
+         }
+        ],
+        "optional": false
+       }
+      }
+     ]
+    },
+    "returnType": {
+     "type": "TypeKeyword",
+     "name": "void"
+    }
+   },
+   {
+    "type": "ExportNamedDeclaration",
+    "declaration": {
+     "type": "VariableDeclaration",
+     "declarations": [
+      {
+       "type": "VariableDeclarator",
+       "id": {
+        "type": "Identifier",
+        "name": "N"
+       },
+       "init": {
+        "type": "ObjectExpression",
+        "properties": [
+         {
+          "type": "Property",
+          "method": false,
+          "shorthand": false,
+          "computed": false,
+          "key": {
+           "type": "Identifier",
+           "name": "start"
+          },
+          "value": {
+           "type": "Literal",
+           "value": 1,
+           "raw": "1"
+          },
+          "kind": "init"
+         }
+        ]
+       }
+      }
+     ],
+     "kind": "const"
+    },
+    "specifiers": [],
+    "attributes": []
+   }
+  ]
+ },
+ "printed": "export type Task = { done: boolean };\nfunction finish(xs: Readonly<Task[]>): void {\n\txs.push({ done: true });\n}\nexport const N = { start: 1 };",
+ "entries": {},
+ "callGraph": {
+  "finish": []
+ },
+ "summaries": {
+  "finish": {
+   "params": [
+    {
+     "name": "xs",
+     "type": "Task[]",
+     "mutable": false
+    }
+   ],
+   "result": "void",
+   "fresh": false
+  }
+ },
+ "types": [
+  [
+   82,
+   84,
+   "Task[]",
+   "read"
+  ],
+  [
+   113,
+   115,
+   "Task[]",
+   "read"
+  ],
+  [
+   113,
+   136,
+   "number",
+   "value"
+  ],
+  [
+   121,
+   135,
+   "Task",
+   "fresh"
+  ],
+  [
+   129,
+   133,
+   "true",
+   "value"
+  ],
+  [
+   153,
+   154,
+   "{ start: number }",
+   "read"
+  ],
+  [
+   157,
+   169,
+   "{ start: number }",
+   "fresh"
+  ],
+  [
+   166,
+   167,
+   "1",
+   "value"
+  ]
+ ]
+}

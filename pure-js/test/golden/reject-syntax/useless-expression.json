@@ -1,0 +1,48 @@
+{
+ "exit": 1,
+ "stage": "sieve",
+ "codes": [
+  "useless-expression"
+ ],
+ "returnType": null,
+ "tree": {
+  "type": "PureProgram",
+  "form": "function",
+  "name": null,
+  "function": {
+   "type": "FunctionExpression",
+   "id": null,
+   "expression": false,
+   "generator": false,
+   "async": false,
+   "params": [
+    {
+     "type": "Identifier",
+     "name": "next"
+    }
+   ],
+   "body": {
+    "type": "BlockStatement",
+    "body": [
+     {
+      "type": "ExpressionStatement",
+      "expression": {
+       "type": "MemberExpression",
+       "object": {
+        "type": "Identifier",
+        "name": "next"
+       },
+       "property": {
+        "type": "Identifier",
+        "name": "text"
+       },
+       "computed": false,
+       "optional": false
+      }
+     }
+    ]
+   }
+  }
+ },
+ "printed": "function (next) {\n\tnext.text;\n}"
+}

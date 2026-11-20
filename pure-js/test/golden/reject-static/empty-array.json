@@ -1,0 +1,49 @@
+{
+ "exit": 3,
+ "stage": "check",
+ "codes": [
+  "empty-array-type"
+ ],
+ "returnType": "void",
+ "tree": {
+  "type": "PureProgram",
+  "form": "function",
+  "name": null,
+  "function": {
+   "type": "FunctionExpression",
+   "id": null,
+   "expression": false,
+   "generator": false,
+   "async": false,
+   "params": [
+    {
+     "type": "Identifier",
+     "name": "next"
+    }
+   ],
+   "body": {
+    "type": "BlockStatement",
+    "body": [
+     {
+      "type": "VariableDeclaration",
+      "declarations": [
+       {
+        "type": "VariableDeclarator",
+        "id": {
+         "type": "Identifier",
+         "name": "xs"
+        },
+        "init": {
+         "type": "ArrayExpression",
+         "elements": []
+        }
+       }
+      ],
+      "kind": "const"
+     }
+    ]
+   }
+  }
+ },
+ "printed": "function (next) {\n\tconst xs = [];\n}"
+}

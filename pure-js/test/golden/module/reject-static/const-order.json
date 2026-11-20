@@ -1,0 +1,150 @@
+{
+ "exit": 3,
+ "stage": "check",
+ "codes": [
+  "const-order"
+ ],
+ "tree": {
+  "type": "PureModule",
+  "items": [
+   {
+    "type": "VariableDeclaration",
+    "declarations": [
+     {
+      "type": "VariableDeclarator",
+      "id": {
+       "type": "Identifier",
+       "name": "TOTAL"
+      },
+      "init": {
+       "type": "CallExpression",
+       "callee": {
+        "type": "Identifier",
+        "name": "sum"
+       },
+       "arguments": [],
+       "optional": false
+      }
+     }
+    ],
+    "kind": "const"
+   },
+   {
+    "type": "FunctionDeclaration",
+    "id": {
+     "type": "Identifier",
+     "name": "sum"
+    },
+    "expression": false,
+    "generator": false,
+    "async": false,
+    "params": [],
+    "body": {
+     "type": "BlockStatement",
+     "body": [
+      {
+       "type": "ReturnStatement",
+       "argument": {
+        "type": "BinaryExpression",
+        "left": {
+         "type": "Identifier",
+         "name": "BASE"
+        },
+        "operator": "+",
+        "right": {
+         "type": "Literal",
+         "value": 1,
+         "raw": "1"
+        }
+       }
+      }
+     ]
+    },
+    "returnType": {
+     "type": "TypeKeyword",
+     "name": "number"
+    }
+   },
+   {
+    "type": "VariableDeclaration",
+    "declarations": [
+     {
+      "type": "VariableDeclarator",
+      "id": {
+       "type": "Identifier",
+       "name": "BASE"
+      },
+      "init": {
+       "type": "Literal",
+       "value": 2,
+       "raw": "2"
+      }
+     }
+    ],
+    "kind": "const"
+   }
+  ]
+ },
+ "printed": "const TOTAL = sum();\nfunction sum(): number {\n\treturn BASE + 1;\n}\nconst BASE = 2;",
+ "entries": {},
+ "callGraph": {
+  "sum": []
+ },
+ "summaries": {
+  "sum": {
+   "params": [],
+   "result": "number",
+   "fresh": false
+  }
+ },
+ "types": [
+  [
+   29,
+   34,
+   "number",
+   "read"
+  ],
+  [
+   37,
+   40,
+   "() => number",
+   "value"
+  ],
+  [
+   37,
+   42,
+   "number",
+   "value"
+  ],
+  [
+   77,
+   81,
+   "2",
+   "value"
+  ],
+  [
+   77,
+   85,
+   "number",
+   "value"
+  ],
+  [
+   84,
+   85,
+   "1",
+   "value"
+  ],
+  [
+   95,
+   99,
+   "2",
+   "read"
+  ],
+  [
+   102,
+   103,
+   "2",
+   "value"
+  ]
+ ]
+}

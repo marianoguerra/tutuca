@@ -1,0 +1,128 @@
+{
+ "exit": 0,
+ "stage": null,
+ "codes": [],
+ "returnType": "void",
+ "tree": {
+  "type": "PureProgram",
+  "form": "function",
+  "name": null,
+  "function": {
+   "type": "FunctionExpression",
+   "id": null,
+   "expression": false,
+   "generator": false,
+   "async": false,
+   "params": [
+    {
+     "type": "Identifier",
+     "name": "next"
+    }
+   ],
+   "body": {
+    "type": "BlockStatement",
+    "body": [
+     {
+      "type": "VariableDeclaration",
+      "declarations": [
+       {
+        "type": "VariableDeclarator",
+        "id": {
+         "type": "Identifier",
+         "name": "v"
+        },
+        "init": {
+         "type": "CallExpression",
+         "callee": {
+          "type": "MemberExpression",
+          "object": {
+           "type": "Identifier",
+           "name": "JSON"
+          },
+          "property": {
+           "type": "Identifier",
+           "name": "parse"
+          },
+          "computed": false,
+          "optional": false
+         },
+         "arguments": [
+          {
+           "type": "Literal",
+           "value": "{\"__proto__\": {\"polluted\": true}, \"ok\": 1}",
+           "raw": "'{\"__proto__\": {\"polluted\": true}, \"ok\": 1}'"
+          }
+         ],
+         "optional": false
+        }
+       }
+      ],
+      "kind": "const"
+     },
+     {
+      "type": "ExpressionStatement",
+      "expression": {
+       "type": "AssignmentExpression",
+       "operator": "=",
+       "left": {
+        "type": "MemberExpression",
+        "object": {
+         "type": "Identifier",
+         "name": "next"
+        },
+        "property": {
+         "type": "Identifier",
+         "name": "text"
+        },
+        "computed": false,
+        "optional": false
+       },
+       "right": {
+        "type": "UnaryExpression",
+        "operator": "typeof",
+        "prefix": true,
+        "argument": {
+         "type": "Identifier",
+         "name": "v"
+        }
+       }
+      }
+     }
+    ]
+   }
+  }
+ },
+ "printed": "function (next) {\n\tconst v = JSON.parse(\"{\\\"__proto__\\\": {\\\"polluted\\\": true}, \\\"ok\\\": 1}\");\n\tnext.text = typeof v;\n}",
+ "outcome": {
+  "kind": "finished",
+  "value": null
+ },
+ "steps": 9,
+ "after": [
+  {
+   "text": "object",
+   "count": 2,
+   "items": [
+    {
+     "title": "write docs",
+     "done": true
+    },
+    {
+     "title": "ship",
+     "done": false
+    }
+   ],
+   "filter": "all",
+   "selected": null,
+   "tags": {
+    "urgent": 1
+   },
+   "left": 1
+  },
+  [],
+  {
+   "sourceKey": 0
+  }
+ ],
+ "calls": []
+}

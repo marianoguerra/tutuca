@@ -1,0 +1,355 @@
+{
+ "exit": 3,
+ "stage": "check",
+ "codes": [
+  "immutable-argument"
+ ],
+ "tree": {
+  "type": "PureModule",
+  "items": [
+   {
+    "type": "ExportNamedDeclaration",
+    "declaration": {
+     "type": "TypeAlias",
+     "id": {
+      "type": "Identifier",
+      "name": "Task"
+     },
+     "typeAnnotation": {
+      "type": "TypeUnion",
+      "types": [
+       {
+        "type": "TypeObject",
+        "members": [
+         {
+          "type": "TypeProperty",
+          "name": "done",
+          "optional": false,
+          "readonly": false,
+          "value": {
+           "type": "TypeKeyword",
+           "name": "boolean"
+          }
+         }
+        ]
+       },
+       {
+        "type": "TypeKeyword",
+        "name": "null"
+       }
+      ]
+     }
+    },
+    "specifiers": [],
+    "attributes": []
+   },
+   {
+    "type": "ExportNamedDeclaration",
+    "declaration": {
+     "type": "TypeAlias",
+     "id": {
+      "type": "Identifier",
+      "name": "State"
+     },
+     "typeAnnotation": {
+      "type": "TypeObject",
+      "members": [
+       {
+        "type": "TypeProperty",
+        "name": "first",
+        "optional": false,
+        "readonly": false,
+        "value": {
+         "type": "TypeRef",
+         "name": "Task",
+         "args": []
+        }
+       }
+      ]
+     }
+    },
+    "specifiers": [],
+    "attributes": []
+   },
+   {
+    "type": "FunctionDeclaration",
+    "id": {
+     "type": "Identifier",
+     "name": "finish"
+    },
+    "expression": false,
+    "generator": false,
+    "async": false,
+    "params": [
+     {
+      "type": "Identifier",
+      "name": "x",
+      "typeAnnotation": {
+       "type": "TypeRef",
+       "name": "Task",
+       "args": []
+      }
+     }
+    ],
+    "body": {
+     "type": "BlockStatement",
+     "body": [
+      {
+       "type": "IfStatement",
+       "test": {
+        "type": "BinaryExpression",
+        "left": {
+         "type": "Identifier",
+         "name": "x"
+        },
+        "operator": "!==",
+        "right": {
+         "type": "Literal",
+         "value": null,
+         "raw": "null"
+        }
+       },
+       "consequent": {
+        "type": "ExpressionStatement",
+        "expression": {
+         "type": "AssignmentExpression",
+         "operator": "=",
+         "left": {
+          "type": "MemberExpression",
+          "object": {
+           "type": "Identifier",
+           "name": "x"
+          },
+          "property": {
+           "type": "Identifier",
+           "name": "done"
+          },
+          "computed": false,
+          "optional": false
+         },
+         "right": {
+          "type": "Literal",
+          "value": true,
+          "raw": "true"
+         }
+        }
+       },
+       "alternate": null
+      }
+     ]
+    },
+    "returnType": {
+     "type": "TypeKeyword",
+     "name": "void"
+    }
+   },
+   {
+    "type": "ExportNamedDeclaration",
+    "declaration": {
+     "type": "VariableDeclaration",
+     "declarations": [
+      {
+       "type": "VariableDeclarator",
+       "id": {
+        "type": "Identifier",
+        "name": "Todos"
+       },
+       "init": {
+        "type": "ObjectExpression",
+        "properties": [
+         {
+          "type": "Property",
+          "method": false,
+          "shorthand": false,
+          "computed": false,
+          "key": {
+           "type": "Identifier",
+           "name": "on"
+          },
+          "value": {
+           "type": "ObjectExpression",
+           "properties": [
+            {
+             "type": "Property",
+             "method": false,
+             "shorthand": false,
+             "computed": false,
+             "key": {
+              "type": "Identifier",
+              "name": "all"
+             },
+             "value": {
+              "type": "ObjectExpression",
+              "properties": [
+               {
+                "type": "Property",
+                "method": true,
+                "shorthand": false,
+                "computed": false,
+                "key": {
+                 "type": "Identifier",
+                 "name": "run"
+                },
+                "value": {
+                 "type": "FunctionExpression",
+                 "id": null,
+                 "expression": false,
+                 "generator": false,
+                 "async": false,
+                 "params": [
+                  {
+                   "type": "Identifier",
+                   "name": "next"
+                  }
+                 ],
+                 "body": {
+                  "type": "BlockStatement",
+                  "body": [
+                   {
+                    "type": "ExpressionStatement",
+                    "expression": {
+                     "type": "CallExpression",
+                     "callee": {
+                      "type": "Identifier",
+                      "name": "finish"
+                     },
+                     "arguments": [
+                      {
+                       "type": "MemberExpression",
+                       "object": {
+                        "type": "ThisExpression"
+                       },
+                       "property": {
+                        "type": "Identifier",
+                        "name": "first"
+                       },
+                       "computed": false,
+                       "optional": false
+                      }
+                     ],
+                     "optional": false
+                    }
+                   }
+                  ]
+                 }
+                },
+                "kind": "init"
+               }
+              ]
+             },
+             "kind": "init"
+            }
+           ]
+          },
+          "kind": "init"
+         }
+        ]
+       }
+      }
+     ],
+     "kind": "const"
+    },
+    "specifiers": [],
+    "attributes": []
+   }
+  ]
+ },
+ "printed": "export type Task = { done: boolean } | null;\nexport type State = { first: Task };\nfunction finish(x: Task): void {\n\tif (x !== null) x.done = true;\n}\nexport const Todos = {\n\ton: {\n\t\tall: {\n\t\t\trun(next) {\n\t\t\t\tfinish(this.first);\n\t\t\t},\n\t\t},\n\t},\n};",
+ "entries": {
+  "Todos.on.all.run": "void"
+ },
+ "callGraph": {
+  "finish": []
+ },
+ "summaries": {
+  "finish": {
+   "params": [
+    {
+     "name": "x",
+     "type": "Task",
+     "mutable": true
+    }
+   ],
+   "result": "void",
+   "fresh": false
+  }
+ },
+ "types": [
+  [
+   343,
+   344,
+   "Task",
+   "draft",
+   "x"
+  ],
+  [
+   365,
+   366,
+   "Task",
+   "draft",
+   "x"
+  ],
+  [
+   365,
+   375,
+   "boolean",
+   "value"
+  ],
+  [
+   371,
+   375,
+   "null",
+   "value"
+  ],
+  [
+   377,
+   378,
+   "{ done: boolean }",
+   "draft",
+   "x"
+  ],
+  [
+   386,
+   390,
+   "true",
+   "value"
+  ],
+  [
+   407,
+   412,
+   "{ readonly on: { readonly all: {} } }",
+   "read"
+  ],
+  [
+   440,
+   444,
+   "State",
+   "draft",
+   "next"
+  ],
+  [
+   452,
+   458,
+   "(x: Task) => void",
+   "value"
+  ],
+  [
+   452,
+   470,
+   "void",
+   "value"
+  ],
+  [
+   459,
+   463,
+   "State",
+   "read"
+  ],
+  [
+   459,
+   469,
+   "Task",
+   "read"
+  ]
+ ]
+}

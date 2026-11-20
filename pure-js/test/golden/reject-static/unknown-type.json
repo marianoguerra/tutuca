@@ -1,0 +1,55 @@
+{
+ "exit": 3,
+ "stage": "check",
+ "codes": [
+  "unknown-type"
+ ],
+ "returnType": "void",
+ "tree": {
+  "type": "PureProgram",
+  "form": "function",
+  "name": null,
+  "function": {
+   "type": "FunctionExpression",
+   "id": null,
+   "expression": false,
+   "generator": false,
+   "async": false,
+   "params": [
+    {
+     "type": "Identifier",
+     "name": "next"
+    }
+   ],
+   "body": {
+    "type": "BlockStatement",
+    "body": [
+     {
+      "type": "VariableDeclaration",
+      "declarations": [
+       {
+        "type": "VariableDeclarator",
+        "id": {
+         "type": "Identifier",
+         "name": "x",
+         "typeAnnotation": {
+          "type": "TypeRef",
+          "name": "Thing",
+          "args": []
+         }
+        },
+        "init": {
+         "type": "Literal",
+         "value": 1,
+         "raw": "1"
+        }
+       }
+      ],
+      "kind": "const"
+     }
+    ]
+   }
+  }
+ },
+ "printed": "function (next) {\n\tconst x: Thing = 1;\n}"
+}

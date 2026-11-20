@@ -1,0 +1,236 @@
+{
+ "exit": 0,
+ "stage": null,
+ "codes": [],
+ "returnType": "void",
+ "tree": {
+  "type": "PureProgram",
+  "form": "function",
+  "name": null,
+  "function": {
+   "type": "FunctionExpression",
+   "id": null,
+   "expression": false,
+   "generator": false,
+   "async": false,
+   "params": [
+    {
+     "type": "Identifier",
+     "name": "next"
+    },
+    {
+     "type": "ArrayPattern",
+     "elements": [
+      {
+       "type": "Identifier",
+       "name": "i"
+      }
+     ]
+    }
+   ],
+   "body": {
+    "type": "BlockStatement",
+    "body": [
+     {
+      "type": "VariableDeclaration",
+      "declarations": [
+       {
+        "type": "VariableDeclarator",
+        "id": {
+         "type": "Identifier",
+         "name": "s"
+        },
+        "init": {
+         "type": "MemberExpression",
+         "object": {
+          "type": "MemberExpression",
+          "object": {
+           "type": "ThisExpression"
+          },
+          "property": {
+           "type": "Identifier",
+           "name": "shapes"
+          },
+          "computed": false,
+          "optional": false
+         },
+         "property": {
+          "type": "Identifier",
+          "name": "i"
+         },
+         "computed": true,
+         "optional": false
+        }
+       }
+      ],
+      "kind": "const"
+     },
+     {
+      "type": "IfStatement",
+      "test": {
+       "type": "BinaryExpression",
+       "left": {
+        "type": "Identifier",
+        "name": "s"
+       },
+       "operator": "===",
+       "right": {
+        "type": "Identifier",
+        "name": "undefined"
+       }
+      },
+      "consequent": {
+       "type": "ReturnStatement",
+       "argument": null
+      },
+      "alternate": null
+     },
+     {
+      "type": "ExpressionStatement",
+      "expression": {
+       "type": "AssignmentExpression",
+       "operator": "=",
+       "left": {
+        "type": "MemberExpression",
+        "object": {
+         "type": "Identifier",
+         "name": "next"
+        },
+        "property": {
+         "type": "Identifier",
+         "name": "total"
+        },
+        "computed": false,
+        "optional": false
+       },
+       "right": {
+        "type": "ConditionalExpression",
+        "test": {
+         "type": "BinaryExpression",
+         "left": {
+          "type": "MemberExpression",
+          "object": {
+           "type": "Identifier",
+           "name": "s"
+          },
+          "property": {
+           "type": "Identifier",
+           "name": "kind"
+          },
+          "computed": false,
+          "optional": false
+         },
+         "operator": "===",
+         "right": {
+          "type": "Literal",
+          "value": "circle",
+          "raw": "\"circle\""
+         }
+        },
+        "consequent": {
+         "type": "BinaryExpression",
+         "left": {
+          "type": "BinaryExpression",
+          "left": {
+           "type": "MemberExpression",
+           "object": {
+            "type": "Identifier",
+            "name": "s"
+           },
+           "property": {
+            "type": "Identifier",
+            "name": "r"
+           },
+           "computed": false,
+           "optional": false
+          },
+          "operator": "*",
+          "right": {
+           "type": "MemberExpression",
+           "object": {
+            "type": "Identifier",
+            "name": "s"
+           },
+           "property": {
+            "type": "Identifier",
+            "name": "r"
+           },
+           "computed": false,
+           "optional": false
+          }
+         },
+         "operator": "*",
+         "right": {
+          "type": "Literal",
+          "value": 3,
+          "raw": "3"
+         }
+        },
+        "alternate": {
+         "type": "BinaryExpression",
+         "left": {
+          "type": "MemberExpression",
+          "object": {
+           "type": "Identifier",
+           "name": "s"
+          },
+          "property": {
+           "type": "Identifier",
+           "name": "side"
+          },
+          "computed": false,
+          "optional": false
+         },
+         "operator": "*",
+         "right": {
+          "type": "MemberExpression",
+          "object": {
+           "type": "Identifier",
+           "name": "s"
+          },
+          "property": {
+           "type": "Identifier",
+           "name": "side"
+          },
+          "computed": false,
+          "optional": false
+         }
+        }
+       }
+      }
+     }
+    ]
+   }
+  }
+ },
+ "printed": "function (next, [i]) {\n\tconst s = this.shapes[i];\n\tif (s === undefined) return;\n\tnext.total = s.kind === \"circle\" ? s.r * s.r * 3 : s.side * s.side;\n}",
+ "outcome": {
+  "kind": "finished",
+  "value": null
+ },
+ "steps": 23,
+ "after": [
+  {
+   "shapes": [
+    {
+     "kind": "circle",
+     "r": 2
+    },
+    {
+     "kind": "square",
+     "side": 3
+    }
+   ],
+   "current": null,
+   "total": 12,
+   "label": ""
+  },
+  [
+   0
+  ],
+  {
+   "sourceKey": 0
+  }
+ ],
+ "calls": []
+}

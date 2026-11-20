@@ -1,0 +1,289 @@
+{
+ "exit": 3,
+ "stage": "check",
+ "codes": [
+  "namespace-as-value"
+ ],
+ "tree": {
+  "type": "PureModule",
+  "items": [
+   {
+    "type": "FunctionDeclaration",
+    "id": {
+     "type": "Identifier",
+     "name": "size"
+    },
+    "expression": false,
+    "generator": false,
+    "async": false,
+    "params": [
+     {
+      "type": "Identifier",
+      "name": "x",
+      "typeAnnotation": {
+       "type": "TypeKeyword",
+       "name": "unknown"
+      }
+     }
+    ],
+    "body": {
+     "type": "BlockStatement",
+     "body": [
+      {
+       "type": "ReturnStatement",
+       "argument": {
+        "type": "ConditionalExpression",
+        "test": {
+         "type": "BinaryExpression",
+         "left": {
+          "type": "UnaryExpression",
+          "operator": "typeof",
+          "prefix": true,
+          "argument": {
+           "type": "Identifier",
+           "name": "x"
+          }
+         },
+         "operator": "===",
+         "right": {
+          "type": "Literal",
+          "value": "object",
+          "raw": "\"object\""
+         }
+        },
+        "consequent": {
+         "type": "Literal",
+         "value": 1,
+         "raw": "1"
+        },
+        "alternate": {
+         "type": "Literal",
+         "value": 0,
+         "raw": "0"
+        }
+       }
+      }
+     ]
+    },
+    "returnType": {
+     "type": "TypeKeyword",
+     "name": "number"
+    }
+   },
+   {
+    "type": "ExportNamedDeclaration",
+    "declaration": {
+     "type": "VariableDeclaration",
+     "declarations": [
+      {
+       "type": "VariableDeclarator",
+       "id": {
+        "type": "Identifier",
+        "name": "Ns"
+       },
+       "init": {
+        "type": "ObjectExpression",
+        "properties": [
+         {
+          "type": "Property",
+          "method": false,
+          "shorthand": false,
+          "computed": false,
+          "key": {
+           "type": "Identifier",
+           "name": "n"
+          },
+          "value": {
+           "type": "Literal",
+           "value": 1,
+           "raw": "1"
+          },
+          "kind": "init"
+         },
+         {
+          "type": "Property",
+          "method": false,
+          "shorthand": false,
+          "computed": false,
+          "key": {
+           "type": "Identifier",
+           "name": "two"
+          },
+          "value": {
+           "type": "FunctionExpression",
+           "id": null,
+           "expression": false,
+           "generator": false,
+           "async": false,
+           "params": [],
+           "body": {
+            "type": "BlockStatement",
+            "body": [
+             {
+              "type": "ReturnStatement",
+              "argument": {
+               "type": "Literal",
+               "value": 2,
+               "raw": "2"
+              }
+             }
+            ]
+           },
+           "returnType": {
+            "type": "TypeKeyword",
+            "name": "number"
+           }
+          },
+          "kind": "get"
+         }
+        ]
+       }
+      }
+     ],
+     "kind": "const"
+    },
+    "specifiers": [],
+    "attributes": []
+   },
+   {
+    "type": "VariableDeclaration",
+    "declarations": [
+     {
+      "type": "VariableDeclarator",
+      "id": {
+       "type": "Identifier",
+       "name": "S"
+      },
+      "init": {
+       "type": "CallExpression",
+       "callee": {
+        "type": "Identifier",
+        "name": "size"
+       },
+       "arguments": [
+        {
+         "type": "Identifier",
+         "name": "Ns"
+        }
+       ],
+       "optional": false
+      }
+     }
+    ],
+    "kind": "const"
+   }
+  ]
+ },
+ "printed": "function size(x: unknown): number {\n\treturn typeof x === \"object\" ? 1 : 0;\n}\nexport const Ns = {\n\tn: 1,\n\tget two(): number {\n\t\treturn 2;\n\t},\n};\nconst S = size(Ns);",
+ "entries": {
+  "Ns.two": "number"
+ },
+ "callGraph": {
+  "size": []
+ },
+ "summaries": {
+  "size": {
+   "params": [
+    {
+     "name": "x",
+     "type": "unknown",
+     "mutable": false
+    }
+   ],
+   "result": "number",
+   "fresh": false
+  }
+ },
+ "types": [
+  [
+   44,
+   45,
+   "unknown",
+   "value"
+  ],
+  [
+   74,
+   82,
+   "\"string\" | \"number\" | \"boolean\" | \"undefined\" | \"object\" | \"function\" | \"symbol\" | \"bigint\"",
+   "value"
+  ],
+  [
+   74,
+   95,
+   "boolean",
+   "value"
+  ],
+  [
+   74,
+   103,
+   "1 | 0",
+   "value"
+  ],
+  [
+   81,
+   82,
+   "unknown",
+   "value"
+  ],
+  [
+   87,
+   95,
+   "\"object\"",
+   "value"
+  ],
+  [
+   98,
+   99,
+   "1",
+   "value"
+  ],
+  [
+   102,
+   103,
+   "0",
+   "value"
+  ],
+  [
+   120,
+   122,
+   "{ readonly n: 1 }",
+   "read"
+  ],
+  [
+   131,
+   132,
+   "1",
+   "value"
+  ],
+  [
+   164,
+   165,
+   "2",
+   "value"
+  ],
+  [
+   180,
+   181,
+   "number",
+   "read"
+  ],
+  [
+   184,
+   188,
+   "(x: unknown) => number",
+   "value"
+  ],
+  [
+   184,
+   192,
+   "number",
+   "value"
+  ],
+  [
+   189,
+   191,
+   "{ readonly n: 1 }",
+   "read"
+  ]
+ ]
+}

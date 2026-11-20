@@ -1,0 +1,61 @@
+{
+ "exit": 1,
+ "stage": "sieve",
+ "codes": [
+  "instanceof"
+ ],
+ "returnType": null,
+ "tree": {
+  "type": "PureProgram",
+  "form": "function",
+  "name": null,
+  "function": {
+   "type": "FunctionExpression",
+   "id": null,
+   "expression": false,
+   "generator": false,
+   "async": false,
+   "params": [
+    {
+     "type": "Identifier",
+     "name": "next"
+    },
+    {
+     "type": "ArrayPattern",
+     "elements": [
+      {
+       "type": "Identifier",
+       "name": "x"
+      }
+     ]
+    }
+   ],
+   "body": {
+    "type": "BlockStatement",
+    "body": [
+     {
+      "type": "IfStatement",
+      "test": {
+       "type": "BinaryExpression",
+       "left": {
+        "type": "Identifier",
+        "name": "x"
+       },
+       "operator": "instanceof",
+       "right": {
+        "type": "Identifier",
+        "name": "Array"
+       }
+      },
+      "consequent": {
+       "type": "ReturnStatement",
+       "argument": null
+      },
+      "alternate": null
+     }
+    ]
+   }
+  }
+ },
+ "printed": "function (next, [x]) {\n\tif (x instanceof Array) return;\n}"
+}

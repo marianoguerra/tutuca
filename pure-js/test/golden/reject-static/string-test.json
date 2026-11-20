@@ -1,0 +1,73 @@
+{
+ "exit": 3,
+ "stage": "check",
+ "codes": [
+  "not-testable"
+ ],
+ "returnType": "void",
+ "tree": {
+  "type": "PureProgram",
+  "form": "function",
+  "name": null,
+  "function": {
+   "type": "FunctionExpression",
+   "id": null,
+   "expression": false,
+   "generator": false,
+   "async": false,
+   "params": [
+    {
+     "type": "Identifier",
+     "name": "next"
+    }
+   ],
+   "body": {
+    "type": "BlockStatement",
+    "body": [
+     {
+      "type": "IfStatement",
+      "test": {
+       "type": "MemberExpression",
+       "object": {
+        "type": "ThisExpression"
+       },
+       "property": {
+        "type": "Identifier",
+        "name": "text"
+       },
+       "computed": false,
+       "optional": false
+      },
+      "consequent": {
+       "type": "ExpressionStatement",
+       "expression": {
+        "type": "AssignmentExpression",
+        "operator": "=",
+        "left": {
+         "type": "MemberExpression",
+         "object": {
+          "type": "Identifier",
+          "name": "next"
+         },
+         "property": {
+          "type": "Identifier",
+          "name": "count"
+         },
+         "computed": false,
+         "optional": false
+        },
+        "right": {
+         "type": "Literal",
+         "value": 1,
+         "raw": "1"
+        }
+       }
+      },
+      "alternate": null
+     }
+    ]
+   }
+  }
+ },
+ "printed": "function (next) {\n\tif (this.text) next.count = 1;\n}"
+}

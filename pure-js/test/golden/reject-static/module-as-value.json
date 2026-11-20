@@ -1,0 +1,49 @@
+{
+ "exit": 3,
+ "stage": "check",
+ "codes": [
+  "module-as-value"
+ ],
+ "returnType": "void",
+ "tree": {
+  "type": "PureProgram",
+  "form": "function",
+  "name": null,
+  "function": {
+   "type": "FunctionExpression",
+   "id": null,
+   "expression": false,
+   "generator": false,
+   "async": false,
+   "params": [
+    {
+     "type": "Identifier",
+     "name": "next"
+    }
+   ],
+   "body": {
+    "type": "BlockStatement",
+    "body": [
+     {
+      "type": "VariableDeclaration",
+      "declarations": [
+       {
+        "type": "VariableDeclarator",
+        "id": {
+         "type": "Identifier",
+         "name": "m"
+        },
+        "init": {
+         "type": "Identifier",
+         "name": "Math"
+        }
+       }
+      ],
+      "kind": "const"
+     }
+    ]
+   }
+  }
+ },
+ "printed": "function (next) {\n\tconst m = Math;\n}"
+}

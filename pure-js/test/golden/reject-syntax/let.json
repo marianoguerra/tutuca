@@ -1,0 +1,50 @@
+{
+ "exit": 2,
+ "stage": "sieve",
+ "codes": [
+  "let-declaration"
+ ],
+ "returnType": null,
+ "tree": {
+  "type": "PureProgram",
+  "form": "function",
+  "name": null,
+  "function": {
+   "type": "FunctionExpression",
+   "id": null,
+   "expression": false,
+   "generator": false,
+   "async": false,
+   "params": [
+    {
+     "type": "Identifier",
+     "name": "next"
+    }
+   ],
+   "body": {
+    "type": "BlockStatement",
+    "body": [
+     {
+      "type": "VariableDeclaration",
+      "declarations": [
+       {
+        "type": "VariableDeclarator",
+        "id": {
+         "type": "Identifier",
+         "name": "x"
+        },
+        "init": {
+         "type": "Literal",
+         "value": 1,
+         "raw": "1"
+        }
+       }
+      ],
+      "kind": "let"
+     }
+    ]
+   }
+  }
+ },
+ "printed": "function (next) {\n\tlet x = 1;\n}"
+}

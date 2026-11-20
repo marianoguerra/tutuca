@@ -1,0 +1,89 @@
+{
+ "exit": 1,
+ "stage": "sieve",
+ "codes": [
+  "object-method"
+ ],
+ "tree": {
+  "type": "PureModule",
+  "items": [
+   {
+    "type": "ExportNamedDeclaration",
+    "declaration": {
+     "type": "VariableDeclaration",
+     "declarations": [
+      {
+       "type": "VariableDeclarator",
+       "id": {
+        "type": "Identifier",
+        "name": "N"
+       },
+       "init": {
+        "type": "ObjectExpression",
+        "properties": [
+         {
+          "type": "Property",
+          "method": false,
+          "shorthand": false,
+          "computed": false,
+          "key": {
+           "type": "Identifier",
+           "name": "items"
+          },
+          "value": {
+           "type": "ArrayExpression",
+           "elements": [
+            {
+             "type": "ObjectExpression",
+             "properties": [
+              {
+               "type": "Property",
+               "method": true,
+               "shorthand": false,
+               "computed": false,
+               "key": {
+                "type": "Identifier",
+                "name": "m"
+               },
+               "value": {
+                "type": "FunctionExpression",
+                "id": null,
+                "expression": false,
+                "generator": false,
+                "async": false,
+                "params": [],
+                "body": {
+                 "type": "BlockStatement",
+                 "body": [
+                  {
+                   "type": "ReturnStatement",
+                   "argument": {
+                    "type": "Literal",
+                    "value": 1,
+                    "raw": "1"
+                   }
+                  }
+                 ]
+                }
+               },
+               "kind": "init"
+              }
+             ]
+            }
+           ]
+          },
+          "kind": "init"
+         }
+        ]
+       }
+      }
+     ],
+     "kind": "const"
+    },
+    "specifiers": [],
+    "attributes": []
+   }
+  ]
+ },
+ "printed": "export const N = { items: [{\n\tm() {\n\t\treturn 1;\n\t},\n}] };"
+}

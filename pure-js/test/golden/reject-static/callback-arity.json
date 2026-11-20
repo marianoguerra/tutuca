@@ -1,0 +1,122 @@
+{
+ "exit": 3,
+ "stage": "check",
+ "codes": [
+  "callback-arity"
+ ],
+ "returnType": "void",
+ "tree": {
+  "type": "PureProgram",
+  "form": "function",
+  "name": null,
+  "function": {
+   "type": "FunctionExpression",
+   "id": null,
+   "expression": false,
+   "generator": false,
+   "async": false,
+   "params": [
+    {
+     "type": "Identifier",
+     "name": "next"
+    }
+   ],
+   "body": {
+    "type": "BlockStatement",
+    "body": [
+     {
+      "type": "ExpressionStatement",
+      "expression": {
+       "type": "AssignmentExpression",
+       "operator": "=",
+       "left": {
+        "type": "MemberExpression",
+        "object": {
+         "type": "Identifier",
+         "name": "next"
+        },
+        "property": {
+         "type": "Identifier",
+         "name": "count"
+        },
+        "computed": false,
+        "optional": false
+       },
+       "right": {
+        "type": "MemberExpression",
+        "object": {
+         "type": "CallExpression",
+         "callee": {
+          "type": "MemberExpression",
+          "object": {
+           "type": "MemberExpression",
+           "object": {
+            "type": "ThisExpression"
+           },
+           "property": {
+            "type": "Identifier",
+            "name": "items"
+           },
+           "computed": false,
+           "optional": false
+          },
+          "property": {
+           "type": "Identifier",
+           "name": "filter"
+          },
+          "computed": false,
+          "optional": false
+         },
+         "arguments": [
+          {
+           "type": "ArrowFunctionExpression",
+           "id": null,
+           "expression": true,
+           "generator": false,
+           "async": false,
+           "params": [
+            {
+             "type": "Identifier",
+             "name": "a"
+            },
+            {
+             "type": "Identifier",
+             "name": "b"
+            },
+            {
+             "type": "Identifier",
+             "name": "c"
+            }
+           ],
+           "body": {
+            "type": "MemberExpression",
+            "object": {
+             "type": "Identifier",
+             "name": "a"
+            },
+            "property": {
+             "type": "Identifier",
+             "name": "done"
+            },
+            "computed": false,
+            "optional": false
+           }
+          }
+         ],
+         "optional": false
+        },
+        "property": {
+         "type": "Identifier",
+         "name": "length"
+        },
+        "computed": false,
+        "optional": false
+       }
+      }
+     }
+    ]
+   }
+  }
+ },
+ "printed": "function (next) {\n\tnext.count = this.items.filter((a, b, c) => a.done).length;\n}"
+}

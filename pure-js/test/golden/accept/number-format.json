@@ -1,0 +1,148 @@
+{
+ "exit": 0,
+ "stage": null,
+ "codes": [],
+ "returnType": "void",
+ "tree": {
+  "type": "PureProgram",
+  "form": "function",
+  "name": null,
+  "function": {
+   "type": "FunctionExpression",
+   "id": null,
+   "expression": false,
+   "generator": false,
+   "async": false,
+   "params": [
+    {
+     "type": "Identifier",
+     "name": "next"
+    },
+    {
+     "type": "ArrayPattern",
+     "elements": [
+      {
+       "type": "Identifier",
+       "name": "x"
+      }
+     ]
+    }
+   ],
+   "body": {
+    "type": "BlockStatement",
+    "body": [
+     {
+      "type": "ExpressionStatement",
+      "expression": {
+       "type": "AssignmentExpression",
+       "operator": "=",
+       "left": {
+        "type": "MemberExpression",
+        "object": {
+         "type": "Identifier",
+         "name": "next"
+        },
+        "property": {
+         "type": "Identifier",
+         "name": "text"
+        },
+        "computed": false,
+        "optional": false
+       },
+       "right": {
+        "type": "ConditionalExpression",
+        "test": {
+         "type": "CallExpression",
+         "callee": {
+          "type": "MemberExpression",
+          "object": {
+           "type": "Identifier",
+           "name": "Number"
+          },
+          "property": {
+           "type": "Identifier",
+           "name": "isFinite"
+          },
+          "computed": false,
+          "optional": false
+         },
+         "arguments": [
+          {
+           "type": "Identifier",
+           "name": "x"
+          }
+         ],
+         "optional": false
+        },
+        "consequent": {
+         "type": "CallExpression",
+         "callee": {
+          "type": "MemberExpression",
+          "object": {
+           "type": "Identifier",
+           "name": "x"
+          },
+          "property": {
+           "type": "Identifier",
+           "name": "toFixed"
+          },
+          "computed": false,
+          "optional": false
+         },
+         "arguments": [
+          {
+           "type": "Literal",
+           "value": 2,
+           "raw": "2"
+          }
+         ],
+         "optional": false
+        },
+        "alternate": {
+         "type": "Literal",
+         "value": "not a number",
+         "raw": "\"not a number\""
+        }
+       }
+      }
+     }
+    ]
+   }
+  }
+ },
+ "printed": "function (next, [x]) {\n\tnext.text = Number.isFinite(x) ? x.toFixed(2) : \"not a number\";\n}",
+ "outcome": {
+  "kind": "finished",
+  "value": null
+ },
+ "steps": 10,
+ "after": [
+  {
+   "text": "3.14",
+   "count": 2,
+   "items": [
+    {
+     "title": "write docs",
+     "done": true
+    },
+    {
+     "title": "ship",
+     "done": false
+    }
+   ],
+   "filter": "all",
+   "selected": null,
+   "tags": {
+    "urgent": 1
+   },
+   "left": 1
+  },
+  [
+   3.14159
+  ],
+  {
+   "sourceKey": 0
+  }
+ ],
+ "calls": []
+}

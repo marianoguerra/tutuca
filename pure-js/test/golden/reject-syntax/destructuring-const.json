@@ -1,0 +1,65 @@
+{
+ "exit": 2,
+ "stage": "sieve",
+ "codes": [
+  "destructuring-declaration"
+ ],
+ "returnType": null,
+ "tree": {
+  "type": "PureProgram",
+  "form": "function",
+  "name": null,
+  "function": {
+   "type": "FunctionExpression",
+   "id": null,
+   "expression": false,
+   "generator": false,
+   "async": false,
+   "params": [
+    {
+     "type": "Identifier",
+     "name": "next"
+    }
+   ],
+   "body": {
+    "type": "BlockStatement",
+    "body": [
+     {
+      "type": "VariableDeclaration",
+      "declarations": [
+       {
+        "type": "VariableDeclarator",
+        "id": {
+         "type": "ObjectPattern",
+         "properties": [
+          {
+           "type": "Property",
+           "method": false,
+           "shorthand": true,
+           "computed": false,
+           "key": {
+            "type": "Identifier",
+            "name": "text"
+           },
+           "value": {
+            "type": "Identifier",
+            "name": "text"
+           },
+           "kind": "init"
+          }
+         ]
+        },
+        "init": {
+         "type": "Identifier",
+         "name": "next"
+        }
+       }
+      ],
+      "kind": "const"
+     }
+    ]
+   }
+  }
+ },
+ "printed": "function (next) {\n\tconst { text } = next;\n}"
+}

@@ -1,0 +1,35 @@
+{
+ "exit": 1,
+ "stage": "sieve",
+ "codes": [
+  "any-type"
+ ],
+ "returnType": null,
+ "tree": {
+  "type": "PureProgram",
+  "form": "function",
+  "name": null,
+  "function": {
+   "type": "FunctionExpression",
+   "id": null,
+   "expression": false,
+   "generator": false,
+   "async": false,
+   "params": [
+    {
+     "type": "Identifier",
+     "name": "next",
+     "typeAnnotation": {
+      "type": "TypeKeyword",
+      "name": "any"
+     }
+    }
+   ],
+   "body": {
+    "type": "BlockStatement",
+    "body": []
+   }
+  }
+ },
+ "printed": "function (next: any) {}"
+}

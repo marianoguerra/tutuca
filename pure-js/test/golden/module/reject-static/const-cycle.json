@@ -1,0 +1,121 @@
+{
+ "exit": 3,
+ "stage": "check",
+ "codes": [
+  "const-cycle",
+  "const-order"
+ ],
+ "tree": {
+  "type": "PureModule",
+  "items": [
+   {
+    "type": "VariableDeclaration",
+    "declarations": [
+     {
+      "type": "VariableDeclarator",
+      "id": {
+       "type": "Identifier",
+       "name": "A"
+      },
+      "init": {
+       "type": "ObjectExpression",
+       "properties": [
+        {
+         "type": "Property",
+         "method": false,
+         "shorthand": false,
+         "computed": false,
+         "key": {
+          "type": "Identifier",
+          "name": "b"
+         },
+         "value": {
+          "type": "Identifier",
+          "name": "B"
+         },
+         "kind": "init"
+        }
+       ]
+      }
+     }
+    ],
+    "kind": "const"
+   },
+   {
+    "type": "VariableDeclaration",
+    "declarations": [
+     {
+      "type": "VariableDeclarator",
+      "id": {
+       "type": "Identifier",
+       "name": "B"
+      },
+      "init": {
+       "type": "ObjectExpression",
+       "properties": [
+        {
+         "type": "Property",
+         "method": false,
+         "shorthand": false,
+         "computed": false,
+         "key": {
+          "type": "Identifier",
+          "name": "a"
+         },
+         "value": {
+          "type": "Identifier",
+          "name": "A"
+         },
+         "kind": "init"
+        }
+       ]
+      }
+     }
+    ],
+    "kind": "const"
+   }
+  ]
+ },
+ "printed": "const A = { b: B };\nconst B = { a: A };",
+ "entries": {},
+ "callGraph": {},
+ "summaries": {},
+ "types": [
+  [
+   29,
+   30,
+   "{ b: { a: never } }",
+   "read"
+  ],
+  [
+   33,
+   41,
+   "{ b: { a: never } }",
+   "fresh"
+  ],
+  [
+   38,
+   39,
+   "{ a: never }",
+   "read"
+  ],
+  [
+   49,
+   50,
+   "{ a: never }",
+   "read"
+  ],
+  [
+   53,
+   61,
+   "{ a: never }",
+   "fresh"
+  ],
+  [
+   58,
+   59,
+   "never",
+   "value"
+  ]
+ ]
+}

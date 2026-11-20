@@ -1,0 +1,150 @@
+{
+ "exit": 0,
+ "stage": null,
+ "codes": [],
+ "returnType": "void",
+ "tree": {
+  "type": "PureProgram",
+  "form": "function",
+  "name": null,
+  "function": {
+   "type": "FunctionExpression",
+   "id": null,
+   "expression": false,
+   "generator": false,
+   "async": false,
+   "params": [
+    {
+     "type": "Identifier",
+     "name": "next",
+     "typeAnnotation": {
+      "type": "TypeRef",
+      "name": "TodoList",
+      "args": []
+     }
+    },
+    {
+     "type": "ArrayPattern",
+     "elements": [
+      {
+       "type": "Identifier",
+       "name": "text"
+      }
+     ],
+     "typeAnnotation": {
+      "type": "TypeTuple",
+      "elements": [
+       {
+        "type": "TypeKeyword",
+        "name": "string"
+       }
+      ]
+     }
+    }
+   ],
+   "body": {
+    "type": "BlockStatement",
+    "body": [
+     {
+      "type": "VariableDeclaration",
+      "declarations": [
+       {
+        "type": "VariableDeclarator",
+        "id": {
+         "type": "Identifier",
+         "name": "trimmed",
+         "typeAnnotation": {
+          "type": "TypeKeyword",
+          "name": "string"
+         }
+        },
+        "init": {
+         "type": "CallExpression",
+         "callee": {
+          "type": "MemberExpression",
+          "object": {
+           "type": "Identifier",
+           "name": "text"
+          },
+          "property": {
+           "type": "Identifier",
+           "name": "trim"
+          },
+          "computed": false,
+          "optional": false
+         },
+         "arguments": [],
+         "optional": false
+        }
+       }
+      ],
+      "kind": "const"
+     },
+     {
+      "type": "ExpressionStatement",
+      "expression": {
+       "type": "AssignmentExpression",
+       "operator": "=",
+       "left": {
+        "type": "MemberExpression",
+        "object": {
+         "type": "Identifier",
+         "name": "next"
+        },
+        "property": {
+         "type": "Identifier",
+         "name": "text"
+        },
+        "computed": false,
+        "optional": false
+       },
+       "right": {
+        "type": "Identifier",
+        "name": "trimmed"
+       }
+      }
+     }
+    ]
+   },
+   "returnType": {
+    "type": "TypeKeyword",
+    "name": "void"
+   }
+  }
+ },
+ "printed": "function (next: TodoList, [text]: [string]): void {\n\tconst trimmed: string = text.trim();\n\tnext.text = trimmed;\n}",
+ "outcome": {
+  "kind": "finished",
+  "value": null
+ },
+ "steps": 7,
+ "after": [
+  {
+   "text": "typed",
+   "count": 2,
+   "items": [
+    {
+     "title": "write docs",
+     "done": true
+    },
+    {
+     "title": "ship",
+     "done": false
+    }
+   ],
+   "filter": "all",
+   "selected": null,
+   "tags": {
+    "urgent": 1
+   },
+   "left": 1
+  },
+  [
+   "  typed  "
+  ],
+  {
+   "sourceKey": 0
+  }
+ ],
+ "calls": []
+}

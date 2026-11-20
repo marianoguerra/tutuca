@@ -1,0 +1,231 @@
+{
+ "exit": 0,
+ "stage": null,
+ "codes": [],
+ "returnType": "void",
+ "tree": {
+  "type": "PureProgram",
+  "form": "function",
+  "name": null,
+  "function": {
+   "type": "FunctionExpression",
+   "id": null,
+   "expression": false,
+   "generator": false,
+   "async": false,
+   "params": [
+    {
+     "type": "Identifier",
+     "name": "next"
+    }
+   ],
+   "body": {
+    "type": "BlockStatement",
+    "body": [
+     {
+      "type": "VariableDeclaration",
+      "declarations": [
+       {
+        "type": "VariableDeclarator",
+        "id": {
+         "type": "Identifier",
+         "name": "widest"
+        },
+        "init": {
+         "type": "CallExpression",
+         "callee": {
+          "type": "MemberExpression",
+          "object": {
+           "type": "Identifier",
+           "name": "Math"
+          },
+          "property": {
+           "type": "Identifier",
+           "name": "max"
+          },
+          "computed": false,
+          "optional": false
+         },
+         "arguments": [
+          {
+           "type": "Literal",
+           "value": 0,
+           "raw": "0"
+          },
+          {
+           "type": "SpreadElement",
+           "argument": {
+            "type": "CallExpression",
+            "callee": {
+             "type": "MemberExpression",
+             "object": {
+              "type": "MemberExpression",
+              "object": {
+               "type": "ThisExpression"
+              },
+              "property": {
+               "type": "Identifier",
+               "name": "items"
+              },
+              "computed": false,
+              "optional": false
+             },
+             "property": {
+              "type": "Identifier",
+              "name": "map"
+             },
+             "computed": false,
+             "optional": false
+            },
+            "arguments": [
+             {
+              "type": "ArrowFunctionExpression",
+              "id": null,
+              "expression": true,
+              "generator": false,
+              "async": false,
+              "params": [
+               {
+                "type": "Identifier",
+                "name": "it"
+               }
+              ],
+              "body": {
+               "type": "MemberExpression",
+               "object": {
+                "type": "MemberExpression",
+                "object": {
+                 "type": "Identifier",
+                 "name": "it"
+                },
+                "property": {
+                 "type": "Identifier",
+                 "name": "title"
+                },
+                "computed": false,
+                "optional": false
+               },
+               "property": {
+                "type": "Identifier",
+                "name": "length"
+               },
+               "computed": false,
+               "optional": false
+              }
+             }
+            ],
+            "optional": false
+           }
+          }
+         ],
+         "optional": false
+        }
+       }
+      ],
+      "kind": "const"
+     },
+     {
+      "type": "ExpressionStatement",
+      "expression": {
+       "type": "AssignmentExpression",
+       "operator": "=",
+       "left": {
+        "type": "MemberExpression",
+        "object": {
+         "type": "Identifier",
+         "name": "next"
+        },
+        "property": {
+         "type": "Identifier",
+         "name": "text"
+        },
+        "computed": false,
+        "optional": false
+       },
+       "right": {
+        "type": "TemplateLiteral",
+        "expressions": [
+         {
+          "type": "Identifier",
+          "name": "widest"
+         },
+         {
+          "type": "MemberExpression",
+          "object": {
+           "type": "ThisExpression"
+          },
+          "property": {
+           "type": "Identifier",
+           "name": "left"
+          },
+          "computed": false,
+          "optional": false
+         }
+        ],
+        "quasis": [
+         {
+          "type": "TemplateElement",
+          "value": {
+           "raw": "",
+           "cooked": ""
+          },
+          "tail": false
+         },
+         {
+          "type": "TemplateElement",
+          "value": {
+           "raw": " wide, ",
+           "cooked": " wide, "
+          },
+          "tail": false
+         },
+         {
+          "type": "TemplateElement",
+          "value": {
+           "raw": " left",
+           "cooked": " left"
+          },
+          "tail": true
+         }
+        ]
+       }
+      }
+     }
+    ]
+   }
+  }
+ },
+ "printed": "function (next) {\n\tconst widest = Math.max(0, ...this.items.map(it => it.title.length));\n\tnext.text = `${widest} wide, ${this.left} left`;\n}",
+ "outcome": {
+  "kind": "finished",
+  "value": null
+ },
+ "steps": 17,
+ "after": [
+  {
+   "text": "10 wide, 1 left",
+   "count": 2,
+   "items": [
+    {
+     "title": "write docs",
+     "done": true
+    },
+    {
+     "title": "ship",
+     "done": false
+    }
+   ],
+   "filter": "all",
+   "selected": null,
+   "tags": {
+    "urgent": 1
+   },
+   "left": 1
+  },
+  [],
+  {
+   "sourceKey": 0
+  }
+ ],
+ "calls": []
+}

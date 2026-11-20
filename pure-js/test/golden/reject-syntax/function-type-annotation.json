@@ -1,0 +1,65 @@
+{
+ "exit": 2,
+ "stage": "sieve",
+ "codes": [
+  "function-type"
+ ],
+ "returnType": null,
+ "tree": {
+  "type": "PureProgram",
+  "form": "function",
+  "name": null,
+  "function": {
+   "type": "FunctionExpression",
+   "id": null,
+   "expression": false,
+   "generator": false,
+   "async": false,
+   "params": [
+    {
+     "type": "Identifier",
+     "name": "next"
+    },
+    {
+     "type": "ArrayPattern",
+     "elements": [
+      {
+       "type": "Identifier",
+       "name": "f"
+      }
+     ],
+     "typeAnnotation": {
+      "type": "TypeTuple",
+      "elements": [
+       {
+        "type": "TypeFunction",
+        "typeParams": [],
+        "params": [
+         {
+          "type": "TypeParam",
+          "name": "x",
+          "optional": false,
+          "rest": false,
+          "value": {
+           "type": "TypeKeyword",
+           "name": "number"
+          }
+         }
+        ],
+        "result": {
+         "type": "TypeKeyword",
+         "name": "number"
+        }
+       }
+      ]
+     }
+    }
+   ],
+   "body": {
+    "type": "BlockStatement",
+    "body": []
+   }
+  }
+ },
+ "printed": "function (next, [f]: [(x: number) => number]) {}"
+}

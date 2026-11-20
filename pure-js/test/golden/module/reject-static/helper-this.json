@@ -1,0 +1,132 @@
+{
+ "exit": 3,
+ "stage": "check",
+ "codes": [
+  "helper-this"
+ ],
+ "tree": {
+  "type": "PureModule",
+  "items": [
+   {
+    "type": "ExportNamedDeclaration",
+    "declaration": {
+     "type": "TypeAlias",
+     "id": {
+      "type": "Identifier",
+      "name": "State"
+     },
+     "typeAnnotation": {
+      "type": "TypeObject",
+      "members": [
+       {
+        "type": "TypeProperty",
+        "name": "n",
+        "optional": false,
+        "readonly": false,
+        "value": {
+         "type": "TypeKeyword",
+         "name": "number"
+        }
+       }
+      ]
+     }
+    },
+    "specifiers": [],
+    "attributes": []
+   },
+   {
+    "type": "FunctionDeclaration",
+    "id": {
+     "type": "Identifier",
+     "name": "twice"
+    },
+    "expression": false,
+    "generator": false,
+    "async": false,
+    "params": [],
+    "body": {
+     "type": "BlockStatement",
+     "body": [
+      {
+       "type": "ReturnStatement",
+       "argument": {
+        "type": "BinaryExpression",
+        "left": {
+         "type": "MemberExpression",
+         "object": {
+          "type": "ThisExpression"
+         },
+         "property": {
+          "type": "Identifier",
+          "name": "n"
+         },
+         "computed": false,
+         "optional": false
+        },
+        "operator": "*",
+        "right": {
+         "type": "Literal",
+         "value": 2,
+         "raw": "2"
+        }
+       }
+      }
+     ]
+    },
+    "thisType": {
+     "type": "TypeRef",
+     "name": "Readonly",
+     "args": [
+      {
+       "type": "TypeRef",
+       "name": "State",
+       "args": []
+      }
+     ]
+    },
+    "returnType": {
+     "type": "TypeKeyword",
+     "name": "number"
+    }
+   }
+  ]
+ },
+ "printed": "export type State = { n: number };\nfunction twice(this: Readonly<State>): number {\n\treturn this.n * 2;\n}",
+ "entries": {},
+ "callGraph": {
+  "twice": []
+ },
+ "summaries": {
+  "twice": {
+   "params": [],
+   "result": "number",
+   "fresh": false
+  }
+ },
+ "types": [
+  [
+   114,
+   118,
+   "State",
+   "read"
+  ],
+  [
+   114,
+   120,
+   "number",
+   "value"
+  ],
+  [
+   114,
+   124,
+   "number",
+   "value"
+  ],
+  [
+   123,
+   124,
+   "2",
+   "value"
+  ]
+ ]
+}

@@ -1,0 +1,248 @@
+{
+ "exit": 3,
+ "stage": "check",
+ "codes": [
+  "not-iterable"
+ ],
+ "tree": {
+  "type": "PureModule",
+  "items": [
+   {
+    "type": "FunctionDeclaration",
+    "id": {
+     "type": "Identifier",
+     "name": "keys"
+    },
+    "expression": false,
+    "generator": false,
+    "async": false,
+    "params": [
+     {
+      "type": "Identifier",
+      "name": "d",
+      "typeAnnotation": {
+       "type": "TypeRef",
+       "name": "Readonly",
+       "args": [
+        {
+         "type": "TypeObject",
+         "members": [
+          {
+           "type": "TypeIndex",
+           "keyName": "key",
+           "key": {
+            "type": "TypeKeyword",
+            "name": "string"
+           },
+           "value": {
+            "type": "TypeKeyword",
+            "name": "number"
+           }
+          }
+         ]
+        }
+       ]
+      }
+     }
+    ],
+    "body": {
+     "type": "BlockStatement",
+     "body": [
+      {
+       "type": "VariableDeclaration",
+       "declarations": [
+        {
+         "type": "VariableDeclarator",
+         "id": {
+          "type": "Identifier",
+          "name": "n"
+         },
+         "init": {
+          "type": "Literal",
+          "value": 0,
+          "raw": "0"
+         }
+        }
+       ],
+       "kind": "let"
+      },
+      {
+       "type": "ForOfStatement",
+       "await": false,
+       "left": {
+        "type": "VariableDeclaration",
+        "declarations": [
+         {
+          "type": "VariableDeclarator",
+          "id": {
+           "type": "Identifier",
+           "name": "k"
+          },
+          "init": null
+         }
+        ],
+        "kind": "const"
+       },
+       "right": {
+        "type": "Identifier",
+        "name": "d"
+       },
+       "body": {
+        "type": "ExpressionStatement",
+        "expression": {
+         "type": "AssignmentExpression",
+         "operator": "+=",
+         "left": {
+          "type": "Identifier",
+          "name": "n"
+         },
+         "right": {
+          "type": "Literal",
+          "value": 1,
+          "raw": "1"
+         }
+        }
+       }
+      },
+      {
+       "type": "ReturnStatement",
+       "argument": {
+        "type": "Identifier",
+        "name": "n"
+       }
+      }
+     ]
+    },
+    "returnType": {
+     "type": "TypeKeyword",
+     "name": "number"
+    }
+   },
+   {
+    "type": "ExportNamedDeclaration",
+    "declaration": {
+     "type": "VariableDeclaration",
+     "declarations": [
+      {
+       "type": "VariableDeclarator",
+       "id": {
+        "type": "Identifier",
+        "name": "N"
+       },
+       "init": {
+        "type": "ObjectExpression",
+        "properties": [
+         {
+          "type": "Property",
+          "method": false,
+          "shorthand": false,
+          "computed": false,
+          "key": {
+           "type": "Identifier",
+           "name": "start"
+          },
+          "value": {
+           "type": "Literal",
+           "value": 1,
+           "raw": "1"
+          },
+          "kind": "init"
+         }
+        ]
+       }
+      }
+     ],
+     "kind": "const"
+    },
+    "specifiers": [],
+    "attributes": []
+   }
+  ]
+ },
+ "printed": "function keys(d: Readonly<{ [key: string]: number }>): number {\n\tlet n = 0;\n\tfor (const k of d) n += 1;\n\treturn n;\n}\nexport const N = { start: 1 };",
+ "entries": {},
+ "callGraph": {
+  "keys": []
+ },
+ "summaries": {
+  "keys": {
+   "params": [
+    {
+     "name": "d",
+     "type": "{ [key: string]: number }",
+     "mutable": false
+    }
+   ],
+   "result": "number",
+   "fresh": false
+  }
+ },
+ "types": [
+  [
+   38,
+   39,
+   "{ [key: string]: number }",
+   "read"
+  ],
+  [
+   93,
+   94,
+   "number",
+   "value"
+  ],
+  [
+   97,
+   98,
+   "0",
+   "value"
+  ],
+  [
+   112,
+   113,
+   "unknown",
+   "value"
+  ],
+  [
+   117,
+   118,
+   "{ [key: string]: number }",
+   "read"
+  ],
+  [
+   120,
+   121,
+   "number",
+   "value"
+  ],
+  [
+   125,
+   126,
+   "1",
+   "value"
+  ],
+  [
+   136,
+   137,
+   "number",
+   "value"
+  ],
+  [
+   154,
+   155,
+   "{ start: number }",
+   "read"
+  ],
+  [
+   158,
+   170,
+   "{ start: number }",
+   "fresh"
+  ],
+  [
+   167,
+   168,
+   "1",
+   "value"
+  ]
+ ]
+}

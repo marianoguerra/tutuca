@@ -1,0 +1,64 @@
+{
+ "exit": 3,
+ "stage": "check",
+ "codes": [
+  "not-assignable"
+ ],
+ "returnType": "string[]",
+ "tree": {
+  "type": "PureProgram",
+  "form": "function",
+  "name": null,
+  "function": {
+   "type": "FunctionExpression",
+   "id": null,
+   "expression": false,
+   "generator": false,
+   "async": false,
+   "params": [],
+   "body": {
+    "type": "BlockStatement",
+    "body": [
+     {
+      "type": "VariableDeclaration",
+      "declarations": [
+       {
+        "type": "VariableDeclarator",
+        "id": {
+         "type": "Identifier",
+         "name": "xs",
+         "typeAnnotation": {
+          "type": "TypeArray",
+          "element": {
+           "type": "TypeKeyword",
+           "name": "string"
+          }
+         }
+        },
+        "init": {
+         "type": "ArrayExpression",
+         "elements": [
+          {
+           "type": "Literal",
+           "value": 1,
+           "raw": "1"
+          }
+         ]
+        }
+       }
+      ],
+      "kind": "const"
+     },
+     {
+      "type": "ReturnStatement",
+      "argument": {
+       "type": "Identifier",
+       "name": "xs"
+      }
+     }
+    ]
+   }
+  }
+ },
+ "printed": "function () {\n\tconst xs: string[] = [1];\n\treturn xs;\n}"
+}

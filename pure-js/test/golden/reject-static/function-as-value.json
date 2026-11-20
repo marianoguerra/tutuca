@@ -1,0 +1,58 @@
+{
+ "exit": 3,
+ "stage": "check",
+ "codes": [
+  "function-as-value"
+ ],
+ "returnType": "void",
+ "tree": {
+  "type": "PureProgram",
+  "form": "function",
+  "name": null,
+  "function": {
+   "type": "FunctionExpression",
+   "id": null,
+   "expression": false,
+   "generator": false,
+   "async": false,
+   "params": [
+    {
+     "type": "Identifier",
+     "name": "next"
+    }
+   ],
+   "body": {
+    "type": "BlockStatement",
+    "body": [
+     {
+      "type": "VariableDeclaration",
+      "declarations": [
+       {
+        "type": "VariableDeclarator",
+        "id": {
+         "type": "Identifier",
+         "name": "max"
+        },
+        "init": {
+         "type": "MemberExpression",
+         "object": {
+          "type": "Identifier",
+          "name": "Math"
+         },
+         "property": {
+          "type": "Identifier",
+          "name": "max"
+         },
+         "computed": false,
+         "optional": false
+        }
+       }
+      ],
+      "kind": "const"
+     }
+    ]
+   }
+  }
+ },
+ "printed": "function (next) {\n\tconst max = Math.max;\n}"
+}

@@ -1,0 +1,89 @@
+{
+ "exit": 1,
+ "stage": "sieve",
+ "codes": [
+  "arrow-not-callback"
+ ],
+ "returnType": null,
+ "tree": {
+  "type": "PureProgram",
+  "form": "function",
+  "name": null,
+  "function": {
+   "type": "FunctionExpression",
+   "id": null,
+   "expression": false,
+   "generator": false,
+   "async": false,
+   "params": [
+    {
+     "type": "Identifier",
+     "name": "next"
+    }
+   ],
+   "body": {
+    "type": "BlockStatement",
+    "body": [
+     {
+      "type": "VariableDeclaration",
+      "declarations": [
+       {
+        "type": "VariableDeclarator",
+        "id": {
+         "type": "Identifier",
+         "name": "loop"
+        },
+        "init": {
+         "type": "ArrowFunctionExpression",
+         "id": null,
+         "expression": true,
+         "generator": false,
+         "async": false,
+         "params": [
+          {
+           "type": "Identifier",
+           "name": "f"
+          }
+         ],
+         "body": {
+          "type": "CallExpression",
+          "callee": {
+           "type": "Identifier",
+           "name": "f"
+          },
+          "arguments": [
+           {
+            "type": "Identifier",
+            "name": "f"
+           }
+          ],
+          "optional": false
+         }
+        }
+       }
+      ],
+      "kind": "const"
+     },
+     {
+      "type": "ExpressionStatement",
+      "expression": {
+       "type": "CallExpression",
+       "callee": {
+        "type": "Identifier",
+        "name": "loop"
+       },
+       "arguments": [
+        {
+         "type": "Identifier",
+         "name": "loop"
+        }
+       ],
+       "optional": false
+      }
+     }
+    ]
+   }
+  }
+ },
+ "printed": "function (next) {\n\tconst loop = f => f(f);\n\tloop(loop);\n}"
+}

@@ -1,0 +1,91 @@
+{
+ "exit": 3,
+ "stage": "check",
+ "codes": [
+  "import-error"
+ ],
+ "tree": {
+  "type": "PureModule",
+  "items": [
+   {
+    "type": "ImportDeclaration",
+    "importKind": "value",
+    "specifiers": [
+     {
+      "type": "ImportSpecifier",
+      "imported": {
+       "type": "Identifier",
+       "name": "b"
+      },
+      "local": {
+       "type": "Identifier",
+       "name": "b"
+      }
+     }
+    ],
+    "attributes": []
+   },
+   {
+    "type": "ExportNamedDeclaration",
+    "declaration": {
+     "type": "VariableDeclaration",
+     "declarations": [
+      {
+       "type": "VariableDeclarator",
+       "id": {
+        "type": "Identifier",
+        "name": "A"
+       },
+       "init": {
+        "type": "BinaryExpression",
+        "left": {
+         "type": "Identifier",
+         "name": "b"
+        },
+        "operator": "+",
+        "right": {
+         "type": "Literal",
+         "value": 1,
+         "raw": "1"
+        }
+       }
+      }
+     ],
+     "kind": "const"
+    },
+    "specifiers": [],
+    "attributes": []
+   }
+  ]
+ },
+ "printed": "import { b } from \"./b\";\nexport const A = b + 1;",
+ "entries": {},
+ "callGraph": {},
+ "summaries": {},
+ "types": [
+  [
+   62,
+   63,
+   "number",
+   "read"
+  ],
+  [
+   66,
+   67,
+   "never",
+   "value"
+  ],
+  [
+   66,
+   71,
+   "number",
+   "value"
+  ],
+  [
+   70,
+   71,
+   "1",
+   "value"
+  ]
+ ]
+}

@@ -1,0 +1,600 @@
+{
+ "exit": 0,
+ "stage": null,
+ "codes": [],
+ "tree": {
+  "type": "PureModule",
+  "items": [
+   {
+    "type": "ExportNamedDeclaration",
+    "declaration": {
+     "type": "TypeAlias",
+     "id": {
+      "type": "Identifier",
+      "name": "State"
+     },
+     "typeAnnotation": {
+      "type": "TypeObject",
+      "members": [
+       {
+        "type": "TypeProperty",
+        "name": "rows",
+        "optional": false,
+        "readonly": false,
+        "value": {
+         "type": "TypeArray",
+         "element": {
+          "type": "TypeArray",
+          "element": {
+           "type": "TypeKeyword",
+           "name": "number"
+          }
+         }
+        }
+       }
+      ]
+     }
+    },
+    "specifiers": [],
+    "attributes": []
+   },
+   {
+    "type": "ExportNamedDeclaration",
+    "declaration": {
+     "type": "VariableDeclaration",
+     "declarations": [
+      {
+       "type": "VariableDeclarator",
+       "id": {
+        "type": "Identifier",
+        "name": "Grid"
+       },
+       "init": {
+        "type": "ObjectExpression",
+        "properties": [
+         {
+          "type": "Property",
+          "method": false,
+          "shorthand": false,
+          "computed": false,
+          "key": {
+           "type": "Identifier",
+           "name": "queries"
+          },
+          "value": {
+           "type": "ObjectExpression",
+           "properties": [
+            {
+             "type": "Property",
+             "method": true,
+             "shorthand": false,
+             "computed": false,
+             "key": {
+              "type": "Identifier",
+              "name": "cells"
+             },
+             "value": {
+              "type": "FunctionExpression",
+              "id": null,
+              "expression": false,
+              "generator": false,
+              "async": false,
+              "params": [],
+              "body": {
+               "type": "BlockStatement",
+               "body": [
+                {
+                 "type": "ReturnStatement",
+                 "argument": {
+                  "type": "CallExpression",
+                  "callee": {
+                   "type": "MemberExpression",
+                   "object": {
+                    "type": "MemberExpression",
+                    "object": {
+                     "type": "ThisExpression"
+                    },
+                    "property": {
+                     "type": "Identifier",
+                     "name": "rows"
+                    },
+                    "computed": false,
+                    "optional": false
+                   },
+                   "property": {
+                    "type": "Identifier",
+                    "name": "map"
+                   },
+                   "computed": false,
+                   "optional": false
+                  },
+                  "arguments": [
+                   {
+                    "type": "ArrowFunctionExpression",
+                    "id": null,
+                    "expression": false,
+                    "generator": false,
+                    "async": false,
+                    "params": [
+                     {
+                      "type": "Identifier",
+                      "name": "row"
+                     },
+                     {
+                      "type": "Identifier",
+                      "name": "i"
+                     }
+                    ],
+                    "body": {
+                     "type": "BlockStatement",
+                     "body": [
+                      {
+                       "type": "VariableDeclaration",
+                       "declarations": [
+                        {
+                         "type": "VariableDeclarator",
+                         "id": {
+                          "type": "Identifier",
+                          "name": "total"
+                         },
+                         "init": {
+                          "type": "Literal",
+                          "value": 0,
+                          "raw": "0"
+                         }
+                        }
+                       ],
+                       "kind": "let"
+                      },
+                      {
+                       "type": "ForOfStatement",
+                       "await": false,
+                       "left": {
+                        "type": "VariableDeclaration",
+                        "declarations": [
+                         {
+                          "type": "VariableDeclarator",
+                          "id": {
+                           "type": "Identifier",
+                           "name": "x"
+                          },
+                          "init": null
+                         }
+                        ],
+                        "kind": "const"
+                       },
+                       "right": {
+                        "type": "Identifier",
+                        "name": "row"
+                       },
+                       "body": {
+                        "type": "BlockStatement",
+                        "body": [
+                         {
+                          "type": "IfStatement",
+                          "test": {
+                           "type": "BinaryExpression",
+                           "left": {
+                            "type": "Identifier",
+                            "name": "x"
+                           },
+                           "operator": ">",
+                           "right": {
+                            "type": "Literal",
+                            "value": 10,
+                            "raw": "10"
+                           }
+                          },
+                          "consequent": {
+                           "type": "BreakStatement",
+                           "label": null
+                          },
+                          "alternate": null
+                         },
+                         {
+                          "type": "ExpressionStatement",
+                          "expression": {
+                           "type": "AssignmentExpression",
+                           "operator": "+=",
+                           "left": {
+                            "type": "Identifier",
+                            "name": "total"
+                           },
+                           "right": {
+                            "type": "Identifier",
+                            "name": "x"
+                           }
+                          }
+                         }
+                        ]
+                       }
+                      },
+                      {
+                       "type": "VariableDeclaration",
+                       "declarations": [
+                        {
+                         "type": "VariableDeclarator",
+                         "id": {
+                          "type": "Identifier",
+                          "name": "big"
+                         },
+                         "init": {
+                          "type": "CallExpression",
+                          "callee": {
+                           "type": "MemberExpression",
+                           "object": {
+                            "type": "Identifier",
+                            "name": "row"
+                           },
+                           "property": {
+                            "type": "Identifier",
+                            "name": "find"
+                           },
+                           "computed": false,
+                           "optional": false
+                          },
+                          "arguments": [
+                           {
+                            "type": "ArrowFunctionExpression",
+                            "id": null,
+                            "expression": false,
+                            "generator": false,
+                            "async": false,
+                            "params": [
+                             {
+                              "type": "Identifier",
+                              "name": "x"
+                             }
+                            ],
+                            "body": {
+                             "type": "BlockStatement",
+                             "body": [
+                              {
+                               "type": "IfStatement",
+                               "test": {
+                                "type": "BinaryExpression",
+                                "left": {
+                                 "type": "Identifier",
+                                 "name": "x"
+                                },
+                                "operator": ">",
+                                "right": {
+                                 "type": "Literal",
+                                 "value": 2,
+                                 "raw": "2"
+                                }
+                               },
+                               "consequent": {
+                                "type": "BlockStatement",
+                                "body": [
+                                 {
+                                  "type": "ReturnStatement",
+                                  "argument": {
+                                   "type": "Literal",
+                                   "value": true,
+                                   "raw": "true"
+                                  }
+                                 }
+                                ]
+                               },
+                               "alternate": null
+                              },
+                              {
+                               "type": "ReturnStatement",
+                               "argument": {
+                                "type": "Literal",
+                                "value": false,
+                                "raw": "false"
+                               }
+                              }
+                             ]
+                            }
+                           }
+                          ],
+                          "optional": false
+                         }
+                        }
+                       ],
+                       "kind": "const"
+                      },
+                      {
+                       "type": "ReturnStatement",
+                       "argument": {
+                        "type": "TemplateLiteral",
+                        "expressions": [
+                         {
+                          "type": "Identifier",
+                          "name": "i"
+                         },
+                         {
+                          "type": "Identifier",
+                          "name": "total"
+                         },
+                         {
+                          "type": "LogicalExpression",
+                          "left": {
+                           "type": "Identifier",
+                           "name": "big"
+                          },
+                          "operator": "??",
+                          "right": {
+                           "type": "UnaryExpression",
+                           "operator": "-",
+                           "prefix": true,
+                           "argument": {
+                            "type": "Literal",
+                            "value": 1,
+                            "raw": "1"
+                           }
+                          }
+                         }
+                        ],
+                        "quasis": [
+                         {
+                          "type": "TemplateElement",
+                          "value": {
+                           "raw": "",
+                           "cooked": ""
+                          },
+                          "tail": false
+                         },
+                         {
+                          "type": "TemplateElement",
+                          "value": {
+                           "raw": ":",
+                           "cooked": ":"
+                          },
+                          "tail": false
+                         },
+                         {
+                          "type": "TemplateElement",
+                          "value": {
+                           "raw": ":",
+                           "cooked": ":"
+                          },
+                          "tail": false
+                         },
+                         {
+                          "type": "TemplateElement",
+                          "value": {
+                           "raw": "",
+                           "cooked": ""
+                          },
+                          "tail": true
+                         }
+                        ]
+                       }
+                      }
+                     ]
+                    }
+                   }
+                  ],
+                  "optional": false
+                 }
+                }
+               ]
+              },
+              "returnType": {
+               "type": "TypeArray",
+               "element": {
+                "type": "TypeKeyword",
+                "name": "string"
+               }
+              }
+             },
+             "kind": "init"
+            }
+           ]
+          },
+          "kind": "init"
+         }
+        ]
+       }
+      }
+     ],
+     "kind": "const"
+    },
+    "specifiers": [],
+    "attributes": []
+   }
+  ]
+ },
+ "printed": "export type State = { rows: number[][] };\nexport const Grid = {\n\tqueries: {\n\t\tcells(): string[] {\n\t\t\treturn this.rows.map((row, i) => {\n\t\t\t\tlet total = 0;\n\t\t\t\tfor (const x of row) {\n\t\t\t\t\tif (x > 10) break;\n\t\t\t\t\ttotal += x;\n\t\t\t\t}\n\t\t\t\tconst big = row.find(x => {\n\t\t\t\t\tif (x > 2) {\n\t\t\t\t\t\treturn true;\n\t\t\t\t\t}\n\t\t\t\t\treturn false;\n\t\t\t\t});\n\t\t\t\treturn `${i}:${total}:${big ?? -1}`;\n\t\t\t});\n\t\t},\n\t},\n};",
+ "entries": {
+  "Grid.queries.cells": "string[]"
+ },
+ "callGraph": {},
+ "summaries": {},
+ "types": [
+  [
+   205,
+   209,
+   "{ readonly queries: {} }",
+   "read"
+  ],
+  [
+   258,
+   262,
+   "State",
+   "read"
+  ],
+  [
+   258,
+   530,
+   "string[]",
+   "fresh"
+  ],
+  [
+   273,
+   276,
+   "number[]",
+   "read"
+  ],
+  [
+   278,
+   279,
+   "number",
+   "value"
+  ],
+  [
+   294,
+   299,
+   "number",
+   "value"
+  ],
+  [
+   302,
+   303,
+   "0",
+   "value"
+  ],
+  [
+   320,
+   321,
+   "number",
+   "value"
+  ],
+  [
+   325,
+   328,
+   "number[]",
+   "read"
+  ],
+  [
+   341,
+   342,
+   "number",
+   "value"
+  ],
+  [
+   341,
+   347,
+   "boolean",
+   "value"
+  ],
+  [
+   345,
+   347,
+   "10",
+   "value"
+  ],
+  [
+   361,
+   366,
+   "number",
+   "value"
+  ],
+  [
+   370,
+   371,
+   "number",
+   "value"
+  ],
+  [
+   389,
+   392,
+   "number | undefined",
+   "value"
+  ],
+  [
+   395,
+   398,
+   "number[]",
+   "read"
+  ],
+  [
+   395,
+   482,
+   "number | undefined",
+   "value"
+  ],
+  [
+   405,
+   406,
+   "number",
+   "value"
+  ],
+  [
+   422,
+   423,
+   "number",
+   "value"
+  ],
+  [
+   422,
+   427,
+   "boolean",
+   "value"
+  ],
+  [
+   426,
+   427,
+   "2",
+   "value"
+  ],
+  [
+   444,
+   448,
+   "true",
+   "value"
+  ],
+  [
+   469,
+   474,
+   "false",
+   "value"
+  ],
+  [
+   495,
+   523,
+   "string",
+   "value"
+  ],
+  [
+   498,
+   499,
+   "number",
+   "value"
+  ],
+  [
+   503,
+   508,
+   "number",
+   "value"
+  ],
+  [
+   512,
+   515,
+   "number | undefined",
+   "value"
+  ],
+  [
+   512,
+   521,
+   "number",
+   "value"
+  ],
+  [
+   519,
+   521,
+   "number",
+   "value"
+  ],
+  [
+   520,
+   521,
+   "1",
+   "value"
+  ]
+ ],
+ "outcome": {
+  "kind": "finished",
+  "value": [
+   "0:3:-1",
+   "1:3:3",
+   "2:5:5"
+  ]
+ },
+ "steps": 113,
+ "after": []
+}

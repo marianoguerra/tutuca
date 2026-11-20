@@ -1,0 +1,93 @@
+{
+ "exit": 3,
+ "stage": "check",
+ "codes": [
+  "unknown-import"
+ ],
+ "tree": {
+  "type": "PureModule",
+  "items": [
+   {
+    "type": "ImportDeclaration",
+    "importKind": "value",
+    "specifiers": [
+     {
+      "type": "ImportSpecifier",
+      "imported": {
+       "type": "Identifier",
+       "name": "readFile"
+      },
+      "local": {
+       "type": "Identifier",
+       "name": "readFile"
+      }
+     }
+    ],
+    "attributes": []
+   },
+   {
+    "type": "ExportNamedDeclaration",
+    "declaration": {
+     "type": "VariableDeclaration",
+     "declarations": [
+      {
+       "type": "VariableDeclarator",
+       "id": {
+        "type": "Identifier",
+        "name": "N"
+       },
+       "init": {
+        "type": "ObjectExpression",
+        "properties": [
+         {
+          "type": "Property",
+          "method": false,
+          "shorthand": false,
+          "computed": false,
+          "key": {
+           "type": "Identifier",
+           "name": "start"
+          },
+          "value": {
+           "type": "Literal",
+           "value": 1,
+           "raw": "1"
+          },
+          "kind": "init"
+         }
+        ]
+       }
+      }
+     ],
+     "kind": "const"
+    },
+    "specifiers": [],
+    "attributes": []
+   }
+  ]
+ },
+ "printed": "import { readFile } from \"fs\";\nexport const N = { start: 1 };",
+ "entries": {},
+ "callGraph": {},
+ "summaries": {},
+ "types": [
+  [
+   70,
+   71,
+   "{ start: number }",
+   "read"
+  ],
+  [
+   74,
+   86,
+   "{ start: number }",
+   "fresh"
+  ],
+  [
+   83,
+   84,
+   "1",
+   "value"
+  ]
+ ]
+}

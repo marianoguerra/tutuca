@@ -1,0 +1,135 @@
+{
+ "exit": 3,
+ "stage": "check",
+ "codes": [
+  "entry-access"
+ ],
+ "tree": {
+  "type": "PureModule",
+  "items": [
+   {
+    "type": "ExportNamedDeclaration",
+    "declaration": {
+     "type": "VariableDeclaration",
+     "declarations": [
+      {
+       "type": "VariableDeclarator",
+       "id": {
+        "type": "Identifier",
+        "name": "N"
+       },
+       "init": {
+        "type": "ObjectExpression",
+        "properties": [
+         {
+          "type": "Property",
+          "method": false,
+          "shorthand": false,
+          "computed": false,
+          "key": {
+           "type": "Identifier",
+           "name": "secret"
+          },
+          "value": {
+           "type": "FunctionExpression",
+           "id": null,
+           "expression": false,
+           "generator": false,
+           "async": false,
+           "params": [],
+           "body": {
+            "type": "BlockStatement",
+            "body": [
+             {
+              "type": "ReturnStatement",
+              "argument": {
+               "type": "Literal",
+               "value": 1,
+               "raw": "1"
+              }
+             }
+            ]
+           },
+           "returnType": {
+            "type": "TypeKeyword",
+            "name": "number"
+           }
+          },
+          "kind": "get"
+         }
+        ]
+       }
+      }
+     ],
+     "kind": "const"
+    },
+    "specifiers": [],
+    "attributes": []
+   },
+   {
+    "type": "VariableDeclaration",
+    "declarations": [
+     {
+      "type": "VariableDeclarator",
+      "id": {
+       "type": "Identifier",
+       "name": "S"
+      },
+      "init": {
+       "type": "MemberExpression",
+       "object": {
+        "type": "Identifier",
+        "name": "N"
+       },
+       "property": {
+        "type": "Identifier",
+        "name": "secret"
+       },
+       "computed": false,
+       "optional": false
+      }
+     }
+    ],
+    "kind": "const"
+   }
+  ]
+ },
+ "printed": "export const N = {\n\tget secret(): number {\n\t\treturn 1;\n\t},\n};\nconst S = N.secret;",
+ "entries": {
+  "N.secret": "number"
+ },
+ "callGraph": {},
+ "summaries": {},
+ "types": [
+  [
+   37,
+   38,
+   "{}",
+   "read"
+  ],
+  [
+   76,
+   77,
+   "1",
+   "value"
+  ],
+  [
+   92,
+   93,
+   "never",
+   "read"
+  ],
+  [
+   96,
+   97,
+   "{}",
+   "read"
+  ],
+  [
+   96,
+   104,
+   "never",
+   "value"
+  ]
+ ]
+}

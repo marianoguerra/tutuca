@@ -1,0 +1,51 @@
+{
+ "exit": 2,
+ "stage": "sieve",
+ "codes": [
+  "object-pattern"
+ ],
+ "returnType": null,
+ "tree": {
+  "type": "PureProgram",
+  "form": "function",
+  "name": null,
+  "function": {
+   "type": "FunctionExpression",
+   "id": null,
+   "expression": false,
+   "generator": false,
+   "async": false,
+   "params": [
+    {
+     "type": "Identifier",
+     "name": "next"
+    },
+    {
+     "type": "ObjectPattern",
+     "properties": [
+      {
+       "type": "Property",
+       "method": false,
+       "shorthand": true,
+       "computed": false,
+       "key": {
+        "type": "Identifier",
+        "name": "a"
+       },
+       "value": {
+        "type": "Identifier",
+        "name": "a"
+       },
+       "kind": "init"
+      }
+     ]
+    }
+   ],
+   "body": {
+    "type": "BlockStatement",
+    "body": []
+   }
+  }
+ },
+ "printed": "function (next, { a }) {}"
+}

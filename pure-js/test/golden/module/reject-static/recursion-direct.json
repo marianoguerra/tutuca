@@ -1,0 +1,233 @@
+{
+ "exit": 3,
+ "stage": "check",
+ "codes": [
+  "recursive-call"
+ ],
+ "tree": {
+  "type": "PureModule",
+  "items": [
+   {
+    "type": "FunctionDeclaration",
+    "id": {
+     "type": "Identifier",
+     "name": "down"
+    },
+    "expression": false,
+    "generator": false,
+    "async": false,
+    "params": [
+     {
+      "type": "Identifier",
+      "name": "n",
+      "typeAnnotation": {
+       "type": "TypeKeyword",
+       "name": "number"
+      }
+     }
+    ],
+    "body": {
+     "type": "BlockStatement",
+     "body": [
+      {
+       "type": "ReturnStatement",
+       "argument": {
+        "type": "ConditionalExpression",
+        "test": {
+         "type": "BinaryExpression",
+         "left": {
+          "type": "Identifier",
+          "name": "n"
+         },
+         "operator": "<=",
+         "right": {
+          "type": "Literal",
+          "value": 0,
+          "raw": "0"
+         }
+        },
+        "consequent": {
+         "type": "Literal",
+         "value": 0,
+         "raw": "0"
+        },
+        "alternate": {
+         "type": "CallExpression",
+         "callee": {
+          "type": "Identifier",
+          "name": "down"
+         },
+         "arguments": [
+          {
+           "type": "BinaryExpression",
+           "left": {
+            "type": "Identifier",
+            "name": "n"
+           },
+           "operator": "-",
+           "right": {
+            "type": "Literal",
+            "value": 1,
+            "raw": "1"
+           }
+          }
+         ],
+         "optional": false
+        }
+       }
+      }
+     ]
+    },
+    "returnType": {
+     "type": "TypeKeyword",
+     "name": "number"
+    }
+   },
+   {
+    "type": "ExportNamedDeclaration",
+    "declaration": {
+     "type": "VariableDeclaration",
+     "declarations": [
+      {
+       "type": "VariableDeclarator",
+       "id": {
+        "type": "Identifier",
+        "name": "N"
+       },
+       "init": {
+        "type": "ObjectExpression",
+        "properties": [
+         {
+          "type": "Property",
+          "method": false,
+          "shorthand": false,
+          "computed": false,
+          "key": {
+           "type": "Identifier",
+           "name": "start"
+          },
+          "value": {
+           "type": "Literal",
+           "value": 1,
+           "raw": "1"
+          },
+          "kind": "init"
+         }
+        ]
+       }
+      }
+     ],
+     "kind": "const"
+    },
+    "specifiers": [],
+    "attributes": []
+   }
+  ]
+ },
+ "printed": "function down(n: number): number {\n\treturn n <= 0 ? 0 : down(n - 1);\n}\nexport const N = { start: 1 };",
+ "entries": {},
+ "callGraph": {
+  "down": [
+   "down"
+  ]
+ },
+ "summaries": {
+  "down": {
+   "params": [
+    {
+     "name": "n",
+     "type": "number",
+     "mutable": false
+    }
+   ],
+   "result": "number",
+   "fresh": false
+  }
+ },
+ "types": [
+  [
+   40,
+   41,
+   "number",
+   "value"
+  ],
+  [
+   69,
+   70,
+   "number",
+   "value"
+  ],
+  [
+   69,
+   75,
+   "boolean",
+   "value"
+  ],
+  [
+   69,
+   93,
+   "number",
+   "value"
+  ],
+  [
+   74,
+   75,
+   "0",
+   "value"
+  ],
+  [
+   78,
+   79,
+   "0",
+   "value"
+  ],
+  [
+   82,
+   86,
+   "(n: number) => number",
+   "value"
+  ],
+  [
+   82,
+   93,
+   "number",
+   "value"
+  ],
+  [
+   87,
+   88,
+   "number",
+   "value"
+  ],
+  [
+   87,
+   92,
+   "number",
+   "value"
+  ],
+  [
+   91,
+   92,
+   "1",
+   "value"
+  ],
+  [
+   110,
+   111,
+   "{ start: number }",
+   "read"
+  ],
+  [
+   114,
+   126,
+   "{ start: number }",
+   "fresh"
+  ],
+  [
+   123,
+   124,
+   "1",
+   "value"
+  ]
+ ]
+}

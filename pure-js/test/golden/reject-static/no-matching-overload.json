@@ -1,0 +1,95 @@
+{
+ "exit": 3,
+ "stage": "check",
+ "codes": [
+  "no-matching-overload"
+ ],
+ "returnType": "void",
+ "tree": {
+  "type": "PureProgram",
+  "form": "function",
+  "name": null,
+  "function": {
+   "type": "FunctionExpression",
+   "id": null,
+   "expression": false,
+   "generator": false,
+   "async": false,
+   "params": [
+    {
+     "type": "Identifier",
+     "name": "next"
+    }
+   ],
+   "body": {
+    "type": "BlockStatement",
+    "body": [
+     {
+      "type": "ExpressionStatement",
+      "expression": {
+       "type": "AssignmentExpression",
+       "operator": "=",
+       "left": {
+        "type": "MemberExpression",
+        "object": {
+         "type": "Identifier",
+         "name": "next"
+        },
+        "property": {
+         "type": "Identifier",
+         "name": "text"
+        },
+        "computed": false,
+        "optional": false
+       },
+       "right": {
+        "type": "LogicalExpression",
+        "left": {
+         "type": "CallExpression",
+         "callee": {
+          "type": "MemberExpression",
+          "object": {
+           "type": "Identifier",
+           "name": "JSON"
+          },
+          "property": {
+           "type": "Identifier",
+           "name": "stringify"
+          },
+          "computed": false,
+          "optional": false
+         },
+         "arguments": [
+          {
+           "type": "Literal",
+           "value": 1,
+           "raw": "1"
+          },
+          {
+           "type": "Literal",
+           "value": 2,
+           "raw": "2"
+          },
+          {
+           "type": "Literal",
+           "value": 3,
+           "raw": "3"
+          }
+         ],
+         "optional": false
+        },
+        "operator": "??",
+        "right": {
+         "type": "Literal",
+         "value": "",
+         "raw": "\"\""
+        }
+       }
+      }
+     }
+    ]
+   }
+  }
+ },
+ "printed": "function (next) {\n\tnext.text = JSON.stringify(1, 2, 3) ?? \"\";\n}"
+}

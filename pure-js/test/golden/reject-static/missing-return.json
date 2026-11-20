@@ -1,0 +1,67 @@
+{
+ "exit": 3,
+ "stage": "check",
+ "codes": [
+  "missing-return"
+ ],
+ "returnType": "number",
+ "tree": {
+  "type": "PureProgram",
+  "form": "getter",
+  "name": "n",
+  "function": {
+   "type": "FunctionExpression",
+   "id": null,
+   "expression": false,
+   "generator": false,
+   "async": false,
+   "params": [],
+   "body": {
+    "type": "BlockStatement",
+    "body": [
+     {
+      "type": "IfStatement",
+      "test": {
+       "type": "BinaryExpression",
+       "left": {
+        "type": "MemberExpression",
+        "object": {
+         "type": "ThisExpression"
+        },
+        "property": {
+         "type": "Identifier",
+         "name": "count"
+        },
+        "computed": false,
+        "optional": false
+       },
+       "operator": ">",
+       "right": {
+        "type": "Literal",
+        "value": 0,
+        "raw": "0"
+       }
+      },
+      "consequent": {
+       "type": "ReturnStatement",
+       "argument": {
+        "type": "MemberExpression",
+        "object": {
+         "type": "ThisExpression"
+        },
+        "property": {
+         "type": "Identifier",
+         "name": "count"
+        },
+        "computed": false,
+        "optional": false
+       }
+      },
+      "alternate": null
+     }
+    ]
+   }
+  }
+ },
+ "printed": "get n() {\n\tif (this.count > 0) return this.count;\n}"
+}

@@ -1,0 +1,17 @@
+{
+	"conformance": {
+		"accept": 37,
+		"reject-syntax": 59,
+		"reject-static": 46,
+		"undefined": 6,
+		"escapes": 29
+	},
+	"tsc": 43,
+	"modules": {
+		"accept": 14,
+		"reject-syntax": 6,
+		"reject-static": 15,
+		"undefined": 1,
+		"escapes": 6
+	}
+}

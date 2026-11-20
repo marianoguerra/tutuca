@@ -1,0 +1,174 @@
+{
+ "exit": 0,
+ "stage": null,
+ "codes": [],
+ "returnType": "void",
+ "tree": {
+  "type": "PureProgram",
+  "form": "function",
+  "name": null,
+  "function": {
+   "type": "FunctionExpression",
+   "id": null,
+   "expression": false,
+   "generator": false,
+   "async": false,
+   "params": [
+    {
+     "type": "Identifier",
+     "name": "next"
+    },
+    {
+     "type": "ArrayPattern",
+     "elements": [
+      {
+       "type": "Identifier",
+       "name": "value"
+      }
+     ]
+    }
+   ],
+   "body": {
+    "type": "BlockStatement",
+    "body": [
+     {
+      "type": "IfStatement",
+      "test": {
+       "type": "BinaryExpression",
+       "left": {
+        "type": "UnaryExpression",
+        "operator": "typeof",
+        "prefix": true,
+        "argument": {
+         "type": "Identifier",
+         "name": "value"
+        }
+       },
+       "operator": "===",
+       "right": {
+        "type": "Literal",
+        "value": "string",
+        "raw": "\"string\""
+       }
+      },
+      "consequent": {
+       "type": "ExpressionStatement",
+       "expression": {
+        "type": "AssignmentExpression",
+        "operator": "=",
+        "left": {
+         "type": "MemberExpression",
+         "object": {
+          "type": "Identifier",
+          "name": "next"
+         },
+         "property": {
+          "type": "Identifier",
+          "name": "text"
+         },
+         "computed": false,
+         "optional": false
+        },
+        "right": {
+         "type": "Identifier",
+         "name": "value"
+        }
+       }
+      },
+      "alternate": {
+       "type": "IfStatement",
+       "test": {
+        "type": "BinaryExpression",
+        "left": {
+         "type": "UnaryExpression",
+         "operator": "typeof",
+         "prefix": true,
+         "argument": {
+          "type": "Identifier",
+          "name": "value"
+         }
+        },
+        "operator": "===",
+        "right": {
+         "type": "Literal",
+         "value": "number",
+         "raw": "\"number\""
+        }
+       },
+       "consequent": {
+        "type": "ExpressionStatement",
+        "expression": {
+         "type": "AssignmentExpression",
+         "operator": "=",
+         "left": {
+          "type": "MemberExpression",
+          "object": {
+           "type": "Identifier",
+           "name": "next"
+          },
+          "property": {
+           "type": "Identifier",
+           "name": "text"
+          },
+          "computed": false,
+          "optional": false
+         },
+         "right": {
+          "type": "CallExpression",
+          "callee": {
+           "type": "Identifier",
+           "name": "String"
+          },
+          "arguments": [
+           {
+            "type": "Identifier",
+            "name": "value"
+           }
+          ],
+          "optional": false
+         }
+        }
+       },
+       "alternate": null
+      }
+     }
+    ]
+   }
+  }
+ },
+ "printed": "function (next, [value]) {\n\tif (typeof value === \"string\") next.text = value;\n\telse if (typeof value === \"number\") next.text = String(value);\n}",
+ "outcome": {
+  "kind": "finished",
+  "value": null
+ },
+ "steps": 16,
+ "after": [
+  {
+   "text": "42",
+   "count": 2,
+   "items": [
+    {
+     "title": "write docs",
+     "done": true
+    },
+    {
+     "title": "ship",
+     "done": false
+    }
+   ],
+   "filter": "all",
+   "selected": null,
+   "tags": {
+    "urgent": 1
+   },
+   "left": 1
+  },
+  [
+   42
+  ],
+  {
+   "sourceKey": 0
+  }
+ ],
+ "calls": []
+}

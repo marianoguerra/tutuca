@@ -1,0 +1,337 @@
+{
+ "exit": 0,
+ "stage": null,
+ "codes": [],
+ "tree": {
+  "type": "PureModule",
+  "items": [
+   {
+    "type": "ExportNamedDeclaration",
+    "declaration": {
+     "type": "TypeAlias",
+     "id": {
+      "type": "Identifier",
+      "name": "State"
+     },
+     "typeAnnotation": {
+      "type": "TypeObject",
+      "members": [
+       {
+        "type": "TypeProperty",
+        "name": "xs",
+        "optional": false,
+        "readonly": false,
+        "value": {
+         "type": "TypeArray",
+         "element": {
+          "type": "TypeKeyword",
+          "name": "number"
+         }
+        }
+       }
+      ]
+     }
+    },
+    "specifiers": [],
+    "attributes": []
+   },
+   {
+    "type": "ExportNamedDeclaration",
+    "declaration": {
+     "type": "VariableDeclaration",
+     "declarations": [
+      {
+       "type": "VariableDeclarator",
+       "id": {
+        "type": "Identifier",
+        "name": "L"
+       },
+       "init": {
+        "type": "ObjectExpression",
+        "properties": [
+         {
+          "type": "Property",
+          "method": false,
+          "shorthand": false,
+          "computed": false,
+          "key": {
+           "type": "Identifier",
+           "name": "on"
+          },
+          "value": {
+           "type": "ObjectExpression",
+           "properties": [
+            {
+             "type": "Property",
+             "method": false,
+             "shorthand": false,
+             "computed": false,
+             "key": {
+              "type": "Identifier",
+              "name": "put"
+             },
+             "value": {
+              "type": "ObjectExpression",
+              "properties": [
+               {
+                "type": "Property",
+                "method": true,
+                "shorthand": false,
+                "computed": false,
+                "key": {
+                 "type": "Identifier",
+                 "name": "run"
+                },
+                "value": {
+                 "type": "FunctionExpression",
+                 "id": null,
+                 "expression": false,
+                 "generator": false,
+                 "async": false,
+                 "params": [
+                  {
+                   "type": "Identifier",
+                   "name": "next"
+                  }
+                 ],
+                 "body": {
+                  "type": "BlockStatement",
+                  "body": [
+                   {
+                    "type": "VariableDeclaration",
+                    "declarations": [
+                     {
+                      "type": "VariableDeclarator",
+                      "id": {
+                       "type": "Identifier",
+                       "name": "i"
+                      },
+                      "init": {
+                       "type": "Literal",
+                       "value": 0,
+                       "raw": "0"
+                      }
+                     }
+                    ],
+                    "kind": "let"
+                   },
+                   {
+                    "type": "ForOfStatement",
+                    "await": false,
+                    "left": {
+                     "type": "VariableDeclaration",
+                     "declarations": [
+                      {
+                       "type": "VariableDeclarator",
+                       "id": {
+                        "type": "Identifier",
+                        "name": "x"
+                       },
+                       "init": null
+                      }
+                     ],
+                     "kind": "const"
+                    },
+                    "right": {
+                     "type": "MemberExpression",
+                     "object": {
+                      "type": "ThisExpression"
+                     },
+                     "property": {
+                      "type": "Identifier",
+                      "name": "xs"
+                     },
+                     "computed": false,
+                     "optional": false
+                    },
+                    "body": {
+                     "type": "ExpressionStatement",
+                     "expression": {
+                      "type": "AssignmentExpression",
+                      "operator": "+=",
+                      "left": {
+                       "type": "Identifier",
+                       "name": "i"
+                      },
+                      "right": {
+                       "type": "BinaryExpression",
+                       "left": {
+                        "type": "Identifier",
+                        "name": "x"
+                       },
+                       "operator": "+",
+                       "right": {
+                        "type": "Literal",
+                        "value": 1,
+                        "raw": "1"
+                       }
+                      }
+                     }
+                    }
+                   },
+                   {
+                    "type": "ExpressionStatement",
+                    "expression": {
+                     "type": "AssignmentExpression",
+                     "operator": "=",
+                     "left": {
+                      "type": "MemberExpression",
+                      "object": {
+                       "type": "MemberExpression",
+                       "object": {
+                        "type": "Identifier",
+                        "name": "next"
+                       },
+                       "property": {
+                        "type": "Identifier",
+                        "name": "xs"
+                       },
+                       "computed": false,
+                       "optional": false
+                      },
+                      "property": {
+                       "type": "Identifier",
+                       "name": "i"
+                      },
+                      "computed": true,
+                      "optional": false
+                     },
+                     "right": {
+                      "type": "Literal",
+                      "value": 9,
+                      "raw": "9"
+                     }
+                    }
+                   }
+                  ]
+                 }
+                },
+                "kind": "init"
+               }
+              ]
+             },
+             "kind": "init"
+            }
+           ]
+          },
+          "kind": "init"
+         }
+        ]
+       }
+      }
+     ],
+     "kind": "const"
+    },
+    "specifiers": [],
+    "attributes": []
+   }
+  ]
+ },
+ "printed": "export type State = { xs: number[] };\nexport const L = {\n\ton: {\n\t\tput: {\n\t\t\trun(next) {\n\t\t\t\tlet i = 0;\n\t\t\t\tfor (const x of this.xs) i += x + 1;\n\t\t\t\tnext.xs[i] = 9;\n\t\t\t},\n\t\t},\n\t},\n};",
+ "entries": {
+  "L.on.put.run": "void"
+ },
+ "callGraph": {},
+ "summaries": {},
+ "types": [
+  [
+   231,
+   232,
+   "{ readonly on: { readonly put: {} } }",
+   "read"
+  ],
+  [
+   260,
+   264,
+   "State",
+   "draft",
+   "next"
+  ],
+  [
+   276,
+   277,
+   "number",
+   "value"
+  ],
+  [
+   280,
+   281,
+   "0",
+   "value"
+  ],
+  [
+   298,
+   299,
+   "number",
+   "value"
+  ],
+  [
+   303,
+   307,
+   "State",
+   "read"
+  ],
+  [
+   303,
+   310,
+   "number[]",
+   "read"
+  ],
+  [
+   312,
+   313,
+   "number",
+   "value"
+  ],
+  [
+   317,
+   318,
+   "number",
+   "value"
+  ],
+  [
+   317,
+   322,
+   "number",
+   "value"
+  ],
+  [
+   321,
+   322,
+   "1",
+   "value"
+  ],
+  [
+   328,
+   332,
+   "State",
+   "draft",
+   "next"
+  ],
+  [
+   336,
+   337,
+   "number",
+   "value"
+  ],
+  [
+   341,
+   342,
+   "9",
+   "value"
+  ]
+ ],
+ "outcome": {
+  "kind": "undefined",
+  "why": "setting element 2 of a list of 1"
+ },
+ "steps": 16,
+ "after": [
+  {
+   "xs": [
+    1
+   ]
+  },
+  []
+ ]
+}

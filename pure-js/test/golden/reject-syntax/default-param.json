@@ -1,0 +1,52 @@
+{
+ "exit": 2,
+ "stage": "sieve",
+ "codes": [
+  "default-value"
+ ],
+ "returnType": null,
+ "tree": {
+  "type": "PureProgram",
+  "form": "function",
+  "name": null,
+  "function": {
+   "type": "FunctionExpression",
+   "id": null,
+   "expression": false,
+   "generator": false,
+   "async": false,
+   "params": [
+    {
+     "type": "Identifier",
+     "name": "next"
+    },
+    {
+     "type": "ArrayPattern",
+     "elements": [
+      {
+       "type": "Identifier",
+       "name": "a"
+      },
+      {
+       "type": "AssignmentPattern",
+       "left": {
+        "type": "Identifier",
+        "name": "b"
+       },
+       "right": {
+        "type": "Literal",
+        "value": 1,
+        "raw": "1"
+       }
+      }
+     ]
+    }
+   ],
+   "body": {
+    "type": "BlockStatement",
+    "body": []
+   }
+  }
+ },
+ "printed": "function (next, [a, b = 1]) {}"
+}

@@ -1,0 +1,274 @@
+{
+ "exit": 0,
+ "stage": null,
+ "codes": [],
+ "returnType": "void",
+ "tree": {
+  "type": "PureProgram",
+  "form": "function",
+  "name": null,
+  "function": {
+   "type": "FunctionExpression",
+   "id": null,
+   "expression": false,
+   "generator": false,
+   "async": false,
+   "params": [
+    {
+     "type": "Identifier",
+     "name": "next"
+    }
+   ],
+   "body": {
+    "type": "BlockStatement",
+    "body": [
+     {
+      "type": "VariableDeclaration",
+      "declarations": [
+       {
+        "type": "VariableDeclarator",
+        "id": {
+         "type": "Identifier",
+         "name": "s"
+        },
+        "init": {
+         "type": "CallExpression",
+         "callee": {
+          "type": "MemberExpression",
+          "object": {
+           "type": "MemberExpression",
+           "object": {
+            "type": "ThisExpression"
+           },
+           "property": {
+            "type": "Identifier",
+            "name": "shapes"
+           },
+           "computed": false,
+           "optional": false
+          },
+          "property": {
+           "type": "Identifier",
+           "name": "at"
+          },
+          "computed": false,
+          "optional": false
+         },
+         "arguments": [
+          {
+           "type": "UnaryExpression",
+           "operator": "-",
+           "prefix": true,
+           "argument": {
+            "type": "Literal",
+            "value": 1,
+            "raw": "1"
+           }
+          }
+         ],
+         "optional": false
+        }
+       }
+      ],
+      "kind": "const"
+     },
+     {
+      "type": "IfStatement",
+      "test": {
+       "type": "BinaryExpression",
+       "left": {
+        "type": "Identifier",
+        "name": "s"
+       },
+       "operator": "===",
+       "right": {
+        "type": "Identifier",
+        "name": "undefined"
+       }
+      },
+      "consequent": {
+       "type": "ReturnStatement",
+       "argument": null
+      },
+      "alternate": null
+     },
+     {
+      "type": "IfStatement",
+      "test": {
+       "type": "BinaryExpression",
+       "left": {
+        "type": "MemberExpression",
+        "object": {
+         "type": "Identifier",
+         "name": "s"
+        },
+        "property": {
+         "type": "Identifier",
+         "name": "kind"
+        },
+        "computed": false,
+        "optional": false
+       },
+       "operator": "===",
+       "right": {
+        "type": "Literal",
+        "value": "square",
+        "raw": "\"square\""
+       }
+      },
+      "consequent": {
+       "type": "BlockStatement",
+       "body": [
+        {
+         "type": "ExpressionStatement",
+         "expression": {
+          "type": "AssignmentExpression",
+          "operator": "=",
+          "left": {
+           "type": "MemberExpression",
+           "object": {
+            "type": "Identifier",
+            "name": "next"
+           },
+           "property": {
+            "type": "Identifier",
+            "name": "label"
+           },
+           "computed": false,
+           "optional": false
+          },
+          "right": {
+           "type": "TemplateLiteral",
+           "expressions": [
+            {
+             "type": "MemberExpression",
+             "object": {
+              "type": "Identifier",
+              "name": "s"
+             },
+             "property": {
+              "type": "Identifier",
+              "name": "side"
+             },
+             "computed": false,
+             "optional": false
+            }
+           ],
+           "quasis": [
+            {
+             "type": "TemplateElement",
+             "value": {
+              "raw": "square of ",
+              "cooked": "square of "
+             },
+             "tail": false
+            },
+            {
+             "type": "TemplateElement",
+             "value": {
+              "raw": "",
+              "cooked": ""
+             },
+             "tail": true
+            }
+           ]
+          }
+         }
+        },
+        {
+         "type": "ReturnStatement",
+         "argument": null
+        }
+       ]
+      },
+      "alternate": null
+     },
+     {
+      "type": "ExpressionStatement",
+      "expression": {
+       "type": "AssignmentExpression",
+       "operator": "=",
+       "left": {
+        "type": "MemberExpression",
+        "object": {
+         "type": "Identifier",
+         "name": "next"
+        },
+        "property": {
+         "type": "Identifier",
+         "name": "label"
+        },
+        "computed": false,
+        "optional": false
+       },
+       "right": {
+        "type": "TemplateLiteral",
+        "expressions": [
+         {
+          "type": "MemberExpression",
+          "object": {
+           "type": "Identifier",
+           "name": "s"
+          },
+          "property": {
+           "type": "Identifier",
+           "name": "r"
+          },
+          "computed": false,
+          "optional": false
+         }
+        ],
+        "quasis": [
+         {
+          "type": "TemplateElement",
+          "value": {
+           "raw": "circle of ",
+           "cooked": "circle of "
+          },
+          "tail": false
+         },
+         {
+          "type": "TemplateElement",
+          "value": {
+           "raw": "",
+           "cooked": ""
+          },
+          "tail": true
+         }
+        ]
+       }
+      }
+     }
+    ]
+   }
+  }
+ },
+ "printed": "function (next) {\n\tconst s = this.shapes.at(-1);\n\tif (s === undefined) return;\n\tif (s.kind === \"square\") {\n\t\tnext.label = `square of ${s.side}`;\n\t\treturn;\n\t}\n\tnext.label = `circle of ${s.r}`;\n}",
+ "outcome": {
+  "kind": "finished",
+  "value": null
+ },
+ "steps": 22,
+ "after": [
+  {
+   "shapes": [
+    {
+     "kind": "circle",
+     "r": 2
+    },
+    {
+     "kind": "square",
+     "side": 3
+    }
+   ],
+   "current": null,
+   "total": 0,
+   "label": "square of 3"
+  },
+  [],
+  {
+   "sourceKey": 0
+  }
+ ],
+ "calls": []
+}

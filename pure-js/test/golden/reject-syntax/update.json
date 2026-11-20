@@ -1,0 +1,53 @@
+{
+ "exit": 2,
+ "stage": "sieve",
+ "codes": [
+  "update"
+ ],
+ "returnType": null,
+ "tree": {
+  "type": "PureProgram",
+  "form": "function",
+  "name": null,
+  "function": {
+   "type": "FunctionExpression",
+   "id": null,
+   "expression": false,
+   "generator": false,
+   "async": false,
+   "params": [
+    {
+     "type": "Identifier",
+     "name": "next"
+    }
+   ],
+   "body": {
+    "type": "BlockStatement",
+    "body": [
+     {
+      "type": "ExpressionStatement",
+      "expression": {
+       "type": "UpdateExpression",
+       "operator": "++",
+       "prefix": false,
+       "argument": {
+        "type": "MemberExpression",
+        "object": {
+         "type": "Identifier",
+         "name": "next"
+        },
+        "property": {
+         "type": "Identifier",
+         "name": "count"
+        },
+        "computed": false,
+        "optional": false
+       }
+      }
+     }
+    ]
+   }
+  }
+ },
+ "printed": "function (next) {\n\tnext.count++;\n}"
+}

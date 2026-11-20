@@ -1,0 +1,463 @@
+{
+ "exit": 0,
+ "stage": null,
+ "codes": [],
+ "tree": {
+  "type": "PureModule",
+  "items": [
+   {
+    "type": "ExportNamedDeclaration",
+    "declaration": {
+     "type": "TypeAlias",
+     "id": {
+      "type": "Identifier",
+      "name": "Tag"
+     },
+     "typeAnnotation": {
+      "type": "TypeUnion",
+      "types": [
+       {
+        "type": "TypeLiteral",
+        "value": "feature"
+       },
+       {
+        "type": "TypeLiteral",
+        "value": "bug"
+       },
+       {
+        "type": "TypeLiteral",
+        "value": "chore"
+       }
+      ]
+     }
+    },
+    "specifiers": [],
+    "attributes": []
+   },
+   {
+    "type": "ExportNamedDeclaration",
+    "declaration": {
+     "type": "TypeAlias",
+     "id": {
+      "type": "Identifier",
+      "name": "State"
+     },
+     "typeAnnotation": {
+      "type": "TypeObject",
+      "members": [
+       {
+        "type": "TypeProperty",
+        "name": "tag",
+        "optional": false,
+        "readonly": false,
+        "value": {
+         "type": "TypeRef",
+         "name": "Tag",
+         "args": []
+        }
+       },
+       {
+        "type": "TypeProperty",
+        "name": "card",
+        "optional": false,
+        "readonly": false,
+        "value": {
+         "type": "TypeObject",
+         "members": [
+          {
+           "type": "TypeProperty",
+           "name": "tag",
+           "optional": false,
+           "readonly": false,
+           "value": {
+            "type": "TypeRef",
+            "name": "Tag",
+            "args": []
+           }
+          }
+         ]
+        }
+       }
+      ]
+     }
+    },
+    "specifiers": [],
+    "attributes": []
+   },
+   {
+    "type": "FunctionDeclaration",
+    "id": {
+     "type": "Identifier",
+     "name": "after"
+    },
+    "expression": false,
+    "generator": false,
+    "async": false,
+    "params": [
+     {
+      "type": "Identifier",
+      "name": "tag",
+      "typeAnnotation": {
+       "type": "TypeRef",
+       "name": "Tag",
+       "args": []
+      }
+     }
+    ],
+    "body": {
+     "type": "BlockStatement",
+     "body": [
+      {
+       "type": "IfStatement",
+       "test": {
+        "type": "BinaryExpression",
+        "left": {
+         "type": "Identifier",
+         "name": "tag"
+        },
+        "operator": "===",
+        "right": {
+         "type": "Literal",
+         "value": "feature",
+         "raw": "\"feature\""
+        }
+       },
+       "consequent": {
+        "type": "ReturnStatement",
+        "argument": {
+         "type": "Literal",
+         "value": "bug",
+         "raw": "\"bug\""
+        }
+       },
+       "alternate": null
+      },
+      {
+       "type": "IfStatement",
+       "test": {
+        "type": "BinaryExpression",
+        "left": {
+         "type": "Identifier",
+         "name": "tag"
+        },
+        "operator": "===",
+        "right": {
+         "type": "Literal",
+         "value": "bug",
+         "raw": "\"bug\""
+        }
+       },
+       "consequent": {
+        "type": "ReturnStatement",
+        "argument": {
+         "type": "Literal",
+         "value": "chore",
+         "raw": "\"chore\""
+        }
+       },
+       "alternate": null
+      },
+      {
+       "type": "ReturnStatement",
+       "argument": {
+        "type": "Literal",
+        "value": "feature",
+        "raw": "\"feature\""
+       }
+      }
+     ]
+    },
+    "returnType": {
+     "type": "TypeRef",
+     "name": "Tag",
+     "args": []
+    }
+   },
+   {
+    "type": "ExportNamedDeclaration",
+    "declaration": {
+     "type": "VariableDeclaration",
+     "declarations": [
+      {
+       "type": "VariableDeclarator",
+       "id": {
+        "type": "Identifier",
+        "name": "Tags"
+       },
+       "init": {
+        "type": "ObjectExpression",
+        "properties": [
+         {
+          "type": "Property",
+          "method": false,
+          "shorthand": false,
+          "computed": false,
+          "key": {
+           "type": "Identifier",
+           "name": "queries"
+          },
+          "value": {
+           "type": "ObjectExpression",
+           "properties": [
+            {
+             "type": "Property",
+             "method": true,
+             "shorthand": false,
+             "computed": false,
+             "key": {
+              "type": "Identifier",
+              "name": "next"
+             },
+             "value": {
+              "type": "FunctionExpression",
+              "id": null,
+              "expression": false,
+              "generator": false,
+              "async": false,
+              "params": [],
+              "body": {
+               "type": "BlockStatement",
+               "body": [
+                {
+                 "type": "ReturnStatement",
+                 "argument": {
+                  "type": "ArrayExpression",
+                  "elements": [
+                   {
+                    "type": "CallExpression",
+                    "callee": {
+                     "type": "Identifier",
+                     "name": "after"
+                    },
+                    "arguments": [
+                     {
+                      "type": "MemberExpression",
+                      "object": {
+                       "type": "ThisExpression"
+                      },
+                      "property": {
+                       "type": "Identifier",
+                       "name": "tag"
+                      },
+                      "computed": false,
+                      "optional": false
+                     }
+                    ],
+                    "optional": false
+                   },
+                   {
+                    "type": "CallExpression",
+                    "callee": {
+                     "type": "Identifier",
+                     "name": "after"
+                    },
+                    "arguments": [
+                     {
+                      "type": "MemberExpression",
+                      "object": {
+                       "type": "MemberExpression",
+                       "object": {
+                        "type": "ThisExpression"
+                       },
+                       "property": {
+                        "type": "Identifier",
+                        "name": "card"
+                       },
+                       "computed": false,
+                       "optional": false
+                      },
+                      "property": {
+                       "type": "Identifier",
+                       "name": "tag"
+                      },
+                      "computed": false,
+                      "optional": false
+                     }
+                    ],
+                    "optional": false
+                   }
+                  ]
+                 }
+                }
+               ]
+              },
+              "returnType": {
+               "type": "TypeArray",
+               "element": {
+                "type": "TypeRef",
+                "name": "Tag",
+                "args": []
+               }
+              }
+             },
+             "kind": "init"
+            }
+           ]
+          },
+          "kind": "init"
+         }
+        ]
+       }
+      }
+     ],
+     "kind": "const"
+    },
+    "specifiers": [],
+    "attributes": []
+   }
+  ]
+ },
+ "printed": "export type Tag = \"feature\" | \"bug\" | \"chore\";\nexport type State = { tag: Tag; card: { tag: Tag } };\nfunction after(tag: Tag): Tag {\n\tif (tag === \"feature\") return \"bug\";\n\tif (tag === \"bug\") return \"chore\";\n\treturn \"feature\";\n}\nexport const Tags = {\n\tqueries: {\n\t\tnext(): Tag[] {\n\t\t\treturn [after(this.tag), after(this.card.tag)];\n\t\t},\n\t},\n};",
+ "entries": {
+  "Tags.queries.next": "Tag[]"
+ },
+ "callGraph": {
+  "after": []
+ },
+ "summaries": {
+  "after": {
+   "params": [
+    {
+     "name": "tag",
+     "type": "Tag",
+     "mutable": false
+    }
+   ],
+   "result": "Tag",
+   "fresh": false
+  }
+ },
+ "types": [
+  [
+   474,
+   477,
+   "Tag",
+   "draft",
+   "tag"
+  ],
+  [
+   496,
+   499,
+   "Tag",
+   "draft",
+   "tag"
+  ],
+  [
+   496,
+   513,
+   "boolean",
+   "value"
+  ],
+  [
+   504,
+   513,
+   "\"feature\"",
+   "value"
+  ],
+  [
+   522,
+   527,
+   "\"bug\"",
+   "value"
+  ],
+  [
+   534,
+   537,
+   "\"bug\" | \"chore\"",
+   "value"
+  ],
+  [
+   534,
+   547,
+   "boolean",
+   "value"
+  ],
+  [
+   542,
+   547,
+   "\"bug\"",
+   "value"
+  ],
+  [
+   556,
+   563,
+   "\"chore\"",
+   "value"
+  ],
+  [
+   573,
+   582,
+   "\"feature\"",
+   "value"
+  ],
+  [
+   599,
+   603,
+   "{ readonly queries: {} }",
+   "read"
+  ],
+  [
+   648,
+   687,
+   "Tag[]",
+   "fresh"
+  ],
+  [
+   649,
+   654,
+   "(tag: Tag) => Tag",
+   "value"
+  ],
+  [
+   649,
+   664,
+   "Tag",
+   "read"
+  ],
+  [
+   655,
+   659,
+   "State",
+   "read"
+  ],
+  [
+   655,
+   663,
+   "Tag",
+   "read"
+  ],
+  [
+   666,
+   671,
+   "(tag: Tag) => Tag",
+   "value"
+  ],
+  [
+   666,
+   686,
+   "Tag",
+   "read"
+  ],
+  [
+   672,
+   676,
+   "State",
+   "read"
+  ],
+  [
+   672,
+   685,
+   "Tag",
+   "read"
+  ]
+ ],
+ "outcome": {
+  "kind": "finished",
+  "value": [
+   "chore",
+   "feature"
+  ]
+ },
+ "steps": 32,
+ "after": []
+}

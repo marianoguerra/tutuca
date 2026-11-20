@@ -1,0 +1,226 @@
+{
+ "exit": 0,
+ "stage": null,
+ "codes": [],
+ "tree": {
+  "type": "PureModule",
+  "items": [
+   {
+    "type": "ExportNamedDeclaration",
+    "declaration": {
+     "type": "TypeAlias",
+     "id": {
+      "type": "Identifier",
+      "name": "State"
+     },
+     "typeAnnotation": {
+      "type": "TypeObject",
+      "members": [
+       {
+        "type": "TypeProperty",
+        "name": "total",
+        "optional": false,
+        "readonly": false,
+        "value": {
+         "type": "TypeKeyword",
+         "name": "number"
+        }
+       }
+      ]
+     }
+    },
+    "specifiers": [],
+    "attributes": []
+   },
+   {
+    "type": "ExportNamedDeclaration",
+    "declaration": {
+     "type": "VariableDeclaration",
+     "declarations": [
+      {
+       "type": "VariableDeclarator",
+       "id": {
+        "type": "Identifier",
+        "name": "Tally"
+       },
+       "init": {
+        "type": "ObjectExpression",
+        "properties": [
+         {
+          "type": "Property",
+          "method": true,
+          "shorthand": false,
+          "computed": false,
+          "key": {
+           "type": "Identifier",
+           "name": "add"
+          },
+          "value": {
+           "type": "FunctionExpression",
+           "id": null,
+           "expression": false,
+           "generator": false,
+           "async": false,
+           "params": [
+            {
+             "type": "Identifier",
+             "name": "next",
+             "typeAnnotation": {
+              "type": "TypeRef",
+              "name": "State",
+              "args": []
+             }
+            },
+            {
+             "type": "Identifier",
+             "name": "n",
+             "typeAnnotation": {
+              "type": "TypeKeyword",
+              "name": "number"
+             }
+            }
+           ],
+           "body": {
+            "type": "BlockStatement",
+            "body": [
+             {
+              "type": "ExpressionStatement",
+              "expression": {
+               "type": "AssignmentExpression",
+               "operator": "=",
+               "left": {
+                "type": "MemberExpression",
+                "object": {
+                 "type": "Identifier",
+                 "name": "next"
+                },
+                "property": {
+                 "type": "Identifier",
+                 "name": "total"
+                },
+                "computed": false,
+                "optional": false
+               },
+               "right": {
+                "type": "BinaryExpression",
+                "left": {
+                 "type": "MemberExpression",
+                 "object": {
+                  "type": "ThisExpression"
+                 },
+                 "property": {
+                  "type": "Identifier",
+                  "name": "total"
+                 },
+                 "computed": false,
+                 "optional": false
+                },
+                "operator": "+",
+                "right": {
+                 "type": "Identifier",
+                 "name": "n"
+                }
+               }
+              }
+             }
+            ]
+           },
+           "thisType": {
+            "type": "TypeRef",
+            "name": "Readonly",
+            "args": [
+             {
+              "type": "TypeRef",
+              "name": "State",
+              "args": []
+             }
+            ]
+           },
+           "returnType": {
+            "type": "TypeKeyword",
+            "name": "void"
+           }
+          },
+          "kind": "init"
+         }
+        ]
+       }
+      }
+     ],
+     "kind": "const"
+    },
+    "specifiers": [],
+    "attributes": []
+   }
+  ]
+ },
+ "printed": "export type State = { total: number };\nexport const Tally = {\n\tadd(this: Readonly<State>, next: State, n: number): void {\n\t\tnext.total = this.total + n;\n\t},\n};",
+ "entries": {
+  "Tally.add": "void"
+ },
+ "callGraph": {},
+ "summaries": {},
+ "types": [
+  [
+   133,
+   138,
+   "{}",
+   "read"
+  ],
+  [
+   171,
+   175,
+   "State",
+   "draft",
+   "next"
+  ],
+  [
+   184,
+   185,
+   "number",
+   "value"
+  ],
+  [
+   205,
+   209,
+   "State",
+   "draft",
+   "next"
+  ],
+  [
+   218,
+   222,
+   "State",
+   "read"
+  ],
+  [
+   218,
+   228,
+   "number",
+   "value"
+  ],
+  [
+   218,
+   232,
+   "number",
+   "value"
+  ],
+  [
+   231,
+   232,
+   "number",
+   "value"
+  ]
+ ],
+ "outcome": {
+  "kind": "finished",
+  "value": null
+ },
+ "steps": 7,
+ "after": [
+  {
+   "total": 5
+  },
+  4
+ ]
+}

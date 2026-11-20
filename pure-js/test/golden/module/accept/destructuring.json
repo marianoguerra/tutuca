@@ -1,0 +1,844 @@
+{
+ "exit": 0,
+ "stage": null,
+ "codes": [],
+ "tree": {
+  "type": "PureModule",
+  "items": [
+   {
+    "type": "ExportNamedDeclaration",
+    "declaration": {
+     "type": "TypeAlias",
+     "id": {
+      "type": "Identifier",
+      "name": "Card"
+     },
+     "typeAnnotation": {
+      "type": "TypeObject",
+      "members": [
+       {
+        "type": "TypeProperty",
+        "name": "id",
+        "optional": false,
+        "readonly": false,
+        "value": {
+         "type": "TypeKeyword",
+         "name": "number"
+        }
+       },
+       {
+        "type": "TypeProperty",
+        "name": "title",
+        "optional": false,
+        "readonly": false,
+        "value": {
+         "type": "TypeKeyword",
+         "name": "string"
+        }
+       },
+       {
+        "type": "TypeProperty",
+        "name": "tags",
+        "optional": false,
+        "readonly": false,
+        "value": {
+         "type": "TypeArray",
+         "element": {
+          "type": "TypeKeyword",
+          "name": "string"
+         }
+        }
+       },
+       {
+        "type": "TypeProperty",
+        "name": "note",
+        "optional": true,
+        "readonly": false,
+        "value": {
+         "type": "TypeKeyword",
+         "name": "string"
+        }
+       }
+      ]
+     }
+    },
+    "specifiers": [],
+    "attributes": []
+   },
+   {
+    "type": "ExportNamedDeclaration",
+    "declaration": {
+     "type": "TypeAlias",
+     "id": {
+      "type": "Identifier",
+      "name": "State"
+     },
+     "typeAnnotation": {
+      "type": "TypeObject",
+      "members": [
+       {
+        "type": "TypeProperty",
+        "name": "cards",
+        "optional": false,
+        "readonly": false,
+        "value": {
+         "type": "TypeArray",
+         "element": {
+          "type": "TypeRef",
+          "name": "Card",
+          "args": []
+         }
+        }
+       },
+       {
+        "type": "TypeProperty",
+        "name": "title",
+        "optional": false,
+        "readonly": false,
+        "value": {
+         "type": "TypeKeyword",
+         "name": "string"
+        }
+       }
+      ]
+     }
+    },
+    "specifiers": [],
+    "attributes": []
+   },
+   {
+    "type": "ExportNamedDeclaration",
+    "declaration": {
+     "type": "VariableDeclaration",
+     "declarations": [
+      {
+       "type": "VariableDeclarator",
+       "id": {
+        "type": "Identifier",
+        "name": "Board"
+       },
+       "init": {
+        "type": "ObjectExpression",
+        "properties": [
+         {
+          "type": "Property",
+          "method": false,
+          "shorthand": false,
+          "computed": false,
+          "key": {
+           "type": "Identifier",
+           "name": "on"
+          },
+          "value": {
+           "type": "ObjectExpression",
+           "properties": [
+            {
+             "type": "Property",
+             "method": false,
+             "shorthand": false,
+             "computed": false,
+             "key": {
+              "type": "Identifier",
+              "name": "rename"
+             },
+             "value": {
+              "type": "ObjectExpression",
+              "properties": [
+               {
+                "type": "Property",
+                "method": true,
+                "shorthand": false,
+                "computed": false,
+                "key": {
+                 "type": "Identifier",
+                 "name": "run"
+                },
+                "value": {
+                 "type": "FunctionExpression",
+                 "id": null,
+                 "expression": false,
+                 "generator": false,
+                 "async": false,
+                 "params": [
+                  {
+                   "type": "Identifier",
+                   "name": "next"
+                  },
+                  {
+                   "type": "ArrayPattern",
+                   "elements": [
+                    {
+                     "type": "Identifier",
+                     "name": "title"
+                    },
+                    {
+                     "type": "Identifier",
+                     "name": "at"
+                    }
+                   ]
+                  }
+                 ],
+                 "body": {
+                  "type": "BlockStatement",
+                  "body": [
+                   {
+                    "type": "VariableDeclaration",
+                    "declarations": [
+                     {
+                      "type": "VariableDeclarator",
+                      "id": {
+                       "type": "ObjectPattern",
+                       "properties": [
+                        {
+                         "type": "Property",
+                         "method": false,
+                         "shorthand": true,
+                         "computed": false,
+                         "key": {
+                          "type": "Identifier",
+                          "name": "cards"
+                         },
+                         "value": {
+                          "type": "Identifier",
+                          "name": "cards"
+                         },
+                         "kind": "init"
+                        }
+                       ]
+                      },
+                      "init": {
+                       "type": "Identifier",
+                       "name": "next"
+                      }
+                     }
+                    ],
+                    "kind": "const"
+                   },
+                   {
+                    "type": "VariableDeclaration",
+                    "declarations": [
+                     {
+                      "type": "VariableDeclarator",
+                      "id": {
+                       "type": "Identifier",
+                       "name": "card"
+                      },
+                      "init": {
+                       "type": "MemberExpression",
+                       "object": {
+                        "type": "Identifier",
+                        "name": "cards"
+                       },
+                       "property": {
+                        "type": "Identifier",
+                        "name": "at"
+                       },
+                       "computed": true,
+                       "optional": false
+                      }
+                     }
+                    ],
+                    "kind": "const"
+                   },
+                   {
+                    "type": "IfStatement",
+                    "test": {
+                     "type": "BinaryExpression",
+                     "left": {
+                      "type": "Identifier",
+                      "name": "card"
+                     },
+                     "operator": "===",
+                     "right": {
+                      "type": "Identifier",
+                      "name": "undefined"
+                     }
+                    },
+                    "consequent": {
+                     "type": "ReturnStatement",
+                     "argument": null
+                    },
+                    "alternate": null
+                   },
+                   {
+                    "type": "VariableDeclaration",
+                    "declarations": [
+                     {
+                      "type": "VariableDeclarator",
+                      "id": {
+                       "type": "ObjectPattern",
+                       "properties": [
+                        {
+                         "type": "Property",
+                         "method": false,
+                         "shorthand": true,
+                         "computed": false,
+                         "key": {
+                          "type": "Identifier",
+                          "name": "tags"
+                         },
+                         "value": {
+                          "type": "Identifier",
+                          "name": "tags"
+                         },
+                         "kind": "init"
+                        },
+                        {
+                         "type": "Property",
+                         "method": false,
+                         "shorthand": true,
+                         "computed": false,
+                         "key": {
+                          "type": "Identifier",
+                          "name": "note"
+                         },
+                         "value": {
+                          "type": "AssignmentPattern",
+                          "left": {
+                           "type": "Identifier",
+                           "name": "note"
+                          },
+                          "right": {
+                           "type": "Literal",
+                           "value": "none",
+                           "raw": "\"none\""
+                          }
+                         },
+                         "kind": "init"
+                        },
+                        {
+                         "type": "RestElement",
+                         "argument": {
+                          "type": "Identifier",
+                          "name": "rest"
+                         }
+                        }
+                       ]
+                      },
+                      "init": {
+                       "type": "Identifier",
+                       "name": "card"
+                      }
+                     }
+                    ],
+                    "kind": "const"
+                   },
+                   {
+                    "type": "VariableDeclaration",
+                    "declarations": [
+                     {
+                      "type": "VariableDeclarator",
+                      "id": {
+                       "type": "ArrayPattern",
+                       "elements": [
+                        {
+                         "type": "Identifier",
+                         "name": "first"
+                        },
+                        {
+                         "type": "RestElement",
+                         "argument": {
+                          "type": "Identifier",
+                          "name": "others"
+                         }
+                        }
+                       ]
+                      },
+                      "init": {
+                       "type": "Identifier",
+                       "name": "tags"
+                      }
+                     }
+                    ],
+                    "kind": "const"
+                   },
+                   {
+                    "type": "ExpressionStatement",
+                    "expression": {
+                     "type": "CallExpression",
+                     "callee": {
+                      "type": "MemberExpression",
+                      "object": {
+                       "type": "Identifier",
+                       "name": "tags"
+                      },
+                      "property": {
+                       "type": "Identifier",
+                       "name": "push"
+                      },
+                      "computed": false,
+                      "optional": false
+                     },
+                     "arguments": [
+                      {
+                       "type": "TemplateLiteral",
+                       "expressions": [
+                        {
+                         "type": "MemberExpression",
+                         "object": {
+                          "type": "Identifier",
+                          "name": "rest"
+                         },
+                         "property": {
+                          "type": "Identifier",
+                          "name": "title"
+                         },
+                         "computed": false,
+                         "optional": false
+                        },
+                        {
+                         "type": "Identifier",
+                         "name": "note"
+                        },
+                        {
+                         "type": "LogicalExpression",
+                         "left": {
+                          "type": "Identifier",
+                          "name": "first"
+                         },
+                         "operator": "??",
+                         "right": {
+                          "type": "Literal",
+                          "value": "",
+                          "raw": "\"\""
+                         }
+                        },
+                        {
+                         "type": "MemberExpression",
+                         "object": {
+                          "type": "Identifier",
+                          "name": "others"
+                         },
+                         "property": {
+                          "type": "Identifier",
+                          "name": "length"
+                         },
+                         "computed": false,
+                         "optional": false
+                        }
+                       ],
+                       "quasis": [
+                        {
+                         "type": "TemplateElement",
+                         "value": {
+                          "raw": "",
+                          "cooked": ""
+                         },
+                         "tail": false
+                        },
+                        {
+                         "type": "TemplateElement",
+                         "value": {
+                          "raw": ":",
+                          "cooked": ":"
+                         },
+                         "tail": false
+                        },
+                        {
+                         "type": "TemplateElement",
+                         "value": {
+                          "raw": ":",
+                          "cooked": ":"
+                         },
+                         "tail": false
+                        },
+                        {
+                         "type": "TemplateElement",
+                         "value": {
+                          "raw": ":",
+                          "cooked": ":"
+                         },
+                         "tail": false
+                        },
+                        {
+                         "type": "TemplateElement",
+                         "value": {
+                          "raw": "",
+                          "cooked": ""
+                         },
+                         "tail": true
+                        }
+                       ]
+                      }
+                     ],
+                     "optional": false
+                    }
+                   },
+                   {
+                    "type": "ExpressionStatement",
+                    "expression": {
+                     "type": "AssignmentExpression",
+                     "operator": "=",
+                     "left": {
+                      "type": "MemberExpression",
+                      "object": {
+                       "type": "Identifier",
+                       "name": "card"
+                      },
+                      "property": {
+                       "type": "Identifier",
+                       "name": "title"
+                      },
+                      "computed": false,
+                      "optional": false
+                     },
+                     "right": {
+                      "type": "Identifier",
+                      "name": "title"
+                     }
+                    }
+                   },
+                   {
+                    "type": "ExpressionStatement",
+                    "expression": {
+                     "type": "AssignmentExpression",
+                     "operator": "=",
+                     "left": {
+                      "type": "MemberExpression",
+                      "object": {
+                       "type": "Identifier",
+                       "name": "next"
+                      },
+                      "property": {
+                       "type": "Identifier",
+                       "name": "title"
+                      },
+                      "computed": false,
+                      "optional": false
+                     },
+                     "right": {
+                      "type": "TemplateLiteral",
+                      "expressions": [
+                       {
+                        "type": "MemberExpression",
+                        "object": {
+                         "type": "Identifier",
+                         "name": "rest"
+                        },
+                        "property": {
+                         "type": "Identifier",
+                         "name": "id"
+                        },
+                        "computed": false,
+                        "optional": false
+                       }
+                      ],
+                      "quasis": [
+                       {
+                        "type": "TemplateElement",
+                        "value": {
+                         "raw": "",
+                         "cooked": ""
+                        },
+                        "tail": false
+                       },
+                       {
+                        "type": "TemplateElement",
+                        "value": {
+                         "raw": "",
+                         "cooked": ""
+                        },
+                        "tail": true
+                       }
+                      ]
+                     }
+                    }
+                   }
+                  ]
+                 }
+                },
+                "kind": "init"
+               }
+              ]
+             },
+             "kind": "init"
+            }
+           ]
+          },
+          "kind": "init"
+         }
+        ]
+       }
+      }
+     ],
+     "kind": "const"
+    },
+    "specifiers": [],
+    "attributes": []
+   }
+  ]
+ },
+ "printed": "export type Card = { id: number; title: string; tags: string[]; note?: string };\nexport type State = { cards: Card[]; title: string };\nexport const Board = {\n\ton: {\n\t\trename: {\n\t\t\trun(next, [title, at]) {\n\t\t\t\tconst { cards } = next;\n\t\t\t\tconst card = cards[at];\n\t\t\t\tif (card === undefined) return;\n\t\t\t\tconst { tags, note = \"none\", ...rest } = card;\n\t\t\t\tconst [first, ...others] = tags;\n\t\t\t\ttags.push(`${rest.title}:${note}:${first ?? \"\"}:${others.length}`);\n\t\t\t\tcard.title = title;\n\t\t\t\tnext.title = `${rest.id}`;\n\t\t\t},\n\t\t},\n\t},\n};",
+ "entries": {
+  "Board.on.rename.run": "void"
+ },
+ "callGraph": {},
+ "summaries": {},
+ "types": [
+  [
+   468,
+   473,
+   "{ readonly on: { readonly rename: {} } }",
+   "read"
+  ],
+  [
+   504,
+   508,
+   "State",
+   "draft",
+   "next"
+  ],
+  [
+   511,
+   516,
+   "string",
+   "value"
+  ],
+  [
+   518,
+   520,
+   "number",
+   "value"
+  ],
+  [
+   537,
+   542,
+   "Card[]",
+   "draft",
+   "next.cards"
+  ],
+  [
+   547,
+   551,
+   "State",
+   "draft",
+   "next"
+  ],
+  [
+   563,
+   567,
+   "Card | undefined",
+   "draft",
+   "next.cards[at]"
+  ],
+  [
+   570,
+   575,
+   "Card[]",
+   "draft",
+   "next.cards"
+  ],
+  [
+   570,
+   579,
+   "Card | undefined",
+   "draft",
+   "next.cards[at]"
+  ],
+  [
+   576,
+   578,
+   "number",
+   "value"
+  ],
+  [
+   589,
+   593,
+   "Card | undefined",
+   "draft",
+   "next.cards[at]"
+  ],
+  [
+   589,
+   607,
+   "boolean",
+   "value"
+  ],
+  [
+   598,
+   607,
+   "undefined",
+   "value"
+  ],
+  [
+   629,
+   633,
+   "string[]",
+   "draft",
+   "next.cards[at].tags"
+  ],
+  [
+   635,
+   639,
+   "string",
+   "value"
+  ],
+  [
+   642,
+   648,
+   "\"none\"",
+   "value"
+  ],
+  [
+   653,
+   657,
+   "{ id: number; title: string }",
+   "fresh"
+  ],
+  [
+   662,
+   666,
+   "Card",
+   "draft",
+   "next.cards[at]"
+  ],
+  [
+   679,
+   684,
+   "string | undefined",
+   "value"
+  ],
+  [
+   689,
+   695,
+   "string[]",
+   "fresh"
+  ],
+  [
+   699,
+   703,
+   "string[]",
+   "draft",
+   "next.cards[at].tags"
+  ],
+  [
+   709,
+   713,
+   "string[]",
+   "draft",
+   "next.cards[at].tags"
+  ],
+  [
+   709,
+   775,
+   "number",
+   "value"
+  ],
+  [
+   719,
+   774,
+   "string",
+   "value"
+  ],
+  [
+   722,
+   726,
+   "{ id: number; title: string }",
+   "fresh"
+  ],
+  [
+   722,
+   732,
+   "string",
+   "value"
+  ],
+  [
+   736,
+   740,
+   "string",
+   "value"
+  ],
+  [
+   744,
+   749,
+   "string | undefined",
+   "value"
+  ],
+  [
+   744,
+   755,
+   "string",
+   "value"
+  ],
+  [
+   753,
+   755,
+   "\"\"",
+   "value"
+  ],
+  [
+   759,
+   765,
+   "string[]",
+   "fresh"
+  ],
+  [
+   759,
+   772,
+   "number",
+   "value"
+  ],
+  [
+   781,
+   785,
+   "Card",
+   "draft",
+   "next.cards[at]"
+  ],
+  [
+   794,
+   799,
+   "string",
+   "value"
+  ],
+  [
+   805,
+   809,
+   "State",
+   "draft",
+   "next"
+  ],
+  [
+   818,
+   830,
+   "string",
+   "value"
+  ],
+  [
+   821,
+   825,
+   "{ id: number; title: string }",
+   "fresh"
+  ],
+  [
+   821,
+   828,
+   "number",
+   "value"
+  ]
+ ],
+ "outcome": {
+  "kind": "finished",
+  "value": null
+ },
+ "steps": 36,
+ "after": [
+  {
+   "cards": [
+    {
+     "id": 1,
+     "title": "b",
+     "tags": [
+      "x",
+      "a:none:x:0"
+     ]
+    }
+   ],
+   "title": "1"
+  },
+  [
+   "b",
+   0
+  ]
+ ]
+}

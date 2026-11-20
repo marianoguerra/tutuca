@@ -1,0 +1,1184 @@
+{
+ "exit": 0,
+ "stage": null,
+ "codes": [],
+ "tree": {
+  "type": "PureModule",
+  "items": [
+   {
+    "type": "ExportNamedDeclaration",
+    "declaration": {
+     "type": "TypeAlias",
+     "id": {
+      "type": "Identifier",
+      "name": "Task"
+     },
+     "typeAnnotation": {
+      "type": "TypeObject",
+      "members": [
+       {
+        "type": "TypeProperty",
+        "name": "title",
+        "optional": false,
+        "readonly": false,
+        "value": {
+         "type": "TypeKeyword",
+         "name": "string"
+        }
+       },
+       {
+        "type": "TypeProperty",
+        "name": "done",
+        "optional": false,
+        "readonly": false,
+        "value": {
+         "type": "TypeKeyword",
+         "name": "boolean"
+        }
+       }
+      ]
+     }
+    },
+    "specifiers": [],
+    "attributes": []
+   },
+   {
+    "type": "ExportNamedDeclaration",
+    "declaration": {
+     "type": "TypeAlias",
+     "id": {
+      "type": "Identifier",
+      "name": "State"
+     },
+     "typeAnnotation": {
+      "type": "TypeObject",
+      "members": [
+       {
+        "type": "TypeProperty",
+        "name": "items",
+        "optional": false,
+        "readonly": false,
+        "value": {
+         "type": "TypeArray",
+         "element": {
+          "type": "TypeRef",
+          "name": "Task",
+          "args": []
+         }
+        }
+       },
+       {
+        "type": "TypeProperty",
+        "name": "draft",
+        "optional": false,
+        "readonly": false,
+        "value": {
+         "type": "TypeKeyword",
+         "name": "string"
+        }
+       }
+      ]
+     }
+    },
+    "specifiers": [],
+    "attributes": []
+   },
+   {
+    "type": "FunctionDeclaration",
+    "id": {
+     "type": "Identifier",
+     "name": "open"
+    },
+    "expression": false,
+    "generator": false,
+    "async": false,
+    "params": [
+     {
+      "type": "Identifier",
+      "name": "xs",
+      "typeAnnotation": {
+       "type": "TypeRef",
+       "name": "Readonly",
+       "args": [
+        {
+         "type": "TypeArray",
+         "element": {
+          "type": "TypeRef",
+          "name": "Task",
+          "args": []
+         }
+        }
+       ]
+      }
+     }
+    ],
+    "body": {
+     "type": "BlockStatement",
+     "body": [
+      {
+       "type": "VariableDeclaration",
+       "declarations": [
+        {
+         "type": "VariableDeclarator",
+         "id": {
+          "type": "Identifier",
+          "name": "n"
+         },
+         "init": {
+          "type": "Literal",
+          "value": 0,
+          "raw": "0"
+         }
+        }
+       ],
+       "kind": "let"
+      },
+      {
+       "type": "ForOfStatement",
+       "await": false,
+       "left": {
+        "type": "VariableDeclaration",
+        "declarations": [
+         {
+          "type": "VariableDeclarator",
+          "id": {
+           "type": "Identifier",
+           "name": "x"
+          },
+          "init": null
+         }
+        ],
+        "kind": "const"
+       },
+       "right": {
+        "type": "Identifier",
+        "name": "xs"
+       },
+       "body": {
+        "type": "BlockStatement",
+        "body": [
+         {
+          "type": "IfStatement",
+          "test": {
+           "type": "MemberExpression",
+           "object": {
+            "type": "Identifier",
+            "name": "x"
+           },
+           "property": {
+            "type": "Identifier",
+            "name": "done"
+           },
+           "computed": false,
+           "optional": false
+          },
+          "consequent": {
+           "type": "ContinueStatement",
+           "label": null
+          },
+          "alternate": null
+         },
+         {
+          "type": "ExpressionStatement",
+          "expression": {
+           "type": "AssignmentExpression",
+           "operator": "+=",
+           "left": {
+            "type": "Identifier",
+            "name": "n"
+           },
+           "right": {
+            "type": "Literal",
+            "value": 1,
+            "raw": "1"
+           }
+          }
+         }
+        ]
+       }
+      },
+      {
+       "type": "ReturnStatement",
+       "argument": {
+        "type": "Identifier",
+        "name": "n"
+       }
+      }
+     ]
+    },
+    "returnType": {
+     "type": "TypeKeyword",
+     "name": "number"
+    }
+   },
+   {
+    "type": "FunctionDeclaration",
+    "id": {
+     "type": "Identifier",
+     "name": "made"
+    },
+    "expression": false,
+    "generator": false,
+    "async": false,
+    "params": [
+     {
+      "type": "Identifier",
+      "name": "title",
+      "typeAnnotation": {
+       "type": "TypeKeyword",
+       "name": "string"
+      }
+     }
+    ],
+    "body": {
+     "type": "BlockStatement",
+     "body": [
+      {
+       "type": "ReturnStatement",
+       "argument": {
+        "type": "ObjectExpression",
+        "properties": [
+         {
+          "type": "Property",
+          "method": false,
+          "shorthand": true,
+          "computed": false,
+          "key": {
+           "type": "Identifier",
+           "name": "title"
+          },
+          "value": {
+           "type": "Identifier",
+           "name": "title"
+          },
+          "kind": "init"
+         },
+         {
+          "type": "Property",
+          "method": false,
+          "shorthand": false,
+          "computed": false,
+          "key": {
+           "type": "Identifier",
+           "name": "done"
+          },
+          "value": {
+           "type": "Literal",
+           "value": false,
+           "raw": "false"
+          },
+          "kind": "init"
+         }
+        ]
+       }
+      }
+     ]
+    },
+    "returnType": {
+     "type": "TypeRef",
+     "name": "Task",
+     "args": []
+    }
+   },
+   {
+    "type": "FunctionDeclaration",
+    "id": {
+     "type": "Identifier",
+     "name": "titles"
+    },
+    "expression": false,
+    "generator": false,
+    "async": false,
+    "params": [
+     {
+      "type": "Identifier",
+      "name": "xs",
+      "typeAnnotation": {
+       "type": "TypeRef",
+       "name": "Readonly",
+       "args": [
+        {
+         "type": "TypeArray",
+         "element": {
+          "type": "TypeRef",
+          "name": "Task",
+          "args": []
+         }
+        }
+       ]
+      }
+     }
+    ],
+    "body": {
+     "type": "BlockStatement",
+     "body": [
+      {
+       "type": "ReturnStatement",
+       "argument": {
+        "type": "CallExpression",
+        "callee": {
+         "type": "MemberExpression",
+         "object": {
+          "type": "Identifier",
+          "name": "xs"
+         },
+         "property": {
+          "type": "Identifier",
+          "name": "map"
+         },
+         "computed": false,
+         "optional": false
+        },
+        "arguments": [
+         {
+          "type": "ArrowFunctionExpression",
+          "id": null,
+          "expression": true,
+          "generator": false,
+          "async": false,
+          "params": [
+           {
+            "type": "Identifier",
+            "name": "x"
+           }
+          ],
+          "body": {
+           "type": "MemberExpression",
+           "object": {
+            "type": "Identifier",
+            "name": "x"
+           },
+           "property": {
+            "type": "Identifier",
+            "name": "title"
+           },
+           "computed": false,
+           "optional": false
+          }
+         }
+        ],
+        "optional": false
+       }
+      }
+     ]
+    },
+    "returnType": {
+     "type": "TypeArray",
+     "element": {
+      "type": "TypeKeyword",
+      "name": "string"
+     }
+    }
+   },
+   {
+    "type": "ExportNamedDeclaration",
+    "declaration": {
+     "type": "VariableDeclaration",
+     "declarations": [
+      {
+       "type": "VariableDeclarator",
+       "id": {
+        "type": "Identifier",
+        "name": "Todos"
+       },
+       "init": {
+        "type": "ObjectExpression",
+        "properties": [
+         {
+          "type": "Property",
+          "method": false,
+          "shorthand": false,
+          "computed": false,
+          "key": {
+           "type": "Identifier",
+           "name": "queries"
+          },
+          "value": {
+           "type": "ObjectExpression",
+           "properties": [
+            {
+             "type": "Property",
+             "method": false,
+             "shorthand": false,
+             "computed": false,
+             "key": {
+              "type": "Identifier",
+              "name": "left"
+             },
+             "value": {
+              "type": "FunctionExpression",
+              "id": null,
+              "expression": false,
+              "generator": false,
+              "async": false,
+              "params": [],
+              "body": {
+               "type": "BlockStatement",
+               "body": [
+                {
+                 "type": "ReturnStatement",
+                 "argument": {
+                  "type": "CallExpression",
+                  "callee": {
+                   "type": "Identifier",
+                   "name": "open"
+                  },
+                  "arguments": [
+                   {
+                    "type": "MemberExpression",
+                    "object": {
+                     "type": "ThisExpression"
+                    },
+                    "property": {
+                     "type": "Identifier",
+                     "name": "items"
+                    },
+                    "computed": false,
+                    "optional": false
+                   }
+                  ],
+                  "optional": false
+                 }
+                }
+               ]
+              },
+              "returnType": {
+               "type": "TypeKeyword",
+               "name": "number"
+              }
+             },
+             "kind": "get"
+            }
+           ]
+          },
+          "kind": "init"
+         },
+         {
+          "type": "Property",
+          "method": false,
+          "shorthand": false,
+          "computed": false,
+          "key": {
+           "type": "Identifier",
+           "name": "on"
+          },
+          "value": {
+           "type": "ObjectExpression",
+           "properties": [
+            {
+             "type": "Property",
+             "method": false,
+             "shorthand": false,
+             "computed": false,
+             "key": {
+              "type": "Identifier",
+              "name": "add"
+             },
+             "value": {
+              "type": "ObjectExpression",
+              "properties": [
+               {
+                "type": "Property",
+                "method": true,
+                "shorthand": false,
+                "computed": false,
+                "key": {
+                 "type": "Identifier",
+                 "name": "run"
+                },
+                "value": {
+                 "type": "FunctionExpression",
+                 "id": null,
+                 "expression": false,
+                 "generator": false,
+                 "async": false,
+                 "params": [
+                  {
+                   "type": "Identifier",
+                   "name": "next"
+                  },
+                  {
+                   "type": "ArrayPattern",
+                   "elements": [
+                    {
+                     "type": "Identifier",
+                     "name": "text"
+                    }
+                   ]
+                  }
+                 ],
+                 "body": {
+                  "type": "BlockStatement",
+                  "body": [
+                   {
+                    "type": "VariableDeclaration",
+                    "declarations": [
+                     {
+                      "type": "VariableDeclarator",
+                      "id": {
+                       "type": "Identifier",
+                       "name": "item"
+                      },
+                      "init": {
+                       "type": "CallExpression",
+                       "callee": {
+                        "type": "Identifier",
+                        "name": "made"
+                       },
+                       "arguments": [
+                        {
+                         "type": "BinaryExpression",
+                         "left": {
+                          "type": "MemberExpression",
+                          "object": {
+                           "type": "ThisExpression"
+                          },
+                          "property": {
+                           "type": "Identifier",
+                           "name": "draft"
+                          },
+                          "computed": false,
+                          "optional": false
+                         },
+                         "operator": "+",
+                         "right": {
+                          "type": "Identifier",
+                          "name": "text"
+                         }
+                        }
+                       ],
+                       "optional": false
+                      }
+                     }
+                    ],
+                    "kind": "const"
+                   },
+                   {
+                    "type": "ExpressionStatement",
+                    "expression": {
+                     "type": "AssignmentExpression",
+                     "operator": "=",
+                     "left": {
+                      "type": "MemberExpression",
+                      "object": {
+                       "type": "Identifier",
+                       "name": "item"
+                      },
+                      "property": {
+                       "type": "Identifier",
+                       "name": "done"
+                      },
+                      "computed": false,
+                      "optional": false
+                     },
+                     "right": {
+                      "type": "BinaryExpression",
+                      "left": {
+                       "type": "CallExpression",
+                       "callee": {
+                        "type": "Identifier",
+                        "name": "open"
+                       },
+                       "arguments": [
+                        {
+                         "type": "MemberExpression",
+                         "object": {
+                          "type": "ThisExpression"
+                         },
+                         "property": {
+                          "type": "Identifier",
+                          "name": "items"
+                         },
+                         "computed": false,
+                         "optional": false
+                        }
+                       ],
+                       "optional": false
+                      },
+                      "operator": ">",
+                      "right": {
+                       "type": "Literal",
+                       "value": 3,
+                       "raw": "3"
+                      }
+                     }
+                    }
+                   },
+                   {
+                    "type": "ExpressionStatement",
+                    "expression": {
+                     "type": "CallExpression",
+                     "callee": {
+                      "type": "MemberExpression",
+                      "object": {
+                       "type": "MemberExpression",
+                       "object": {
+                        "type": "Identifier",
+                        "name": "next"
+                       },
+                       "property": {
+                        "type": "Identifier",
+                        "name": "items"
+                       },
+                       "computed": false,
+                       "optional": false
+                      },
+                      "property": {
+                       "type": "Identifier",
+                       "name": "push"
+                      },
+                      "computed": false,
+                      "optional": false
+                     },
+                     "arguments": [
+                      {
+                       "type": "Identifier",
+                       "name": "item"
+                      }
+                     ],
+                     "optional": false
+                    }
+                   },
+                   {
+                    "type": "VariableDeclaration",
+                    "declarations": [
+                     {
+                      "type": "VariableDeclarator",
+                      "id": {
+                       "type": "Identifier",
+                       "name": "all"
+                      },
+                      "init": {
+                       "type": "CallExpression",
+                       "callee": {
+                        "type": "Identifier",
+                        "name": "titles"
+                       },
+                       "arguments": [
+                        {
+                         "type": "MemberExpression",
+                         "object": {
+                          "type": "Identifier",
+                          "name": "next"
+                         },
+                         "property": {
+                          "type": "Identifier",
+                          "name": "items"
+                         },
+                         "computed": false,
+                         "optional": false
+                        }
+                       ],
+                       "optional": false
+                      }
+                     }
+                    ],
+                    "kind": "const"
+                   },
+                   {
+                    "type": "ExpressionStatement",
+                    "expression": {
+                     "type": "CallExpression",
+                     "callee": {
+                      "type": "MemberExpression",
+                      "object": {
+                       "type": "Identifier",
+                       "name": "all"
+                      },
+                      "property": {
+                       "type": "Identifier",
+                       "name": "push"
+                      },
+                      "computed": false,
+                      "optional": false
+                     },
+                     "arguments": [
+                      {
+                       "type": "Literal",
+                       "value": "end",
+                       "raw": "\"end\""
+                      }
+                     ],
+                     "optional": false
+                    }
+                   },
+                   {
+                    "type": "ExpressionStatement",
+                    "expression": {
+                     "type": "AssignmentExpression",
+                     "operator": "=",
+                     "left": {
+                      "type": "MemberExpression",
+                      "object": {
+                       "type": "Identifier",
+                       "name": "next"
+                      },
+                      "property": {
+                       "type": "Identifier",
+                       "name": "draft"
+                      },
+                      "computed": false,
+                      "optional": false
+                     },
+                     "right": {
+                      "type": "CallExpression",
+                      "callee": {
+                       "type": "MemberExpression",
+                       "object": {
+                        "type": "Identifier",
+                        "name": "all"
+                       },
+                       "property": {
+                        "type": "Identifier",
+                        "name": "join"
+                       },
+                       "computed": false,
+                       "optional": false
+                      },
+                      "arguments": [
+                       {
+                        "type": "Literal",
+                        "value": ",",
+                        "raw": "\",\""
+                       }
+                      ],
+                      "optional": false
+                     }
+                    }
+                   }
+                  ]
+                 }
+                },
+                "kind": "init"
+               }
+              ]
+             },
+             "kind": "init"
+            }
+           ]
+          },
+          "kind": "init"
+         }
+        ]
+       }
+      }
+     ],
+     "kind": "const"
+    },
+    "specifiers": [],
+    "attributes": []
+   }
+  ]
+ },
+ "printed": "export type Task = { title: string; done: boolean };\nexport type State = { items: Task[]; draft: string };\nfunction open(xs: Readonly<Task[]>): number {\n\tlet n = 0;\n\tfor (const x of xs) {\n\t\tif (x.done) continue;\n\t\tn += 1;\n\t}\n\treturn n;\n}\nfunction made(title: string): Task {\n\treturn { title, done: false };\n}\nfunction titles(xs: Readonly<Task[]>): string[] {\n\treturn xs.map(x => x.title);\n}\nexport const Todos = {\n\tqueries: {\n\t\tget left(): number {\n\t\t\treturn open(this.items);\n\t\t},\n\t},\n\ton: {\n\t\tadd: {\n\t\t\trun(next, [text]) {\n\t\t\t\tconst item = made(this.draft + text);\n\t\t\t\titem.done = open(this.items) > 3;\n\t\t\t\tnext.items.push(item);\n\t\t\t\tconst all = titles(next.items);\n\t\t\t\tall.push(\"end\");\n\t\t\t\tnext.draft = all.join(\",\");\n\t\t\t},\n\t\t},\n\t},\n};",
+ "entries": {
+  "Todos.queries.left": "number",
+  "Todos.on.add.run": "void"
+ },
+ "callGraph": {
+  "open": [],
+  "made": [],
+  "titles": []
+ },
+ "summaries": {
+  "open": {
+   "params": [
+    {
+     "name": "xs",
+     "type": "Task[]",
+     "mutable": false
+    }
+   ],
+   "result": "number",
+   "fresh": false
+  },
+  "made": {
+   "params": [
+    {
+     "name": "title",
+     "type": "string",
+     "mutable": false
+    }
+   ],
+   "result": "Task",
+   "fresh": true
+  },
+  "titles": {
+   "params": [
+    {
+     "name": "xs",
+     "type": "Task[]",
+     "mutable": false
+    }
+   ],
+   "result": "string[]",
+   "fresh": true
+  }
+ },
+ "types": [
+  [
+   450,
+   452,
+   "Task[]",
+   "read"
+  ],
+  [
+   487,
+   488,
+   "number",
+   "value"
+  ],
+  [
+   491,
+   492,
+   "0",
+   "value"
+  ],
+  [
+   506,
+   507,
+   "Task",
+   "read"
+  ],
+  [
+   511,
+   513,
+   "Task[]",
+   "read"
+  ],
+  [
+   523,
+   524,
+   "Task",
+   "read"
+  ],
+  [
+   523,
+   529,
+   "boolean",
+   "value"
+  ],
+  [
+   543,
+   544,
+   "number",
+   "value"
+  ],
+  [
+   548,
+   549,
+   "1",
+   "value"
+  ],
+  [
+   562,
+   563,
+   "number",
+   "value"
+  ],
+  [
+   581,
+   586,
+   "string",
+   "value"
+  ],
+  [
+   612,
+   634,
+   "Task",
+   "fresh"
+  ],
+  [
+   614,
+   619,
+   "string",
+   "value"
+  ],
+  [
+   627,
+   632,
+   "false",
+   "value"
+  ],
+  [
+   654,
+   656,
+   "Task[]",
+   "read"
+  ],
+  [
+   696,
+   698,
+   "Task[]",
+   "read"
+  ],
+  [
+   696,
+   718,
+   "string[]",
+   "fresh"
+  ],
+  [
+   704,
+   705,
+   "Task",
+   "read"
+  ],
+  [
+   710,
+   711,
+   "Task",
+   "read"
+  ],
+  [
+   710,
+   717,
+   "string",
+   "value"
+  ],
+  [
+   736,
+   741,
+   "{ readonly queries: {}; readonly on: { readonly add: {} } }",
+   "read"
+  ],
+  [
+   791,
+   795,
+   "(xs: Task[]) => number",
+   "value"
+  ],
+  [
+   791,
+   807,
+   "number",
+   "value"
+  ],
+  [
+   796,
+   800,
+   "State",
+   "read"
+  ],
+  [
+   796,
+   806,
+   "Task[]",
+   "read"
+  ],
+  [
+   841,
+   845,
+   "State",
+   "draft",
+   "next"
+  ],
+  [
+   848,
+   852,
+   "string",
+   "value"
+  ],
+  [
+   867,
+   871,
+   "Task",
+   "fresh"
+  ],
+  [
+   874,
+   878,
+   "(title: string) => Task",
+   "value"
+  ],
+  [
+   874,
+   897,
+   "Task",
+   "fresh"
+  ],
+  [
+   879,
+   883,
+   "State",
+   "read"
+  ],
+  [
+   879,
+   889,
+   "string",
+   "value"
+  ],
+  [
+   879,
+   896,
+   "string",
+   "value"
+  ],
+  [
+   892,
+   896,
+   "string",
+   "value"
+  ],
+  [
+   903,
+   907,
+   "Task",
+   "fresh"
+  ],
+  [
+   915,
+   919,
+   "(xs: Task[]) => number",
+   "value"
+  ],
+  [
+   915,
+   931,
+   "number",
+   "value"
+  ],
+  [
+   915,
+   935,
+   "boolean",
+   "value"
+  ],
+  [
+   920,
+   924,
+   "State",
+   "read"
+  ],
+  [
+   920,
+   930,
+   "Task[]",
+   "read"
+  ],
+  [
+   934,
+   935,
+   "3",
+   "value"
+  ],
+  [
+   941,
+   945,
+   "State",
+   "draft",
+   "next"
+  ],
+  [
+   941,
+   962,
+   "number",
+   "value"
+  ],
+  [
+   957,
+   961,
+   "Task",
+   "fresh"
+  ],
+  [
+   974,
+   977,
+   "string[]",
+   "fresh"
+  ],
+  [
+   980,
+   986,
+   "(xs: Task[]) => string[]",
+   "value"
+  ],
+  [
+   980,
+   998,
+   "string[]",
+   "fresh"
+  ],
+  [
+   987,
+   991,
+   "State",
+   "draft",
+   "next"
+  ],
+  [
+   987,
+   997,
+   "Task[]",
+   "draft",
+   "next.items"
+  ],
+  [
+   1004,
+   1007,
+   "string[]",
+   "fresh"
+  ],
+  [
+   1004,
+   1019,
+   "number",
+   "value"
+  ],
+  [
+   1013,
+   1018,
+   "\"end\"",
+   "value"
+  ],
+  [
+   1025,
+   1029,
+   "State",
+   "draft",
+   "next"
+  ],
+  [
+   1038,
+   1041,
+   "string[]",
+   "fresh"
+  ],
+  [
+   1038,
+   1051,
+   "string",
+   "value"
+  ],
+  [
+   1047,
+   1050,
+   "\",\"",
+   "value"
+  ]
+ ],
+ "outcome": {
+  "kind": "finished",
+  "value": null
+ },
+ "steps": 61,
+ "after": [
+  {
+   "items": [
+    {
+     "title": "a",
+     "done": true
+    },
+    {
+     "title": "bc",
+     "done": false
+    }
+   ],
+   "draft": "a,bc,end"
+  },
+  [
+   "c"
+  ]
+ ]
+}

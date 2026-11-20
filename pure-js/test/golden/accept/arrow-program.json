@@ -1,0 +1,110 @@
+{
+ "exit": 0,
+ "stage": null,
+ "codes": [],
+ "returnType": "boolean",
+ "tree": {
+  "type": "PureProgram",
+  "form": "arrow",
+  "name": null,
+  "function": {
+   "type": "ArrowFunctionExpression",
+   "id": null,
+   "expression": true,
+   "generator": false,
+   "async": false,
+   "params": [
+    {
+     "type": "Identifier",
+     "name": "self"
+    }
+   ],
+   "body": {
+    "type": "LogicalExpression",
+    "left": {
+     "type": "BinaryExpression",
+     "left": {
+      "type": "MemberExpression",
+      "object": {
+       "type": "MemberExpression",
+       "object": {
+        "type": "Identifier",
+        "name": "self"
+       },
+       "property": {
+        "type": "Identifier",
+        "name": "items"
+       },
+       "computed": false,
+       "optional": false
+      },
+      "property": {
+       "type": "Identifier",
+       "name": "length"
+      },
+      "computed": false,
+      "optional": false
+     },
+     "operator": ">",
+     "right": {
+      "type": "Literal",
+      "value": 0,
+      "raw": "0"
+     }
+    },
+    "operator": "&&",
+    "right": {
+     "type": "BinaryExpression",
+     "left": {
+      "type": "MemberExpression",
+      "object": {
+       "type": "Identifier",
+       "name": "self"
+      },
+      "property": {
+       "type": "Identifier",
+       "name": "filter"
+      },
+      "computed": false,
+      "optional": false
+     },
+     "operator": "!==",
+     "right": {
+      "type": "Literal",
+      "value": "done",
+      "raw": "\"done\""
+     }
+    }
+   }
+  }
+ },
+ "printed": "self => self.items.length > 0 && self.filter !== \"done\"",
+ "outcome": {
+  "kind": "finished",
+  "value": true
+ },
+ "steps": 9,
+ "after": [
+  {
+   "text": " Buy milk ",
+   "count": 2,
+   "items": [
+    {
+     "title": "write docs",
+     "done": true
+    },
+    {
+     "title": "ship",
+     "done": false
+    }
+   ],
+   "filter": "all",
+   "selected": null,
+   "tags": {
+    "urgent": 1
+   },
+   "left": 1
+  }
+ ],
+ "calls": []
+}

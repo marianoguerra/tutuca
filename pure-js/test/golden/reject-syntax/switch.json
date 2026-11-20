@@ -1,0 +1,10 @@
+{
+ "exit": 2,
+ "stage": "parse",
+ "codes": [
+  "switch-statement"
+ ],
+ "returnType": null,
+ "tree": null,
+ "printed": null
+}

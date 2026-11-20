@@ -1,0 +1,482 @@
+{
+ "exit": 0,
+ "stage": null,
+ "codes": [],
+ "tree": {
+  "type": "PureModule",
+  "items": [
+   {
+    "type": "ExportNamedDeclaration",
+    "declaration": {
+     "type": "TypeAlias",
+     "id": {
+      "type": "Identifier",
+      "name": "State"
+     },
+     "typeAnnotation": {
+      "type": "TypeObject",
+      "members": [
+       {
+        "type": "TypeProperty",
+        "name": "words",
+        "optional": false,
+        "readonly": false,
+        "value": {
+         "type": "TypeArray",
+         "element": {
+          "type": "TypeKeyword",
+          "name": "string"
+         }
+        }
+       }
+      ]
+     }
+    },
+    "specifiers": [],
+    "attributes": []
+   },
+   {
+    "type": "FunctionDeclaration",
+    "id": {
+     "type": "Identifier",
+     "name": "longest"
+    },
+    "expression": false,
+    "generator": false,
+    "async": false,
+    "params": [
+     {
+      "type": "Identifier",
+      "name": "words",
+      "typeAnnotation": {
+       "type": "TypeRef",
+       "name": "Readonly",
+       "args": [
+        {
+         "type": "TypeArray",
+         "element": {
+          "type": "TypeKeyword",
+          "name": "string"
+         }
+        }
+       ]
+      }
+     }
+    ],
+    "body": {
+     "type": "BlockStatement",
+     "body": [
+      {
+       "type": "VariableDeclaration",
+       "declarations": [
+        {
+         "type": "VariableDeclarator",
+         "id": {
+          "type": "Identifier",
+          "name": "best",
+          "typeAnnotation": {
+           "type": "TypeUnion",
+           "types": [
+            {
+             "type": "TypeKeyword",
+             "name": "string"
+            },
+            {
+             "type": "TypeKeyword",
+             "name": "null"
+            }
+           ]
+          }
+         },
+         "init": {
+          "type": "Literal",
+          "value": null,
+          "raw": "null"
+         }
+        }
+       ],
+       "kind": "let"
+      },
+      {
+       "type": "ForOfStatement",
+       "await": false,
+       "left": {
+        "type": "VariableDeclaration",
+        "declarations": [
+         {
+          "type": "VariableDeclarator",
+          "id": {
+           "type": "Identifier",
+           "name": "w"
+          },
+          "init": null
+         }
+        ],
+        "kind": "const"
+       },
+       "right": {
+        "type": "Identifier",
+        "name": "words"
+       },
+       "body": {
+        "type": "BlockStatement",
+        "body": [
+         {
+          "type": "IfStatement",
+          "test": {
+           "type": "LogicalExpression",
+           "left": {
+            "type": "BinaryExpression",
+            "left": {
+             "type": "Identifier",
+             "name": "best"
+            },
+            "operator": "===",
+            "right": {
+             "type": "Literal",
+             "value": null,
+             "raw": "null"
+            }
+           },
+           "operator": "||",
+           "right": {
+            "type": "BinaryExpression",
+            "left": {
+             "type": "MemberExpression",
+             "object": {
+              "type": "Identifier",
+              "name": "w"
+             },
+             "property": {
+              "type": "Identifier",
+              "name": "length"
+             },
+             "computed": false,
+             "optional": false
+            },
+            "operator": ">",
+            "right": {
+             "type": "MemberExpression",
+             "object": {
+              "type": "Identifier",
+              "name": "best"
+             },
+             "property": {
+              "type": "Identifier",
+              "name": "length"
+             },
+             "computed": false,
+             "optional": false
+            }
+           }
+          },
+          "consequent": {
+           "type": "ExpressionStatement",
+           "expression": {
+            "type": "AssignmentExpression",
+            "operator": "=",
+            "left": {
+             "type": "Identifier",
+             "name": "best"
+            },
+            "right": {
+             "type": "Identifier",
+             "name": "w"
+            }
+           }
+          },
+          "alternate": null
+         }
+        ]
+       }
+      },
+      {
+       "type": "ReturnStatement",
+       "argument": {
+        "type": "LogicalExpression",
+        "left": {
+         "type": "Identifier",
+         "name": "best"
+        },
+        "operator": "??",
+        "right": {
+         "type": "Literal",
+         "value": "",
+         "raw": "\"\""
+        }
+       }
+      }
+     ]
+    },
+    "returnType": {
+     "type": "TypeKeyword",
+     "name": "string"
+    }
+   },
+   {
+    "type": "ExportNamedDeclaration",
+    "declaration": {
+     "type": "VariableDeclaration",
+     "declarations": [
+      {
+       "type": "VariableDeclarator",
+       "id": {
+        "type": "Identifier",
+        "name": "Words"
+       },
+       "init": {
+        "type": "ObjectExpression",
+        "properties": [
+         {
+          "type": "Property",
+          "method": false,
+          "shorthand": false,
+          "computed": false,
+          "key": {
+           "type": "Identifier",
+           "name": "queries"
+          },
+          "value": {
+           "type": "ObjectExpression",
+           "properties": [
+            {
+             "type": "Property",
+             "method": true,
+             "shorthand": false,
+             "computed": false,
+             "key": {
+              "type": "Identifier",
+              "name": "longest"
+             },
+             "value": {
+              "type": "FunctionExpression",
+              "id": null,
+              "expression": false,
+              "generator": false,
+              "async": false,
+              "params": [],
+              "body": {
+               "type": "BlockStatement",
+               "body": [
+                {
+                 "type": "ReturnStatement",
+                 "argument": {
+                  "type": "CallExpression",
+                  "callee": {
+                   "type": "Identifier",
+                   "name": "longest"
+                  },
+                  "arguments": [
+                   {
+                    "type": "MemberExpression",
+                    "object": {
+                     "type": "ThisExpression"
+                    },
+                    "property": {
+                     "type": "Identifier",
+                     "name": "words"
+                    },
+                    "computed": false,
+                    "optional": false
+                   }
+                  ],
+                  "optional": false
+                 }
+                }
+               ]
+              },
+              "returnType": {
+               "type": "TypeKeyword",
+               "name": "string"
+              }
+             },
+             "kind": "init"
+            }
+           ]
+          },
+          "kind": "init"
+         }
+        ]
+       }
+      }
+     ],
+     "kind": "const"
+    },
+    "specifiers": [],
+    "attributes": []
+   }
+  ]
+ },
+ "printed": "export type State = { words: string[] };\nfunction longest(words: Readonly<string[]>): string {\n\tlet best: string | null = null;\n\tfor (const w of words) {\n\t\tif (best === null || w.length > best.length) best = w;\n\t}\n\treturn best ?? \"\";\n}\nexport const Words = {\n\tqueries: {\n\t\tlongest(): string {\n\t\t\treturn longest(this.words);\n\t\t},\n\t},\n};",
+ "entries": {
+  "Words.queries.longest": "string"
+ },
+ "callGraph": {
+  "longest": []
+ },
+ "summaries": {
+  "longest": {
+   "params": [
+    {
+     "name": "words",
+     "type": "string[]",
+     "mutable": false
+    }
+   ],
+   "result": "string",
+   "fresh": false
+  }
+ },
+ "types": [
+  [
+   209,
+   214,
+   "string[]",
+   "read"
+  ],
+  [
+   251,
+   255,
+   "string | null",
+   "value"
+  ],
+  [
+   273,
+   277,
+   "null",
+   "value"
+  ],
+  [
+   291,
+   292,
+   "string",
+   "value"
+  ],
+  [
+   296,
+   301,
+   "string[]",
+   "read"
+  ],
+  [
+   311,
+   315,
+   "string | null",
+   "value"
+  ],
+  [
+   311,
+   324,
+   "boolean",
+   "value"
+  ],
+  [
+   311,
+   350,
+   "boolean",
+   "value"
+  ],
+  [
+   320,
+   324,
+   "null",
+   "value"
+  ],
+  [
+   328,
+   329,
+   "string",
+   "value"
+  ],
+  [
+   328,
+   336,
+   "number",
+   "value"
+  ],
+  [
+   328,
+   350,
+   "boolean",
+   "value"
+  ],
+  [
+   339,
+   343,
+   "string",
+   "value"
+  ],
+  [
+   339,
+   350,
+   "number",
+   "value"
+  ],
+  [
+   352,
+   356,
+   "string | null",
+   "value"
+  ],
+  [
+   359,
+   360,
+   "string",
+   "value"
+  ],
+  [
+   373,
+   377,
+   "string | null",
+   "value"
+  ],
+  [
+   373,
+   383,
+   "string",
+   "value"
+  ],
+  [
+   381,
+   383,
+   "\"\"",
+   "value"
+  ],
+  [
+   401,
+   406,
+   "{ readonly queries: {} }",
+   "read"
+  ],
+  [
+   455,
+   462,
+   "(words: string[]) => string",
+   "value"
+  ],
+  [
+   455,
+   474,
+   "string",
+   "value"
+  ],
+  [
+   463,
+   467,
+   "State",
+   "read"
+  ],
+  [
+   463,
+   473,
+   "string[]",
+   "read"
+  ]
+ ],
+ "outcome": {
+  "kind": "finished",
+  "value": "abc"
+ },
+ "steps": 50,
+ "after": []
+}

@@ -1,0 +1,70 @@
+{
+ "exit": 1,
+ "stage": "sieve",
+ "codes": [
+  "array-hole"
+ ],
+ "returnType": null,
+ "tree": {
+  "type": "PureProgram",
+  "form": "function",
+  "name": null,
+  "function": {
+   "type": "FunctionExpression",
+   "id": null,
+   "expression": false,
+   "generator": false,
+   "async": false,
+   "params": [
+    {
+     "type": "Identifier",
+     "name": "next"
+    }
+   ],
+   "body": {
+    "type": "BlockStatement",
+    "body": [
+     {
+      "type": "ExpressionStatement",
+      "expression": {
+       "type": "CallExpression",
+       "callee": {
+        "type": "MemberExpression",
+        "object": {
+         "type": "Identifier",
+         "name": "next"
+        },
+        "property": {
+         "type": "Identifier",
+         "name": "f"
+        },
+        "computed": false,
+        "optional": false
+       },
+       "arguments": [
+        {
+         "type": "ArrayExpression",
+         "elements": [
+          {
+           "type": "Literal",
+           "value": 1,
+           "raw": "1"
+          },
+          null,
+          {
+           "type": "Literal",
+           "value": 2,
+           "raw": "2"
+          }
+         ]
+        }
+       ],
+       "optional": false
+      }
+     }
+    ]
+   }
+  }
+ },
+ "printed": "function (next) {\n\tnext.f([1, , 2]);\n}"
+}

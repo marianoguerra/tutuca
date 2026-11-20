@@ -1,0 +1,697 @@
+{
+ "exit": 0,
+ "stage": null,
+ "codes": [],
+ "tree": {
+  "type": "PureModule",
+  "items": [
+   {
+    "type": "ExportNamedDeclaration",
+    "declaration": {
+     "type": "TypeAlias",
+     "id": {
+      "type": "Identifier",
+      "name": "State"
+     },
+     "typeAnnotation": {
+      "type": "TypeObject",
+      "members": [
+       {
+        "type": "TypeProperty",
+        "name": "count",
+        "optional": false,
+        "readonly": false,
+        "value": {
+         "type": "TypeKeyword",
+         "name": "number"
+        }
+       }
+      ]
+     }
+    },
+    "specifiers": [],
+    "attributes": []
+   },
+   {
+    "type": "VariableDeclaration",
+    "declarations": [
+     {
+      "type": "VariableDeclarator",
+      "id": {
+       "type": "Identifier",
+       "name": "LIMITS"
+      },
+      "init": {
+       "type": "ObjectExpression",
+       "properties": [
+        {
+         "type": "Property",
+         "method": false,
+         "shorthand": false,
+         "computed": false,
+         "key": {
+          "type": "Identifier",
+          "name": "low"
+         },
+         "value": {
+          "type": "Literal",
+          "value": 0,
+          "raw": "0"
+         },
+         "kind": "init"
+        },
+        {
+         "type": "Property",
+         "method": false,
+         "shorthand": false,
+         "computed": false,
+         "key": {
+          "type": "Identifier",
+          "name": "high"
+         },
+         "value": {
+          "type": "Literal",
+          "value": 10,
+          "raw": "10"
+         },
+         "kind": "init"
+        }
+       ]
+      }
+     }
+    ],
+    "kind": "const"
+   },
+   {
+    "type": "FunctionDeclaration",
+    "id": {
+     "type": "Identifier",
+     "name": "clamp"
+    },
+    "expression": false,
+    "generator": false,
+    "async": false,
+    "params": [
+     {
+      "type": "Identifier",
+      "name": "n",
+      "typeAnnotation": {
+       "type": "TypeKeyword",
+       "name": "number"
+      }
+     }
+    ],
+    "body": {
+     "type": "BlockStatement",
+     "body": [
+      {
+       "type": "ReturnStatement",
+       "argument": {
+        "type": "CallExpression",
+        "callee": {
+         "type": "MemberExpression",
+         "object": {
+          "type": "Identifier",
+          "name": "Math"
+         },
+         "property": {
+          "type": "Identifier",
+          "name": "max"
+         },
+         "computed": false,
+         "optional": false
+        },
+        "arguments": [
+         {
+          "type": "MemberExpression",
+          "object": {
+           "type": "Identifier",
+           "name": "LIMITS"
+          },
+          "property": {
+           "type": "Identifier",
+           "name": "low"
+          },
+          "computed": false,
+          "optional": false
+         },
+         {
+          "type": "CallExpression",
+          "callee": {
+           "type": "MemberExpression",
+           "object": {
+            "type": "Identifier",
+            "name": "Math"
+           },
+           "property": {
+            "type": "Identifier",
+            "name": "min"
+           },
+           "computed": false,
+           "optional": false
+          },
+          "arguments": [
+           {
+            "type": "MemberExpression",
+            "object": {
+             "type": "Identifier",
+             "name": "LIMITS"
+            },
+            "property": {
+             "type": "Identifier",
+             "name": "high"
+            },
+            "computed": false,
+            "optional": false
+           },
+           {
+            "type": "Identifier",
+            "name": "n"
+           }
+          ],
+          "optional": false
+         }
+        ],
+        "optional": false
+       }
+      }
+     ]
+    },
+    "returnType": {
+     "type": "TypeKeyword",
+     "name": "number"
+    }
+   },
+   {
+    "type": "ExportNamedDeclaration",
+    "declaration": {
+     "type": "VariableDeclaration",
+     "declarations": [
+      {
+       "type": "VariableDeclarator",
+       "id": {
+        "type": "Identifier",
+        "name": "Counter"
+       },
+       "init": {
+        "type": "ObjectExpression",
+        "properties": [
+         {
+          "type": "Property",
+          "method": false,
+          "shorthand": false,
+          "computed": false,
+          "key": {
+           "type": "Identifier",
+           "name": "name"
+          },
+          "value": {
+           "type": "Literal",
+           "value": "Counter",
+           "raw": "\"Counter\""
+          },
+          "kind": "init"
+         },
+         {
+          "type": "Property",
+          "method": false,
+          "shorthand": false,
+          "computed": false,
+          "key": {
+           "type": "Identifier",
+           "name": "defaults"
+          },
+          "value": {
+           "type": "ObjectExpression",
+           "properties": [
+            {
+             "type": "Property",
+             "method": false,
+             "shorthand": false,
+             "computed": false,
+             "key": {
+              "type": "Identifier",
+              "name": "count"
+             },
+             "value": {
+              "type": "Literal",
+              "value": 0,
+              "raw": "0"
+             },
+             "kind": "init"
+            }
+           ]
+          },
+          "kind": "init"
+         },
+         {
+          "type": "Property",
+          "method": false,
+          "shorthand": false,
+          "computed": false,
+          "key": {
+           "type": "Identifier",
+           "name": "limits"
+          },
+          "value": {
+           "type": "Identifier",
+           "name": "LIMITS"
+          },
+          "kind": "init"
+         },
+         {
+          "type": "Property",
+          "method": false,
+          "shorthand": false,
+          "computed": false,
+          "key": {
+           "type": "Identifier",
+           "name": "on"
+          },
+          "value": {
+           "type": "ObjectExpression",
+           "properties": [
+            {
+             "type": "Property",
+             "method": false,
+             "shorthand": false,
+             "computed": false,
+             "key": {
+              "type": "Identifier",
+              "name": "step"
+             },
+             "value": {
+              "type": "ObjectExpression",
+              "properties": [
+               {
+                "type": "Property",
+                "method": false,
+                "shorthand": false,
+                "computed": false,
+                "key": {
+                 "type": "Identifier",
+                 "name": "pure"
+                },
+                "value": {
+                 "type": "Literal",
+                 "value": true,
+                 "raw": "true"
+                },
+                "kind": "init"
+               },
+               {
+                "type": "Property",
+                "method": false,
+                "shorthand": false,
+                "computed": false,
+                "key": {
+                 "type": "Identifier",
+                 "name": "changes"
+                },
+                "value": {
+                 "type": "ArrayExpression",
+                 "elements": [
+                  {
+                   "type": "Literal",
+                   "value": "count",
+                   "raw": "\"count\""
+                  }
+                 ]
+                },
+                "kind": "init"
+               },
+               {
+                "type": "Property",
+                "method": true,
+                "shorthand": false,
+                "computed": false,
+                "key": {
+                 "type": "Identifier",
+                 "name": "run"
+                },
+                "value": {
+                 "type": "FunctionExpression",
+                 "id": null,
+                 "expression": false,
+                 "generator": false,
+                 "async": false,
+                 "params": [
+                  {
+                   "type": "Identifier",
+                   "name": "next"
+                  },
+                  {
+                   "type": "ArrayPattern",
+                   "elements": [
+                    {
+                     "type": "Identifier",
+                     "name": "by"
+                    }
+                   ]
+                  }
+                 ],
+                 "body": {
+                  "type": "BlockStatement",
+                  "body": [
+                   {
+                    "type": "ExpressionStatement",
+                    "expression": {
+                     "type": "AssignmentExpression",
+                     "operator": "=",
+                     "left": {
+                      "type": "MemberExpression",
+                      "object": {
+                       "type": "Identifier",
+                       "name": "next"
+                      },
+                      "property": {
+                       "type": "Identifier",
+                       "name": "count"
+                      },
+                      "computed": false,
+                      "optional": false
+                     },
+                     "right": {
+                      "type": "CallExpression",
+                      "callee": {
+                       "type": "Identifier",
+                       "name": "clamp"
+                      },
+                      "arguments": [
+                       {
+                        "type": "BinaryExpression",
+                        "left": {
+                         "type": "MemberExpression",
+                         "object": {
+                          "type": "ThisExpression"
+                         },
+                         "property": {
+                          "type": "Identifier",
+                          "name": "count"
+                         },
+                         "computed": false,
+                         "optional": false
+                        },
+                        "operator": "+",
+                        "right": {
+                         "type": "BinaryExpression",
+                         "left": {
+                          "type": "Identifier",
+                          "name": "by"
+                         },
+                         "operator": "*",
+                         "right": {
+                          "type": "MemberExpression",
+                          "object": {
+                           "type": "MemberExpression",
+                           "object": {
+                            "type": "Identifier",
+                            "name": "Counter"
+                           },
+                           "property": {
+                            "type": "Identifier",
+                            "name": "limits"
+                           },
+                           "computed": false,
+                           "optional": false
+                          },
+                          "property": {
+                           "type": "Identifier",
+                           "name": "high"
+                          },
+                          "computed": false,
+                          "optional": false
+                         }
+                        }
+                       }
+                      ],
+                      "optional": false
+                     }
+                    }
+                   }
+                  ]
+                 }
+                },
+                "kind": "init"
+               }
+              ]
+             },
+             "kind": "init"
+            }
+           ]
+          },
+          "kind": "init"
+         }
+        ]
+       }
+      }
+     ],
+     "kind": "const"
+    },
+    "specifiers": [],
+    "attributes": []
+   }
+  ]
+ },
+ "printed": "export type State = { count: number };\nconst LIMITS = { low: 0, high: 10 };\nfunction clamp(n: number): number {\n\treturn Math.max(LIMITS.low, Math.min(LIMITS.high, n));\n}\nexport const Counter = {\n\tname: \"Counter\",\n\tdefaults: { count: 0 },\n\tlimits: LIMITS,\n\ton: {\n\t\tstep: {\n\t\t\tpure: true,\n\t\t\tchanges: [\"count\"],\n\t\t\trun(next, [by]) {\n\t\t\t\tnext.count = clamp(this.count + by * Counter.limits.high);\n\t\t\t},\n\t\t},\n\t},\n};",
+ "entries": {
+  "Counter.on.step.run": "void"
+ },
+ "callGraph": {
+  "clamp": []
+ },
+ "summaries": {
+  "clamp": {
+   "params": [
+    {
+     "name": "n",
+     "type": "number",
+     "mutable": false
+    }
+   ],
+   "result": "number",
+   "fresh": false
+  }
+ },
+ "types": [
+  [
+   248,
+   254,
+   "{ low: number; high: number }",
+   "read"
+  ],
+  [
+   257,
+   277,
+   "{ low: number; high: number }",
+   "fresh"
+  ],
+  [
+   264,
+   265,
+   "0",
+   "value"
+  ],
+  [
+   273,
+   275,
+   "10",
+   "value"
+  ],
+  [
+   295,
+   296,
+   "number",
+   "value"
+  ],
+  [
+   324,
+   328,
+   "the module Math",
+   "value"
+  ],
+  [
+   324,
+   370,
+   "number",
+   "value"
+  ],
+  [
+   333,
+   339,
+   "{ low: number; high: number }",
+   "read"
+  ],
+  [
+   333,
+   343,
+   "number",
+   "value"
+  ],
+  [
+   345,
+   349,
+   "the module Math",
+   "value"
+  ],
+  [
+   345,
+   369,
+   "number",
+   "value"
+  ],
+  [
+   354,
+   360,
+   "{ low: number; high: number }",
+   "read"
+  ],
+  [
+   354,
+   365,
+   "number",
+   "value"
+  ],
+  [
+   367,
+   368,
+   "number",
+   "value"
+  ],
+  [
+   388,
+   395,
+   "{ readonly name: \"Counter\"; readonly defaults: { count: number }; readonly limits: { low: number; high: number }; readonly on: { readonly step: { readonly pure: true; readonly changes: string[] } } }",
+   "read"
+  ],
+  [
+   407,
+   416,
+   "\"Counter\"",
+   "value"
+  ],
+  [
+   429,
+   441,
+   "{ count: number }",
+   "fresh"
+  ],
+  [
+   438,
+   439,
+   "0",
+   "value"
+  ],
+  [
+   452,
+   458,
+   "{ low: number; high: number }",
+   "read"
+  ],
+  [
+   486,
+   490,
+   "true",
+   "value"
+  ],
+  [
+   504,
+   513,
+   "string[]",
+   "fresh"
+  ],
+  [
+   505,
+   512,
+   "\"count\"",
+   "value"
+  ],
+  [
+   522,
+   526,
+   "State",
+   "draft",
+   "next"
+  ],
+  [
+   529,
+   531,
+   "number",
+   "value"
+  ],
+  [
+   540,
+   544,
+   "State",
+   "draft",
+   "next"
+  ],
+  [
+   553,
+   558,
+   "(n: number) => number",
+   "value"
+  ],
+  [
+   553,
+   597,
+   "number",
+   "value"
+  ],
+  [
+   559,
+   563,
+   "State",
+   "read"
+  ],
+  [
+   559,
+   569,
+   "number",
+   "value"
+  ],
+  [
+   559,
+   596,
+   "number",
+   "value"
+  ],
+  [
+   572,
+   574,
+   "number",
+   "value"
+  ],
+  [
+   572,
+   596,
+   "number",
+   "value"
+  ],
+  [
+   577,
+   584,
+   "{ readonly name: \"Counter\"; readonly defaults: { count: number }; readonly limits: { low: number; high: number }; readonly on: { readonly step: { readonly pure: true; readonly changes: string[] } } }",
+   "read"
+  ],
+  [
+   577,
+   596,
+   "number",
+   "value"
+  ]
+ ],
+ "outcome": {
+  "kind": "finished",
+  "value": null
+ },
+ "steps": 23,
+ "after": [
+  {
+   "count": 10
+  },
+  [
+   2
+  ]
+ ]
+}

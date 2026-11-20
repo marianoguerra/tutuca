@@ -1,0 +1,61 @@
+{
+ "exit": 1,
+ "stage": "sieve",
+ "codes": [
+  "in-operator"
+ ],
+ "returnType": null,
+ "tree": {
+  "type": "PureProgram",
+  "form": "function",
+  "name": null,
+  "function": {
+   "type": "FunctionExpression",
+   "id": null,
+   "expression": false,
+   "generator": false,
+   "async": false,
+   "params": [
+    {
+     "type": "Identifier",
+     "name": "next"
+    },
+    {
+     "type": "ArrayPattern",
+     "elements": [
+      {
+       "type": "Identifier",
+       "name": "k"
+      }
+     ]
+    }
+   ],
+   "body": {
+    "type": "BlockStatement",
+    "body": [
+     {
+      "type": "IfStatement",
+      "test": {
+       "type": "BinaryExpression",
+       "left": {
+        "type": "Identifier",
+        "name": "k"
+       },
+       "operator": "in",
+       "right": {
+        "type": "Identifier",
+        "name": "next"
+       }
+      },
+      "consequent": {
+       "type": "ReturnStatement",
+       "argument": null
+      },
+      "alternate": null
+     }
+    ]
+   }
+  }
+ },
+ "printed": "function (next, [k]) {\n\tif (k in next) return;\n}"
+}

@@ -1,0 +1,91 @@
+{
+ "exit": 1,
+ "stage": "sieve",
+ "codes": [
+  "object-method"
+ ],
+ "tree": {
+  "type": "PureModule",
+  "items": [
+   {
+    "type": "FunctionDeclaration",
+    "id": {
+     "type": "Identifier",
+     "name": "f"
+    },
+    "expression": false,
+    "generator": false,
+    "async": false,
+    "params": [],
+    "body": {
+     "type": "BlockStatement",
+     "body": [
+      {
+       "type": "VariableDeclaration",
+       "declarations": [
+        {
+         "type": "VariableDeclarator",
+         "id": {
+          "type": "Identifier",
+          "name": "o"
+         },
+         "init": {
+          "type": "ObjectExpression",
+          "properties": [
+           {
+            "type": "Property",
+            "method": true,
+            "shorthand": false,
+            "computed": false,
+            "key": {
+             "type": "Identifier",
+             "name": "g"
+            },
+            "value": {
+             "type": "FunctionExpression",
+             "id": null,
+             "expression": false,
+             "generator": false,
+             "async": false,
+             "params": [],
+             "body": {
+              "type": "BlockStatement",
+              "body": [
+               {
+                "type": "ReturnStatement",
+                "argument": {
+                 "type": "Literal",
+                 "value": 1,
+                 "raw": "1"
+                }
+               }
+              ]
+             }
+            },
+            "kind": "init"
+           }
+          ]
+         }
+        }
+       ],
+       "kind": "const"
+      },
+      {
+       "type": "ReturnStatement",
+       "argument": {
+        "type": "Literal",
+        "value": 1,
+        "raw": "1"
+       }
+      }
+     ]
+    },
+    "returnType": {
+     "type": "TypeKeyword",
+     "name": "number"
+    }
+   }
+  ]
+ },
+ "printed": "function f(): number {\n\tconst o = {\n\t\tg() {\n\t\t\treturn 1;\n\t\t},\n\t};\n\treturn 1;\n}"
+}

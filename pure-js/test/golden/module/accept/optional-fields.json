@@ -1,0 +1,507 @@
+{
+ "exit": 0,
+ "stage": null,
+ "codes": [],
+ "tree": {
+  "type": "PureModule",
+  "items": [
+   {
+    "type": "ExportNamedDeclaration",
+    "declaration": {
+     "type": "TypeAlias",
+     "id": {
+      "type": "Identifier",
+      "name": "Note"
+     },
+     "typeAnnotation": {
+      "type": "TypeObject",
+      "members": [
+       {
+        "type": "TypeProperty",
+        "name": "text",
+        "optional": false,
+        "readonly": false,
+        "value": {
+         "type": "TypeKeyword",
+         "name": "string"
+        }
+       },
+       {
+        "type": "TypeProperty",
+        "name": "tag",
+        "optional": true,
+        "readonly": false,
+        "value": {
+         "type": "TypeKeyword",
+         "name": "string"
+        }
+       }
+      ]
+     }
+    },
+    "specifiers": [],
+    "attributes": []
+   },
+   {
+    "type": "ExportNamedDeclaration",
+    "declaration": {
+     "type": "TypeAlias",
+     "id": {
+      "type": "Identifier",
+      "name": "State"
+     },
+     "typeAnnotation": {
+      "type": "TypeObject",
+      "members": [
+       {
+        "type": "TypeProperty",
+        "name": "notes",
+        "optional": false,
+        "readonly": false,
+        "value": {
+         "type": "TypeArray",
+         "element": {
+          "type": "TypeRef",
+          "name": "Note",
+          "args": []
+         }
+        }
+       }
+      ]
+     }
+    },
+    "specifiers": [],
+    "attributes": []
+   },
+   {
+    "type": "FunctionDeclaration",
+    "id": {
+     "type": "Identifier",
+     "name": "label"
+    },
+    "expression": false,
+    "generator": false,
+    "async": false,
+    "params": [
+     {
+      "type": "Identifier",
+      "name": "n",
+      "typeAnnotation": {
+       "type": "TypeRef",
+       "name": "Readonly",
+       "args": [
+        {
+         "type": "TypeRef",
+         "name": "Note",
+         "args": []
+        }
+       ]
+      }
+     }
+    ],
+    "body": {
+     "type": "BlockStatement",
+     "body": [
+      {
+       "type": "IfStatement",
+       "test": {
+        "type": "BinaryExpression",
+        "left": {
+         "type": "MemberExpression",
+         "object": {
+          "type": "Identifier",
+          "name": "n"
+         },
+         "property": {
+          "type": "Identifier",
+          "name": "tag"
+         },
+         "computed": false,
+         "optional": false
+        },
+        "operator": "===",
+        "right": {
+         "type": "Identifier",
+         "name": "undefined"
+        }
+       },
+       "consequent": {
+        "type": "ReturnStatement",
+        "argument": {
+         "type": "MemberExpression",
+         "object": {
+          "type": "Identifier",
+          "name": "n"
+         },
+         "property": {
+          "type": "Identifier",
+          "name": "text"
+         },
+         "computed": false,
+         "optional": false
+        }
+       },
+       "alternate": null
+      },
+      {
+       "type": "ReturnStatement",
+       "argument": {
+        "type": "TemplateLiteral",
+        "expressions": [
+         {
+          "type": "MemberExpression",
+          "object": {
+           "type": "Identifier",
+           "name": "n"
+          },
+          "property": {
+           "type": "Identifier",
+           "name": "text"
+          },
+          "computed": false,
+          "optional": false
+         },
+         {
+          "type": "MemberExpression",
+          "object": {
+           "type": "Identifier",
+           "name": "n"
+          },
+          "property": {
+           "type": "Identifier",
+           "name": "tag"
+          },
+          "computed": false,
+          "optional": false
+         }
+        ],
+        "quasis": [
+         {
+          "type": "TemplateElement",
+          "value": {
+           "raw": "",
+           "cooked": ""
+          },
+          "tail": false
+         },
+         {
+          "type": "TemplateElement",
+          "value": {
+           "raw": "#",
+           "cooked": "#"
+          },
+          "tail": false
+         },
+         {
+          "type": "TemplateElement",
+          "value": {
+           "raw": "",
+           "cooked": ""
+          },
+          "tail": true
+         }
+        ]
+       }
+      }
+     ]
+    },
+    "returnType": {
+     "type": "TypeKeyword",
+     "name": "string"
+    }
+   },
+   {
+    "type": "ExportNamedDeclaration",
+    "declaration": {
+     "type": "VariableDeclaration",
+     "declarations": [
+      {
+       "type": "VariableDeclarator",
+       "id": {
+        "type": "Identifier",
+        "name": "Notes"
+       },
+       "init": {
+        "type": "ObjectExpression",
+        "properties": [
+         {
+          "type": "Property",
+          "method": false,
+          "shorthand": false,
+          "computed": false,
+          "key": {
+           "type": "Identifier",
+           "name": "queries"
+          },
+          "value": {
+           "type": "ObjectExpression",
+           "properties": [
+            {
+             "type": "Property",
+             "method": true,
+             "shorthand": false,
+             "computed": false,
+             "key": {
+              "type": "Identifier",
+              "name": "summary"
+             },
+             "value": {
+              "type": "FunctionExpression",
+              "id": null,
+              "expression": false,
+              "generator": false,
+              "async": false,
+              "params": [],
+              "body": {
+               "type": "BlockStatement",
+               "body": [
+                {
+                 "type": "ReturnStatement",
+                 "argument": {
+                  "type": "CallExpression",
+                  "callee": {
+                   "type": "MemberExpression",
+                   "object": {
+                    "type": "CallExpression",
+                    "callee": {
+                     "type": "MemberExpression",
+                     "object": {
+                      "type": "MemberExpression",
+                      "object": {
+                       "type": "ThisExpression"
+                      },
+                      "property": {
+                       "type": "Identifier",
+                       "name": "notes"
+                      },
+                      "computed": false,
+                      "optional": false
+                     },
+                     "property": {
+                      "type": "Identifier",
+                      "name": "map"
+                     },
+                     "computed": false,
+                     "optional": false
+                    },
+                    "arguments": [
+                     {
+                      "type": "ArrowFunctionExpression",
+                      "id": null,
+                      "expression": true,
+                      "generator": false,
+                      "async": false,
+                      "params": [
+                       {
+                        "type": "Identifier",
+                        "name": "n"
+                       }
+                      ],
+                      "body": {
+                       "type": "CallExpression",
+                       "callee": {
+                        "type": "Identifier",
+                        "name": "label"
+                       },
+                       "arguments": [
+                        {
+                         "type": "Identifier",
+                         "name": "n"
+                        }
+                       ],
+                       "optional": false
+                      }
+                     }
+                    ],
+                    "optional": false
+                   },
+                   "property": {
+                    "type": "Identifier",
+                    "name": "join"
+                   },
+                   "computed": false,
+                   "optional": false
+                  },
+                  "arguments": [
+                   {
+                    "type": "Literal",
+                    "value": " ",
+                    "raw": "\" \""
+                   }
+                  ],
+                  "optional": false
+                 }
+                }
+               ]
+              },
+              "returnType": {
+               "type": "TypeKeyword",
+               "name": "string"
+              }
+             },
+             "kind": "init"
+            }
+           ]
+          },
+          "kind": "init"
+         }
+        ]
+       }
+      }
+     ],
+     "kind": "const"
+    },
+    "specifiers": [],
+    "attributes": []
+   }
+  ]
+ },
+ "printed": "export type Note = { text: string; tag?: string };\nexport type State = { notes: Note[] };\nfunction label(n: Readonly<Note>): string {\n\tif (n.tag === undefined) return n.text;\n\treturn `${n.text}#${n.tag}`;\n}\nexport const Notes = {\n\tqueries: {\n\t\tsummary(): string {\n\t\t\treturn this.notes.map(n => label(n)).join(\" \");\n\t\t},\n\t},\n};",
+ "entries": {
+  "Notes.queries.summary": "string"
+ },
+ "callGraph": {
+  "label": []
+ },
+ "summaries": {
+  "label": {
+   "params": [
+    {
+     "name": "n",
+     "type": "Note",
+     "mutable": false
+    }
+   ],
+   "result": "string",
+   "fresh": false
+  }
+ },
+ "types": [
+  [
+   280,
+   281,
+   "Note",
+   "read"
+  ],
+  [
+   314,
+   315,
+   "Note",
+   "read"
+  ],
+  [
+   314,
+   319,
+   "string | undefined",
+   "value"
+  ],
+  [
+   314,
+   333,
+   "boolean",
+   "value"
+  ],
+  [
+   324,
+   333,
+   "undefined",
+   "value"
+  ],
+  [
+   342,
+   343,
+   "Note",
+   "read"
+  ],
+  [
+   342,
+   348,
+   "string",
+   "value"
+  ],
+  [
+   358,
+   378,
+   "string",
+   "value"
+  ],
+  [
+   361,
+   362,
+   "Note",
+   "read"
+  ],
+  [
+   361,
+   367,
+   "string",
+   "value"
+  ],
+  [
+   371,
+   372,
+   "Note",
+   "read"
+  ],
+  [
+   371,
+   376,
+   "string",
+   "value"
+  ],
+  [
+   396,
+   401,
+   "{ readonly queries: {} }",
+   "read"
+  ],
+  [
+   450,
+   454,
+   "State",
+   "read"
+  ],
+  [
+   450,
+   491,
+   "string",
+   "value"
+  ],
+  [
+   466,
+   467,
+   "Note",
+   "read"
+  ],
+  [
+   472,
+   477,
+   "(n: Note) => string",
+   "value"
+  ],
+  [
+   472,
+   480,
+   "string",
+   "value"
+  ],
+  [
+   478,
+   479,
+   "Note",
+   "read"
+  ],
+  [
+   487,
+   490,
+   "\" \"",
+   "value"
+  ]
+ ],
+ "outcome": {
+  "kind": "finished",
+  "value": "a b#x"
+ },
+ "steps": 31,
+ "after": []
+}

@@ -1,0 +1,39 @@
+{
+ "exit": 3,
+ "stage": "check",
+ "codes": [
+  "this-unavailable"
+ ],
+ "returnType": "never",
+ "tree": {
+  "type": "PureProgram",
+  "form": "arrow",
+  "name": null,
+  "function": {
+   "type": "ArrowFunctionExpression",
+   "id": null,
+   "expression": true,
+   "generator": false,
+   "async": false,
+   "params": [
+    {
+     "type": "Identifier",
+     "name": "next"
+    }
+   ],
+   "body": {
+    "type": "MemberExpression",
+    "object": {
+     "type": "ThisExpression"
+    },
+    "property": {
+     "type": "Identifier",
+     "name": "text"
+    },
+    "computed": false,
+    "optional": false
+   }
+  }
+ },
+ "printed": "next => this.text"
+}

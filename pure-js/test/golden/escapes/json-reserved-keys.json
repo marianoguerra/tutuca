@@ -1,0 +1,151 @@
+{
+ "exit": 0,
+ "stage": null,
+ "codes": [],
+ "returnType": "void",
+ "tree": {
+  "type": "PureProgram",
+  "form": "function",
+  "name": null,
+  "function": {
+   "type": "FunctionExpression",
+   "id": null,
+   "expression": false,
+   "generator": false,
+   "async": false,
+   "params": [
+    {
+     "type": "Identifier",
+     "name": "next"
+    }
+   ],
+   "body": {
+    "type": "BlockStatement",
+    "body": [
+     {
+      "type": "VariableDeclaration",
+      "declarations": [
+       {
+        "type": "VariableDeclarator",
+        "id": {
+         "type": "Identifier",
+         "name": "v"
+        },
+        "init": {
+         "type": "CallExpression",
+         "callee": {
+          "type": "MemberExpression",
+          "object": {
+           "type": "Identifier",
+           "name": "JSON"
+          },
+          "property": {
+           "type": "Identifier",
+           "name": "parse"
+          },
+          "computed": false,
+          "optional": false
+         },
+         "arguments": [
+          {
+           "type": "Literal",
+           "value": "{\"toString\": 1, \"constructor\": 2, \"items\": [{\"valueOf\": 3}], \"ok\": 4}",
+           "raw": "'{\"toString\": 1, \"constructor\": 2, \"items\": [{\"valueOf\": 3}], \"ok\": 4}'"
+          }
+         ],
+         "optional": false
+        }
+       }
+      ],
+      "kind": "const"
+     },
+     {
+      "type": "ExpressionStatement",
+      "expression": {
+       "type": "AssignmentExpression",
+       "operator": "=",
+       "left": {
+        "type": "MemberExpression",
+        "object": {
+         "type": "Identifier",
+         "name": "next"
+        },
+        "property": {
+         "type": "Identifier",
+         "name": "text"
+        },
+        "computed": false,
+        "optional": false
+       },
+       "right": {
+        "type": "LogicalExpression",
+        "left": {
+         "type": "CallExpression",
+         "callee": {
+          "type": "MemberExpression",
+          "object": {
+           "type": "Identifier",
+           "name": "JSON"
+          },
+          "property": {
+           "type": "Identifier",
+           "name": "stringify"
+          },
+          "computed": false,
+          "optional": false
+         },
+         "arguments": [
+          {
+           "type": "Identifier",
+           "name": "v"
+          }
+         ],
+         "optional": false
+        },
+        "operator": "??",
+        "right": {
+         "type": "Literal",
+         "value": "",
+         "raw": "\"\""
+        }
+       }
+      }
+     }
+    ]
+   }
+  }
+ },
+ "printed": "function (next) {\n\tconst v = JSON.parse(\"{\\\"toString\\\": 1, \\\"constructor\\\": 2, \\\"items\\\": [{\\\"valueOf\\\": 3}], \\\"ok\\\": 4}\");\n\tnext.text = JSON.stringify(v) ?? \"\";\n}",
+ "outcome": {
+  "kind": "finished",
+  "value": null
+ },
+ "steps": 11,
+ "after": [
+  {
+   "text": "{\"items\":[{}],\"ok\":4}",
+   "count": 2,
+   "items": [
+    {
+     "title": "write docs",
+     "done": true
+    },
+    {
+     "title": "ship",
+     "done": false
+    }
+   ],
+   "filter": "all",
+   "selected": null,
+   "tags": {
+    "urgent": 1
+   },
+   "left": 1
+  },
+  [],
+  {
+   "sourceKey": 0
+  }
+ ],
+ "calls": []
+}

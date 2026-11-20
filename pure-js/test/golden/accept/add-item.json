@@ -1,0 +1,270 @@
+{
+ "exit": 0,
+ "stage": null,
+ "codes": [],
+ "returnType": "void",
+ "tree": {
+  "type": "PureProgram",
+  "form": "method",
+  "name": "add",
+  "function": {
+   "type": "FunctionExpression",
+   "id": null,
+   "expression": false,
+   "generator": false,
+   "async": false,
+   "params": [
+    {
+     "type": "Identifier",
+     "name": "next"
+    },
+    {
+     "type": "Identifier",
+     "name": "_args"
+    },
+    {
+     "type": "Identifier",
+     "name": "ctx"
+    }
+   ],
+   "body": {
+    "type": "BlockStatement",
+    "body": [
+     {
+      "type": "VariableDeclaration",
+      "declarations": [
+       {
+        "type": "VariableDeclarator",
+        "id": {
+         "type": "Identifier",
+         "name": "text"
+        },
+        "init": {
+         "type": "CallExpression",
+         "callee": {
+          "type": "MemberExpression",
+          "object": {
+           "type": "MemberExpression",
+           "object": {
+            "type": "ThisExpression"
+           },
+           "property": {
+            "type": "Identifier",
+            "name": "text"
+           },
+           "computed": false,
+           "optional": false
+          },
+          "property": {
+           "type": "Identifier",
+           "name": "trim"
+          },
+          "computed": false,
+          "optional": false
+         },
+         "arguments": [],
+         "optional": false
+        }
+       }
+      ],
+      "kind": "const"
+     },
+     {
+      "type": "IfStatement",
+      "test": {
+       "type": "BinaryExpression",
+       "left": {
+        "type": "Identifier",
+        "name": "text"
+       },
+       "operator": "===",
+       "right": {
+        "type": "Literal",
+        "value": "",
+        "raw": "\"\""
+       }
+      },
+      "consequent": {
+       "type": "ReturnStatement",
+       "argument": null
+      },
+      "alternate": null
+     },
+     {
+      "type": "ExpressionStatement",
+      "expression": {
+       "type": "CallExpression",
+       "callee": {
+        "type": "MemberExpression",
+        "object": {
+         "type": "MemberExpression",
+         "object": {
+          "type": "Identifier",
+          "name": "next"
+         },
+         "property": {
+          "type": "Identifier",
+          "name": "items"
+         },
+         "computed": false,
+         "optional": false
+        },
+        "property": {
+         "type": "Identifier",
+         "name": "push"
+        },
+        "computed": false,
+        "optional": false
+       },
+       "arguments": [
+        {
+         "type": "ObjectExpression",
+         "properties": [
+          {
+           "type": "Property",
+           "method": false,
+           "shorthand": false,
+           "computed": false,
+           "key": {
+            "type": "Identifier",
+            "name": "title"
+           },
+           "value": {
+            "type": "Identifier",
+            "name": "text"
+           },
+           "kind": "init"
+          },
+          {
+           "type": "Property",
+           "method": false,
+           "shorthand": false,
+           "computed": false,
+           "key": {
+            "type": "Identifier",
+            "name": "done"
+           },
+           "value": {
+            "type": "Literal",
+            "value": false,
+            "raw": "false"
+           },
+           "kind": "init"
+          }
+         ]
+        }
+       ],
+       "optional": false
+      }
+     },
+     {
+      "type": "ExpressionStatement",
+      "expression": {
+       "type": "AssignmentExpression",
+       "operator": "=",
+       "left": {
+        "type": "MemberExpression",
+        "object": {
+         "type": "Identifier",
+         "name": "next"
+        },
+        "property": {
+         "type": "Identifier",
+         "name": "text"
+        },
+        "computed": false,
+        "optional": false
+       },
+       "right": {
+        "type": "Literal",
+        "value": "",
+        "raw": "\"\""
+       }
+      }
+     },
+     {
+      "type": "ExpressionStatement",
+      "expression": {
+       "type": "CallExpression",
+       "callee": {
+        "type": "MemberExpression",
+        "object": {
+         "type": "Identifier",
+         "name": "ctx"
+        },
+        "property": {
+         "type": "Identifier",
+         "name": "notify"
+        },
+        "computed": false,
+        "optional": false
+       },
+       "arguments": [
+        {
+         "type": "Literal",
+         "value": "changed",
+         "raw": "\"changed\""
+        },
+        {
+         "type": "ArrayExpression",
+         "elements": [
+          {
+           "type": "Identifier",
+           "name": "text"
+          }
+         ]
+        }
+       ],
+       "optional": false
+      }
+     }
+    ]
+   }
+  }
+ },
+ "printed": "add(next, _args, ctx) {\n\tconst text = this.text.trim();\n\tif (text === \"\") return;\n\tnext.items.push({ title: text, done: false });\n\tnext.text = \"\";\n\tctx.notify(\"changed\", [text]);\n}",
+ "outcome": {
+  "kind": "finished",
+  "value": null
+ },
+ "steps": 23,
+ "after": [
+  {
+   "text": "",
+   "count": 2,
+   "items": [
+    {
+     "title": "write docs",
+     "done": true
+    },
+    {
+     "title": "ship",
+     "done": false
+    },
+    {
+     "title": "Buy milk",
+     "done": false
+    }
+   ],
+   "filter": "all",
+   "selected": null,
+   "tags": {
+    "urgent": 1
+   },
+   "left": 1
+  },
+  [],
+  {
+   "sourceKey": 0
+  }
+ ],
+ "calls": [
+  [
+   "notify",
+   "changed",
+   [
+    "Buy milk"
+   ]
+  ]
+ ]
+}

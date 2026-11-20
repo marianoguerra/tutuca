@@ -1,0 +1,73 @@
+{
+ "exit": 1,
+ "stage": "sieve",
+ "codes": [
+  "reserved-name"
+ ],
+ "returnType": null,
+ "tree": {
+  "type": "PureProgram",
+  "form": "function",
+  "name": null,
+  "function": {
+   "type": "FunctionExpression",
+   "id": null,
+   "expression": false,
+   "generator": false,
+   "async": false,
+   "params": [
+    {
+     "type": "Identifier",
+     "name": "next"
+    }
+   ],
+   "body": {
+    "type": "BlockStatement",
+    "body": [
+     {
+      "type": "ExpressionStatement",
+      "expression": {
+       "type": "AssignmentExpression",
+       "operator": "=",
+       "left": {
+        "type": "MemberExpression",
+        "object": {
+         "type": "Identifier",
+         "name": "next"
+        },
+        "property": {
+         "type": "Identifier",
+         "name": "text"
+        },
+        "computed": false,
+        "optional": false
+       },
+       "right": {
+        "type": "MemberExpression",
+        "object": {
+         "type": "MemberExpression",
+         "object": {
+          "type": "ThisExpression"
+         },
+         "property": {
+          "type": "Identifier",
+          "name": "items"
+         },
+         "computed": false,
+         "optional": false
+        },
+        "property": {
+         "type": "Identifier",
+         "name": "prototype"
+        },
+        "computed": false,
+        "optional": false
+       }
+      }
+     }
+    ]
+   }
+  }
+ },
+ "printed": "function (next) {\n\tnext.text = this.items.prototype;\n}"
+}

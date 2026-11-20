@@ -1,0 +1,191 @@
+{
+ "exit": 0,
+ "stage": null,
+ "codes": [],
+ "tree": {
+  "type": "PureModule",
+  "items": [
+   {
+    "type": "ImportDeclaration",
+    "importKind": "value",
+    "specifiers": [
+     {
+      "type": "ImportSpecifier",
+      "imported": {
+       "type": "Identifier",
+       "name": "upper"
+      },
+      "local": {
+       "type": "Identifier",
+       "name": "upper"
+      }
+     }
+    ],
+    "attributes": []
+   },
+   {
+    "type": "ExportNamedDeclaration",
+    "declaration": {
+     "type": "TypeAlias",
+     "id": {
+      "type": "Identifier",
+      "name": "State"
+     },
+     "typeAnnotation": {
+      "type": "TypeObject",
+      "members": [
+       {
+        "type": "TypeProperty",
+        "name": "text",
+        "optional": false,
+        "readonly": false,
+        "value": {
+         "type": "TypeKeyword",
+         "name": "string"
+        }
+       }
+      ]
+     }
+    },
+    "specifiers": [],
+    "attributes": []
+   },
+   {
+    "type": "ExportNamedDeclaration",
+    "declaration": {
+     "type": "VariableDeclaration",
+     "declarations": [
+      {
+       "type": "VariableDeclarator",
+       "id": {
+        "type": "Identifier",
+        "name": "Text"
+       },
+       "init": {
+        "type": "ObjectExpression",
+        "properties": [
+         {
+          "type": "Property",
+          "method": false,
+          "shorthand": false,
+          "computed": false,
+          "key": {
+           "type": "Identifier",
+           "name": "queries"
+          },
+          "value": {
+           "type": "ObjectExpression",
+           "properties": [
+            {
+             "type": "Property",
+             "method": true,
+             "shorthand": false,
+             "computed": false,
+             "key": {
+              "type": "Identifier",
+              "name": "loud"
+             },
+             "value": {
+              "type": "FunctionExpression",
+              "id": null,
+              "expression": false,
+              "generator": false,
+              "async": false,
+              "params": [],
+              "body": {
+               "type": "BlockStatement",
+               "body": [
+                {
+                 "type": "ReturnStatement",
+                 "argument": {
+                  "type": "CallExpression",
+                  "callee": {
+                   "type": "Identifier",
+                   "name": "upper"
+                  },
+                  "arguments": [
+                   {
+                    "type": "MemberExpression",
+                    "object": {
+                     "type": "ThisExpression"
+                    },
+                    "property": {
+                     "type": "Identifier",
+                     "name": "text"
+                    },
+                    "computed": false,
+                    "optional": false
+                   }
+                  ],
+                  "optional": false
+                 }
+                }
+               ]
+              },
+              "returnType": {
+               "type": "TypeKeyword",
+               "name": "string"
+              }
+             },
+             "kind": "init"
+            }
+           ]
+          },
+          "kind": "init"
+         }
+        ]
+       }
+      }
+     ],
+     "kind": "const"
+    },
+    "specifiers": [],
+    "attributes": []
+   }
+  ]
+ },
+ "printed": "import { upper } from \"app/text\";\nexport type State = { text: string };\nexport const Text = {\n\tqueries: {\n\t\tloud(): string {\n\t\t\treturn upper(this.text);\n\t\t},\n\t},\n};",
+ "entries": {
+  "Text.queries.loud": "string"
+ },
+ "callGraph": {},
+ "summaries": {},
+ "types": [
+  [
+   394,
+   398,
+   "{ readonly queries: {} }",
+   "read"
+  ],
+  [
+   444,
+   449,
+   "(text: string) => string",
+   "value"
+  ],
+  [
+   444,
+   460,
+   "string",
+   "value"
+  ],
+  [
+   450,
+   454,
+   "State",
+   "read"
+  ],
+  [
+   450,
+   459,
+   "string",
+   "value"
+  ]
+ ],
+ "outcome": {
+  "kind": "finished",
+  "value": "HEY"
+ },
+ "steps": 5,
+ "after": []
+}

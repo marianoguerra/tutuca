@@ -1,0 +1,40 @@
+{
+ "exit": 1,
+ "stage": "sieve",
+ "codes": [
+  "throw-statement"
+ ],
+ "returnType": null,
+ "tree": {
+  "type": "PureProgram",
+  "form": "function",
+  "name": null,
+  "function": {
+   "type": "FunctionExpression",
+   "id": null,
+   "expression": false,
+   "generator": false,
+   "async": false,
+   "params": [
+    {
+     "type": "Identifier",
+     "name": "next"
+    }
+   ],
+   "body": {
+    "type": "BlockStatement",
+    "body": [
+     {
+      "type": "ThrowStatement",
+      "argument": {
+       "type": "Literal",
+       "value": "no",
+       "raw": "\"no\""
+      }
+     }
+    ]
+   }
+  }
+ },
+ "printed": "function (next) {\n\tthrow \"no\";\n}"
+}

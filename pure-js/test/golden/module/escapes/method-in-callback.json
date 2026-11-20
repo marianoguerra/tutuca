@@ -1,0 +1,132 @@
+{
+ "exit": 1,
+ "stage": "sieve",
+ "codes": [
+  "object-method",
+  "reserved-name"
+ ],
+ "tree": {
+  "type": "PureModule",
+  "items": [
+   {
+    "type": "FunctionDeclaration",
+    "id": {
+     "type": "Identifier",
+     "name": "f"
+    },
+    "expression": false,
+    "generator": false,
+    "async": false,
+    "params": [
+     {
+      "type": "Identifier",
+      "name": "xs",
+      "typeAnnotation": {
+       "type": "TypeRef",
+       "name": "Readonly",
+       "args": [
+        {
+         "type": "TypeArray",
+         "element": {
+          "type": "TypeKeyword",
+          "name": "number"
+         }
+        }
+       ]
+      }
+     }
+    ],
+    "body": {
+     "type": "BlockStatement",
+     "body": [
+      {
+       "type": "ReturnStatement",
+       "argument": {
+        "type": "MemberExpression",
+        "object": {
+         "type": "CallExpression",
+         "callee": {
+          "type": "MemberExpression",
+          "object": {
+           "type": "Identifier",
+           "name": "xs"
+          },
+          "property": {
+           "type": "Identifier",
+           "name": "map"
+          },
+          "computed": false,
+          "optional": false
+         },
+         "arguments": [
+          {
+           "type": "ArrowFunctionExpression",
+           "id": null,
+           "expression": true,
+           "generator": false,
+           "async": false,
+           "params": [
+            {
+             "type": "Identifier",
+             "name": "x"
+            }
+           ],
+           "body": {
+            "type": "ObjectExpression",
+            "properties": [
+             {
+              "type": "Property",
+              "method": true,
+              "shorthand": false,
+              "computed": false,
+              "key": {
+               "type": "Identifier",
+               "name": "valueOf"
+              },
+              "value": {
+               "type": "FunctionExpression",
+               "id": null,
+               "expression": false,
+               "generator": false,
+               "async": false,
+               "params": [],
+               "body": {
+                "type": "BlockStatement",
+                "body": [
+                 {
+                  "type": "ReturnStatement",
+                  "argument": {
+                   "type": "Identifier",
+                   "name": "x"
+                  }
+                 }
+                ]
+               }
+              },
+              "kind": "init"
+             }
+            ]
+           }
+          }
+         ],
+         "optional": false
+        },
+        "property": {
+         "type": "Identifier",
+         "name": "length"
+        },
+        "computed": false,
+        "optional": false
+       }
+      }
+     ]
+    },
+    "returnType": {
+     "type": "TypeKeyword",
+     "name": "number"
+    }
+   }
+  ]
+ },
+ "printed": "function f(xs: Readonly<number[]>): number {\n\treturn xs.map(x => ({\n\t\tvalueOf() {\n\t\t\treturn x;\n\t\t},\n\t})).length;\n}"
+}

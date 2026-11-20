@@ -1,0 +1,9 @@
+{
+ "exit": 1,
+ "stage": "parse",
+ "codes": [
+  "module-statement"
+ ],
+ "tree": null,
+ "printed": null
+}

@@ -1,0 +1,125 @@
+{
+ "exit": 3,
+ "stage": "check",
+ "codes": [
+  "unknown-name"
+ ],
+ "tree": {
+  "type": "PureModule",
+  "items": [
+   {
+    "type": "FunctionDeclaration",
+    "id": {
+     "type": "Identifier",
+     "name": "f"
+    },
+    "expression": false,
+    "generator": false,
+    "async": false,
+    "params": [],
+    "body": {
+     "type": "BlockStatement",
+     "body": [
+      {
+       "type": "ReturnStatement",
+       "argument": {
+        "type": "ConditionalExpression",
+        "test": {
+         "type": "BinaryExpression",
+         "left": {
+          "type": "MemberExpression",
+          "object": {
+           "type": "Identifier",
+           "name": "globalThis"
+          },
+          "property": {
+           "type": "Identifier",
+           "name": "location"
+          },
+          "computed": false,
+          "optional": false
+         },
+         "operator": "===",
+         "right": {
+          "type": "Identifier",
+          "name": "undefined"
+         }
+        },
+        "consequent": {
+         "type": "Literal",
+         "value": 1,
+         "raw": "1"
+        },
+        "alternate": {
+         "type": "Literal",
+         "value": 0,
+         "raw": "0"
+        }
+       }
+      }
+     ]
+    },
+    "returnType": {
+     "type": "TypeKeyword",
+     "name": "number"
+    }
+   }
+  ]
+ },
+ "printed": "function f(): number {\n\treturn globalThis.location === undefined ? 1 : 0;\n}",
+ "entries": {},
+ "callGraph": {
+  "f": []
+ },
+ "summaries": {
+  "f": {
+   "params": [],
+   "result": "number",
+   "fresh": false
+  }
+ },
+ "types": [
+  [
+   55,
+   65,
+   "never",
+   "value"
+  ],
+  [
+   55,
+   74,
+   "never",
+   "value"
+  ],
+  [
+   55,
+   88,
+   "boolean",
+   "value"
+  ],
+  [
+   55,
+   96,
+   "1 | 0",
+   "value"
+  ],
+  [
+   79,
+   88,
+   "undefined",
+   "value"
+  ],
+  [
+   91,
+   92,
+   "1",
+   "value"
+  ],
+  [
+   95,
+   96,
+   "0",
+   "value"
+  ]
+ ]
+}

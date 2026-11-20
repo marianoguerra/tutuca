@@ -1,0 +1,52 @@
+{
+ "exit": 3,
+ "stage": "check",
+ "codes": [
+  "not-callable"
+ ],
+ "returnType": "void",
+ "tree": {
+  "type": "PureProgram",
+  "form": "function",
+  "name": null,
+  "function": {
+   "type": "FunctionExpression",
+   "id": null,
+   "expression": false,
+   "generator": false,
+   "async": false,
+   "params": [
+    {
+     "type": "Identifier",
+     "name": "next"
+    }
+   ],
+   "body": {
+    "type": "BlockStatement",
+    "body": [
+     {
+      "type": "ExpressionStatement",
+      "expression": {
+       "type": "CallExpression",
+       "callee": {
+        "type": "MemberExpression",
+        "object": {
+         "type": "ThisExpression"
+        },
+        "property": {
+         "type": "Identifier",
+         "name": "text"
+        },
+        "computed": false,
+        "optional": false
+       },
+       "arguments": [],
+       "optional": false
+      }
+     }
+    ]
+   }
+  }
+ },
+ "printed": "function (next) {\n\tthis.text();\n}"
+}

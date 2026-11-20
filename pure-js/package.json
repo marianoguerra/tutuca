@@ -1,0 +1,31 @@
+{
+	"name": "pure-js",
+	"version": "0.2.0",
+	"description": "A statically verifiable, deterministic subset of JavaScript and TypeScript",
+	"type": "module",
+	"license": "MIT",
+	"exports": {
+		".": "./lib/index.js",
+		"./std": "./lib/std.js",
+		"./package.json": "./package.json"
+	},
+	"bin": {
+		"pure-js": "./cli/main.js"
+	},
+	"files": [
+		"lib/",
+		"cli/",
+		"spec/",
+		"docs/",
+		"README.md"
+	],
+	"scripts": {
+		"test": "node --test test/*.test.js",
+		"corpus": "node tools/corpus.js"
+	},
+	"devDependencies": {
+		"acorn": "^8.19.0",
+		"fast-check": "^4.10.2",
+		"typescript": "~6.0.3"
+	}
+}

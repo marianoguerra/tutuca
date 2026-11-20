@@ -1,0 +1,241 @@
+{
+ "exit": 0,
+ "stage": null,
+ "codes": [],
+ "returnType": "void",
+ "tree": {
+  "type": "PureProgram",
+  "form": "function",
+  "name": null,
+  "function": {
+   "type": "FunctionExpression",
+   "id": null,
+   "expression": false,
+   "generator": false,
+   "async": false,
+   "params": [
+    {
+     "type": "Identifier",
+     "name": "next"
+    }
+   ],
+   "body": {
+    "type": "BlockStatement",
+    "body": [
+     {
+      "type": "VariableDeclaration",
+      "declarations": [
+       {
+        "type": "VariableDeclarator",
+        "id": {
+         "type": "Identifier",
+         "name": "first"
+        },
+        "init": {
+         "type": "MemberExpression",
+         "object": {
+          "type": "MemberExpression",
+          "object": {
+           "type": "Identifier",
+           "name": "next"
+          },
+          "property": {
+           "type": "Identifier",
+           "name": "items"
+          },
+          "computed": false,
+          "optional": false
+         },
+         "property": {
+          "type": "Literal",
+          "value": 0,
+          "raw": "0"
+         },
+         "computed": true,
+         "optional": false
+        }
+       }
+      ],
+      "kind": "const"
+     },
+     {
+      "type": "IfStatement",
+      "test": {
+       "type": "BinaryExpression",
+       "left": {
+        "type": "Identifier",
+        "name": "first"
+       },
+       "operator": "===",
+       "right": {
+        "type": "Identifier",
+        "name": "undefined"
+       }
+      },
+      "consequent": {
+       "type": "ReturnStatement",
+       "argument": null
+      },
+      "alternate": null
+     },
+     {
+      "type": "ExpressionStatement",
+      "expression": {
+       "type": "AssignmentExpression",
+       "operator": "=",
+       "left": {
+        "type": "MemberExpression",
+        "object": {
+         "type": "Identifier",
+         "name": "first"
+        },
+        "property": {
+         "type": "Identifier",
+         "name": "title"
+        },
+        "computed": false,
+        "optional": false
+       },
+       "right": {
+        "type": "CallExpression",
+        "callee": {
+         "type": "MemberExpression",
+         "object": {
+          "type": "MemberExpression",
+          "object": {
+           "type": "Identifier",
+           "name": "first"
+          },
+          "property": {
+           "type": "Identifier",
+           "name": "title"
+          },
+          "computed": false,
+          "optional": false
+         },
+         "property": {
+          "type": "Identifier",
+          "name": "toUpperCase"
+         },
+         "computed": false,
+         "optional": false
+        },
+        "arguments": [],
+        "optional": false
+       }
+      }
+     },
+     {
+      "type": "ExpressionStatement",
+      "expression": {
+       "type": "AssignmentExpression",
+       "operator": "=",
+       "left": {
+        "type": "MemberExpression",
+        "object": {
+         "type": "Identifier",
+         "name": "next"
+        },
+        "property": {
+         "type": "Identifier",
+         "name": "selected"
+        },
+        "computed": false,
+        "optional": false
+       },
+       "right": {
+        "type": "ObjectExpression",
+        "properties": [
+         {
+          "type": "Property",
+          "method": false,
+          "shorthand": false,
+          "computed": false,
+          "key": {
+           "type": "Identifier",
+           "name": "title"
+          },
+          "value": {
+           "type": "MemberExpression",
+           "object": {
+            "type": "Identifier",
+            "name": "first"
+           },
+           "property": {
+            "type": "Identifier",
+            "name": "title"
+           },
+           "computed": false,
+           "optional": false
+          },
+          "kind": "init"
+         },
+         {
+          "type": "Property",
+          "method": false,
+          "shorthand": false,
+          "computed": false,
+          "key": {
+           "type": "Identifier",
+           "name": "done"
+          },
+          "value": {
+           "type": "MemberExpression",
+           "object": {
+            "type": "Identifier",
+            "name": "first"
+           },
+           "property": {
+            "type": "Identifier",
+            "name": "done"
+           },
+           "computed": false,
+           "optional": false
+          },
+          "kind": "init"
+         }
+        ]
+       }
+      }
+     }
+    ]
+   }
+  }
+ },
+ "printed": "function (next) {\n\tconst first = next.items[0];\n\tif (first === undefined) return;\n\tfirst.title = first.title.toUpperCase();\n\tnext.selected = { title: first.title, done: first.done };\n}",
+ "outcome": {
+  "kind": "finished",
+  "value": null
+ },
+ "steps": 21,
+ "after": [
+  {
+   "text": " Buy milk ",
+   "count": 2,
+   "items": [
+    {
+     "title": "WRITE DOCS",
+     "done": true
+    },
+    {
+     "title": "ship",
+     "done": false
+    }
+   ],
+   "filter": "all",
+   "selected": {
+    "title": "WRITE DOCS",
+    "done": true
+   },
+   "tags": {
+    "urgent": 1
+   },
+   "left": 1
+  },
+  [],
+  {
+   "sourceKey": 0
+  }
+ ],
+ "calls": []
+}

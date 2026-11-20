@@ -1,0 +1,298 @@
+{
+ "exit": 3,
+ "stage": "check",
+ "codes": [
+  "entry-access"
+ ],
+ "tree": {
+  "type": "PureModule",
+  "items": [
+   {
+    "type": "ExportNamedDeclaration",
+    "declaration": {
+     "type": "TypeAlias",
+     "id": {
+      "type": "Identifier",
+      "name": "State"
+     },
+     "typeAnnotation": {
+      "type": "TypeObject",
+      "members": [
+       {
+        "type": "TypeProperty",
+        "name": "n",
+        "optional": false,
+        "readonly": false,
+        "value": {
+         "type": "TypeKeyword",
+         "name": "number"
+        }
+       }
+      ]
+     }
+    },
+    "specifiers": [],
+    "attributes": []
+   },
+   {
+    "type": "ExportNamedDeclaration",
+    "declaration": {
+     "type": "VariableDeclaration",
+     "declarations": [
+      {
+       "type": "VariableDeclarator",
+       "id": {
+        "type": "Identifier",
+        "name": "Todos"
+       },
+       "init": {
+        "type": "ObjectExpression",
+        "properties": [
+         {
+          "type": "Property",
+          "method": false,
+          "shorthand": false,
+          "computed": false,
+          "key": {
+           "type": "Identifier",
+           "name": "on"
+          },
+          "value": {
+           "type": "ObjectExpression",
+           "properties": [
+            {
+             "type": "Property",
+             "method": false,
+             "shorthand": false,
+             "computed": false,
+             "key": {
+              "type": "Identifier",
+              "name": "a"
+             },
+             "value": {
+              "type": "ObjectExpression",
+              "properties": [
+               {
+                "type": "Property",
+                "method": true,
+                "shorthand": false,
+                "computed": false,
+                "key": {
+                 "type": "Identifier",
+                 "name": "run"
+                },
+                "value": {
+                 "type": "FunctionExpression",
+                 "id": null,
+                 "expression": false,
+                 "generator": false,
+                 "async": false,
+                 "params": [
+                  {
+                   "type": "Identifier",
+                   "name": "next"
+                  }
+                 ],
+                 "body": {
+                  "type": "BlockStatement",
+                  "body": [
+                   {
+                    "type": "ExpressionStatement",
+                    "expression": {
+                     "type": "AssignmentExpression",
+                     "operator": "=",
+                     "left": {
+                      "type": "MemberExpression",
+                      "object": {
+                       "type": "Identifier",
+                       "name": "next"
+                      },
+                      "property": {
+                       "type": "Identifier",
+                       "name": "n"
+                      },
+                      "computed": false,
+                      "optional": false
+                     },
+                     "right": {
+                      "type": "Literal",
+                      "value": 1,
+                      "raw": "1"
+                     }
+                    }
+                   }
+                  ]
+                 }
+                },
+                "kind": "init"
+               }
+              ]
+             },
+             "kind": "init"
+            },
+            {
+             "type": "Property",
+             "method": false,
+             "shorthand": false,
+             "computed": false,
+             "key": {
+              "type": "Identifier",
+              "name": "b"
+             },
+             "value": {
+              "type": "ObjectExpression",
+              "properties": [
+               {
+                "type": "Property",
+                "method": true,
+                "shorthand": false,
+                "computed": false,
+                "key": {
+                 "type": "Identifier",
+                 "name": "run"
+                },
+                "value": {
+                 "type": "FunctionExpression",
+                 "id": null,
+                 "expression": false,
+                 "generator": false,
+                 "async": false,
+                 "params": [
+                  {
+                   "type": "Identifier",
+                   "name": "next"
+                  }
+                 ],
+                 "body": {
+                  "type": "BlockStatement",
+                  "body": [
+                   {
+                    "type": "ExpressionStatement",
+                    "expression": {
+                     "type": "CallExpression",
+                     "callee": {
+                      "type": "MemberExpression",
+                      "object": {
+                       "type": "MemberExpression",
+                       "object": {
+                        "type": "MemberExpression",
+                        "object": {
+                         "type": "Identifier",
+                         "name": "Todos"
+                        },
+                        "property": {
+                         "type": "Identifier",
+                         "name": "on"
+                        },
+                        "computed": false,
+                        "optional": false
+                       },
+                       "property": {
+                        "type": "Identifier",
+                        "name": "a"
+                       },
+                       "computed": false,
+                       "optional": false
+                      },
+                      "property": {
+                       "type": "Identifier",
+                       "name": "run"
+                      },
+                      "computed": false,
+                      "optional": false
+                     },
+                     "arguments": [
+                      {
+                       "type": "Identifier",
+                       "name": "next"
+                      }
+                     ],
+                     "optional": false
+                    }
+                   }
+                  ]
+                 }
+                },
+                "kind": "init"
+               }
+              ]
+             },
+             "kind": "init"
+            }
+           ]
+          },
+          "kind": "init"
+         }
+        ]
+       }
+      }
+     ],
+     "kind": "const"
+    },
+    "specifiers": [],
+    "attributes": []
+   }
+  ]
+ },
+ "printed": "export type State = { n: number };\nexport const Todos = {\n\ton: {\n\t\ta: {\n\t\t\trun(next) {\n\t\t\t\tnext.n = 1;\n\t\t\t},\n\t\t},\n\t\tb: {\n\t\t\trun(next) {\n\t\t\t\tTodos.on.a.run(next);\n\t\t\t},\n\t\t},\n\t},\n};",
+ "entries": {
+  "Todos.on.a.run": "void",
+  "Todos.on.b.run": "void"
+ },
+ "callGraph": {},
+ "summaries": {},
+ "types": [
+  [
+   174,
+   179,
+   "{ readonly on: { readonly a: {}; readonly b: {} } }",
+   "read"
+  ],
+  [
+   205,
+   209,
+   "State",
+   "draft",
+   "next"
+  ],
+  [
+   217,
+   221,
+   "State",
+   "draft",
+   "next"
+  ],
+  [
+   226,
+   227,
+   "1",
+   "value"
+  ],
+  [
+   254,
+   258,
+   "State",
+   "draft",
+   "next"
+  ],
+  [
+   266,
+   271,
+   "{ readonly on: { readonly a: {}; readonly b: {} } }",
+   "read"
+  ],
+  [
+   266,
+   286,
+   "never",
+   "value"
+  ],
+  [
+   281,
+   285,
+   "State",
+   "draft",
+   "next"
+  ]
+ ]
+}

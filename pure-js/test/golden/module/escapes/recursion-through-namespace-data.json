@@ -1,0 +1,163 @@
+{
+ "exit": 3,
+ "stage": "check",
+ "codes": [
+  "const-cycle",
+  "const-order"
+ ],
+ "tree": {
+  "type": "PureModule",
+  "items": [
+   {
+    "type": "ExportNamedDeclaration",
+    "declaration": {
+     "type": "VariableDeclaration",
+     "declarations": [
+      {
+       "type": "VariableDeclarator",
+       "id": {
+        "type": "Identifier",
+        "name": "N"
+       },
+       "init": {
+        "type": "ObjectExpression",
+        "properties": [
+         {
+          "type": "Property",
+          "method": false,
+          "shorthand": false,
+          "computed": false,
+          "key": {
+           "type": "Identifier",
+           "name": "size"
+          },
+          "value": {
+           "type": "CallExpression",
+           "callee": {
+            "type": "Identifier",
+            "name": "count"
+           },
+           "arguments": [],
+           "optional": false
+          },
+          "kind": "init"
+         }
+        ]
+       }
+      }
+     ],
+     "kind": "const"
+    },
+    "specifiers": [],
+    "attributes": []
+   },
+   {
+    "type": "FunctionDeclaration",
+    "id": {
+     "type": "Identifier",
+     "name": "count"
+    },
+    "expression": false,
+    "generator": false,
+    "async": false,
+    "params": [],
+    "body": {
+     "type": "BlockStatement",
+     "body": [
+      {
+       "type": "ReturnStatement",
+       "argument": {
+        "type": "BinaryExpression",
+        "left": {
+         "type": "MemberExpression",
+         "object": {
+          "type": "Identifier",
+          "name": "N"
+         },
+         "property": {
+          "type": "Identifier",
+          "name": "size"
+         },
+         "computed": false,
+         "optional": false
+        },
+        "operator": "+",
+        "right": {
+         "type": "Literal",
+         "value": 1,
+         "raw": "1"
+        }
+       }
+      }
+     ]
+    },
+    "returnType": {
+     "type": "TypeKeyword",
+     "name": "number"
+    }
+   }
+  ]
+ },
+ "printed": "export const N = { size: count() };\nfunction count(): number {\n\treturn N.size + 1;\n}",
+ "entries": {},
+ "callGraph": {
+  "count": []
+ },
+ "summaries": {
+  "count": {
+   "params": [],
+   "result": "number",
+   "fresh": false
+  }
+ },
+ "types": [
+  [
+   36,
+   37,
+   "{ size: number }",
+   "read"
+  ],
+  [
+   40,
+   57,
+   "{ size: number }",
+   "fresh"
+  ],
+  [
+   48,
+   53,
+   "() => number",
+   "value"
+  ],
+  [
+   48,
+   55,
+   "number",
+   "value"
+  ],
+  [
+   94,
+   95,
+   "never",
+   "value"
+  ],
+  [
+   94,
+   100,
+   "never",
+   "value"
+  ],
+  [
+   94,
+   104,
+   "number",
+   "value"
+  ],
+  [
+   103,
+   104,
+   "1",
+   "value"
+  ]
+ ]
+}

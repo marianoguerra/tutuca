@@ -1,0 +1,139 @@
+{
+ "exit": 0,
+ "stage": null,
+ "codes": [],
+ "returnType": "void",
+ "tree": {
+  "type": "PureProgram",
+  "form": "function",
+  "name": null,
+  "function": {
+   "type": "FunctionExpression",
+   "id": null,
+   "expression": false,
+   "generator": false,
+   "async": false,
+   "params": [
+    {
+     "type": "Identifier",
+     "name": "next"
+    },
+    {
+     "type": "ArrayPattern",
+     "elements": [
+      {
+       "type": "Identifier",
+       "name": "i"
+      }
+     ]
+    }
+   ],
+   "body": {
+    "type": "BlockStatement",
+    "body": [
+     {
+      "type": "ExpressionStatement",
+      "expression": {
+       "type": "AssignmentExpression",
+       "operator": "=",
+       "left": {
+        "type": "MemberExpression",
+        "object": {
+         "type": "MemberExpression",
+         "object": {
+          "type": "Identifier",
+          "name": "next"
+         },
+         "property": {
+          "type": "Identifier",
+          "name": "items"
+         },
+         "computed": false,
+         "optional": false
+        },
+        "property": {
+         "type": "Identifier",
+         "name": "i"
+        },
+        "computed": true,
+        "optional": false
+       },
+       "right": {
+        "type": "ObjectExpression",
+        "properties": [
+         {
+          "type": "Property",
+          "method": false,
+          "shorthand": false,
+          "computed": false,
+          "key": {
+           "type": "Identifier",
+           "name": "title"
+          },
+          "value": {
+           "type": "Literal",
+           "value": "minus one",
+           "raw": "\"minus one\""
+          },
+          "kind": "init"
+         },
+         {
+          "type": "Property",
+          "method": false,
+          "shorthand": false,
+          "computed": false,
+          "key": {
+           "type": "Identifier",
+           "name": "done"
+          },
+          "value": {
+           "type": "Literal",
+           "value": false,
+           "raw": "false"
+          },
+          "kind": "init"
+         }
+        ]
+       }
+      }
+     }
+    ]
+   }
+  }
+ },
+ "printed": "function (next, [i]) {\n\tnext.items[i] = { title: \"minus one\", done: false };\n}",
+ "outcome": {
+  "kind": "undefined",
+  "why": "setting element -1 of a list of 2"
+ },
+ "steps": 7,
+ "after": [
+  {
+   "text": " Buy milk ",
+   "count": 2,
+   "items": [
+    {
+     "title": "write docs",
+     "done": true
+    },
+    {
+     "title": "ship",
+     "done": false
+    }
+   ],
+   "filter": "all",
+   "selected": null,
+   "tags": {
+    "urgent": 1
+   },
+   "left": 1
+  },
+  [
+   -1
+  ],
+  {
+   "sourceKey": 0
+  }
+ ],
+ "calls": []
+}

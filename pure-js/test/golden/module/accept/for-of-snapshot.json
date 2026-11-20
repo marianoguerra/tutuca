@@ -1,0 +1,358 @@
+{
+ "exit": 0,
+ "stage": null,
+ "codes": [],
+ "tree": {
+  "type": "PureModule",
+  "items": [
+   {
+    "type": "ExportNamedDeclaration",
+    "declaration": {
+     "type": "TypeAlias",
+     "id": {
+      "type": "Identifier",
+      "name": "State"
+     },
+     "typeAnnotation": {
+      "type": "TypeObject",
+      "members": [
+       {
+        "type": "TypeProperty",
+        "name": "xs",
+        "optional": false,
+        "readonly": false,
+        "value": {
+         "type": "TypeArray",
+         "element": {
+          "type": "TypeKeyword",
+          "name": "number"
+         }
+        }
+       }
+      ]
+     }
+    },
+    "specifiers": [],
+    "attributes": []
+   },
+   {
+    "type": "ExportNamedDeclaration",
+    "declaration": {
+     "type": "VariableDeclaration",
+     "declarations": [
+      {
+       "type": "VariableDeclarator",
+       "id": {
+        "type": "Identifier",
+        "name": "List"
+       },
+       "init": {
+        "type": "ObjectExpression",
+        "properties": [
+         {
+          "type": "Property",
+          "method": false,
+          "shorthand": false,
+          "computed": false,
+          "key": {
+           "type": "Identifier",
+           "name": "on"
+          },
+          "value": {
+           "type": "ObjectExpression",
+           "properties": [
+            {
+             "type": "Property",
+             "method": false,
+             "shorthand": false,
+             "computed": false,
+             "key": {
+              "type": "Identifier",
+              "name": "double"
+             },
+             "value": {
+              "type": "ObjectExpression",
+              "properties": [
+               {
+                "type": "Property",
+                "method": true,
+                "shorthand": false,
+                "computed": false,
+                "key": {
+                 "type": "Identifier",
+                 "name": "run"
+                },
+                "value": {
+                 "type": "FunctionExpression",
+                 "id": null,
+                 "expression": false,
+                 "generator": false,
+                 "async": false,
+                 "params": [
+                  {
+                   "type": "Identifier",
+                   "name": "next"
+                  }
+                 ],
+                 "body": {
+                  "type": "BlockStatement",
+                  "body": [
+                   {
+                    "type": "ForOfStatement",
+                    "await": false,
+                    "left": {
+                     "type": "VariableDeclaration",
+                     "declarations": [
+                      {
+                       "type": "VariableDeclarator",
+                       "id": {
+                        "type": "Identifier",
+                        "name": "x"
+                       },
+                       "init": null
+                      }
+                     ],
+                     "kind": "const"
+                    },
+                    "right": {
+                     "type": "MemberExpression",
+                     "object": {
+                      "type": "Identifier",
+                      "name": "next"
+                     },
+                     "property": {
+                      "type": "Identifier",
+                      "name": "xs"
+                     },
+                     "computed": false,
+                     "optional": false
+                    },
+                    "body": {
+                     "type": "BlockStatement",
+                     "body": [
+                      {
+                       "type": "ExpressionStatement",
+                       "expression": {
+                        "type": "CallExpression",
+                        "callee": {
+                         "type": "MemberExpression",
+                         "object": {
+                          "type": "MemberExpression",
+                          "object": {
+                           "type": "Identifier",
+                           "name": "next"
+                          },
+                          "property": {
+                           "type": "Identifier",
+                           "name": "xs"
+                          },
+                          "computed": false,
+                          "optional": false
+                         },
+                         "property": {
+                          "type": "Identifier",
+                          "name": "push"
+                         },
+                         "computed": false,
+                         "optional": false
+                        },
+                        "arguments": [
+                         {
+                          "type": "BinaryExpression",
+                          "left": {
+                           "type": "Identifier",
+                           "name": "x"
+                          },
+                          "operator": "*",
+                          "right": {
+                           "type": "Literal",
+                           "value": 10,
+                           "raw": "10"
+                          }
+                         }
+                        ],
+                        "optional": false
+                       }
+                      },
+                      {
+                       "type": "IfStatement",
+                       "test": {
+                        "type": "BinaryExpression",
+                        "left": {
+                         "type": "MemberExpression",
+                         "object": {
+                          "type": "MemberExpression",
+                          "object": {
+                           "type": "Identifier",
+                           "name": "next"
+                          },
+                          "property": {
+                           "type": "Identifier",
+                           "name": "xs"
+                          },
+                          "computed": false,
+                          "optional": false
+                         },
+                         "property": {
+                          "type": "Identifier",
+                          "name": "length"
+                         },
+                         "computed": false,
+                         "optional": false
+                        },
+                        "operator": ">",
+                        "right": {
+                         "type": "Literal",
+                         "value": 100,
+                         "raw": "100"
+                        }
+                       },
+                       "consequent": {
+                        "type": "BreakStatement",
+                        "label": null
+                       },
+                       "alternate": null
+                      }
+                     ]
+                    }
+                   }
+                  ]
+                 }
+                },
+                "kind": "init"
+               }
+              ]
+             },
+             "kind": "init"
+            }
+           ]
+          },
+          "kind": "init"
+         }
+        ]
+       }
+      }
+     ],
+     "kind": "const"
+    },
+    "specifiers": [],
+    "attributes": []
+   }
+  ]
+ },
+ "printed": "export type State = { xs: number[] };\nexport const List = {\n\ton: {\n\t\tdouble: {\n\t\t\trun(next) {\n\t\t\t\tfor (const x of next.xs) {\n\t\t\t\t\tnext.xs.push(x * 10);\n\t\t\t\t\tif (next.xs.length > 100) break;\n\t\t\t\t}\n\t\t\t},\n\t\t},\n\t},\n};",
+ "entries": {
+  "List.on.double.run": "void"
+ },
+ "callGraph": {},
+ "summaries": {},
+ "types": [
+  [
+   253,
+   257,
+   "{ readonly on: { readonly double: {} } }",
+   "read"
+  ],
+  [
+   288,
+   292,
+   "State",
+   "draft",
+   "next"
+  ],
+  [
+   311,
+   312,
+   "number",
+   "value"
+  ],
+  [
+   316,
+   320,
+   "State",
+   "draft",
+   "next"
+  ],
+  [
+   316,
+   323,
+   "number[]",
+   "draft",
+   "next.xs"
+  ],
+  [
+   332,
+   336,
+   "State",
+   "draft",
+   "next"
+  ],
+  [
+   332,
+   352,
+   "number",
+   "value"
+  ],
+  [
+   345,
+   346,
+   "number",
+   "value"
+  ],
+  [
+   345,
+   351,
+   "number",
+   "value"
+  ],
+  [
+   349,
+   351,
+   "10",
+   "value"
+  ],
+  [
+   363,
+   367,
+   "State",
+   "draft",
+   "next"
+  ],
+  [
+   363,
+   377,
+   "number",
+   "value"
+  ],
+  [
+   363,
+   383,
+   "boolean",
+   "value"
+  ],
+  [
+   380,
+   383,
+   "100",
+   "value"
+  ]
+ ],
+ "outcome": {
+  "kind": "finished",
+  "value": null
+ },
+ "steps": 42,
+ "after": [
+  {
+   "xs": [
+    1,
+    2,
+    3,
+    10,
+    20,
+    30
+   ]
+  },
+  []
+ ]
+}

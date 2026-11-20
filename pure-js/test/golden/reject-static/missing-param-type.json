@@ -1,0 +1,39 @@
+{
+ "exit": 3,
+ "stage": "check",
+ "codes": [
+  "missing-param-type"
+ ],
+ "returnType": "unknown",
+ "tree": {
+  "type": "PureProgram",
+  "form": "function",
+  "name": null,
+  "function": {
+   "type": "FunctionExpression",
+   "id": null,
+   "expression": false,
+   "generator": false,
+   "async": false,
+   "params": [
+    {
+     "type": "Identifier",
+     "name": "a"
+    }
+   ],
+   "body": {
+    "type": "BlockStatement",
+    "body": [
+     {
+      "type": "ReturnStatement",
+      "argument": {
+       "type": "Identifier",
+       "name": "a"
+      }
+     }
+    ]
+   }
+  }
+ },
+ "printed": "function (a) {\n\treturn a;\n}"
+}

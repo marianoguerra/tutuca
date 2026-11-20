@@ -1,0 +1,109 @@
+{
+ "exit": 3,
+ "stage": "check",
+ "codes": [
+  "function-as-value"
+ ],
+ "tree": {
+  "type": "PureModule",
+  "items": [
+   {
+    "type": "FunctionDeclaration",
+    "id": {
+     "type": "Identifier",
+     "name": "f"
+    },
+    "expression": false,
+    "generator": false,
+    "async": false,
+    "params": [
+     {
+      "type": "Identifier",
+      "name": "n",
+      "typeAnnotation": {
+       "type": "TypeKeyword",
+       "name": "number"
+      }
+     }
+    ],
+    "body": {
+     "type": "BlockStatement",
+     "body": [
+      {
+       "type": "ReturnStatement",
+       "argument": {
+        "type": "Identifier",
+        "name": "n"
+       }
+      }
+     ]
+    },
+    "returnType": {
+     "type": "TypeKeyword",
+     "name": "number"
+    }
+   },
+   {
+    "type": "VariableDeclaration",
+    "declarations": [
+     {
+      "type": "VariableDeclarator",
+      "id": {
+       "type": "Identifier",
+       "name": "g"
+      },
+      "init": {
+       "type": "Identifier",
+       "name": "f"
+      }
+     }
+    ],
+    "kind": "const"
+   }
+  ]
+ },
+ "printed": "function f(n: number): number {\n\treturn n;\n}\nconst g = f;",
+ "entries": {},
+ "callGraph": {
+  "f": []
+ },
+ "summaries": {
+  "f": {
+   "params": [
+    {
+     "name": "n",
+     "type": "number",
+     "mutable": false
+    }
+   ],
+   "result": "number",
+   "fresh": false
+  }
+ },
+ "types": [
+  [
+   40,
+   41,
+   "number",
+   "value"
+  ],
+  [
+   69,
+   70,
+   "number",
+   "value"
+  ],
+  [
+   80,
+   81,
+   "unknown",
+   "read"
+  ],
+  [
+   84,
+   85,
+   "(n: number) => number",
+   "value"
+  ]
+ ]
+}

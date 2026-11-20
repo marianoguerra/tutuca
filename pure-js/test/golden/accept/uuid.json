@@ -1,0 +1,108 @@
+{
+ "exit": 0,
+ "stage": null,
+ "codes": [],
+ "returnType": "void",
+ "tree": {
+  "type": "PureProgram",
+  "form": "function",
+  "name": null,
+  "function": {
+   "type": "FunctionExpression",
+   "id": null,
+   "expression": false,
+   "generator": false,
+   "async": false,
+   "params": [
+    {
+     "type": "Identifier",
+     "name": "next"
+    },
+    {
+     "type": "Identifier",
+     "name": "_args"
+    },
+    {
+     "type": "Identifier",
+     "name": "ctx"
+    }
+   ],
+   "body": {
+    "type": "BlockStatement",
+    "body": [
+     {
+      "type": "ExpressionStatement",
+      "expression": {
+       "type": "AssignmentExpression",
+       "operator": "=",
+       "left": {
+        "type": "MemberExpression",
+        "object": {
+         "type": "Identifier",
+         "name": "next"
+        },
+        "property": {
+         "type": "Identifier",
+         "name": "text"
+        },
+        "computed": false,
+        "optional": false
+       },
+       "right": {
+        "type": "CallExpression",
+        "callee": {
+         "type": "MemberExpression",
+         "object": {
+          "type": "Identifier",
+          "name": "ctx"
+         },
+         "property": {
+          "type": "Identifier",
+          "name": "uuid"
+         },
+         "computed": false,
+         "optional": false
+        },
+        "arguments": [],
+        "optional": false
+       }
+      }
+     }
+    ]
+   }
+  }
+ },
+ "printed": "function (next, _args, ctx) {\n\tnext.text = ctx.uuid();\n}",
+ "outcome": {
+  "kind": "finished",
+  "value": null
+ },
+ "steps": 5,
+ "after": [
+  {
+   "text": "uuid-1",
+   "count": 2,
+   "items": [
+    {
+     "title": "write docs",
+     "done": true
+    },
+    {
+     "title": "ship",
+     "done": false
+    }
+   ],
+   "filter": "all",
+   "selected": null,
+   "tags": {
+    "urgent": 1
+   },
+   "left": 1
+  },
+  [],
+  {
+   "sourceKey": 0
+  }
+ ],
+ "calls": []
+}

@@ -1,0 +1,147 @@
+{
+ "exit": 0,
+ "stage": null,
+ "codes": [],
+ "returnType": "void",
+ "tree": {
+  "type": "PureProgram",
+  "form": "function",
+  "name": null,
+  "function": {
+   "type": "FunctionExpression",
+   "id": null,
+   "expression": false,
+   "generator": false,
+   "async": false,
+   "params": [
+    {
+     "type": "Identifier",
+     "name": "next"
+    }
+   ],
+   "body": {
+    "type": "BlockStatement",
+    "body": [
+     {
+      "type": "ExpressionStatement",
+      "expression": {
+       "type": "AssignmentExpression",
+       "operator": "=",
+       "left": {
+        "type": "MemberExpression",
+        "object": {
+         "type": "Identifier",
+         "name": "next"
+        },
+        "property": {
+         "type": "Identifier",
+         "name": "text"
+        },
+        "computed": false,
+        "optional": false
+       },
+       "right": {
+        "type": "CallExpression",
+        "callee": {
+         "type": "MemberExpression",
+         "object": {
+          "type": "CallExpression",
+          "callee": {
+           "type": "MemberExpression",
+           "object": {
+            "type": "CallExpression",
+            "callee": {
+             "type": "MemberExpression",
+             "object": {
+              "type": "MemberExpression",
+              "object": {
+               "type": "ThisExpression"
+              },
+              "property": {
+               "type": "Identifier",
+               "name": "text"
+              },
+              "computed": false,
+              "optional": false
+             },
+             "property": {
+              "type": "Identifier",
+              "name": "trim"
+             },
+             "computed": false,
+             "optional": false
+            },
+            "arguments": [],
+            "optional": false
+           },
+           "property": {
+            "type": "Identifier",
+            "name": "toLowerCase"
+           },
+           "computed": false,
+           "optional": false
+          },
+          "arguments": [],
+          "optional": false
+         },
+         "property": {
+          "type": "Identifier",
+          "name": "replaceAll"
+         },
+         "computed": false,
+         "optional": false
+        },
+        "arguments": [
+         {
+          "type": "Literal",
+          "value": " ",
+          "raw": "\" \""
+         },
+         {
+          "type": "Literal",
+          "value": "-",
+          "raw": "\"-\""
+         }
+        ],
+        "optional": false
+       }
+      }
+     }
+    ]
+   }
+  }
+ },
+ "printed": "function (next) {\n\tnext.text = this.text.trim().toLowerCase().replaceAll(\" \", \"-\");\n}",
+ "outcome": {
+  "kind": "finished",
+  "value": null
+ },
+ "steps": 7,
+ "after": [
+  {
+   "text": "buy-milk",
+   "count": 2,
+   "items": [
+    {
+     "title": "write docs",
+     "done": true
+    },
+    {
+     "title": "ship",
+     "done": false
+    }
+   ],
+   "filter": "all",
+   "selected": null,
+   "tags": {
+    "urgent": 1
+   },
+   "left": 1
+  },
+  [],
+  {
+   "sourceKey": 0
+  }
+ ],
+ "calls": []
+}

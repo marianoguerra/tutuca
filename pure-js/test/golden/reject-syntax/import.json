@@ -1,0 +1,10 @@
+{
+ "exit": 1,
+ "stage": "parse",
+ "codes": [
+  "dynamic-import"
+ ],
+ "returnType": null,
+ "tree": null,
+ "printed": null
+}

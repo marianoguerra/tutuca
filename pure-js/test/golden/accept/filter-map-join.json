@@ -1,0 +1,201 @@
+{
+ "exit": 0,
+ "stage": null,
+ "codes": [],
+ "returnType": "void",
+ "tree": {
+  "type": "PureProgram",
+  "form": "function",
+  "name": null,
+  "function": {
+   "type": "FunctionExpression",
+   "id": null,
+   "expression": false,
+   "generator": false,
+   "async": false,
+   "params": [
+    {
+     "type": "Identifier",
+     "name": "next"
+    }
+   ],
+   "body": {
+    "type": "BlockStatement",
+    "body": [
+     {
+      "type": "ExpressionStatement",
+      "expression": {
+       "type": "AssignmentExpression",
+       "operator": "=",
+       "left": {
+        "type": "MemberExpression",
+        "object": {
+         "type": "Identifier",
+         "name": "next"
+        },
+        "property": {
+         "type": "Identifier",
+         "name": "text"
+        },
+        "computed": false,
+        "optional": false
+       },
+       "right": {
+        "type": "CallExpression",
+        "callee": {
+         "type": "MemberExpression",
+         "object": {
+          "type": "CallExpression",
+          "callee": {
+           "type": "MemberExpression",
+           "object": {
+            "type": "CallExpression",
+            "callee": {
+             "type": "MemberExpression",
+             "object": {
+              "type": "MemberExpression",
+              "object": {
+               "type": "ThisExpression"
+              },
+              "property": {
+               "type": "Identifier",
+               "name": "items"
+              },
+              "computed": false,
+              "optional": false
+             },
+             "property": {
+              "type": "Identifier",
+              "name": "filter"
+             },
+             "computed": false,
+             "optional": false
+            },
+            "arguments": [
+             {
+              "type": "ArrowFunctionExpression",
+              "id": null,
+              "expression": true,
+              "generator": false,
+              "async": false,
+              "params": [
+               {
+                "type": "Identifier",
+                "name": "it"
+               }
+              ],
+              "body": {
+               "type": "UnaryExpression",
+               "operator": "!",
+               "prefix": true,
+               "argument": {
+                "type": "MemberExpression",
+                "object": {
+                 "type": "Identifier",
+                 "name": "it"
+                },
+                "property": {
+                 "type": "Identifier",
+                 "name": "done"
+                },
+                "computed": false,
+                "optional": false
+               }
+              }
+             }
+            ],
+            "optional": false
+           },
+           "property": {
+            "type": "Identifier",
+            "name": "map"
+           },
+           "computed": false,
+           "optional": false
+          },
+          "arguments": [
+           {
+            "type": "ArrowFunctionExpression",
+            "id": null,
+            "expression": true,
+            "generator": false,
+            "async": false,
+            "params": [
+             {
+              "type": "Identifier",
+              "name": "it"
+             }
+            ],
+            "body": {
+             "type": "MemberExpression",
+             "object": {
+              "type": "Identifier",
+              "name": "it"
+             },
+             "property": {
+              "type": "Identifier",
+              "name": "title"
+             },
+             "computed": false,
+             "optional": false
+            }
+           }
+          ],
+          "optional": false
+         },
+         "property": {
+          "type": "Identifier",
+          "name": "join"
+         },
+         "computed": false,
+         "optional": false
+        },
+        "arguments": [
+         {
+          "type": "Literal",
+          "value": ", ",
+          "raw": "\", \""
+         }
+        ],
+        "optional": false
+       }
+      }
+     }
+    ]
+   }
+  }
+ },
+ "printed": "function (next) {\n\tnext.text = this.items.filter(it => !it.done).map(it => it.title).join(\", \");\n}",
+ "outcome": {
+  "kind": "finished",
+  "value": null
+ },
+ "steps": 14,
+ "after": [
+  {
+   "text": "ship",
+   "count": 2,
+   "items": [
+    {
+     "title": "write docs",
+     "done": true
+    },
+    {
+     "title": "ship",
+     "done": false
+    }
+   ],
+   "filter": "all",
+   "selected": null,
+   "tags": {
+    "urgent": 1
+   },
+   "left": 1
+  },
+  [],
+  {
+   "sourceKey": 0
+  }
+ ],
+ "calls": []
+}

@@ -1,0 +1,154 @@
+{
+ "exit": 1,
+ "stage": "sieve",
+ "codes": [
+  "arrow-not-callback"
+ ],
+ "returnType": null,
+ "tree": {
+  "type": "PureProgram",
+  "form": "function",
+  "name": null,
+  "function": {
+   "type": "FunctionExpression",
+   "id": null,
+   "expression": false,
+   "generator": false,
+   "async": false,
+   "params": [
+    {
+     "type": "Identifier",
+     "name": "next"
+    }
+   ],
+   "body": {
+    "type": "BlockStatement",
+    "body": [
+     {
+      "type": "VariableDeclaration",
+      "declarations": [
+       {
+        "type": "VariableDeclarator",
+        "id": {
+         "type": "Identifier",
+         "name": "o"
+        },
+        "init": {
+         "type": "CallExpression",
+         "callee": {
+          "type": "MemberExpression",
+          "object": {
+           "type": "Identifier",
+           "name": "Object"
+          },
+          "property": {
+           "type": "Identifier",
+           "name": "fromEntries"
+          },
+          "computed": false,
+          "optional": false
+         },
+         "arguments": [
+          {
+           "type": "ArrayExpression",
+           "elements": [
+            {
+             "type": "CallExpression",
+             "callee": {
+              "type": "MemberExpression",
+              "object": {
+               "type": "ArrayExpression",
+               "elements": [
+                {
+                 "type": "Literal",
+                 "value": "toString",
+                 "raw": "\"toString\""
+                }
+               ]
+              },
+              "property": {
+               "type": "Identifier",
+               "name": "concat"
+              },
+              "computed": false,
+              "optional": false
+             },
+             "arguments": [
+              {
+               "type": "ArrowFunctionExpression",
+               "id": null,
+               "expression": true,
+               "generator": false,
+               "async": false,
+               "params": [],
+               "body": {
+                "type": "Literal",
+                "value": "runs when the host prints it",
+                "raw": "\"runs when the host prints it\""
+               }
+              }
+             ],
+             "optional": false
+            }
+           ]
+          }
+         ],
+         "optional": false
+        }
+       }
+      ],
+      "kind": "const"
+     },
+     {
+      "type": "ExpressionStatement",
+      "expression": {
+       "type": "AssignmentExpression",
+       "operator": "=",
+       "left": {
+        "type": "MemberExpression",
+        "object": {
+         "type": "Identifier",
+         "name": "next"
+        },
+        "property": {
+         "type": "Identifier",
+         "name": "text"
+        },
+        "computed": false,
+        "optional": false
+       },
+       "right": {
+        "type": "TemplateLiteral",
+        "expressions": [
+         {
+          "type": "Identifier",
+          "name": "o"
+         }
+        ],
+        "quasis": [
+         {
+          "type": "TemplateElement",
+          "value": {
+           "raw": "",
+           "cooked": ""
+          },
+          "tail": false
+         },
+         {
+          "type": "TemplateElement",
+          "value": {
+           "raw": "",
+           "cooked": ""
+          },
+          "tail": true
+         }
+        ]
+       }
+      }
+     }
+    ]
+   }
+  }
+ },
+ "printed": "function (next) {\n\tconst o = Object.fromEntries([[\"toString\"].concat(() => \"runs when the host prints it\")]);\n\tnext.text = `${o}`;\n}"
+}

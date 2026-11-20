@@ -1,0 +1,9 @@
+{
+ "exit": 1,
+ "stage": "parse",
+ "codes": [
+  "default-export"
+ ],
+ "tree": null,
+ "printed": null
+}

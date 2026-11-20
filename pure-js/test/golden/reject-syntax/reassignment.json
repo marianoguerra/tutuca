@@ -1,0 +1,57 @@
+{
+ "exit": 1,
+ "stage": "sieve",
+ "codes": [
+  "reassignment"
+ ],
+ "returnType": null,
+ "tree": {
+  "type": "PureProgram",
+  "form": "function",
+  "name": null,
+  "function": {
+   "type": "FunctionExpression",
+   "id": null,
+   "expression": false,
+   "generator": false,
+   "async": false,
+   "params": [
+    {
+     "type": "Identifier",
+     "name": "next"
+    },
+    {
+     "type": "ArrayPattern",
+     "elements": [
+      {
+       "type": "Identifier",
+       "name": "text"
+      }
+     ]
+    }
+   ],
+   "body": {
+    "type": "BlockStatement",
+    "body": [
+     {
+      "type": "ExpressionStatement",
+      "expression": {
+       "type": "AssignmentExpression",
+       "operator": "=",
+       "left": {
+        "type": "Identifier",
+        "name": "text"
+       },
+       "right": {
+        "type": "Literal",
+        "value": "x",
+        "raw": "\"x\""
+       }
+      }
+     }
+    ]
+   }
+  }
+ },
+ "printed": "function (next, [text]) {\n\ttext = \"x\";\n}"
+}

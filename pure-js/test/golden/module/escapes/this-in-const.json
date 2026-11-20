@@ -1,0 +1,46 @@
+{
+ "exit": 3,
+ "stage": "check",
+ "codes": [
+  "this-unavailable"
+ ],
+ "tree": {
+  "type": "PureModule",
+  "items": [
+   {
+    "type": "VariableDeclaration",
+    "declarations": [
+     {
+      "type": "VariableDeclarator",
+      "id": {
+       "type": "Identifier",
+       "name": "T"
+      },
+      "init": {
+       "type": "ThisExpression"
+      }
+     }
+    ],
+    "kind": "const"
+   }
+  ]
+ },
+ "printed": "const T = this;",
+ "entries": {},
+ "callGraph": {},
+ "summaries": {},
+ "types": [
+  [
+   34,
+   35,
+   "never",
+   "read"
+  ],
+  [
+   38,
+   42,
+   "never",
+   "value"
+  ]
+ ]
+}

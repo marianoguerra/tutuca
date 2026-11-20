@@ -1,0 +1,102 @@
+{
+ "exit": 3,
+ "stage": "check",
+ "codes": [
+  "not-assignable"
+ ],
+ "tree": {
+  "type": "PureModule",
+  "items": [
+   {
+    "type": "ExportNamedDeclaration",
+    "declaration": {
+     "type": "VariableDeclaration",
+     "declarations": [
+      {
+       "type": "VariableDeclarator",
+       "id": {
+        "type": "Identifier",
+        "name": "Shelf"
+       },
+       "init": {
+        "type": "ObjectExpression",
+        "properties": [
+         {
+          "type": "Property",
+          "method": false,
+          "shorthand": false,
+          "computed": false,
+          "key": {
+           "type": "Identifier",
+           "name": "defaults"
+          },
+          "value": {
+           "type": "ObjectExpression",
+           "properties": [
+            {
+             "type": "Property",
+             "method": false,
+             "shorthand": false,
+             "computed": false,
+             "key": {
+              "type": "Identifier",
+              "name": "books"
+             },
+             "value": {
+              "type": "ArrayExpression",
+              "elements": [
+               {
+                "type": "Literal",
+                "value": 1,
+                "raw": "1"
+               }
+              ]
+             },
+             "kind": "init"
+            }
+           ]
+          },
+          "kind": "init"
+         }
+        ]
+       }
+      }
+     ],
+     "kind": "const"
+    },
+    "specifiers": [],
+    "attributes": []
+   }
+  ]
+ },
+ "printed": "export const Shelf = { defaults: { books: [1] } };",
+ "entries": {},
+ "callGraph": {},
+ "summaries": {},
+ "types": [
+  [
+   91,
+   96,
+   "{ defaults: { books: string[] | undefined } }",
+   "read"
+  ],
+  [
+   111,
+   125,
+   "{ books: string[] | undefined }",
+   "fresh"
+  ],
+  [
+   120,
+   123,
+   "string[]",
+   "fresh"
+  ],
+  [
+   121,
+   122,
+   "1",
+   "value"
+  ]
+ ]
+}

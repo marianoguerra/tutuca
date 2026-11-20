@@ -1,0 +1,64 @@
+{
+ "exit": 1,
+ "stage": "sieve",
+ "codes": [
+  "void"
+ ],
+ "returnType": null,
+ "tree": {
+  "type": "PureProgram",
+  "form": "function",
+  "name": null,
+  "function": {
+   "type": "FunctionExpression",
+   "id": null,
+   "expression": false,
+   "generator": false,
+   "async": false,
+   "params": [
+    {
+     "type": "Identifier",
+     "name": "next"
+    }
+   ],
+   "body": {
+    "type": "BlockStatement",
+    "body": [
+     {
+      "type": "ExpressionStatement",
+      "expression": {
+       "type": "CallExpression",
+       "callee": {
+        "type": "MemberExpression",
+        "object": {
+         "type": "Identifier",
+         "name": "next"
+        },
+        "property": {
+         "type": "Identifier",
+         "name": "f"
+        },
+        "computed": false,
+        "optional": false
+       },
+       "arguments": [
+        {
+         "type": "UnaryExpression",
+         "operator": "void",
+         "prefix": true,
+         "argument": {
+          "type": "Literal",
+          "value": 0,
+          "raw": "0"
+         }
+        }
+       ],
+       "optional": false
+      }
+     }
+    ]
+   }
+  }
+ },
+ "printed": "function (next) {\n\tnext.f(void 0);\n}"
+}

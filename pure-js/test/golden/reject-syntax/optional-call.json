@@ -1,0 +1,56 @@
+{
+ "exit": 2,
+ "stage": "sieve",
+ "codes": [
+  "optional-call"
+ ],
+ "returnType": null,
+ "tree": {
+  "type": "PureProgram",
+  "form": "function",
+  "name": null,
+  "function": {
+   "type": "FunctionExpression",
+   "id": null,
+   "expression": false,
+   "generator": false,
+   "async": false,
+   "params": [
+    {
+     "type": "Identifier",
+     "name": "next"
+    }
+   ],
+   "body": {
+    "type": "BlockStatement",
+    "body": [
+     {
+      "type": "ExpressionStatement",
+      "expression": {
+       "type": "ChainExpression",
+       "expression": {
+        "type": "CallExpression",
+        "callee": {
+         "type": "MemberExpression",
+         "object": {
+          "type": "Identifier",
+          "name": "next"
+         },
+         "property": {
+          "type": "Identifier",
+          "name": "f"
+         },
+         "computed": false,
+         "optional": false
+        },
+        "arguments": [],
+        "optional": true
+       }
+      }
+     }
+    ]
+   }
+  }
+ },
+ "printed": "function (next) {\n\tnext.f?.();\n}"
+}

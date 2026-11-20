@@ -1,0 +1,185 @@
+{
+ "exit": 0,
+ "stage": null,
+ "codes": [],
+ "returnType": "void",
+ "tree": {
+  "type": "PureProgram",
+  "form": "function",
+  "name": null,
+  "function": {
+   "type": "FunctionExpression",
+   "id": null,
+   "expression": false,
+   "generator": false,
+   "async": false,
+   "params": [
+    {
+     "type": "Identifier",
+     "name": "next"
+    }
+   ],
+   "body": {
+    "type": "BlockStatement",
+    "body": [
+     {
+      "type": "IfStatement",
+      "test": {
+       "type": "BinaryExpression",
+       "left": {
+        "type": "MemberExpression",
+        "object": {
+         "type": "ThisExpression"
+        },
+        "property": {
+         "type": "Identifier",
+         "name": "filter"
+        },
+        "computed": false,
+        "optional": false
+       },
+       "operator": "===",
+       "right": {
+        "type": "Literal",
+        "value": "all",
+        "raw": "\"all\""
+       }
+      },
+      "consequent": {
+       "type": "ExpressionStatement",
+       "expression": {
+        "type": "AssignmentExpression",
+        "operator": "=",
+        "left": {
+         "type": "MemberExpression",
+         "object": {
+          "type": "Identifier",
+          "name": "next"
+         },
+         "property": {
+          "type": "Identifier",
+          "name": "filter"
+         },
+         "computed": false,
+         "optional": false
+        },
+        "right": {
+         "type": "Literal",
+         "value": "open",
+         "raw": "\"open\""
+        }
+       }
+      },
+      "alternate": {
+       "type": "IfStatement",
+       "test": {
+        "type": "BinaryExpression",
+        "left": {
+         "type": "MemberExpression",
+         "object": {
+          "type": "ThisExpression"
+         },
+         "property": {
+          "type": "Identifier",
+          "name": "filter"
+         },
+         "computed": false,
+         "optional": false
+        },
+        "operator": "===",
+        "right": {
+         "type": "Literal",
+         "value": "open",
+         "raw": "\"open\""
+        }
+       },
+       "consequent": {
+        "type": "ExpressionStatement",
+        "expression": {
+         "type": "AssignmentExpression",
+         "operator": "=",
+         "left": {
+          "type": "MemberExpression",
+          "object": {
+           "type": "Identifier",
+           "name": "next"
+          },
+          "property": {
+           "type": "Identifier",
+           "name": "filter"
+          },
+          "computed": false,
+          "optional": false
+         },
+         "right": {
+          "type": "Literal",
+          "value": "done",
+          "raw": "\"done\""
+         }
+        }
+       },
+       "alternate": {
+        "type": "ExpressionStatement",
+        "expression": {
+         "type": "AssignmentExpression",
+         "operator": "=",
+         "left": {
+          "type": "MemberExpression",
+          "object": {
+           "type": "Identifier",
+           "name": "next"
+          },
+          "property": {
+           "type": "Identifier",
+           "name": "filter"
+          },
+          "computed": false,
+          "optional": false
+         },
+         "right": {
+          "type": "Literal",
+          "value": "all",
+          "raw": "\"all\""
+         }
+        }
+       }
+      }
+     }
+    ]
+   }
+  }
+ },
+ "printed": "function (next) {\n\tif (this.filter === \"all\") next.filter = \"open\";\n\telse if (this.filter === \"open\") next.filter = \"done\";\n\telse next.filter = \"all\";\n}",
+ "outcome": {
+  "kind": "finished",
+  "value": null
+ },
+ "steps": 9,
+ "after": [
+  {
+   "text": " Buy milk ",
+   "count": 2,
+   "items": [
+    {
+     "title": "write docs",
+     "done": true
+    },
+    {
+     "title": "ship",
+     "done": false
+    }
+   ],
+   "filter": "open",
+   "selected": null,
+   "tags": {
+    "urgent": 1
+   },
+   "left": 1
+  },
+  [],
+  {
+   "sourceKey": 0
+  }
+ ],
+ "calls": []
+}

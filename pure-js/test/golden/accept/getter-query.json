@@ -1,0 +1,102 @@
+{
+ "exit": 0,
+ "stage": null,
+ "codes": [],
+ "returnType": "number",
+ "tree": {
+  "type": "PureProgram",
+  "form": "getter",
+  "name": "open",
+  "function": {
+   "type": "FunctionExpression",
+   "id": null,
+   "expression": false,
+   "generator": false,
+   "async": false,
+   "params": [],
+   "body": {
+    "type": "BlockStatement",
+    "body": [
+     {
+      "type": "ReturnStatement",
+      "argument": {
+       "type": "MemberExpression",
+       "object": {
+        "type": "CallExpression",
+        "callee": {
+         "type": "MemberExpression",
+         "object": {
+          "type": "MemberExpression",
+          "object": {
+           "type": "ThisExpression"
+          },
+          "property": {
+           "type": "Identifier",
+           "name": "items"
+          },
+          "computed": false,
+          "optional": false
+         },
+         "property": {
+          "type": "Identifier",
+          "name": "filter"
+         },
+         "computed": false,
+         "optional": false
+        },
+        "arguments": [
+         {
+          "type": "ArrowFunctionExpression",
+          "id": null,
+          "expression": true,
+          "generator": false,
+          "async": false,
+          "params": [
+           {
+            "type": "Identifier",
+            "name": "it"
+           }
+          ],
+          "body": {
+           "type": "UnaryExpression",
+           "operator": "!",
+           "prefix": true,
+           "argument": {
+            "type": "MemberExpression",
+            "object": {
+             "type": "Identifier",
+             "name": "it"
+            },
+            "property": {
+             "type": "Identifier",
+             "name": "done"
+            },
+            "computed": false,
+            "optional": false
+           }
+          }
+         }
+        ],
+        "optional": false
+       },
+       "property": {
+        "type": "Identifier",
+        "name": "length"
+       },
+       "computed": false,
+       "optional": false
+      }
+     }
+    ]
+   }
+  }
+ },
+ "printed": "get open() {\n\treturn this.items.filter(it => !it.done).length;\n}",
+ "outcome": {
+  "kind": "finished",
+  "value": 1
+ },
+ "steps": 9,
+ "after": [],
+ "calls": []
+}

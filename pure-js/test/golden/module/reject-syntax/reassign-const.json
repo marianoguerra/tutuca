@@ -1,0 +1,82 @@
+{
+ "exit": 1,
+ "stage": "sieve",
+ "codes": [
+  "reassignment"
+ ],
+ "tree": {
+  "type": "PureModule",
+  "items": [
+   {
+    "type": "FunctionDeclaration",
+    "id": {
+     "type": "Identifier",
+     "name": "f"
+    },
+    "expression": false,
+    "generator": false,
+    "async": false,
+    "params": [
+     {
+      "type": "Identifier",
+      "name": "n",
+      "typeAnnotation": {
+       "type": "TypeKeyword",
+       "name": "number"
+      }
+     }
+    ],
+    "body": {
+     "type": "BlockStatement",
+     "body": [
+      {
+       "type": "VariableDeclaration",
+       "declarations": [
+        {
+         "type": "VariableDeclarator",
+         "id": {
+          "type": "Identifier",
+          "name": "m"
+         },
+         "init": {
+          "type": "Identifier",
+          "name": "n"
+         }
+        }
+       ],
+       "kind": "const"
+      },
+      {
+       "type": "ExpressionStatement",
+       "expression": {
+        "type": "AssignmentExpression",
+        "operator": "=",
+        "left": {
+         "type": "Identifier",
+         "name": "m"
+        },
+        "right": {
+         "type": "Literal",
+         "value": 2,
+         "raw": "2"
+        }
+       }
+      },
+      {
+       "type": "ReturnStatement",
+       "argument": {
+        "type": "Identifier",
+        "name": "m"
+       }
+      }
+     ]
+    },
+    "returnType": {
+     "type": "TypeKeyword",
+     "name": "number"
+    }
+   }
+  ]
+ },
+ "printed": "function f(n: number): number {\n\tconst m = n;\n\tm = 2;\n\treturn m;\n}"
+}

@@ -1,0 +1,80 @@
+{
+ "exit": 3,
+ "stage": "check",
+ "codes": [
+  "operand-type"
+ ],
+ "returnType": "void",
+ "tree": {
+  "type": "PureProgram",
+  "form": "function",
+  "name": null,
+  "function": {
+   "type": "FunctionExpression",
+   "id": null,
+   "expression": false,
+   "generator": false,
+   "async": false,
+   "params": [
+    {
+     "type": "Identifier",
+     "name": "next"
+    }
+   ],
+   "body": {
+    "type": "BlockStatement",
+    "body": [
+     {
+      "type": "ExpressionStatement",
+      "expression": {
+       "type": "AssignmentExpression",
+       "operator": "=",
+       "left": {
+        "type": "MemberExpression",
+        "object": {
+         "type": "Identifier",
+         "name": "next"
+        },
+        "property": {
+         "type": "Identifier",
+         "name": "text"
+        },
+        "computed": false,
+        "optional": false
+       },
+       "right": {
+        "type": "BinaryExpression",
+        "left": {
+         "type": "MemberExpression",
+         "object": {
+          "type": "ThisExpression"
+         },
+         "property": {
+          "type": "Identifier",
+          "name": "text"
+         },
+         "computed": false,
+         "optional": false
+        },
+        "operator": "+",
+        "right": {
+         "type": "MemberExpression",
+         "object": {
+          "type": "ThisExpression"
+         },
+         "property": {
+          "type": "Identifier",
+          "name": "count"
+         },
+         "computed": false,
+         "optional": false
+        }
+       }
+      }
+     }
+    ]
+   }
+  }
+ },
+ "printed": "function (next) {\n\tnext.text = this.text + this.count;\n}"
+}

@@ -1,0 +1,10 @@
+{
+ "exit": 1,
+ "stage": "parse",
+ "codes": [
+  "type-assertion"
+ ],
+ "returnType": null,
+ "tree": null,
+ "printed": null
+}

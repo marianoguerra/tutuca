@@ -1,0 +1,216 @@
+{
+ "exit": 0,
+ "stage": null,
+ "codes": [],
+ "returnType": "void",
+ "tree": {
+  "type": "PureProgram",
+  "form": "function",
+  "name": null,
+  "function": {
+   "type": "FunctionExpression",
+   "id": null,
+   "expression": false,
+   "generator": false,
+   "async": false,
+   "params": [
+    {
+     "type": "Identifier",
+     "name": "next"
+    },
+    {
+     "type": "ArrayPattern",
+     "elements": [
+      {
+       "type": "Identifier",
+       "name": "i"
+      }
+     ]
+    }
+   ],
+   "body": {
+    "type": "BlockStatement",
+    "body": [
+     {
+      "type": "VariableDeclaration",
+      "declarations": [
+       {
+        "type": "VariableDeclarator",
+        "id": {
+         "type": "Identifier",
+         "name": "item"
+        },
+        "init": {
+         "type": "MemberExpression",
+         "object": {
+          "type": "MemberExpression",
+          "object": {
+           "type": "Identifier",
+           "name": "next"
+          },
+          "property": {
+           "type": "Identifier",
+           "name": "items"
+          },
+          "computed": false,
+          "optional": false
+         },
+         "property": {
+          "type": "Identifier",
+          "name": "i"
+         },
+         "computed": true,
+         "optional": false
+        }
+       }
+      ],
+      "kind": "const"
+     },
+     {
+      "type": "VariableDeclaration",
+      "declarations": [
+       {
+        "type": "VariableDeclarator",
+        "id": {
+         "type": "Identifier",
+         "name": "was"
+        },
+        "init": {
+         "type": "MemberExpression",
+         "object": {
+          "type": "MemberExpression",
+          "object": {
+           "type": "ThisExpression"
+          },
+          "property": {
+           "type": "Identifier",
+           "name": "items"
+          },
+          "computed": false,
+          "optional": false
+         },
+         "property": {
+          "type": "Identifier",
+          "name": "i"
+         },
+         "computed": true,
+         "optional": false
+        }
+       }
+      ],
+      "kind": "const"
+     },
+     {
+      "type": "IfStatement",
+      "test": {
+       "type": "LogicalExpression",
+       "left": {
+        "type": "BinaryExpression",
+        "left": {
+         "type": "Identifier",
+         "name": "item"
+        },
+        "operator": "===",
+        "right": {
+         "type": "Identifier",
+         "name": "undefined"
+        }
+       },
+       "operator": "||",
+       "right": {
+        "type": "BinaryExpression",
+        "left": {
+         "type": "Identifier",
+         "name": "was"
+        },
+        "operator": "===",
+        "right": {
+         "type": "Identifier",
+         "name": "undefined"
+        }
+       }
+      },
+      "consequent": {
+       "type": "ReturnStatement",
+       "argument": null
+      },
+      "alternate": null
+     },
+     {
+      "type": "ExpressionStatement",
+      "expression": {
+       "type": "AssignmentExpression",
+       "operator": "=",
+       "left": {
+        "type": "MemberExpression",
+        "object": {
+         "type": "Identifier",
+         "name": "item"
+        },
+        "property": {
+         "type": "Identifier",
+         "name": "done"
+        },
+        "computed": false,
+        "optional": false
+       },
+       "right": {
+        "type": "UnaryExpression",
+        "operator": "!",
+        "prefix": true,
+        "argument": {
+         "type": "MemberExpression",
+         "object": {
+          "type": "Identifier",
+          "name": "was"
+         },
+         "property": {
+          "type": "Identifier",
+          "name": "done"
+         },
+         "computed": false,
+         "optional": false
+        }
+       }
+      }
+     }
+    ]
+   }
+  }
+ },
+ "printed": "function (next, [i]) {\n\tconst item = next.items[i];\n\tconst was = this.items[i];\n\tif (item === undefined || was === undefined) return;\n\titem.done = !was.done;\n}",
+ "outcome": {
+  "kind": "finished",
+  "value": null
+ },
+ "steps": 22,
+ "after": [
+  {
+   "text": " Buy milk ",
+   "count": 2,
+   "items": [
+    {
+     "title": "write docs",
+     "done": true
+    },
+    {
+     "title": "ship",
+     "done": true
+    }
+   ],
+   "filter": "all",
+   "selected": null,
+   "tags": {
+    "urgent": 1
+   },
+   "left": 1
+  },
+  [
+   1
+  ],
+  {
+   "sourceKey": 0
+  }
+ ],
+ "calls": []
+}

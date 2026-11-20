@@ -1,0 +1,237 @@
+{
+ "exit": 3,
+ "stage": "check",
+ "codes": [
+  "not-assignable"
+ ],
+ "tree": {
+  "type": "PureModule",
+  "items": [
+   {
+    "type": "FunctionDeclaration",
+    "id": {
+     "type": "Identifier",
+     "name": "f"
+    },
+    "expression": false,
+    "generator": false,
+    "async": false,
+    "params": [
+     {
+      "type": "Identifier",
+      "name": "xs",
+      "typeAnnotation": {
+       "type": "TypeRef",
+       "name": "Readonly",
+       "args": [
+        {
+         "type": "TypeArray",
+         "element": {
+          "type": "TypeKeyword",
+          "name": "string"
+         }
+        }
+       ]
+      }
+     }
+    ],
+    "body": {
+     "type": "BlockStatement",
+     "body": [
+      {
+       "type": "VariableDeclaration",
+       "declarations": [
+        {
+         "type": "VariableDeclarator",
+         "id": {
+          "type": "Identifier",
+          "name": "n"
+         },
+         "init": {
+          "type": "Literal",
+          "value": 0,
+          "raw": "0"
+         }
+        }
+       ],
+       "kind": "let"
+      },
+      {
+       "type": "ForOfStatement",
+       "await": false,
+       "left": {
+        "type": "VariableDeclaration",
+        "declarations": [
+         {
+          "type": "VariableDeclarator",
+          "id": {
+           "type": "Identifier",
+           "name": "x"
+          },
+          "init": null
+         }
+        ],
+        "kind": "const"
+       },
+       "right": {
+        "type": "Identifier",
+        "name": "xs"
+       },
+       "body": {
+        "type": "ExpressionStatement",
+        "expression": {
+         "type": "AssignmentExpression",
+         "operator": "=",
+         "left": {
+          "type": "Identifier",
+          "name": "n"
+         },
+         "right": {
+          "type": "Identifier",
+          "name": "x"
+         }
+        }
+       }
+      },
+      {
+       "type": "ReturnStatement",
+       "argument": {
+        "type": "Identifier",
+        "name": "n"
+       }
+      }
+     ]
+    },
+    "returnType": {
+     "type": "TypeKeyword",
+     "name": "number"
+    }
+   },
+   {
+    "type": "ExportNamedDeclaration",
+    "declaration": {
+     "type": "VariableDeclaration",
+     "declarations": [
+      {
+       "type": "VariableDeclarator",
+       "id": {
+        "type": "Identifier",
+        "name": "N"
+       },
+       "init": {
+        "type": "ObjectExpression",
+        "properties": [
+         {
+          "type": "Property",
+          "method": false,
+          "shorthand": false,
+          "computed": false,
+          "key": {
+           "type": "Identifier",
+           "name": "start"
+          },
+          "value": {
+           "type": "Literal",
+           "value": 1,
+           "raw": "1"
+          },
+          "kind": "init"
+         }
+        ]
+       }
+      }
+     ],
+     "kind": "const"
+    },
+    "specifiers": [],
+    "attributes": []
+   }
+  ]
+ },
+ "printed": "function f(xs: Readonly<string[]>): number {\n\tlet n = 0;\n\tfor (const x of xs) n = x;\n\treturn n;\n}\nexport const N = { start: 1 };",
+ "entries": {},
+ "callGraph": {
+  "f": []
+ },
+ "summaries": {
+  "f": {
+   "params": [
+    {
+     "name": "xs",
+     "type": "string[]",
+     "mutable": false
+    }
+   ],
+   "result": "number",
+   "fresh": false
+  }
+ },
+ "types": [
+  [
+   37,
+   39,
+   "string[]",
+   "read"
+  ],
+  [
+   76,
+   77,
+   "number",
+   "value"
+  ],
+  [
+   80,
+   81,
+   "0",
+   "value"
+  ],
+  [
+   95,
+   96,
+   "string",
+   "value"
+  ],
+  [
+   100,
+   102,
+   "string[]",
+   "read"
+  ],
+  [
+   104,
+   105,
+   "number",
+   "value"
+  ],
+  [
+   108,
+   109,
+   "string",
+   "value"
+  ],
+  [
+   119,
+   120,
+   "number",
+   "value"
+  ],
+  [
+   137,
+   138,
+   "{ start: number }",
+   "read"
+  ],
+  [
+   141,
+   153,
+   "{ start: number }",
+   "fresh"
+  ],
+  [
+   150,
+   151,
+   "1",
+   "value"
+  ]
+ ]
+}

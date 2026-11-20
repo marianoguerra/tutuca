@@ -1,0 +1,73 @@
+{
+ "exit": 2,
+ "stage": "sieve",
+ "codes": [
+  "try-statement"
+ ],
+ "returnType": null,
+ "tree": {
+  "type": "PureProgram",
+  "form": "function",
+  "name": null,
+  "function": {
+   "type": "FunctionExpression",
+   "id": null,
+   "expression": false,
+   "generator": false,
+   "async": false,
+   "params": [
+    {
+     "type": "Identifier",
+     "name": "next"
+    }
+   ],
+   "body": {
+    "type": "BlockStatement",
+    "body": [
+     {
+      "type": "TryStatement",
+      "block": {
+       "type": "BlockStatement",
+       "body": [
+        {
+         "type": "ExpressionStatement",
+         "expression": {
+          "type": "CallExpression",
+          "callee": {
+           "type": "MemberExpression",
+           "object": {
+            "type": "Identifier",
+            "name": "next"
+           },
+           "property": {
+            "type": "Identifier",
+            "name": "f"
+           },
+           "computed": false,
+           "optional": false
+          },
+          "arguments": [],
+          "optional": false
+         }
+        }
+       ]
+      },
+      "handler": {
+       "type": "CatchClause",
+       "param": {
+        "type": "Identifier",
+        "name": "e"
+       },
+       "body": {
+        "type": "BlockStatement",
+        "body": []
+       }
+      },
+      "finalizer": null
+     }
+    ]
+   }
+  }
+ },
+ "printed": "function (next) {\n\ttry {\n\t\tnext.f();\n\t} catch (e) {}\n}"
+}
