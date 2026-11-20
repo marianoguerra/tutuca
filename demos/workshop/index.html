@@ -1,0 +1,34 @@
+<!doctype html>
+<html lang="en">
+  <head>
+    <meta charset="UTF-8" />
+    <meta name="viewport" content="width=device-width, initial-scale=1" />
+    <title>Workshop · Tutuca demos</title>
+    <script type="importmap">
+      {
+        "imports": {
+          "margaui": "../../node_modules/margaui/dist/margaui.min.js",
+          "pure-js": "../../pure-js/lib/index.js",
+          "@automerge/automerge": "../deps/automerge.js",
+          "@automerge/automerge-repo": "../deps/automerge.js",
+          "@automerge/automerge-repo-network-broadcastchannel": "../deps/automerge.js",
+          "@automerge/automerge-repo-network-websocket": "../deps/automerge.js",
+          "@automerge/automerge-repo-storage-indexeddb": "../deps/automerge.js"
+        }
+      }
+    </script>
+    <style id="margaui"></style>
+    <link rel="stylesheet" href="../../node_modules/margaui/dist/themes/theme.css" />
+    <link rel="stylesheet" href="../demo.css" />
+    <link rel="stylesheet" href="../../components/trail/trail.css" />
+    <script type="module" src="./main.js"></script>
+  </head>
+  <body>
+    <header class="demo-bar">
+      <a href="../">← All demos</a>
+      <h1>Workshop</h1>
+      <p>Agents on the component tree that grow the app while it runs: they check a component's source where it would go, define it there, add one by its name, and define it again to change it.</p>
+    </header>
+    <div id="app"></div>
+  </body>
+</html>

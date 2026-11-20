@@ -241,7 +241,7 @@ The default granularity, `turn`, unless the cell says otherwise.
 
 ### What tutuca does
 
-Tutuca's JS runtime, tutuca-wax and the main spec (`../system/host.rkt`) now take these
+Tutuca's JS runtime, tutuca-wasm and the main spec (`../system/host.rkt`) now take these
 choices:
 
 - **`by-path-checked`:** a route is a path plus the identity it reached. A message whose path

@@ -1,4 +1,4 @@
-// The canvas's holes and builtin layouts, after tutuca-wax's layout module: components one
+// The canvas's holes and builtin layouts, after tutuca-wasm's layout module: components one
 // under the other (VBox), side by side (HBox), in a grid (Grid) or as tabs (Tabs), each slot
 // starting as a Hole.
 // A layout has a main view, the layout as it's used, and an edit view with what edits it: ×
@@ -100,10 +100,15 @@ const CANVAS_KIND = {
 // A markdown document, for rich text and notes on any canvas: what it says of itself, its
 // label, width and samples, is its meta (components/markdown).
 const MARKDOWN_KIND = { component: "Markdown", make: (C) => C.Markdown({}) };
-// kinds, then markdown, a canvas and the layouts: what every canvas's holes can become.
+// A component editor (editor.js), which registers components written as pure-tutuca modules
+// and adds them to the canvas, where the host answers its asks.
+const EDITOR_KIND = { component: "ComponentEditor", make: (C) => C.ComponentEditor({}) };
+// kinds, then markdown, a component editor, a canvas and the layouts: what every canvas's holes
+// can become.
 export const withBuiltins = (kinds) => ({
 	...kinds,
 	markdown: MARKDOWN_KIND,
+	editor: EDITOR_KIND,
 	canvas: CANVAS_KIND,
 	...LAYOUT_KINDS,
 });

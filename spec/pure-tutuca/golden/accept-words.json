@@ -62,7 +62,7 @@
      },
      {
       "name": "lie",
-      "args": "unknown[]",
+      "args": "[]",
       "pure": true,
       "changes": null,
       "constraints": null,
@@ -73,7 +73,7 @@
      },
      {
       "name": "boom",
-      "args": "unknown[]",
+      "args": "[]",
       "pure": true,
       "changes": null,
       "constraints": null,

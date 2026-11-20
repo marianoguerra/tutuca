@@ -3,6 +3,13 @@
 // is the canvas the page starts with. Without one, or with one that isn't known, it's the
 // notebook's.
 import { agentAskHandlers } from "../../components/agent/llm.js";
+import { withDefinedKinds } from "../../components/canvas/editor.js";
+import { checkAsks, checkingTrailComponents } from "../../components/trail/check.js";
+import { mountDrawer } from "../../components/trail/drawer.js";
+import { attachTrail } from "../../components/trail/live.js";
+import { tracesComponents } from "../../components/trail/traces.js";
+import { AGENT_META, agentMetaOption } from "../../src/meta/index.js";
+import { componentAsks } from "../../src/pure/define.js";
 import { specOf } from "../../src/tutuca.js";
 import { apiOf, modelOf, preferModel, rememberModel } from "../agent-api.js";
 import { boot, browserHandlers } from "../boot.js";
@@ -25,20 +32,61 @@ export const start = (
 				: bundleFrom(id, agent);
 	addBundleSwitcher(document, bundle);
 	const agentHandlers = agentAskHandlers({ api: apiOf(document) });
+	// What component editors register: checked and registered where they are, their classes
+	// compiled, and listed in the holes beside the bundle's kinds.
+	const defined = new Set();
+	const editorHandlers = componentAsks({
+		host: () => host,
+		// Every component an editor writes can be wrapped in an agent: its agent meta is what it
+		// says over what its definition derives, checked as it's written.
+		options: { meta: { [AGENT_META]: agentMetaOption("derive") } },
+		// Only what's registered in the canvas's own scope is a kind; a preview's classes too.
+		onDefine: (specs, scope) => {
+			if (scope === host.scope) for (const spec of specs) defined.add(spec.name);
+			host.classes?.add(specs);
+		},
+	});
 	const host = boot({
 		document,
 		components: bundle.components,
-		// Agents ask the studio server (tutuca-wax/scripts/studio-server.mjs) at ?api=.
+		// Agents ask the studio server (tutuca-wasm/scripts/server.mjs) at ?api=.
 		askHandlers: {
 			...browserHandlers,
 			...agentHandlers,
 			models: preferModel(agentHandlers.models, modelOf(document)),
-			...bundle.askHandlers,
+			...withDefinedKinds(bundle.askHandlers, defined),
+			...editorHandlers,
 			...handlers,
 		},
 		metaSchemas: bundle.metaSchemas,
 		make: bundle.make,
+		styled: [...Object.values(checkingTrailComponents), ...Object.values(tracesComponents)],
 	});
+	// The canvas's component tree and agents on it, in a drawer: read while it's open.
+	const drawer = mountDrawer(document, {
+		title: "Component tree",
+		key: "tutuca-demos:canvas-tree",
+	});
+	const trail = attachTrail({
+		document,
+		host,
+		treeNode: drawer.treeNode,
+		tracesNode: drawer.tracesNode,
+		onTraces: drawer.setTraces,
+		components: checkingTrailComponents,
+		askHandlers: {
+			...agentHandlers,
+			models: preferModel(agentHandlers.models, modelOf(document)),
+			...handlers,
+		},
+		extraAsks: checkAsks,
+		// A drag renders on every move: the tree is read once it stops for a moment.
+		delay: 150,
+		active: drawer.isOpen,
+	});
+	drawer.onOpen(() => trail.refresh({ stale: true }));
+	rememberModel(document, trail.tree, (model) => trail.tree.send("useModel", [model]));
+	host.trail = trail; // For tests: the tree's host and its refresh.
 	// Once the canvas has started (synced, it starts later), it asks whether there's a model:
 	// only then can its components be wrapped in agents. In an agent (the agent bundle), the
 	// canvas is its target, and the agent asks which models there are.

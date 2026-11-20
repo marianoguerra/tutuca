@@ -60,11 +60,12 @@ export default book({
 				"the hole lists what says agent meta, then its samples": [
 					step.check("no target, nothing to send", (s) => !s.hasTarget && s.cannotSend),
 					click('[title="Put a component here"]'),
-					// Markdown and a canvas say agent meta too: an agent writes the one, and makes and
-					// drives components on the other.
+					// Markdown, a component editor and a canvas say agent meta too: an agent writes the
+					// first, writes and registers components in the second, and makes and drives
+					// components on the third.
 					step.check(
-						"only the board, markdown and a canvas",
-						(s) => s.target.kinds.map((k) => k.id).join() === "board,markdown,canvas",
+						"only the board, markdown, an editor and a canvas",
+						(s) => s.target.kinds.map((k) => k.id).join() === "board,markdown,editor,canvas",
 					),
 					step.check(
 						"with empty and its sample to start from",

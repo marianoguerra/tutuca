@@ -3,15 +3,15 @@
 import assert from "node:assert/strict";
 import test from "node:test";
 import { echoStep } from "../../components/agent/llm.js";
+import { DWELLERS, MANNERS, MATERIALS, nameFrom, pickName } from "../../components/trail/names.js";
+import { PROFILES } from "../../components/trail/profiles.js";
+import { spanDetail, tracesOf } from "../../components/trail/spans.js";
+import { trailComponents } from "../../components/trail/trail.js";
+import { rowsOf } from "../../components/trail/tree.js";
 import { exampleOf, examples } from "../../demos/paths/examples.js";
 import { start } from "../../demos/paths/main.js";
-import { DWELLERS, MANNERS, MATERIALS, nameFrom, pickName } from "../../demos/paths/names.js";
-import { PROFILES } from "../../demos/paths/profiles.js";
 import { chainOf, pathKey, scanRegions } from "../../demos/paths/regions.js";
-import { spanDetail, tracesOf } from "../../demos/paths/spans.js";
 import { captureOf } from "../../demos/paths/trace.js";
-import { trailComponents } from "../../demos/paths/trail.js";
-import { rowsOf } from "../../demos/paths/tree.js";
 import { agentProblems } from "../../src/meta/index.js";
 import { pathTree, pathTreeText } from "../../src/tutuca.dev.js";
 import { assertClean, mountDemo, settle } from "../helpers.js";
@@ -534,6 +534,7 @@ test("paths tour: an agent has a base and a place it's at, which its tools move"
 		queries: [{ name: "total", args: [] }],
 		notifies: [],
 		views: ["main"],
+		makes: ["Cart", "Line", "Shop"],
 	});
 	await app.say('/spec {"where": "base"}');
 	assert.equal(JSON.parse(app.results().at(-1).text).component, "Line");

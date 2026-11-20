@@ -1,0 +1,16 @@
+<!doctype html>
+<meta charset="utf-8" />
+<title>Growing tutuca: 14. Lowering</title>
+<main id="app"></main>
+<script type="module">
+	import { component, Host, h } from "./src/tutuca.js";
+
+	const Hello = component({
+		name: "Hello",
+		view: h("p", { class: "loud" }, "Hello, ", h("b", {}, "world"), "!"),
+	});
+
+	const host = new Host({ document, rootNode: document.getElementById("app") });
+	const C = host.scope.register({ Hello });
+	host.start(C.Hello());
+</script>

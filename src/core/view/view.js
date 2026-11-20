@@ -114,7 +114,7 @@ export class ElementNode extends ViewNode {
 // on:type+modifier...: the modifiers are what the event must also be for the binding to take it
 // (a key held: ctrl, alt, shift, meta; the key pressed: enter, escape, tab, space, up, down,
 // left, right, delete, backspace) and what's done to it when it does (prevent:
-// preventDefault(), stop: stopPropagation()), as tutuca-wax's.
+// preventDefault(), stop: stopPropagation()), as tutuca-wasm's.
 const KEY_MODIFIERS = {
 	enter: "Enter",
 	escape: "Escape",

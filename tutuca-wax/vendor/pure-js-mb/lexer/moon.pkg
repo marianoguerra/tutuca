@@ -1,6 +1,0 @@
-import {
-  "marianoguerra/pure-js/diag",
-  "moonbitlang/core/string",
-}
-
-warnings = "-implicit_impl_as_method"

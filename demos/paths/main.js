@@ -8,6 +8,13 @@
 // Under it all, a panel that opens: the traces (traces.js), what each event led to as spans.
 import { compile } from "margaui";
 import { agentAskHandlers } from "../../components/agent/llm.js";
+import { sentEntriesOf } from "../../components/trail/entries.js";
+import { pickName } from "../../components/trail/names.js";
+import { PROFILES } from "../../components/trail/profiles.js";
+import { tracesOf } from "../../components/trail/spans.js";
+import { traces, tracesComponents } from "../../components/trail/traces.js";
+import { nodesOf, trail, trailComponents } from "../../components/trail/trail.js";
+import { rowsOf } from "../../components/trail/tree.js";
 import { pathOf } from "../../src/core/host/events.js";
 import { ClassCompiler, classNamesOf } from "../../src/css/classes.js";
 import { agentMetaSchemas, contractErrorText } from "../../src/meta/index.js";
@@ -16,8 +23,6 @@ import { DevChecks } from "../../src/tutuca.dev.js";
 import { canQuery, HandlerSpec, Host, isProblem, specOf } from "../../src/tutuca.js";
 import { apiOf, modelOf, preferModel, rememberModel } from "../agent-api.js";
 import { exampleOf, examples } from "./examples.js";
-import { pickName } from "./names.js";
-import { PROFILES } from "./profiles.js";
 import {
 	boxLayer,
 	chainOf,
@@ -29,11 +34,7 @@ import {
 	regionsAt,
 	scanRegions,
 } from "./regions.js";
-import { tracesOf } from "./spans.js";
-import { deliver, entriesOf, holdEvents, nodeAt, sentEntriesOf, stepsOf } from "./trace.js";
-import { traces, tracesComponents } from "./traces.js";
-import { nodesOf, trail, trailComponents } from "./trail.js";
-import { rowsOf } from "./tree.js";
+import { deliver, entriesOf, holdEvents, nodeAt, stepsOf } from "./trace.js";
 
 const SETTINGS_KEY = "tutuca-demos:paths";
 const loadSettings = (window) => {

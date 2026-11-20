@@ -13,7 +13,7 @@
 //   automerge   demos/deps/automerge.js: automerge-repo needs one initialized copy of automerge;
 //               the sync demo's importmap maps every @automerge package to it.
 //   engines     demos/deps/{ajv,jq,jsonpath,picomatch,vega,echarts}.js: the micro-agents' engines,
-//               which tutuca-wax's build copies into its dist/engines/.
+//               which tutuca-wasm's build copies into its dist/engines/.
 //   markdownrswasm  components/markdown/vendor/: the <md-view> element and its wasm, copied from
 //               a markdownrswasm checkout beside this one (built with `just dist` there); it
 //               isn't on npm, so the copy is committed.
@@ -171,7 +171,7 @@ const TARGETS = {
 			minify: true,
 		},
 	},
-	// The micro-agents' engines: tutuca-wax's build copies them into its dist/engines/, where
+	// The micro-agents' engines: tutuca-wasm's build copies them into its dist/engines/, where
 	// its microagents/engines/ modules load them.
 	ajv: {
 		out: "demos/deps/ajv.js",
@@ -285,7 +285,7 @@ export const vendorIfMissing = async (name) => {
 
 if (import.meta.url === `file://${process.argv[1]}`) {
 	// --if-missing builds only the bundles that aren't there yet (npm run lint's prelint,
-	// tutuca-wax's build).
+	// tutuca-wasm's build).
 	const ifMissing = process.argv.includes("--if-missing");
 	const names = process.argv.slice(2).filter((a) => a !== "--if-missing");
 	if (!names.length)

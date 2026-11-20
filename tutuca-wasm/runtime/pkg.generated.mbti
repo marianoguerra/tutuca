@@ -1,0 +1,65 @@
+// Generated using `moon info`, DON'T EDIT IT
+package "tutuca/wasm/runtime"
+
+// Values
+pub fn tw_answer(Int32, Bool, String) -> Unit
+
+pub fn tw_capture(String) -> String
+
+pub fn tw_component(String, Val) -> Unit
+
+pub fn tw_define(String) -> String
+
+pub fn tw_drag_end() -> Unit
+
+pub fn tw_drag_start(String, String) -> Unit
+
+pub fn tw_drop_target(String) -> Int32
+
+pub fn tw_event(String) -> Unit
+
+pub fn tw_event_types() -> String
+
+pub fn tw_fits(String, String, String) -> String
+
+pub fn tw_hold(String) -> Val
+
+pub fn tw_host(String, Val, Val) -> Val
+
+pub fn tw_leave(String) -> Unit
+
+pub fn tw_message_problem(String, String, String) -> String
+
+pub fn tw_mount() -> String
+
+pub fn tw_name_of(Val) -> String
+
+pub fn tw_names(String, Bool) -> String
+
+pub fn tw_owns(String, Val) -> Bool
+
+pub fn tw_put(String, Val) -> Unit
+
+pub fn tw_query(String, String, String) -> String
+
+pub fn tw_reports() -> String
+
+pub fn tw_send(String, String, String) -> Unit
+
+pub fn tw_start(String, String, String) -> String
+
+pub fn tw_state() -> String
+
+pub fn tw_type(String) -> String
+
+pub fn tw_value(String) -> Val
+
+// Errors
+
+// Types and methods
+#external
+pub type Val
+
+// Type aliases
+
+// Traits

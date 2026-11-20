@@ -11,7 +11,7 @@
 //   C.invariants.n                   this: read C, => boolean
 //   C.answers.a.ok / error / ...     as run
 //
-// The same text is what tutuca-wax compiles (spec/pure-tutuca/README.md). The module is checked
+// The same text is what tutuca-wasm compiles (spec/pure-tutuca/README.md). The module is checked
 // and compiled with pure-js; the components are ordinary component() specs; model is format 2,
 // what the shared conformance corpus records.
 //
@@ -30,6 +30,7 @@
 
 import {
 	compileModule,
+	docAt,
 	draft,
 	isNamespaceLiteral,
 	parseModule,
@@ -42,7 +43,22 @@ import {
 import { component } from "../core/component.js";
 import { apply } from "../core/model/contract.js";
 import { iface } from "../core/model/interface.js";
-import { t } from "../core/model/types.js";
+import {
+	ArrayType,
+	BooleanType,
+	compileShape,
+	EnumType,
+	IndexType,
+	MapType,
+	NumberType,
+	OneOfType,
+	OptionType,
+	RecordType,
+	StringType,
+	Type,
+	t,
+	unlessNoDefault,
+} from "../core/model/types.js";
 import { button, tag } from "../core/view/tag.js";
 import * as V from "../core/view/view.js";
 import { errorMessage } from "../tree/text.js";
@@ -351,6 +367,8 @@ const argsText = (handlerNode) => fnArgsText(propertyOf(handlerNode, "run")?.val
 // A handler function's args type: its second parameter's annotation.
 const fnArgsText = (fn) => {
 	const p = fn?.params?.[1];
+	// A run that takes only next takes nothing: run(next) is run(next, []).
+	if (fn != null && p === undefined) return "[]";
 	if (p?.typeAnnotation) return printNode(p.typeAnnotation, { types: true });
 	// An empty pattern takes nothing.
 	return p?.type === "ArrayPattern" && p.elements.length === 0 ? "[]" : "unknown[]";
@@ -514,11 +532,149 @@ const signatures = (decl) => {
 
 // What a namespace's data members are: C.defaults is the state's fields, each optional;
 // C.examples start from such fields and expect fields and queries; C.on.m.changes and C.implements are names.
-const dataTypes = (decl) => {
+// The caller's meta namespaces: { [uri]: { schema, mode, problems, derive } }. schema is a
+// shape (key -> type, as data or compiled) that what a component says under uri is checked
+// against as it's written (a key with a default may be left out, at any depth); mode is
+// "check" (checked when it's there), "require" (missing-meta when it isn't) or "derive" (made
+// with derive(spec, said) when it isn't, and merged with it when it is: derived-meta, a
+// warning); problems(spec) says what the shape can't (a tool naming a message it hasn't).
+const IDENT_KEY = /^[A-Za-z_$][A-Za-z0-9_$]*$/;
+const keyText = (k) => (IDENT_KEY.test(k) ? k : JSON.stringify(k));
+const parens = (text) => (/[|]/.test(text) ? `(${text})` : text);
+const hasDefault = (type) => {
+	let has = true;
+	unlessNoDefault(
+		() => type.make(undefined, null),
+		() => {
+			has = false;
+		},
+	);
+	return has;
+};
+// A tutuca type as the TypeScript type meta is written as: a record's keys with a default are
+// optional.
+const metaTypeText = (type) => {
+	if (type instanceof StringType) return "string";
+	if (type instanceof NumberType || type instanceof IndexType) return "number";
+	if (type instanceof BooleanType) return "boolean";
+	if (type instanceof EnumType) return type.members.map((m) => JSON.stringify(m)).join(" | ");
+	if (type instanceof OptionType) return `${parens(metaTypeText(type.valueType))} | null`;
+	if (type instanceof ArrayType) return `${parens(metaTypeText(type.valueType))}[]`;
+	if (type instanceof MapType) return `{ [key: string]: ${metaTypeText(type.valueType)} }`;
+	if (type instanceof RecordType) return shapeText(type.shape);
+	if (type instanceof OneOfType) return type.types.map((u) => parens(metaTypeText(u))).join(" | ");
+	return "unknown";
+};
+const shapeText = (shape) => {
+	const keys = Object.entries(shape);
+	if (keys.length === 0) return "{}";
+	const member = ([k, v]) => `${keyText(k)}${hasDefault(v) ? "?" : ""}: ${metaTypeText(v)}`;
+	return `{ ${keys.map(member).join("; ")} }`;
+};
+const compiledShape = (schema) =>
+	Object.values(schema).every((v) => v instanceof Type)
+		? schema
+		: compileShape(schema, undefined, "meta schema");
+// The type text of each namespace's schema, by URI.
+const metaTypesOf = (meta) =>
+	Object.fromEntries(
+		Object.entries(meta).map(([uri, { schema }]) => [uri, shapeText(compiledShape(schema))]),
+	);
+// Where a component says uri (the namespace's value), or where it would (its meta, or the
+// component itself): what a meta diagnostic points at.
+const metaNode = (c, uri) => {
+	const meta = propertyOf(c.literal, "meta");
+	return propertyOf(meta?.value, uri) ?? meta ?? c.literal;
+};
+const metaDiagnostic = (code, node, message, help = null) => ({
+	code,
+	stage: "check",
+	message,
+	start: node.start,
+	end: node.type === "ObjectExpression" ? node.start + 1 : node.end,
+	exclusion: null,
+	profile: null,
+	help,
+});
+// What c's doc comments say, for a namespace's derive: { text, fields, on, queries }. text is its
+// type's doc (else its const's); fields each field's doc text; on and queries each handler's
+// and query's { text, params, hidden, summary }, params its @param texts by name, hidden
+// whether it says @hidden, summary whether it says @summary (on the query or its readonly
+// member in the type).
+const docsOf = (source, module, c) => {
+	const at = (node) => (node?.start === undefined ? null : docAt(source, node.start));
+	const declared = (kind) =>
+		module.items.find((item) => {
+			const d = item.declaration ?? item;
+			if (kind === "type") return d.type === "TypeAlias" && d.id?.name === c.name;
+			return d.type === "VariableDeclaration" && d.declarations?.[0]?.id?.name === c.name;
+		});
+	const read = (doc) => ({
+		text: doc?.text ?? "",
+		params: Object.fromEntries(
+			(doc?.tags ?? []).filter((t) => t.tag === "param" && t.name).map((t) => [t.name, t.text]),
+		),
+		hidden: (doc?.tags ?? []).some((t) => t.tag === "hidden"),
+		summary: (doc?.tags ?? []).some((t) => t.tag === "summary"),
+	});
+	const members = new Map(membersOf(c.state).map((m) => [m.name, m]));
+	const queries = queryNames(c);
+	const fields = {};
+	for (const [name, m] of members) {
+		if (!queries.has(name)) fields[name] = at(m)?.text ?? "";
+	}
+	const group = (name) => {
+		const node = propertyOf(c.literal, name)?.value;
+		const out = {};
+		for (const p of node?.type === "ObjectExpression" ? node.properties : []) {
+			const key = p.key.type === "Identifier" ? p.key.name : String(p.key.value);
+			const own = read(at(p));
+			// A query's doc may be on its readonly member in the type instead.
+			const member = name === "queries" ? read(at(members.get(key))) : null;
+			out[key] =
+				member === null
+					? own
+					: {
+							text: own.text || member.text,
+							params: { ...member.params, ...own.params },
+							hidden: own.hidden || member.hidden,
+							summary: own.summary || member.summary,
+						};
+		}
+		return out;
+	};
+	return {
+		text: at(declared("type"))?.text || at(declared("const"))?.text || "",
+		fields,
+		on: group("on"),
+		queries: group("queries"),
+	};
+};
+// Whether c says something under uri.
+const saysMeta = (c, uri) => propertyOf(propertyOf(c.literal, "meta")?.value, uri) !== undefined;
+// The namespaces required and missing: missing-meta, before anything is compiled.
+const missingMeta = (comps, meta) =>
+	comps.flatMap((c) =>
+		Object.entries(meta)
+			.filter(([uri, { mode }]) => mode === "require" && !saysMeta(c, uri))
+			.map(([uri]) =>
+				metaDiagnostic(
+					"missing-meta",
+					metaNode(c, uri),
+					`${c.name} says nothing under ${uri}, which is required here`,
+					`add meta: { "${uri}": { ... } } to ${c.name}`,
+				),
+			),
+	);
+
+const dataTypes = (decl, metaTypes = {}) => {
 	const comps = new Map([...componentsOf(decl), ...metaSchemasOf(decl)].map((c) => [c.name, c]));
 	return (path) => {
 		const c = comps.get(path[0]);
 		if (c === undefined) return null;
+		// What a component says under a namespace the caller gave a schema for.
+		if (path.length === 3 && path[1] === "meta" && Object.hasOwn(metaTypes, path[2]))
+			return metaTypes[path[2]];
 		// Names: what a message changes, what a component implements.
 		if (path.length === 4 && path[1] === "on" && path[3] === "changes") return "string[]";
 		if (path.length === 2 && path[1] === "implements") return "string[]";
@@ -644,8 +800,34 @@ const argsTypes = (text, decl, components) => {
 		: undefined;
 };
 
-// The spec options of a component, from its namespace as compiled.
-const specOf = (c, ns, decl, components, data) => {
+// queries with each call query (a method, not a getter) as { run, args, params }: its
+// parameters' types and names, from their annotations, for checks and tools.
+const callQueries = (c, queries, decl, components) => {
+	const node = propertyOf(c.literal, "queries")?.value;
+	const calls = {};
+	for (const p of node?.type === "ObjectExpression" ? node.properties : []) {
+		if (p.kind === "get" || p.value?.type !== "FunctionExpression") continue;
+		const name = p.key.type === "Identifier" ? p.key.name : String(p.key.value);
+		const ps = p.value.params ?? [];
+		if (typeof queries[name] !== "function") continue;
+		if (!ps.every((x) => x.type === "Identifier" && x.typeAnnotation)) continue;
+		const text = `[${ps.map((x) => printNode(x.typeAnnotation, { types: true })).join(", ")}]`;
+		calls[name] = {
+			run: queries[name],
+			args: argsTypes(text, decl, components),
+			params: ps.map((x) => x.name),
+		};
+	}
+	// A new object: the compiled one's members can't be redefined.
+	const out = {};
+	for (const [k, d] of Object.entries(Object.getOwnPropertyDescriptors(queries))) {
+		Object.defineProperty(out, k, k in calls ? { value: calls[k], enumerable: true } : d);
+	}
+	return out;
+};
+
+// The spec options of a component, from its namespace as compiled: what component() takes.
+const specOptions = (c, ns, decl, components, data) => {
 	const { fields } = fieldsOf(c, decl, components, data);
 	const on = {};
 	for (const h of handlerNames(c, "on")) {
@@ -661,8 +843,14 @@ const specOf = (c, ns, decl, components, data) => {
 			if (cons?.keyOf === undefined) return constrained(type, cons);
 			return type.type === "option" ? t.option(t.index(cons.keyOf)) : t.index(cons.keyOf);
 		});
+		// The args' names, as run destructures them, when every one is a plain name.
+		const params =
+			args !== undefined && names.length === args.length && names.every((n) => n !== null)
+				? names
+				: undefined;
 		on[h.name] = {
 			...(args === undefined ? {} : { args }),
+			...(params === undefined ? {} : { params }),
 			pure: info.pure === true,
 			swap: info.swap === true,
 			...(info.why === undefined ? {} : { why: info.why }),
@@ -674,10 +862,10 @@ const specOf = (c, ns, decl, components, data) => {
 	// An ask's answers: each outcome (ok, error, unhandled) a handler, as run, with tutuca's ctx.
 	const answers = {};
 	for (const h of handlerNames(c, "answers")) answers[h.name] = { ...ns.answers?.[h.name] };
-	return component({
+	return {
 		name: c.name,
 		fields,
-		queries: ownDescriptors(ns.queries),
+		queries: callQueries(c, ownDescriptors(ns.queries), decl, components),
 		on,
 		answers,
 		invariants: ns.invariants ?? {},
@@ -690,10 +878,10 @@ const specOf = (c, ns, decl, components, data) => {
 		...(ns.binds === undefined ? {} : { binds: ownDescriptors(ns.binds) }),
 		...(ns.loops === undefined ? {} : { loops: ns.loops }),
 		...(ns.init === undefined ? {} : { init: ns.init }),
-	});
+	};
 };
 
-// The model, format 2: what the shared corpus records and tutuca-wax's compiler must also give.
+// The model, format 2: what the shared corpus records and any other loader must also give.
 const modelOf = (decl, comps, components, checked) => {
 	const typeText = (node) => printNode(node, { types: true });
 	const entries = new Map(checked.entries.map((e) => [e.path.join("."), e.returnType]));
@@ -822,6 +1010,7 @@ const componentImports = (module, resolve) => {
 const failed = (diagnostics, model = null) => ({
 	ok: false,
 	diagnostics,
+	warnings: [],
 	components: {},
 	interfaces: {},
 	metaSchemas: {},
@@ -832,7 +1021,7 @@ const failed = (diagnostics, model = null) => ({
 // Checks and compiles a pure-tutuca module into what the header says.
 export const componentModule = (
 	source,
-	{ resolve = null, deterministic = false, hostModules = [] } = {},
+	{ resolve = null, deterministic = false, hostModules = [], meta = {} } = {},
 ) => {
 	const parsed = parseModule(source);
 	if (parsed.module === null) return failed(parsed.diagnostics);
@@ -850,19 +1039,47 @@ export const componentModule = (
 		host,
 		resolve,
 		signatureOf: signatures(decl),
-		dataTypeOf: dataTypes(decl),
+		dataTypeOf: dataTypes(decl, metaTypesOf(meta)),
 		deterministic,
 	};
 	const checked = verifyModule(parsed.module, options);
 	if (checked.diagnostics.length > 0) return failed(checked.diagnostics);
+	const missing = missingMeta(comps, meta);
+	if (missing.length > 0) return failed(missing);
 	const model = modelOf(decl, comps, components, checked);
 	const compiled = compileModule(parsed.module, options);
 	if (!compiled.ok) return failed(compiled.diagnostics, model);
 	const specs = {};
+	const warnings = [];
+	const problems = [];
 	for (const c of comps) {
 		const ns = compiled.namespaces[c.name] ?? compiled.consts[c.name];
-		specs[c.name] = specOf(c, ns, decl, components, literal(c.literal) ?? {});
+		const opts = specOptions(c, ns, decl, components, literal(c.literal) ?? {});
+		let spec = component(opts);
+		// What the caller's namespaces derive, over what it said, and what's wrong with it.
+		for (const [uri, { mode, derive, problems: problemsOf }] of Object.entries(meta)) {
+			if (mode === "derive" && typeof derive === "function") {
+				const said = saysMeta(c, uri) ? spec.meta[uri] : null;
+				const derived = derive(spec, said, docsOf(source, parsed.module, c));
+				spec = component({ ...opts, meta: { ...opts.meta, [uri]: derived } });
+				opts.meta = spec.meta;
+				warnings.push(
+					metaDiagnostic(
+						"derived-meta",
+						metaNode(c, uri),
+						said === null
+							? `${c.name}'s ${uri} meta is derived from its definition`
+							: `${c.name}'s ${uri} meta is what it says over what its definition derives`,
+					),
+				);
+			}
+			if (typeof problemsOf !== "function" || !Object.hasOwn(spec.meta ?? {}, uri)) continue;
+			for (const message of problemsOf(spec))
+				problems.push(metaDiagnostic("meta-problem", metaNode(c, uri), `${c.name}: ${message}`));
+		}
+		specs[c.name] = spec;
 	}
+	if (problems.length > 0) return failed(problems, model);
 	// The interfaces, as registerInterfaces takes them: an interface's methods marked Pure are
 	// its pure messages, those marked Notify its notifies.
 	const interfaces = {};
@@ -893,11 +1110,175 @@ export const componentModule = (
 	return {
 		ok: true,
 		diagnostics: [],
+		// What it says that doesn't stop it: derived-meta.
+		warnings,
 		components: specs,
 		interfaces,
 		metaSchemas,
 		askHandlers,
 		hostAsks,
 		model,
+	};
+};
+
+// What a component module is before any backend compiles it: its text as pure-js reads it,
+// the host it is checked against (as a declaration, plain data), every entry's signature and
+// every data member's type by path, its model, and each component's definition as data (what
+// component() takes, without its functions). A runtime that compiles the module itself
+// (tutuca-wasm, with pure-js's WebAssembly backend) starts from this, so both runtimes read a
+// module the same way.
+export const componentModuleSource = (
+	source,
+	{ resolve = null, deterministic = false, hostModules = [] } = {},
+) => {
+	const parsed = parseModule(source);
+	if (parsed.module === null) return { ok: false, diagnostics: parsed.diagnostics };
+	const imports = componentImports(parsed.module, resolve);
+	if (imports.diagnostics.length > 0) return { ok: false, diagnostics: imports.diagnostics };
+	// The component modules it imports are read here for their types; pure-js doesn't see them.
+	let text = source;
+	for (const item of parsed.module.items) {
+		if (imports.items.includes(item)) continue;
+		text = text.slice(0, item.start) + " ".repeat(item.end - item.start) + text.slice(item.end);
+	}
+	parsed.module = { ...parsed.module, items: imports.items };
+	const decl = declarationsOf(parsed.module);
+	decl.imported = imports.types;
+	const comps = componentsOf(decl);
+	const components = new Set(comps.map((c) => c.name));
+	const host = buildHost(decl, hostModules);
+	const signatureOf = signatures(decl);
+	const dataTypeOf = dataTypes(decl);
+	const checked = verifyModule(parsed.module, {
+		host,
+		resolve,
+		signatureOf,
+		dataTypeOf,
+		deterministic,
+	});
+	if (checked.diagnostics.length > 0) return { ok: false, diagnostics: checked.diagnostics };
+	const model = modelOf(decl, comps, components, checked);
+	const mode = (e) => (typeof e === "string" ? e : `${e.mode} ${e.type}`);
+	const entries = {};
+	for (const e of checked.entries) {
+		const sig = signatureOf(e.path);
+		if (sig === null) continue;
+		entries[e.path.join(".")] = {
+			...(sig.this === undefined ? {} : { this: mode(sig.this) }),
+			...(sig.params === undefined ? {} : { params: sig.params.map(mode) }),
+			...(sig.result === undefined ? {} : { result: mode(sig.result) }),
+		};
+	}
+	const data = {};
+	const typed = (path) => {
+		const type = dataTypeOf(path);
+		if (type !== null) data[path.join(".")] = type;
+	};
+	const definitions = {};
+	for (const c of [...comps, ...metaSchemasOf(decl)]) {
+		typed([c.name, "defaults"]);
+		typed([c.name, "examples"]);
+		typed([c.name, "implements"]);
+		for (const h of handlerNames(c, "on")) typed([c.name, "on", h.name, "changes"]);
+	}
+	const kindsOf = (c, group) => {
+		const node = propertyOf(c.literal, group)?.value;
+		const out = {};
+		for (const p of node?.type === "ObjectExpression" ? node.properties : []) {
+			const name = p.key.type === "Identifier" ? p.key.name : String(p.key.value);
+			out[name] = p.kind === "get" ? "get" : "call";
+		}
+		return out;
+	};
+	// The arguments of each query that takes some, named and typed: what a host calls it with.
+	const queryArgsOf = (c) => {
+		const node = propertyOf(c.literal, "queries")?.value;
+		const out = {};
+		for (const p of node?.type === "ObjectExpression" ? node.properties : []) {
+			if (p.kind === "get") continue;
+			const name = p.key.type === "Identifier" ? p.key.name : String(p.key.value);
+			out[name] = (p.value?.params ?? []).map((q) => ({
+				name: q.name,
+				type: q.typeAnnotation ? toT(q.typeAnnotation, decl, components) : t.any(),
+			}));
+		}
+		return out;
+	};
+	for (const c of comps) {
+		const info = literal(c.literal) ?? {};
+		const { fields } = fieldsOf(c, decl, components, info);
+		const on = {};
+		for (const h of handlerNames(c, "on")) {
+			const meta = literal(h.node) ?? {};
+			const names = (propertyOf(h.node, "run")?.value?.params?.[1]?.elements ?? []).map((e) =>
+				e?.type === "Identifier" ? e.name : null,
+			);
+			const args = argsTypes(argsText(h.node), decl, components)?.map((type, i) => {
+				const cons = meta.constraints?.[names[i]];
+				if (cons?.keyOf === undefined) return constrained(type, cons);
+				return type.type === "option" ? t.option(t.index(cons.keyOf)) : t.index(cons.keyOf);
+			});
+			on[h.name] = {
+				...(args === undefined ? {} : { args, names }),
+				pure: meta.pure === true,
+				swap: meta.swap === true,
+				pre: propertyOf(h.node, "pre") !== undefined,
+				post: propertyOf(h.node, "post") !== undefined,
+				why: propertyOf(h.node, "why") !== undefined,
+				...(meta.sourceKey === undefined ? {} : { sourceKey: meta.sourceKey }),
+				...(meta.changes === undefined ? {} : { changes: meta.changes }),
+			};
+		}
+		const answers = {};
+		for (const h of handlerNames(c, "answers")) {
+			answers[h.name] = (h.node.properties ?? []).map((p) =>
+				p.key.type === "Identifier" ? p.key.name : String(p.key.value),
+			);
+		}
+		definitions[c.name] = {
+			name: c.name,
+			fields,
+			queries: kindsOf(c, "queries"),
+			queryArgs: queryArgsOf(c),
+			on,
+			answers,
+			invariants: handlerNames(c, "invariants").map((h) => h.name),
+			init: propertyOf(c.literal, "init") !== undefined,
+			implements: info.implements ?? [],
+			provides: info.provides ?? {},
+			meta: info.meta ?? null,
+			loops: Object.keys(kindsOf(c, "loops")),
+			binds: Object.keys(kindsOf(c, "binds")),
+			views: [
+				...(propertyOf(c.literal, "view") ? ["main"] : []),
+				...handlerNames(c, "views").map((h) => h.name),
+			],
+		};
+	}
+	return {
+		ok: true,
+		diagnostics: [],
+		source: text,
+		host: host.describe(),
+		entries,
+		data,
+		model,
+		definitions,
+		interfaces: [...decl.types.keys()].filter((name) => isComponentInterface(decl, name)),
+		// Its meta schemas, by URI: each key's type, as data.
+		metaSchemas: Object.fromEntries(
+			metaSchemasOf(decl).map((m) => [
+				m.uri,
+				fieldsOf(m, decl, components, literal(m.literal) ?? {}).fields,
+			]),
+		),
+		// What the host modules a module's code calls do, by qualified name: tutuca/data, the page's
+		// (their results checked against their declared types), tutuca.errorMessage.
+		impls: {
+			...dataImpls,
+			...pageImpls(hostModules, () => host),
+			"tutuca.errorMessage": errorMessage,
+		},
+		hostAsks: [...(literal(decl.consts.get("hostAsks")) ?? [])],
 	};
 };

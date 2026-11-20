@@ -2,7 +2,7 @@
 
 A tutuca component written as a [pure-js](../../pure-js/README.md) module, in the shape of
 tutuca's `component({...})`. The same text loads in tutuca JS (`componentModule` in
-`tutuca/pure`) and is what tutuca-wax compiles to wasm, so a component is checked once, by one
+`tutuca/pure`) and is what tutuca-wasm compiles to wasm, so a component is checked once, by one
 set of rules, and means the same in both runtimes.
 
 ```ts
@@ -118,7 +118,7 @@ export const TodoItem = { implements: ["TodoItem"], ... };
 tutuca reads that import, not pure-js, whose modules share one namespace of types (a module
 couldn't implement an interface of the name of its own component): each type it names is a type
 of the module's code by its local name, an interface among them a component type (made by its
-own name: `ctx.make("TodoItem")`), and tutuca-wax's compiler takes the other module's interfaces
+own name: `ctx.make("TodoItem")`), and the loader takes the other module's interfaces
 and meta schemas (`implements` and `meta` are checked against them as the module is built). Only types are imported; a value import is rejected
 (`pure-tutuca::import`), as is a name the other module doesn't declare.
 
@@ -140,7 +140,7 @@ export const Canvas = {
 
 `componentModule` gives them as `metaSchemas` (`{ uri: { key: type } }`, what
 `scope.registerMetaSchemas` takes) and the model lists them (`metaSchemas`: name, uri, fields).
-tutuca-wax's compiler registers them where the module is registered, and a module that imports
+tutuca-wasm registers them where the module is registered, and a module that imports
 one's type gives its meta under it (`components/meta/meta.tutuca.ts`).
 
 ## Views
@@ -158,8 +158,8 @@ tutuca's (`"on:keydown+enter+prevent"`). A send's arguments are what the event g
 reads the state (`field`, `seqItem`, `provided`, `query`) is rejected
 (`pure-tutuca.state-in-send`), as tutuca's lint rejects it; send the item's `sourceKey()` and
 read it in the handler. A view is evaluated once, as the module loads, so a string made of the
-module's constants (`` `${MONO} text-info` ``, `BASE + " active"`) is a constant there, which
-tutuca-wax's compiler folds as well (a class it can see).
+module's constants (`` `${MONO} text-info` ``, `BASE + " active"`) is a constant there (a class
+a page can see).
 
 ## tutuca/data
 
@@ -182,5 +182,6 @@ fields (name, type as TypeScript, constraints, default, sync, public), queries a
 types, messages (args, pure, changes, sourceKey, pre, post, why), invariants, views, meta and
 implements; the interfaces; the meta schemas; the entries' return types. The corpus, `conformance/` (`accept/`
 and `reject/`, one module each, a reject's `@expect` the code it is rejected with), records it
-in `golden/` (`node scripts/pure-tutuca-goldens.js`), and tutuca-wax's compiler is held to the
-same files.
+in `golden/` (`node scripts/pure-tutuca-goldens.js`), and any other loader is held to the same
+files. tutuca-wasm loads modules with the same loader, and its tests hold its runtime to what
+tutuca does with each (`tutuca-wasm/test/`).

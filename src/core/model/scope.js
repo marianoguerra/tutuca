@@ -183,7 +183,7 @@ export class Scope {
 	}
 	// make's result instead of its throw: { ok: the component }, or { err: { error, issues } },
 	// error saying why it can't be made (not registered, a field with no default, an interface
-	// it doesn't meet). issues is [] here: tutuca-wax's are its init's.
+	// it doesn't meet). issues is [] here.
 	tryMake(name, args) {
 		try {
 			return { ok: this.make(name, args) };
@@ -191,7 +191,12 @@ export class Scope {
 			return { err: { error: error.message, issues: [] } };
 		}
 	}
+	// name may be a path from here, "scratch/Counter", as refs are written: made in that scope.
 	make(name, args) {
+		if (typeof name === "string" && name.includes(refSep)) {
+			const at = this.resolveRef(name);
+			return at.scope.make(at.name, args);
+		}
 		const spec = this.lookupSpec(name);
 		if (spec === null) throw new Error(`Component ${String(name)} is not registered`);
 		if (!this.checked.has(spec)) this.check(spec, name);

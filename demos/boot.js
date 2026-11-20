@@ -19,8 +19,11 @@ export const boot = ({
 	metaSchemas = {},
 	make,
 	document = globalThis.document,
+	// Components the page shows beside the app's (in hosts of their own), whose classes it
+	// compiles with the app's.
+	styled = [],
 }) => {
-	const { host, watch } = setup({ components, askHandlers, metaSchemas, document });
+	const { host, watch } = setup({ components, askHandlers, metaSchemas, document, styled });
 	const window = document.defaultView;
 	const mode = window === null ? null : syncModeOf(window);
 	// A bare page (scripts/app.js, a demo served as an app) gets none of the demos' chrome.
@@ -143,7 +146,7 @@ const addSyncLog = (document) => {
 	return list;
 };
 
-const setup = ({ components, askHandlers, metaSchemas = {}, document }) => {
+const setup = ({ components, askHandlers, metaSchemas = {}, document, styled = [] }) => {
 	const rootNode = document.getElementById("app");
 	const host = new Host({ document, rootNode, checks: DevChecks });
 	host.scope.registerMetaSchemas(metaSchemas);
@@ -156,10 +159,12 @@ const setup = ({ components, askHandlers, metaSchemas = {}, document }) => {
 	// The components' classes, computed ones included, which their classes meta lists.
 	const watch = () => {
 		if (styleNode === null) return;
-		const known = classNamesOf([...Object.values(components), TimeTravel]);
+		const known = classNamesOf([...Object.values(components), TimeTravel, ...styled]);
 		const classes = new ClassCompiler(compile, known);
 		classes.update().catch((error) => console.error("margaui compile failed", error));
 		classes.watch(styleNode);
+		// For what's registered later (a component editor's), to add its classes.
+		host.classes = classes;
 	};
 	return { host, watch };
 };

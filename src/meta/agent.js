@@ -21,6 +21,7 @@ import {
 	HandlerSpec,
 	hasMeta,
 	metaShapeProblems,
+	plainOf,
 	QuerySpec,
 	query,
 	specOf,
@@ -39,14 +40,17 @@ const toolType = t.record({
 	target: t.option(t.string()), // The message or query it runs; its name when null.
 	description: t.option(t.string()),
 	params: t.array(t.string()), // The args' names, in order.
-	result: t.option(t.string()), // A zero-arg query whose value answers a message; summary when null.
+	paramDocs: t.map(t.string()), // What each arg is, by name, for its schema's description.
+	// A zero-arg query whose value answers a message; the summary when null.
+	result: t.option(t.string()),
 });
 export const agentMetaSchemas = {
 	[AGENT_META]: {
 		// What the domain is and how to work in it, for the system prompt.
 		prompt: t.option(t.string()),
-		// A zero-arg query, a short text with ids the model can name things by, in every prompt.
-		summary: t.string({ default: "summary" }),
+		// A zero-arg query, a short text with ids the model can name things by, in every prompt;
+		// null for the component's state as JSON (what a derived meta says without a summary).
+		summary: t.option(t.string(), { default: "summary" }),
 		// A zero-arg query, what this instance in particular is told to do (a role it was given),
 		// in every prompt after the domain's; null when it has none.
 		instructions: t.option(t.string()),
@@ -125,7 +129,7 @@ export const agentProblems = (c, scope = undefined) => {
 			problems.push(`tool ${tool.name}'s result ${tool.result} isn't a zero-arg query`);
 		}
 	}
-	if (!isZeroArgQuery(spec, meta.summary)) {
+	if (meta.summary !== null && !isZeroArgQuery(spec, meta.summary)) {
 		problems.push(`its summary ${meta.summary} isn't a zero-arg query`);
 	}
 	if (meta.instructions !== null && !isZeroArgQuery(spec, meta.instructions)) {
@@ -210,8 +214,10 @@ export const toolsFor = (c) => {
 	const own = meta.tools.map((tool) => {
 		const op = operationOf(spec, tool);
 		const types = op?.args ?? [];
+		const describe = (name, schema) =>
+			tool.paramDocs?.[name] ? { ...schema, description: tool.paramDocs[name] } : schema;
 		const properties = Object.fromEntries(
-			tool.params.map((name, i) => [name, typeSchema(types[i])]),
+			tool.params.map((name, i) => [name, describe(name, typeSchema(types[i]))]),
 		);
 		const reads = tool.kind === "query" ? " (reads, changes nothing)" : "";
 		return {
@@ -249,10 +255,19 @@ export const systemPrompt = (c) => {
 	parts.push(`Now: ${summaryOf(c)}`);
 	return parts.join("\n\n");
 };
-// c's summary query's value, as text.
+// The most of a component's state a summary or a result that's the state says.
+const MAX_STATE = 4000;
+// c's state as JSON, cut at MAX_STATE: the summary and the results of a meta that names none.
+const stateText = (c) => {
+	const text = JSON.stringify(plainOf(c)) ?? "null";
+	return text.length <= MAX_STATE ? text : `${text.slice(0, MAX_STATE)}… (cut)`;
+};
+// c's summary query's value, as text; its state when it names none.
 export const summaryOf = (c) => {
+	const { summary } = agentOf(c);
+	if (summary === null) return stateText(c);
 	try {
-		return asText(query(c, agentOf(c).summary));
+		return asText(query(c, summary));
 	} catch (error) {
 		return `(no summary: ${contractErrorText(c, error)})`;
 	}
@@ -304,11 +319,81 @@ export const planToolCall = (c, call) => {
 		return done(contractErrorText(c, error, tool.params), true);
 	}
 };
-// What answers a message tool's call once it ran: c's zero-arg query result, as text.
+// What answers a message tool's call once it ran: c's zero-arg query result, as text; its state
+// when result is null.
 export const resultText = (c, result) => {
+	if (result === null || result === undefined) return stateText(c);
 	try {
 		return asText(query(c, result));
 	} catch (error) {
 		return `It ran, but ${result} couldn't be read: ${contractErrorText(c, error)}`;
 	}
 };
+
+// An agent meta made from spec's definition, over said (what it says under AGENT_META, or null):
+// a message tool per message it has (those a child notifies it, with a sourceKey, left out),
+// whose args it types, named as its run names them (arg1, arg2… where it doesn't); a query
+// tool per query whose args it knows; its summary query when it has one, else its state; its
+// display description, or its name and fields, as the prompt. docs, what its doc comments say
+// ({ text, fields, on, queries }, componentModule's), describe the tools and their params, leave
+// out the @hidden ones, pick the @summary query and make the prompt. What said gives wins: its
+// tools by name, and its other keys.
+export const deriveAgentMeta = (spec, said = null, docs = null) => {
+	const paramsOf = (op) => op.params ?? op.args.map((_, i) => `arg${i + 1}`);
+	const toolOf = (name, kind, op, doc) => ({
+		name,
+		kind,
+		target: null,
+		description: doc?.text || null,
+		params: paramsOf(op),
+		paramDocs: doc?.params ?? {},
+		result: null,
+	});
+	const docSummary = Object.entries(docs?.queries ?? {}).find(([, d]) => d.summary)?.[0];
+	const summary =
+		docSummary !== undefined && isZeroArgQuery(spec, docSummary)
+			? docSummary
+			: isZeroArgQuery(spec, "summary")
+				? "summary"
+				: null;
+	const tools = [];
+	for (const [name, h] of Object.entries(spec.on ?? {})) {
+		if (!(h instanceof HandlerSpec) || h.sourceKey !== undefined || h.args === undefined) continue;
+		const doc = docs?.on?.[name];
+		if (!doc?.hidden) tools.push(toolOf(name, "message", h, doc));
+	}
+	for (const [name, q] of Object.entries(spec.queries ?? {})) {
+		// The summary is in every prompt: no tool reads it again.
+		if (!(q instanceof QuerySpec) || q.args === undefined || name === summary) continue;
+		const doc = docs?.queries?.[name];
+		if (!doc?.hidden) tools.push(toolOf(name, "query", q, doc));
+	}
+	const fieldText = ([k, type]) => {
+		const doc = docs?.fields?.[k];
+		return `${k} (${type.constructor.kind ?? "value"})${doc ? `: ${doc.replace(/\.$/, "")}` : ""}`;
+	};
+	const fields = Object.entries(spec.fields ?? {}).map(fieldText);
+	const description = displayOf(spec).description;
+	const about =
+		docs?.text || (typeof description === "string" && description !== "" ? description : "");
+	const derived = {
+		prompt: `${about || `A ${spec.name} component.`} Its fields: ${fields.join("; ") || "none"}.`,
+		summary,
+		tools,
+	};
+	if (said === null) return derived;
+	const own = new Map((said.tools ?? []).map((tool) => [tool.name, tool]));
+	return {
+		...derived,
+		...said,
+		tools: [...derived.tools.filter((tool) => !own.has(tool.name)), ...(said.tools ?? [])],
+	};
+};
+// What componentModule's meta option takes for AGENT_META: its schema, agentProblems' checks,
+// and with mode "derive", deriveAgentMeta for a component that says none, or over what it says.
+export const agentMetaOption = (mode = "check") => ({
+	schema: agentMetaSchemas[AGENT_META],
+	mode,
+	problems: (spec) => agentProblems(spec),
+	derive: deriveAgentMeta,
+});

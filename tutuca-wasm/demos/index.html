@@ -1,0 +1,23 @@
+<!doctype html>
+<html lang="en">
+<head>
+<meta charset="utf-8">
+<meta name="viewport" content="width=device-width, initial-scale=1">
+<title>tutuca-wasm demos</title>
+<!-- margaui's light and dark themes, then the CSS margaui-css.wasm compiles for the classes
+     the page and the components it shows use (demos.js). -->
+<style id="themes"></style>
+<style id="classes"></style>
+</head>
+<body>
+<header>
+	<h1>tutuca-wasm demos</h1>
+	<p>tutuca's runtime in WebAssembly. The components below are pure-tutuca modules (<code>.tutuca.ts</code>): the page checks each and compiles it to WebAssembly when it loads, with pure-js, and every click goes from the DOM through the runtime's event routing, a transaction on the root and a morph of the DOM.</p>
+	<p>Write your own, or edit these, in the <a href="../playground/">playground</a>.</p>
+	<div id="status">loading…</div>
+</header>
+<main id="demos"></main>
+<footer>Each demo runs on a runtime of its own. The same modules run on tutuca in JavaScript, and do the same there.</footer>
+<script type="module" src="./demos.js"></script>
+</body>
+</html>

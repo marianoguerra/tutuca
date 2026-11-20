@@ -16,7 +16,11 @@ test-js: build-mbt
     cd js && node --test test/*.test.ts
     cd js && npx tsc --noEmit
 
-# Build dist/tdata.wasm with wax-mb (tutuca-wax's pinned build, or WAX_MB).
+# Build the pinned wax-mb compiler into .tools/wax-mb.
+setup-wax:
+    sh wax/scripts/setup-wax-mb.sh
+
+# Build dist/tdata.wasm with wax-mb (the pinned build setup-wax makes, or WAX_MB).
 build-wax:
     node wax/scripts/build.mjs
 
@@ -45,4 +49,4 @@ vectors:
 # Format the Wax sources (strings.wax is left alone: wax-mb's formatter moves comments inside
 # import blocks).
 fmt-wax:
-    ../tutuca-wax/.tools/wax-mb/_build/native/debug/build/marianoguerra/wax-cli/wax-mb/wax-mb.exe format -i $(ls wax/src/*.wax | grep -v strings.wax)
+    .tools/wax-mb/_build/native/debug/build/marianoguerra/wax-cli/wax-mb/wax-mb.exe format -i $(ls wax/src/*.wax | grep -v strings.wax)

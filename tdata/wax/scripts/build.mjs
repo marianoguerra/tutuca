@@ -3,7 +3,7 @@
 // are concatenated in the order below, each after the ones it uses. When wax-mb rejects the
 // module, the locations it reports are mapped back to the source files.
 //
-// The compiler: WAX_MB if set, else the pinned build tutuca-wax's `just setup` makes.
+// The compiler: WAX_MB if set, else the pinned build `just setup-wax` makes (setup-wax-mb.sh).
 
 import { spawnSync } from "node:child_process";
 import { existsSync, mkdirSync, readFileSync, writeFileSync } from "node:fs";
@@ -29,15 +29,12 @@ export const SOURCES = [
 
 const WAX_MB =
 	process.env.WAX_MB ??
-	join(
-		root,
-		"../../tutuca-wax/.tools/wax-mb/_build/native/debug/build/marianoguerra/wax-cli/wax-mb/wax-mb.exe",
-	);
+	join(root, "../.tools/wax-mb/_build/native/debug/build/marianoguerra/wax-cli/wax-mb/wax-mb.exe");
 
 export const build = () => {
 	if (!existsSync(WAX_MB))
 		throw new Error(
-			`wax-mb not found at ${WAX_MB}: run \`just setup\` in tutuca-wax, or set WAX_MB`,
+			`wax-mb not found at ${WAX_MB}: run \`just setup-wax\` in tdata, or set WAX_MB`,
 		);
 	const parts = [];
 	const map = []; // [first line in the assembled file, source, line count]

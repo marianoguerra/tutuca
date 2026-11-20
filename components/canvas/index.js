@@ -44,6 +44,7 @@ import { swatchStyle, TOOL_OFF, TOOL_ON, toolButton, toolButtons } from "../draw
 import { transcriptComponents } from "../llm/transcript.js";
 import { markdownComponents } from "../markdown/index.js";
 import { ASSISTANT, agentBusy, assistantQueries, passModel } from "./assistant.js";
+import { editorComponents } from "./editor.js";
 import { afterRender, HOLE_WIDTH, Item, MAX_AUTO_HEIGHT, MIN_HEIGHT, MIN_WIDTH } from "./item.js";
 import {
 	BECOME_ARGS,
@@ -64,6 +65,10 @@ const { button, div, g, input, p, rect, span, svg } = tag;
 const GROW_MARGIN = 400;
 // How far down and right of its item a clone goes.
 const CLONE_OFFSET = 24;
+// How wide an item placeComponent adds starts, when its component doesn't say, and how far
+// below one already there the next one goes.
+const PLACED_WIDTH = 360;
+const PLACED_STEP = 120;
 const MAX_SIZE = 10000;
 // How far the canvas zooms out and in, and how much each step does.
 const MIN_ZOOM = 0.1;
@@ -542,6 +547,15 @@ export const Canvas = component({
 			emits: { ask: ["inferenceAvailable", "componentKinds"] },
 			run(_next, _args, ctx) {
 				ctx.ask("inferenceAvailable");
+				ctx.ask("componentKinds");
+			},
+		},
+		// From a component editor below: it registered components, which are kinds now.
+		componentsRegistered: {
+			args: [],
+			emits: { ask: ["componentKinds"] },
+			run(_next, _args, ctx) {
+				ctx.stopNext();
 				ctx.ask("componentKinds");
 			},
 		},
@@ -1032,6 +1046,32 @@ export const Canvas = component({
 				next.items[ctx.sourceKey] = apply(item, "setContent", content, label, width);
 			},
 		},
+		// From an item's content (a component editor's): a component made there, for a new item
+		// beside that one, below the others already there. Replies placed with its label and key.
+		placeComponent: {
+			args: [t.component(), t.string()],
+			sourceKey: t.index("items"),
+			run(next, [content, label], ctx) {
+				ctx.stopNext();
+				const from = this.items[ctx.sourceKey];
+				const w = clamp(canvasMetaOf(content).width ?? PLACED_WIDTH, MIN_WIDTH, 4000);
+				const x = from.x + from.width + CLONE_OFFSET;
+				let y = from.y;
+				const near = (item) => Math.abs(item.x - x) < CLONE_OFFSET;
+				for (const item of Object.values(this.items)
+					.filter(near)
+					.sort((a, b) => a.y - b.y)) {
+					if (item.y <= y + CLONE_OFFSET && item.y >= y - CLONE_OFFSET) y = item.y + PLACED_STEP;
+				}
+				const at = placeFor(this, { x, y }, w);
+				const key = ctx.uuid();
+				const C = ctx.scope.components;
+				next.items[key] = C.Item({ content, label, x: at.x, y: at.y, width: w });
+				next.order.push(key);
+				growTo(this, next, at.x + w, at.y + MIN_HEIGHT);
+				ctx.reply("placed", [label, key]);
+			},
+		},
 	},
 });
 
@@ -1253,6 +1293,7 @@ export const canvasKitComponents = {
 	...markdownComponents,
 	...agentComponents,
 	...transcriptComponents,
+	...editorComponents,
 	Canvas,
 	Item,
 	Arrow,

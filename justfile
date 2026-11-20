@@ -49,7 +49,7 @@ serve path="":
 demos: (serve "demos/")
 
 # Serve one demo as an app, without the demos' chrome, with the inference API beside it (its
-# agents ask models; keys from tutuca-wax/.env): `just app canvas` → http://127.0.0.1:8010/,
+# agents ask models; keys from tutuca-wasm/.env): `just app canvas` → http://127.0.0.1:8010/,
 # then ?bundle=, ?sync= and ?doc= as on the demo.
 app demo="canvas" port="8010" *flags="":
     node scripts/app.js {{demo}} {{port}} {{flags}}

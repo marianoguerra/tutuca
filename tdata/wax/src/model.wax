@@ -1,4 +1,4 @@
-// The tdata data model (docs/spec.md §1), following tutuca-wax's enum convention: an open base
+// The tdata data model (docs/spec.md §1), following this enum convention: an open base
 // struct holding the case's kind, one subtype per case, a const per kind, a constructor per case.
 //
 // Collections are growable arrays (a slot array and a count). Objects, attributes and meta are

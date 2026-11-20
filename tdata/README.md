@@ -76,8 +76,8 @@ A message that has to be a Value in a result (in a collected array, say) is writ
 
 ## Wax
 
-`wax/scripts/build.mjs` concatenates `wax/src/*.wax` and compiles them with the wax-mb that
-tutuca-wax pins (run `just setup` there first, or set `WAX_MB`). The module needs the js-string
+`wax/scripts/build.mjs` concatenates `wax/src/*.wax` and compiles them with a pinned wax-mb
+(run `just setup-wax` first, or set `WAX_MB`). The module needs the js-string
 builtins, the imported string constants (`"'"`) and two host functions for number text; see
 `wax/test/tdata.mjs`.
 

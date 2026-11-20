@@ -349,5 +349,21 @@ export const checkHandlerOf = (instance, name, options = {}) => {
 	});
 };
 
+export {
+	checkComponentSource,
+	componentAsks,
+	defineComponentSource,
+	instancesIn,
+	listScopes,
+	removeScope,
+	unregisterComponent,
+} from "./define.js";
+export {
+	checkReportText,
+	defineReportText,
+	diagnosticText,
+	removedText,
+	scopesText,
+} from "./define-text.js";
 // A whole component written as a pure-tutuca module (module.js).
 export { componentModule } from "./module.js";

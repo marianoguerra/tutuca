@@ -1,0 +1,65 @@
+// The studio's library, kept in IndexedDB (tutuca-wasm-studio): components
+// (a pure-tutuca module, and what its last build said), scopes (a tree,
+// each with the components registered in it) and screens (a scope, the
+// layout made in it, as hydrate reads it, and when it was made, which orders
+// the tabs). A bundle is the library as JSON, without the builds, to export
+// and import.
+//
+//   component: { id, name, source, build?: { key, ok, types, diags } }
+//   scope:     { id, name, parent, registrations: [{ component }] }
+//   screen:    { id, name, scope, layout, created }
+//
+// A registration's component is a component's id or "prebuilt:<module>", a
+// module of components/, registering its types under their own names.
+
+const DB = "tutuca-wasm-studio";
+const KINDS = ["components", "scopes", "screens"];
+export const BUNDLE_FORMAT = "tutuca-studio";
+export const BUNDLE_VERSION = 1;
+
+const request = (r) =>
+	new Promise((resolve, reject) => {
+		r.onsuccess = () => resolve(r.result);
+		r.onerror = () => reject(r.error);
+	});
+
+export async function openStore() {
+	const open = indexedDB.open(DB, 1);
+	open.onupgradeneeded = () => {
+		for (const kind of KINDS) open.result.createObjectStore(kind, { keyPath: "id" });
+	};
+	const db = await request(open);
+	const tx = (kind, mode) => db.transaction(kind, mode).objectStore(kind);
+	const store = {
+		all: (kind) => request(tx(kind, "readonly").getAll()),
+		put: (kind, record) => request(tx(kind, "readwrite").put(record)),
+		delete: (kind, id) => request(tx(kind, "readwrite").delete(id)),
+		// The whole library, each kind a Map by id.
+		load: async () =>
+			Object.fromEntries(
+				await Promise.all(
+					KINDS.map(async (k) => [k, new Map((await store.all(k)).map((r) => [r.id, r]))]),
+				),
+			),
+	};
+	return store;
+}
+
+// The library as a bundle: what's needed to build it all again.
+export const toBundle = (lib) => ({
+	format: BUNDLE_FORMAT,
+	version: BUNDLE_VERSION,
+	components: [...lib.components.values()].map(({ id, name, source }) => ({ id, name, source })),
+	scopes: [...lib.scopes.values()],
+	screens: [...lib.screens.values()],
+});
+
+// A bundle's records by kind, or an error saying why it isn't one.
+export function fromBundle(bundle) {
+	if (bundle?.format !== BUNDLE_FORMAT) throw new Error("not a tutuca studio bundle");
+	if (bundle.version !== BUNDLE_VERSION)
+		throw new Error(
+			`a bundle of version ${bundle.version}; this studio reads version ${BUNDLE_VERSION}`,
+		);
+	return Object.fromEntries(KINDS.map((k) => [k, Array.isArray(bundle[k]) ? bundle[k] : []]));
+}

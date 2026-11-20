@@ -1,4 +1,0 @@
-import {
-  "tutuca/pure-tutuca/diag",
-  "moonbitlang/core/cmp",
-}

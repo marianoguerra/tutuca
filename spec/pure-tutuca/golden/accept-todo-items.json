@@ -35,7 +35,7 @@
     "messages": [
      {
       "name": "completeAll",
-      "args": "unknown[]",
+      "args": "[]",
       "pure": true,
       "changes": null,
       "constraints": null,

@@ -1,7 +1,7 @@
 # tdata: messages, values, encodings, specs and queries
 
 Version 1 (draft). tdata is the data format tutuca's components use to pass information to each
-other, in the JavaScript runtime and in the wasm-gc runtime (tutuca-wax) alike. Its unit is the
+other, in a JavaScript runtime and in a wasm-gc one alike. Its unit is the
 **Message**. Each component understands only part of what it receives, so the format has these
 goals:
 

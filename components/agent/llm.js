@@ -1,8 +1,8 @@
 // The models an agent asks: a client is { complete(request, signal) → Promise<AssistantMessage> }
 // in pi-ai's shapes, a request one inference step with everything it needs: { model:
 // "provider/id", systemPrompt, tools, transcript }; the answer is the message to append.
-// httpClient asks the studio server's stateless POST /api/infer (tutuca-wax/scripts/
-// studio-server.mjs); echoStep is a model without a model, for a demo without keys: it runs
+// httpClient asks the server's stateless POST /api/infer (tutuca-wasm/scripts/
+// server.mjs); echoStep is a model without a model, for a demo without keys: it runs
 // the tool the user names, synchronously.
 
 const post = async (url, body, signal) => {

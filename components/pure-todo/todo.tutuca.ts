@@ -1,6 +1,6 @@
 // The site's todo list as a pure-tutuca module: its state type, and a namespace of the same
 // name that says the rest. The same text loads in tutuca (componentModule) and compiles to
-// wasm in tutuca-wax.
+// wasm in tutuca-wasm.
 import {
 	button,
 	div,

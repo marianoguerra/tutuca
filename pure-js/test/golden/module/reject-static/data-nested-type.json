@@ -1,0 +1,141 @@
+{
+ "exit": 3,
+ "stage": "check",
+ "codes": [
+  "not-assignable"
+ ],
+ "tree": {
+  "type": "PureModule",
+  "items": [
+   {
+    "type": "ExportNamedDeclaration",
+    "declaration": {
+     "type": "VariableDeclaration",
+     "declarations": [
+      {
+       "type": "VariableDeclarator",
+       "id": {
+        "type": "Identifier",
+        "name": "Card"
+       },
+       "init": {
+        "type": "ObjectExpression",
+        "properties": [
+         {
+          "type": "Property",
+          "method": false,
+          "shorthand": false,
+          "computed": false,
+          "key": {
+           "type": "Identifier",
+           "name": "meta"
+          },
+          "value": {
+           "type": "ObjectExpression",
+           "properties": [
+            {
+             "type": "Property",
+             "method": false,
+             "shorthand": false,
+             "computed": false,
+             "key": {
+              "type": "Literal",
+              "value": "urn:example:agent",
+              "raw": "\"urn:example:agent\""
+             },
+             "value": {
+              "type": "ObjectExpression",
+              "properties": [
+               {
+                "type": "Property",
+                "method": false,
+                "shorthand": false,
+                "computed": false,
+                "key": {
+                 "type": "Identifier",
+                 "name": "tools"
+                },
+                "value": {
+                 "type": "ArrayExpression",
+                 "elements": [
+                  {
+                   "type": "ObjectExpression",
+                   "properties": [
+                    {
+                     "type": "Property",
+                     "method": false,
+                     "shorthand": false,
+                     "computed": false,
+                     "key": {
+                      "type": "Identifier",
+                      "name": "name"
+                     },
+                     "value": {
+                      "type": "Literal",
+                      "value": 1,
+                      "raw": "1"
+                     },
+                     "kind": "init"
+                    }
+                   ]
+                  }
+                 ]
+                },
+                "kind": "init"
+               }
+              ]
+             },
+             "kind": "init"
+            }
+           ]
+          },
+          "kind": "init"
+         }
+        ]
+       }
+      }
+     ],
+     "kind": "const"
+    },
+    "specifiers": [],
+    "attributes": []
+   }
+  ]
+ },
+ "printed": "export const Card = { meta: { \"urn:example:agent\": { tools: [{ name: 1 }] } } };",
+ "entries": {},
+ "callGraph": {},
+ "summaries": {},
+ "types": [
+  [
+   114,
+   118,
+   "{ meta: { urn:example:agent: { tools: { name: string }[] | undefined } } }",
+   "read"
+  ],
+  [
+   152,
+   176,
+   "{ tools: { name: string }[] | undefined }",
+   "fresh"
+  ],
+  [
+   161,
+   174,
+   "{ name: string }[]",
+   "fresh"
+  ],
+  [
+   162,
+   173,
+   "{ name: string }",
+   "fresh"
+  ],
+  [
+   170,
+   171,
+   "1",
+   "value"
+  ]
+ ]
+}

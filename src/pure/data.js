@@ -1,5 +1,5 @@
 // tutuca/data: the host module pure-tutuca components import for what pure-js leaves out and
-// components need, the same in tutuca and tutuca-wax (which lowers each to its runtime's):
+// components need, the same in tutuca and tutuca-wasm:
 //
 //   import { range, without, kindOf } from "tutuca/data";
 //
@@ -19,13 +19,13 @@
 //                          isn't JSON
 //
 // The declaration is the source of truth: scripts/pure-tutuca-goldens.js writes it to
-// spec/pure-tutuca/host/data.json and tutuca-wax/pure-tutuca/pure/host_data.mbt.
+// spec/pure-tutuca/host/data.json.
 
 import { isComponent } from "../core/model/spec.js";
 
 const DATA_SPEC = "tutuca/data";
 
-// The most items range makes: more is undefined behaviour, as it is in tutuca-wax.
+// The most items range makes: more is undefined behaviour, as it is in tutuca-wasm.
 const RANGE_LIMIT = 1_000_000;
 
 export const dataDeclaration = Object.freeze({

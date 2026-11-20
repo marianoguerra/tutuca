@@ -11,8 +11,8 @@ export const isComponent = (v) => specOf(v) !== undefined;
 export const isSpec = (v) => v?.proto?.[specSym] === v;
 // The spec of c, a component or its spec.
 export const specOrSelf = (c) => specOf(c) ?? c;
-// An on entry is a handler function, or a handler spec { run, args, sourceKey, pre, why, post,
-// emits, pure, swap }: the handler, run, with its contract. run changes next and returns
+// An on entry is a handler function, or a handler spec { run, args, params, sourceKey, pre, why,
+// post, emits, pure, swap }: the handler, run, with its contract. run changes next and returns
 // nothing; a swap's run may return the component its own becomes instead (nothing keeps it,
 // with what next has), and anything else a run returns fails its task (tree-binding.js). args types the send/notify arguments,
 // sourceKey the child key it arrives from, pre and post are conditions on the instance (why,
@@ -32,6 +32,9 @@ export class HandlerSpec {
 		const spec = typeof entry === "function" || typeof entry === "string" ? { run: entry } : entry;
 		this.name = name;
 		this.args = argTypes(`${name}.args`, spec.args, type);
+		// The args' names, in order, where they're known (a pure-tutuca handler's, as its run
+		// destructures them): what tools and docs call them. undefined when not said.
+		this.params = paramNames(`${name}.params`, spec.params, type);
 		this.sourceKey =
 			spec.sourceKey === undefined ? undefined : type(spec.sourceKey, `${name}.sourceKey`);
 		this.pre = spec.pre;
@@ -50,6 +53,14 @@ const argTypes = (label, args, type) => {
 	if (args === undefined) return undefined;
 	if (!Array.isArray(args)) return type.fail(`${label} must be an array of types`);
 	return args.map((a, i) => type(a, `${label}[${i}]`));
+};
+// A list of arg names, undefined for none said.
+const paramNames = (label, params, type) => {
+	if (params === undefined) return undefined;
+	if (!Array.isArray(params) || !params.every((p) => typeof p === "string")) {
+		return type.fail(`${label} must be an array of names`);
+	}
+	return [...params];
 };
 // What compiles handlers given as source: { compile(handler, { spec, scope }) -> function,
 // check(handler, { spec, specs }) -> diagnostics }. tutuca/pure's pureHandlers() is one.
@@ -82,16 +93,20 @@ const sourceRun = (handler) => {
 // getter, a computed property; a public field is one too), a call one takes args. args and
 // returns type them, for checks and tools.
 export class QuerySpec {
-	constructor(name, { kind, fn = null, args = undefined, returns = undefined }) {
+	constructor(
+		name,
+		{ kind, fn = null, args = undefined, params = undefined, returns = undefined },
+	) {
 		this.name = name;
 		this.kind = kind; // "get", "call" or "field"
 		this.fn = fn; // The getter or the function; null for a field.
 		this.args = kind === "call" ? args : [];
+		this.params = kind === "call" ? params : []; // The args' names, where they're known.
 		this.returns = returns;
 	}
 }
 // queries' entries: a getter (get), a function (call), { get, returns } or
-// { run, args, returns }, args and returns types as data compiled with type. Fields marked
+// { run, args, params, returns }, args and returns types as data compiled with type. Fields marked
 // public are get queries returning their type. Other entries stay as they are for lint to report.
 export const toQueries = (queries, fields, type) => {
 	const returns = (name, v) => (v === undefined ? undefined : type(v, `queries.${name}.returns`));
@@ -116,6 +131,7 @@ export const toQueries = (queries, fields, type) => {
 				kind: "call",
 				fn: v.run,
 				args: argTypes(`queries.${name}.args`, v.args, type),
+				params: paramNames(`queries.${name}.params`, v.params, type),
 				returns: returns(name, v.returns),
 			});
 		else out[name] = v;

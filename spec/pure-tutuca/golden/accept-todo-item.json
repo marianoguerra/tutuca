@@ -49,7 +49,7 @@
      },
      {
       "name": "toggle",
-      "args": "unknown[]",
+      "args": "[]",
       "pure": false,
       "changes": null,
       "constraints": null,

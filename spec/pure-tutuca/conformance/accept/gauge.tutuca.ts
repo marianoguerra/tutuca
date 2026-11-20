@@ -1,5 +1,5 @@
 // Dev checks as entries: a pre, a post and an invariant, each of which some message breaks
-// alone (tutuca and tutuca-wax report it, the transition still happens).
+// alone (tutuca and tutuca-wasm report it, the transition still happens).
 import { div, field, span } from "tutuca/view";
 
 export type Gauge = { level: number; max: number };

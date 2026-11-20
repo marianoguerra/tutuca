@@ -17,21 +17,10 @@ const SHOW_COMMENT = 128;
 const FOLLOWING = 4;
 const PRECEDING = 2;
 
-// What tells two paths apart, as text: each frame's provider, keys and item.
-export const pathKey = (path) =>
-	JSON.stringify(
-		path.frames.map(({ provider: p, keys, item }) => [
-			p === null ? null : [p.name, p.up, p.keys],
-			keys,
-			item,
-		]),
-	);
-// A frame as the tree prints its step: .field, .seq[key], *provided.
-export const frameText = ({ provider, keys, item }) => {
-	const start = provider === null ? "" : `*${provider.name}`;
-	return `${start}${keys.map(keyText).join("")}${item === null ? "" : `[${jsonText(item)}]`}`;
-};
-export const pathLabel = (path) => path.frames.map(frameText).join(" ") || "·";
+// The path helpers are the trail's (components/trail/paths.js): the tour's regions use them.
+import { frameText, pathKey, pathLabel } from "../../components/trail/paths.js";
+
+export { frameText, pathKey, pathLabel };
 
 // What a marker says, in a few words.
 export const markerLabel = (marker) => {

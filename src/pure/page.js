@@ -2,7 +2,7 @@
 // cron, ...): a declaration as tutuca/data's (specifier, module, members' TypeScript signatures,
 // fresh) and the page's implementations, by member. The page isn't trusted as tutuca's own code
 // is: what a member returns is checked against the type its signature says, and one that doesn't
-// fit fails the call, as a throw does (tutuca-wax's lowering checks the same).
+// fit fails the call, as a throw does (tutuca-wasm checks the same).
 //
 //   componentModule(source, { hostModules: [{ ...declaration, impls: { test: (p, f, t) => ... } }] })
 

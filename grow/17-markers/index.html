@@ -1,0 +1,27 @@
+<!doctype html>
+<meta charset="utf-8" />
+<title>Growing tutuca: 15. Fields</title>
+<main id="app"></main>
+<p>In the console: <code>host.apply("inc", [1])</code></p>
+<script type="module">
+	import { component, field, Host, h, t } from "./src/tutuca.js";
+
+	const Counter = component({
+		name: "Counter",
+		fields: { n: t.number() },
+		view: h("p", {}, "count: ", field("n")),
+		on: {
+			inc: {
+				pure: true,
+				run(next, [by]) {
+					next.n = this.n + by;
+				},
+			},
+		},
+	});
+
+	const host = new Host({ document, rootNode: document.getElementById("app") });
+	const C = host.scope.register({ Counter });
+	host.start(C.Counter());
+	window.host = host;
+</script>

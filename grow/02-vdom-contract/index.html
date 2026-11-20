@@ -1,0 +1,22 @@
+<!doctype html>
+<meta charset="utf-8" />
+<title>Growing tutuca: 2. The vdom contract</title>
+<main></main>
+<button id="more">more</button>
+<script type="module">
+	import { makeEl, morph, text } from "./src/bind/vnode.js";
+
+	const main = document.querySelector("main");
+	const view = (count) => [makeEl(1, "p", null, null, { title: `${count}` }, [text(`count: ${count}`)])];
+
+	let count = 0;
+	let prev = view(count);
+	morph(document, main, prev);
+
+	document.querySelector("#more").onclick = () => {
+		count += 1;
+		const next = view(count);
+		morph(document, main, next, prev);
+		prev = next;
+	};
+</script>

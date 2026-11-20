@@ -839,7 +839,7 @@ test("an unknown event modifier throws as the view is built", () => {
 	);
 });
 
-test("event modifiers match what tutuca-wax's do", () => {
+test("event modifiers match what tutuca-wasm's do", () => {
 	const KeyBox = component({
 		name: "KeyBox",
 		fields: { log: t.array(t.string()) },

@@ -23,9 +23,9 @@ const driverOf = (components, name, args) => {
 	return new Driver({ root: scope.make(name, args) });
 };
 
-// tutuca-wax's todo modules: todo_list declares the TodoItem interface, todo_item and todo_card
+// tutuca-wasm's todo modules: todo_list declares the TodoItem interface, todo_item and todo_card
 // implement it, importing it from todo_list.tutuca.ts.
-const waxComponents = fileURLToPath(new URL("../../tutuca-wax/components/", import.meta.url));
+const waxComponents = fileURLToPath(new URL("../../tutuca-wasm/components/", import.meta.url));
 // How the module in file reads the modules it imports: relative to it, .ts added.
 const resolveFrom = (file) => (spec) => {
 	const p = join(dirname(file), spec.endsWith(".ts") ? spec : `${spec}.ts`);
@@ -87,7 +87,7 @@ describe("componentModule, modules that import each other", () => {
 	});
 });
 
-describe("componentModule, tutuca-wax's counter", () => {
+describe("componentModule, tutuca-wasm's counter", () => {
 	test("asks answered by the module and by the host, a swap, sends to children", () => {
 		const counter = waxModule("counter");
 		assert.deepEqual(counter.diagnostics, []);
@@ -121,7 +121,7 @@ describe("componentModule, tutuca-wax's counter", () => {
 	});
 });
 
-describe("componentModule, tutuca-wax's pbt fixture", () => {
+describe("componentModule, tutuca-wasm's pbt fixture", () => {
 	test("its seeded bug breaks a post in tutuca too, and a guard refuses what isn't enabled", () => {
 		const pbt = waxModule("pbt");
 		assert.deepEqual(pbt.diagnostics, []);
@@ -140,7 +140,7 @@ describe("componentModule, tutuca-wax's pbt fixture", () => {
 	});
 });
 
-describe("componentModule, tutuca-wax's showcase", () => {
+describe("componentModule, tutuca-wasm's showcase", () => {
 	test("a scope's binds, loop hooks, a seq item, a provided value, pushView and renderIt render", () => {
 		const showcase = waxModule("showcase");
 		assert.deepEqual(showcase.diagnostics, []);
@@ -208,7 +208,7 @@ describe("componentModule, tutuca-wax's showcase", () => {
 	});
 });
 
-describe("componentModule, tutuca-wax's kanban", () => {
+describe("componentModule, tutuca-wasm's kanban", () => {
 	test("init's lanes, a card added with Enter, dragged between lanes and onto a card, tagged, removed", () => {
 		const kanban = waxModule("kanban");
 		assert.deepEqual(kanban.diagnostics, []);
@@ -261,7 +261,7 @@ describe("componentModule, tutuca-wax's kanban", () => {
 	});
 });
 
-describe("componentModule, tutuca-wax's json", () => {
+describe("componentModule, tutuca-wasm's json", () => {
 	// A JSON value as the module's components.
 	const fromJson = (scope, v) => {
 		if (v === null) return scope.make("JsonNull");
@@ -345,7 +345,7 @@ describe("componentModule, tutuca-wax's json", () => {
 	});
 });
 
-describe("componentModule, tutuca-wax's layout", () => {
+describe("componentModule, tutuca-wasm's layout", () => {
 	test("a hole lists what its scope makes, labeled by their display meta, and becomes the one picked", () => {
 		const layout = waxModule("layout");
 		assert.deepEqual(layout.diagnostics, []);

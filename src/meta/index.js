@@ -6,10 +6,12 @@
 // failed (errors.js).
 export {
 	AGENT_META,
+	agentMetaOption,
 	agentMetaSchemas,
 	agentOf,
 	agentProblems,
 	agentTool,
+	deriveAgentMeta,
 	hasAgentMeta,
 	planToolCall,
 	resultText,

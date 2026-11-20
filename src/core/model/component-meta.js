@@ -4,7 +4,16 @@
 // which the components registered there are checked and from which metaOf fills defaults.
 
 import { scopeOf, specOrSelf } from "./spec.js";
-import { compileShape, isRecord, Type, unlessNoDefault } from "./types.js";
+import {
+	ArrayType,
+	compileShape,
+	isRecord,
+	MapType,
+	OptionType,
+	RecordType,
+	Type,
+	unlessNoDefault,
+} from "./types.js";
 
 // A shape (key -> type) compiled, once per shape: a registered schema already is.
 const compiled = new WeakMap();
@@ -32,9 +41,53 @@ export const toMeta = (name, meta) => {
 	}
 	return Object.freeze(out);
 };
-// What values, the meta spec gives under uri, break of shape, as messages.
-export const metaProblems = (uri, values, shapeData, scope = null) => {
+// value as meta written by hand is read, of type: a record's keys left out take their defaults,
+// at any depth, as a meta's own keys do (those with none stay out, for the check to report).
+// What isn't a record where type says one is stays as it is.
+export const withDefaults = (type, value, scope = null) => {
+	if (value === null || value === undefined) return value;
+	if (type instanceof OptionType) return withDefaults(type.valueType, value, scope);
+	if (type instanceof ArrayType && Array.isArray(value)) {
+		return value.map((v) => withDefaults(type.valueType, v, scope));
+	}
+	if (type instanceof MapType && isRecord(value)) {
+		return Object.fromEntries(
+			Object.entries(value).map(([k, v]) => [k, withDefaults(type.valueType, v, scope)]),
+		);
+	}
+	if (type instanceof RecordType && isRecord(value)) {
+		const out = {};
+		for (const key in type.shape) {
+			if (Object.hasOwn(value, key)) out[key] = withDefaults(type.shape[key], value[key], scope);
+			else {
+				unlessNoDefault(
+					() => {
+						out[key] = type.shape[key].make(undefined, scope);
+					},
+					() => {},
+				);
+			}
+		}
+		for (const key of Object.keys(value)) if (!Object.hasOwn(out, key)) out[key] = value[key];
+		return out;
+	}
+	return value;
+};
+// values with every key's defaults filled in below its top level (withDefaults).
+const filledValues = (shape, values, scope) => {
+	const out = {};
+	for (const key of Object.keys(values)) {
+		out[key] = Object.hasOwn(shape, key)
+			? withDefaults(shape[key], values[key], scope)
+			: values[key];
+	}
+	return out;
+};
+// What values, the meta spec gives under uri, break of shape, as messages. A record's keys with a
+// default may be left out at any depth.
+export const metaProblems = (uri, given, shapeData, scope = null) => {
 	const shape = shapeTypes(shapeData);
+	const values = filledValues(shape, given, scope);
 	const problems = [];
 	for (const key of Object.keys(values)) {
 		if (!Object.hasOwn(shape, key)) problems.push(`its meta ${uri} has no key ${key}`);
@@ -59,7 +112,9 @@ export const metaProblems = (uri, values, shapeData, scope = null) => {
 export const metaOf = (c, uri, scope = scopeOf(c)) => {
 	const given = specOrSelf(c)?.meta?.[uri] ?? emptyMeta;
 	const shape = scope?.lookupMetaSchema(uri) ?? null;
-	return shape === null ? given : Object.freeze(Object.assign(defaultsOf(shape, scope), given));
+	if (shape === null) return given;
+	const filled = filledValues(shapeTypes(shape), given, scope);
+	return Object.freeze(Object.assign(defaultsOf(shape, scope), filled));
 };
 // The default of each key of shape that has one.
 const defaultsOf = (shapeData, scope) => {
@@ -85,7 +140,12 @@ const deepFreeze = (v) => {
 // metaOf over shape's defaults, so every key is there even where no scope registered shape: a
 // copy, deep frozen.
 export const filledMeta = (c, uri, shape, scope = undefined) =>
-	deepFreeze(structuredClone({ ...defaultsOf(shape, scope), ...metaOf(c, uri, scope) }));
+	deepFreeze(
+		structuredClone({
+			...defaultsOf(shape, scope),
+			...filledValues(shapeTypes(shape), metaOf(c, uri, scope), scope),
+		}),
+	);
 // Whether c (a component or its spec) says anything under uri.
 export const hasMeta = (c, uri) => Object.hasOwn(specOrSelf(c)?.meta ?? emptyMeta, uri);
 // What's wrong with the shape of what c's spec says under uri, checked against shape; none

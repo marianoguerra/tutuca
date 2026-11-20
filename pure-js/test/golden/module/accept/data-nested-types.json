@@ -1,0 +1,227 @@
+{
+ "exit": 0,
+ "stage": null,
+ "codes": [],
+ "tree": {
+  "type": "PureModule",
+  "items": [
+   {
+    "type": "ExportNamedDeclaration",
+    "declaration": {
+     "type": "VariableDeclaration",
+     "declarations": [
+      {
+       "type": "VariableDeclarator",
+       "id": {
+        "type": "Identifier",
+        "name": "Card"
+       },
+       "init": {
+        "type": "ObjectExpression",
+        "properties": [
+         {
+          "type": "Property",
+          "method": false,
+          "shorthand": false,
+          "computed": false,
+          "key": {
+           "type": "Identifier",
+           "name": "meta"
+          },
+          "value": {
+           "type": "ObjectExpression",
+           "properties": [
+            {
+             "type": "Property",
+             "method": false,
+             "shorthand": false,
+             "computed": false,
+             "key": {
+              "type": "Literal",
+              "value": "urn:example:agent",
+              "raw": "\"urn:example:agent\""
+             },
+             "value": {
+              "type": "ObjectExpression",
+              "properties": [
+               {
+                "type": "Property",
+                "method": false,
+                "shorthand": false,
+                "computed": false,
+                "key": {
+                 "type": "Identifier",
+                 "name": "tools"
+                },
+                "value": {
+                 "type": "ArrayExpression",
+                 "elements": [
+                  {
+                   "type": "ObjectExpression",
+                   "properties": [
+                    {
+                     "type": "Property",
+                     "method": false,
+                     "shorthand": false,
+                     "computed": false,
+                     "key": {
+                      "type": "Identifier",
+                      "name": "name"
+                     },
+                     "value": {
+                      "type": "Literal",
+                      "value": "inc",
+                      "raw": "\"inc\""
+                     },
+                     "kind": "init"
+                    },
+                    {
+                     "type": "Property",
+                     "method": false,
+                     "shorthand": false,
+                     "computed": false,
+                     "key": {
+                      "type": "Identifier",
+                      "name": "params"
+                     },
+                     "value": {
+                      "type": "ArrayExpression",
+                      "elements": []
+                     },
+                     "kind": "init"
+                    }
+                   ]
+                  }
+                 ]
+                },
+                "kind": "init"
+               },
+               {
+                "type": "Property",
+                "method": false,
+                "shorthand": false,
+                "computed": false,
+                "key": {
+                 "type": "Identifier",
+                 "name": "summary"
+                },
+                "value": {
+                 "type": "Literal",
+                 "value": "summary",
+                 "raw": "\"summary\""
+                },
+                "kind": "init"
+               }
+              ]
+             },
+             "kind": "init"
+            },
+            {
+             "type": "Property",
+             "method": false,
+             "shorthand": false,
+             "computed": false,
+             "key": {
+              "type": "Literal",
+              "value": "urn:example:other",
+              "raw": "\"urn:example:other\""
+             },
+             "value": {
+              "type": "ObjectExpression",
+              "properties": [
+               {
+                "type": "Property",
+                "method": false,
+                "shorthand": false,
+                "computed": false,
+                "key": {
+                 "type": "Identifier",
+                 "name": "width"
+                },
+                "value": {
+                 "type": "Literal",
+                 "value": 240,
+                 "raw": "240"
+                },
+                "kind": "init"
+               }
+              ]
+             },
+             "kind": "init"
+            }
+           ]
+          },
+          "kind": "init"
+         }
+        ]
+       }
+      }
+     ],
+     "kind": "const"
+    },
+    "specifiers": [],
+    "attributes": []
+   }
+  ]
+ },
+ "printed": "export const Card = { meta: { \"urn:example:agent\": { tools: [{ name: \"inc\", params: [] }], summary: \"summary\" }, \"urn:example:other\": { width: 240 } } };",
+ "entries": {},
+ "callGraph": {},
+ "summaries": {},
+ "types": [
+  [
+   305,
+   309,
+   "{ meta: { urn:example:agent: { tools: { name: string; params?: string[] }[] | undefined; summary: string | undefined }; urn:example:other: { width: number } } }",
+   "read"
+  ],
+  [
+   346,
+   406,
+   "{ tools: { name: string; params?: string[] }[] | undefined; summary: string | undefined }",
+   "fresh"
+  ],
+  [
+   355,
+   384,
+   "{ name: string; params?: string[] }[]",
+   "fresh"
+  ],
+  [
+   356,
+   383,
+   "{ name: string; params: string[] | undefined }",
+   "fresh"
+  ],
+  [
+   364,
+   369,
+   "\"inc\"",
+   "value"
+  ],
+  [
+   379,
+   381,
+   "string[]",
+   "fresh"
+  ],
+  [
+   395,
+   404,
+   "\"summary\"",
+   "value"
+  ],
+  [
+   431,
+   445,
+   "{ width: number }",
+   "fresh"
+  ],
+  [
+   440,
+   443,
+   "240",
+   "value"
+  ]
+ ]
+}

@@ -56,8 +56,9 @@ with its component's types, and says why the ones that aren't pure-js aren't.
 A component can also be written entirely as a module: its state type, and a namespace of the
 same name in the shape of `component({...})`, whose methods and getters are checked as
 handlers, queries and invariants are. `componentModule(source)` checks and compiles it and
-gives ordinary component specs (and its model); tutuca-wax compiles the same text to wasm
-([its compiler](../tutuca-wax/pure-tutuca/README.md)), where every component is written so.
+gives ordinary component specs (and its model); [tutuca-wasm](../tutuca-wasm/README.md)
+compiles the same text to WebAssembly and runs it on tutuca's runtime there, where every
+component is written so.
 `components/pure-todo/todo.tutuca.ts` is the todo list written so, and
 [spec/pure-tutuca](../spec/pure-tutuca/README.md) has the conventions and the shared corpus.
 

@@ -12,6 +12,7 @@ export { boundNames, CHILDREN, erase, eraseModule, walk } from "./ast.js";
 export { check } from "./check.js";
 export { audit, compile, compileModule, lower, verify } from "./compile.js";
 export { Diagnostic, EXIT, exitCodeOf, lineColumn } from "./diagnostic.js";
+export { docAt, docCommentBefore, parseDoc } from "./doc.js";
 export { formatDiagnostic, formatDiagnostics } from "./formatters.js";
 export { draft, Host, read } from "./host.js";
 export { instantiate, run, runCompiled, runEntry } from "./interp.js";

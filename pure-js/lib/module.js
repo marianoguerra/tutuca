@@ -586,17 +586,14 @@ class ModuleChecker {
 		r.entries = entries;
 		return r;
 	}
-	// Whether the embedder types any member of a const's object literal.
+	// Whether the embedder types any member of a const's object literal, at any depth.
 	typedMembers(literal, path) {
-		return literal.properties.some(
-			(p) =>
-				p.type === "Property" &&
-				!p.computed &&
-				this.dataTypeOf([
-					...path,
-					p.key.type === "Identifier" ? p.key.name : String(p.key.value),
-				]) !== null,
-		);
+		return literal.properties.some((p) => {
+			if (p.type !== "Property" || p.computed) return false;
+			const at = [...path, p.key.type === "Identifier" ? p.key.name : String(p.key.value)];
+			if (this.dataTypeOf(at) !== null) return true;
+			return p.value.type === "ObjectExpression" && this.typedMembers(p.value, at);
+		});
 	}
 	// A const's object literal whose members the embedder types: a record of what they are.
 	dataRecord(literal, path) {
@@ -615,10 +612,16 @@ class ModuleChecker {
 		}
 		return T.record(null, fields, {}, true, false);
 	}
-	// A namespace's data member: of the type the embedder gives for its path, when it gives one.
+	// A namespace's data member: of the type the embedder gives for its path, when it gives one;
+	// an object literal it gives none for, but some of whose members it types (meta under a
+	// namespace it knows), a record of what they are, at any depth.
 	dataValue(node, path) {
 		const text = this.dataTypeOf(path) ?? null;
-		if (text === null) return this.checker.value(node, new Env(), null);
+		if (text === null) {
+			if (node.type === "ObjectExpression" && this.typedMembers(node, path))
+				return this.dataRecord(node, path);
+			return this.checker.value(node, new Env(), null);
+		}
 		const expected = this.checker.entryType(text);
 		const v = this.checker.value(node, new Env(), expected);
 		if (!this.checker.assignable(v, expected))

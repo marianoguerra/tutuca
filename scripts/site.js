@@ -1,6 +1,8 @@
 // Assembles the static site in _site/: the landing page, the storybook, the demos and the spec
 // PDF, with their pages pointing at pinned CDN copies of their dependencies instead of node_modules.
+import { spawnSync } from "node:child_process";
 import { cpSync, existsSync, globSync, readFileSync, rmSync, writeFileSync } from "node:fs";
+import { resolve } from "node:path";
 import { siteList } from "../demos/demos.js";
 import { vendorIfMissing } from "./vendor.js";
 
@@ -11,7 +13,7 @@ const cdn = (name, path) => `https://cdn.jsdelivr.net/npm/${name}@${version(name
 
 // The playground and the Automerge demo load bundles too big to keep in git; build them when
 // they're missing.
-// tutuca-wax's micro-agents copy the engines (ajv to echarts) into their dist/ (its build makes
+// tutuca-wasm's micro-agents copy the engines (ajv to echarts) into their dist/ (its build makes
 // them when they're missing too).
 const BUNDLES = [
 	"codemirror",
@@ -29,7 +31,8 @@ for (const name of BUNDLES) await vendorIfMissing(name);
 rmSync(out, { recursive: true, force: true });
 cpSync("site", out, { recursive: true });
 // What the storybook and demo pages load; storybook.html is written below, pointed at the CDN.
-const pages = ["src", "deps", "components", "demos", ...globSync("storybook*.js")];
+// pure-js's lib is what src/pure (the workshop demo's component checks) imports as "pure-js".
+const pages = ["src", "deps", "components", "demos", "pure-js/lib", ...globSync("storybook*.js")];
 for (const path of pages) {
 	cpSync(path, `${out}/${path}`, { recursive: true });
 }
@@ -44,47 +47,15 @@ if (existsSync(spec)) {
 	console.warn(`warning: ${spec} is missing, the site links to it: run just spec`);
 }
 
-// The tutuca-wax demos, playground and studio, in wax/: their pages with the files they load, at the same
-// relative paths. dist/ is built by tutuca-wax's build (wax-mb, moon and wasm-opt); CI builds it
-// first. Only the optimized modules: not the .debug.wasm copies, the assembled .wax or the
-// generated prelude. The playground compiles in the browser with dist/pure-tutuca/pure-tutuca.wasm, from the
-// runtime's prelude, collections and ABI and the components' pure-tutuca modules (.tutuca.ts).
-const wax = "tutuca-wax";
-if (existsSync(`${wax}/dist/tutuca-rt.wasm`)) {
-	for (const path of [
-		"demos",
-		"playground",
-		"studio",
-		"js",
-		"prelude",
-		"src/abi.wax",
-		"vendor/wax-mb",
-		"vendor/margaui/margaui-css.wasm",
-		"vendor/margaui/themes",
-		"dist/tutuca-rt.wasm",
-		"dist/pure-tutuca/pure-tutuca.wasm",
-		"dist/examples.json",
-	]) {
-		cpSync(`${wax}/${path}`, `${out}/wax/${path}`, {
-			recursive: true,
-			// The editor's source: the page loads its bundle, deps/editor.js.
-			filter: (src) => !src.endsWith("editor.src.js"),
-		});
-	}
-	for (const file of [
-		...globSync(`${wax}/dist/components/*.wasm`),
-		// The sources the playground and the studio compile and use, and the
-		// scripts components need (media's rating.js).
-		...globSync(`${wax}/components/*/*.{ts,js}`),
-	]) {
-		if (!file.endsWith(".debug.wasm")) cpSync(file, `${out}/wax/${file.slice(wax.length + 1)}`);
-	}
-} else if (process.env.CI) {
-	throw new Error(`${wax}/dist is missing: build tutuca-wax first (its scripts/build.mjs)`);
-} else {
-	console.warn(
-		`warning: ${wax}/dist is missing, the site links to its demos: run just build in ${wax}`,
-	);
+// tutuca-wasm's pages (the playground, the demos, the micro-agents and the studio), in wasm/:
+// the site its own site.sh assembles (MoonBit builds the runtime; the rest is copied), with
+// only what a page reads.
+const wasm = "tutuca-wasm";
+const built = spawnSync("sh", [`${wasm}/site.sh`, resolve(`${out}/wasm`)], { encoding: "utf8" });
+if (built.status !== 0) {
+	const why = `${built.stdout ?? ""}${built.stderr ?? ""}`.trim();
+	if (process.env.CI) throw new Error(`${wasm}/site.sh failed:\n${why}`);
+	console.warn(`warning: ${wasm}'s pages weren't built, the site links to them:\n${why}`);
 }
 
 // Site pages import tutuca by name, from the copy of src/ next to them.

@@ -131,7 +131,7 @@ export class Scheduler {
 		if (instance === null) return;
 		if (task instanceof AskTask) return this.startAsk(task, instance);
 		let ctx;
-		// What went unhandled before a failure is in its transition, as the spec and tutuca-wax
+		// What went unhandled before a failure is in its transition, as the spec and tutuca-wasm
 		// report it.
 		const newRoot = this.transact(curRoot, keyPath, (leafDraft) => {
 			ctx = hooks.context(task, instance, this.nextId);

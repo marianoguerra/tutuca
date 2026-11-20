@@ -1,5 +1,5 @@
 // tutuca/data (range, without, kindOf) and the std members of Object, Number and Array, as
-// tutuca gives them and tutuca-wax lowers them.
+// tutuca and tutuca-wasm give them.
 import { kindOf, range, without } from "tutuca/data";
 import { div } from "tutuca/view";
 

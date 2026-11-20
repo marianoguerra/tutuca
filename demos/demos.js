@@ -97,6 +97,15 @@ export const demos = [
 		sources: [],
 	},
 	{
+		dir: "workshop",
+		emoji: "🛠️",
+		title: "Workshop",
+		blurb:
+			"Agents on the component tree that grow the app while it runs: they check a pure-tutuca component's source where it would go, define it in that component's scope, add one by its name and define it again to change it, with what's there keeping its state.",
+		story: null,
+		sources: [],
+	},
+	{
 		dir: "renders",
 		emoji: "🪞",
 		title: "Renders",

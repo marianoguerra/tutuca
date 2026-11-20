@@ -1,0 +1,44 @@
+// The runtime, as one WebAssembly module. It imports the functions that make
+// and read pure-js's values ("values"), and what it asks of the page
+// ("tutuca"); its exports are what the page drives it with.
+import {
+  "moonbitlang/core/json",
+}
+
+options(
+  link: {
+    "wasm-gc": {
+      "exports": [
+        "tw_define",
+        "tw_start",
+        "tw_send",
+        "tw_state",
+        "tw_reports",
+        "tw_owns",
+        "tw_host",
+        "tw_component",
+        "tw_mount",
+        "tw_event",
+        "tw_event_types",
+        "tw_answer",
+        "tw_query",
+        "tw_leave",
+        "tw_value",
+        "tw_fits",
+        "tw_message_problem",
+        "tw_hold",
+        "tw_put",
+        "tw_type",
+        "tw_names",
+        "tw_capture",
+        "tw_name_of",
+        "tw_drag_start",
+        "tw_drag_end",
+        "tw_drop_target",
+      ],
+      "use-js-builtin-string": true,
+    },
+  },
+)
+
+warnings = "-implicit_impl_as_method"
