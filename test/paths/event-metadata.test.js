@@ -70,8 +70,8 @@ for (const source of ["field", "seqItem", "provided"]) {
 		});
 		const Panel = component({
 			name: "Panel",
-			fields: { selected: t.number(1), child: t.component("Child"), items: t.array() },
-			provides: { child: (b) => b.field("child") },
+			fields: { selected: t.number({ default: 1 }), child: t.component("Child"), items: t.array() },
+			provides: { child: "child" },
 			view: pushView(
 				"compact",
 				render(
@@ -144,9 +144,9 @@ test("nested multi-root loops retain paths across text, comments, empty scopes a
 	const Root = component({
 		name: "Root",
 		fields: {
-			groups: t
-				.array()
-				.default([{ items: [{ visible: false }, { visible: true }, { visible: false }] }]),
+			groups: t.array("any", {
+				default: [{ items: [{ visible: false }, { visible: true }, { visible: false }] }],
+			}),
 			picked: t.array(),
 		},
 		view: roots(

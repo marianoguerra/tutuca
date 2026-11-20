@@ -9,8 +9,8 @@ export const Weather = component({
 	// reportClass computes the report's class: list what it can be for CSS compilers.
 	meta: { [CLASSES_META]: { classes: "alert alert-error alert-info" } },
 	fields: {
-		city: t.string("Lisbon"),
-		status: t.enum("idle", "loading", "done", "failed"),
+		city: t.string({ default: "Lisbon" }),
+		status: t.enum(["idle", "loading", "done", "failed"]),
 		report: t.string(),
 	},
 	queries: {

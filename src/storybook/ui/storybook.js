@@ -34,8 +34,8 @@ export const Storybook = component({
 		collapsed: t.array(t.string()), // Groups whose stories are hidden.
 		selectedId: t.string(),
 		isGenerated: t.boolean(),
-		seed: t.number().int().min(0),
-		panel: t.enum(...PANELS),
+		seed: t.int({ min: 0 }),
+		panel: t.enum(PANELS),
 		...panelFields,
 	},
 	queries: withPanelQueries({
@@ -135,7 +135,7 @@ export const Storybook = component({
 			},
 		},
 		setPanel: {
-			args: [t.enum(...PANELS)],
+			args: [t.enum(PANELS)],
 			run(next, [panel]) {
 				next.panel = panel;
 			},

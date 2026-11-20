@@ -113,20 +113,20 @@ export const Item = component({
 		content: t.component(),
 		x: coord(),
 		y: coord(),
-		width: t.number().int().min(MIN_WIDTH).max(4000).default(HOLE_WIDTH),
-		height: t.number().int().min(0).max(4000),
+		width: t.int({ min: MIN_WIDTH, max: 4000, default: HOLE_WIDTH }),
+		height: t.int({ min: 0, max: 4000 }),
 		collapsed: t.boolean(),
 		// The name given in its header; empty, the header says what it holds.
 		title: t.string(),
 		// Whether its content shows its edit view: a mode, not part of what's on the canvas.
-		editing: t.boolean().sync("none"),
+		editing: t.boolean({ sync: "none" }),
 		// What the header says while the title is empty: what it holds.
-		label: t.string().default("Empty"),
+		label: t.string({ default: "Empty" }),
 		// Its width before its content was wrapped in an agent, which ejecting it gets back.
-		unwrappedWidth: t.number().int().min(0).max(4000),
+		unwrappedWidth: t.int({ min: 0, max: 4000 }),
 		// The file dropped on its content last, while it's read, and why it didn't load.
-		dropName: t.string().sync("none"),
-		dropError: t.string().sync("none"),
+		dropName: t.string({ sync: "none" }),
+		dropError: t.string({ sync: "none" }),
 	},
 	queries: {
 		get isOpen() {
@@ -484,7 +484,7 @@ export const Item = component({
 			run(next, _args, ctx) {
 				const C = ctx.scope.components;
 				// The agent asks which models there are, to start with one.
-				ctx.sendAt("loadModels", [], (s) => s.field("content"));
+				ctx.sendAt("loadModels", [], "content");
 				next.content = agent(C, { target: this.content, canChange: false });
 				next.unwrappedWidth = this.width;
 				next.width = clamp(Math.max(this.width * 2, AGENT_WIDTH), MIN_WIDTH, 4000);

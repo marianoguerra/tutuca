@@ -13,7 +13,7 @@ export const CLASSES_META = "https://tutuca.dev/meta/classes";
 export const classesMetaSchemas = {
 	[CLASSES_META]: {
 		// Every class the component's views can compute, separated by whitespace.
-		classes: t.string(""),
+		classes: t.string({ default: "" }),
 	},
 };
 // Whether c (a component or its spec) declares the classes its views compute.

@@ -19,7 +19,7 @@
 //   enableTargets(jsTarget);
 //   const Adder = component({
 //     name: "Adder",
-//     fields: { fn: t.string("add"), n: t.number(1) },
+//     fields: { fn: t.string({ default: "add" }), n: t.number({ default: 1 }) },
 //     renders: {
 //       js: FunctionDeclaration(
 //         id(Identifier({ name: field("fn") })),

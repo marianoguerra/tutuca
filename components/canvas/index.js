@@ -39,7 +39,7 @@ import { setField } from "../common/card.js";
 import { metaFor } from "../common/meta.js";
 import { clamp, isModKey, mix } from "../common/util.js";
 import { compositionComponents, GROUPS, KINDS, makeContent } from "../composition/index.js";
-import { capture, coord, paintType, svgPoint } from "../drawing/shapes.js";
+import { capture, coord, paintType, shapeChecks, svgPoint } from "../drawing/shapes.js";
 import { swatchStyle, TOOL_OFF, TOOL_ON, toolButton, toolButtons } from "../drawing/tools.js";
 import { transcriptComponents } from "../llm/transcript.js";
 import { markdownComponents } from "../markdown/index.js";
@@ -89,7 +89,7 @@ const newShapeId = (ctx) => `s-${ctx.uuid()}`;
 const shapeAt = (self, id) => self.shapes.findIndex((s) => s.id === id);
 const hasShape = (self, id) => shapeAt(self, id) !== -1;
 const noShape = (_self, [id]) => `there's no shape ${id}`;
-const widthType = () => t.enum(2, 1, 4, 8);
+const widthType = () => t.enum([2, 1, 4, 8]);
 const growToShape = (self, next, s) => growTo(self, next, s.left + s.boxWidth, s.top + s.boxHeight);
 
 // Whether a tool draws a shape: the ones the ✏ button shows and hides.
@@ -134,6 +134,7 @@ const typing = (target) =>
 
 export const Canvas = component({
 	name: "Canvas",
+	checks: shapeChecks,
 	meta: metaFor(
 		"Canvas",
 		"🖼️",
@@ -155,53 +156,51 @@ export const Canvas = component({
 		},
 	),
 	fields: {
-		width: t.number().int().min(200).max(MAX_SIZE).default(2400),
-		height: t.number().int().min(200).max(MAX_SIZE).default(1600),
+		width: t.int({ min: 200, max: MAX_SIZE, default: 2400 }),
+		height: t.int({ min: 200, max: MAX_SIZE, default: 1600 }),
 		// How big it shows: 1 is a canvas pixel to a screen pixel.
-		zoom: t.number().min(MIN_ZOOM).max(MAX_ZOOM).default(1).sync("local"),
+		zoom: t.number({ min: MIN_ZOOM, max: MAX_ZOOM, default: 1, sync: "local" }),
 		// The key of the item shown over the whole page, or "".
-		maximized: t.string().sync("none"),
+		maximized: t.string({ sync: "none" }),
 		// Items by key, and the keys from back to front; picking one up brings it to the front.
 		items: t.map(t.component("Item")),
 		order: t.array(t.string()),
 		// Shapes from back to front, under the items.
 		shapes: t.array(t.component(SHAPES)),
-		tool: t.enum(...TOOL_IDS).sync("local"),
+		tool: t.enum(TOOL_IDS, { sync: "local" }),
 		// Whether the drawing tools, fill and stroke show: picking one shows them, picking the
 		// hole or select tool hides them, and the ✏ button toggles them.
-		drawing: t.boolean().sync("local"),
+		drawing: t.boolean({ sync: "local" }),
 		fill: paintType("none"), // For new shapes, and the selected one.
 		stroke: paintType("#1f2937"),
-		selected: t.string().sync("none"), // The selected shape's id, or "".
-		current: t.option(t.component(SHAPES)).sync("none"), // The shape being drawn.
+		selected: t.string({ sync: "none" }), // The selected shape's id, or "".
+		current: t.option(t.component(SHAPES), { sync: "none" }), // The shape being drawn.
 		// What the pointer is dragging: an item (by key) to move or resize, a shape (by id) to
 		// move, or the shape being drawn; and where it was grabbed, from what it's dragging.
-		drag: t.enum("none", "move", "resize", "shape", "draw").sync("none"),
-		dragKey: t.string().sync("none"),
-		grabX: t.number().sync("none"),
-		grabY: t.number().sync("none"),
+		drag: t.enum(["none", "move", "resize", "shape", "draw"], { sync: "none" }),
+		dragKey: t.string({ sync: "none" }),
+		grabX: t.number({ sync: "none" }),
+		grabY: t.number({ sync: "none" }),
 		// Where the background was pressed, until it's released; a click there adds a hole.
-		pressed: t.option(t.array(t.number())).sync("none"),
+		pressed: t.option(t.array(t.number()), { sync: "none" }),
 		// Whether the host has a model to ask, so its items' components can be wrapped in
 		// agents: the answer to inferenceAvailable, asked once the canvas starts (checkInference).
-		agentsAvailable: t.boolean().sync("none"),
+		agentsAvailable: t.boolean({ sync: "none" }),
 		// What its items can be, as the host's componentKinds answers, asked with
 		// inferenceAvailable: what its agent lists and makes.
-		kinds: t.array(kindType).sync("none"),
+		kinds: t.array(kindType, { sync: "none" }),
 		// For its agent: where add_component puts what it asked for while it's made, the item it
 		// added last or why it couldn't, and the item it prompted last.
-		placing: t.any(null).sync("none"),
-		added: t.string().sync("none"),
-		problem: t.string().sync("none"),
-		delegated: t.string().sync("none"),
+		placing: t.any({ default: null, sync: "none" }),
+		added: t.string({ sync: "none" }),
+		problem: t.string({ sync: "none" }),
+		delegated: t.string({ sync: "none" }),
 		// The model the agent driving it uses ("" when none does), which the agents it gives its
 		// items use too, unless one was picked for them.
-		agentModel: t.string().sync("none"),
+		agentModel: t.string({ sync: "none" }),
 	},
 	provides: {
-		agentsAvailable(b) {
-			b.field("agentsAvailable");
-		},
+		agentsAvailable: "agentsAvailable",
 	},
 	loops: {
 		ordered: {
@@ -549,7 +548,12 @@ export const Canvas = component({
 		// Its agent's tools, by item key. A component of a kind, maybe one of its choices or
 		// samples, at x, y (null: after what's there).
 		add_component: {
-			args: [t.string().len(1), t.option(t.string()), t.option(coord()), t.option(coord())],
+			args: [
+				t.string({ minLength: 1 }),
+				t.option(t.string()),
+				t.option(coord()),
+				t.option(coord()),
+			],
 			pre: (self, [kind]) => self.kinds.length === 0 || self.kinds.some((k) => k.id === kind),
 			why: (self, [kind]) =>
 				`there's no kind ${kind}; there are ${self.kinds.map((k) => k.id).join(", ")}`,
@@ -574,7 +578,7 @@ export const Canvas = component({
 		},
 		resize_item: {
 			pure: true,
-			args: [t.string(), t.number().min(0), t.number().min(0)],
+			args: [t.string(), t.number({ min: 0 }), t.number({ min: 0 })],
 			pre: (self, [key]) => key in self.items,
 			why: (_self, [key]) => `there's no item ${key}`,
 			run(next, [key, width, height]) {
@@ -607,7 +611,7 @@ export const Canvas = component({
 		// Shapes by id, in canvas coordinates, colors as #rrggbb or none.
 		add_shape: {
 			args: [
-				t.enum("rect", "ellipse", "line", "arrow"),
+				t.enum(["rect", "ellipse", "line", "arrow"]),
 				coord(),
 				coord(),
 				coord(),
@@ -618,7 +622,7 @@ export const Canvas = component({
 			],
 			run(next, [kind, x0, y0, x1, y1, fill, stroke, width], ctx) {
 				const name = { rect: "Rect", ellipse: "Ellipse", line: "Line", arrow: "Arrow" }[kind];
-				const shape = ctx.scope.make(name, {
+				const shape = ctx.make(name, {
 					id: newShapeId(ctx),
 					x0,
 					y0,
@@ -635,7 +639,7 @@ export const Canvas = component({
 		add_text: {
 			args: [coord(), coord(), t.string(), paintType("#1f2937")],
 			run(next, [x, y, text, color], ctx) {
-				const shape = ctx.scope.make("Text", { id: newShapeId(ctx), x, y, text, stroke: color });
+				const shape = ctx.make("Text", { id: newShapeId(ctx), x, y, text, stroke: color });
 				next.shapes.push(shape);
 				growToShape(this, next, shape);
 			},
@@ -676,7 +680,7 @@ export const Canvas = component({
 		},
 		layer_shape: {
 			pure: true,
-			args: [t.string(), t.enum("front", "back", "up", "down")],
+			args: [t.string(), t.enum(["front", "back", "up", "down"])],
 			pre: (self, [id]) => hasShape(self, id),
 			why: noShape,
 			run(next, [id, to]) {
@@ -718,13 +722,13 @@ export const Canvas = component({
 				return item.isWrapped ? `${key} has an agent already` : `${key} can't have an agent`;
 			},
 			run(_next, [key], ctx) {
-				ctx.sendAt("wrapInAgent", [], (s) => s.item("items", key));
+				ctx.sendAt("wrapInAgent", [], { item: "items", key: key });
 				passModel(this, ctx, key);
 			},
 		},
 		// Prompts the agent of the item at key; the tool answers once that agent is done.
 		delegate: {
-			args: [t.string(), t.string().len(1)],
+			args: [t.string(), t.string({ minLength: 1 })],
 			pre: (self, [key]) => self.items[key]?.isWrapped === true && !agentBusy(self.items[key]),
 			why: (self, [key]) => {
 				const item = self.items[key];
@@ -736,7 +740,7 @@ export const Canvas = component({
 			run(next, [key, prompt], ctx) {
 				next.delegated = key;
 				passModel(this, ctx, key);
-				ctx.sendAt("ask", [prompt], (s) => s.item("items", key).field("content"));
+				ctx.sendAt("ask", [prompt], [{ item: "items", key: key }, "content"]);
 			},
 		},
 		// Its component back in its place, as its agent left it.
@@ -754,12 +758,12 @@ export const Canvas = component({
 			},
 		},
 		// From the agent driving it: the model it uses, for its items' agents.
-		useModel: setField("agentModel", t.string().len(1), { pure: true }),
+		useModel: setField("agentModel", t.string({ minLength: 1 }), { pure: true }),
 		// What holds it stopped: so do its items' agents.
 		stopAgents(_next, _args, ctx) {
 			for (const key of this.order) {
 				if (agentBusy(this.items[key])) {
-					ctx.sendAt("stop", [], (s) => s.item("items", key).field("content"));
+					ctx.sendAt("stop", [], [{ item: "items", key: key }, "content"]);
 				}
 			}
 		},

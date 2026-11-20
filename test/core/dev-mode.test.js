@@ -107,7 +107,7 @@ test("dev mode reports an invalid root on start, and nothing runs without dev", 
 
 const Picker = component({
 	name: "Picker",
-	fields: { items: t.array(t.component("Item")).default([]), picked: t.number() },
+	fields: { items: t.array(t.component("Item"), { default: [] }), picked: t.number() },
 	view: h(
 		"div",
 		{},
@@ -118,7 +118,7 @@ const Picker = component({
 	),
 	on: {
 		pick: {
-			args: [t.number().int()],
+			args: [t.int()],
 			pre: (prev) => prev.items.length > 0,
 			post: (_prev, next, [n]) => next.picked === n && n < 10,
 			run(next, [n]) {

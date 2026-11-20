@@ -14,6 +14,7 @@ import {
 	paint,
 	pointer,
 	pointerEvents,
+	shapeChecks,
 	shapeFields,
 	styleOn,
 } from "../drawing/shapes.js";
@@ -25,6 +26,7 @@ const HEAD_ANGLE = 0.45;
 
 export const Arrow = component({
 	name: "Arrow",
+	checks: shapeChecks,
 	fields: { ...shapeFields(), ...cornerFields() },
 	queries: mix(cornerQueries, {
 		get headLength() {
@@ -59,7 +61,8 @@ const SIZE = 20;
 // there's no stroke).
 export const Text = component({
 	name: "Text",
-	fields: { ...shapeFields(), x: coord(), y: coord(), text: t.string("Text") },
+	checks: shapeChecks,
+	fields: { ...shapeFields(), x: coord(), y: coord(), text: t.string({ default: "Text" }) },
 	queries: {
 		get color() {
 			return this.stroke === "none" ? this.fill : this.stroke;

@@ -26,11 +26,11 @@ const Root = component({
 	name: "Root",
 	fields: {
 		title: t.string(),
-		kind: t.enum("note", "list"),
+		kind: t.enum(["note", "list"]),
 		items: t.array(t.component("Item")),
 		meta: t.map(t.number()),
-		selected: t.option(t.index("items")).sync("local"),
-		open: t.boolean().sync("none"),
+		selected: t.option(t.index("items"), { sync: "local" }),
+		open: t.boolean({ sync: "none" }),
 	},
 	on: {
 		retitle(next, [title]) {
@@ -229,7 +229,7 @@ test("overlay keeps the fields the level over lacks inside components, maps and 
 	const { host } = setup();
 	const Card = component({
 		name: "Card",
-		fields: { label: t.string(), open: t.boolean().sync("local") },
+		fields: { label: t.string(), open: t.boolean({ sync: "local" }) },
 		view: "x",
 	});
 	const Board = component({

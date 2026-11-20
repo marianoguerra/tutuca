@@ -25,7 +25,7 @@ import {
 	typeSchema,
 	withSample,
 } from "../../src/meta/index.js";
-import { component, Scope, t } from "../../src/tutuca.js";
+import { compileType, component, Scope, t } from "../../src/tutuca.js";
 
 const tool = (name, kind, params, extra = {}) => ({
 	name,
@@ -51,7 +51,7 @@ const Counter = component({
 		},
 		[DATA_META]: { data: "domain", samples: { ten: { count: 10 } } },
 	},
-	fields: { count: t.number().int().min(0), label: t.string() },
+	fields: { count: t.int({ min: 0 }), label: t.string() },
 	queries: {
 		get summary() {
 			return `count ${this.count}${this.label ? `, ${this.label}` : ""}`;
@@ -69,7 +69,7 @@ const Counter = component({
 	on: {
 		add: {
 			pure: true,
-			args: [t.number().int().min(1)],
+			args: [t.int({ min: 1 })],
 			pre: (self, [by]) => self.count + by <= 100,
 			why: () => "it can't go over 100",
 			run(next, [by]) {
@@ -78,14 +78,14 @@ const Counter = component({
 		},
 		// Needs a context: the agent sends it.
 		label_it: {
-			args: [t.string().len(1)],
+			args: [t.string({ minLength: 1 })],
 			run(next, [label], ctx) {
 				next.label = `${label}@${ctx.now?.() ?? 0}`;
 			},
 		},
 		load: {
 			pure: true,
-			args: [t.record({ count: t.number().int().min(0) })],
+			args: [t.record({ count: t.int({ min: 0 }) })],
 			run(next, [{ count }]) {
 				next.count = count;
 			},
@@ -100,13 +100,13 @@ const scoped = (...specs) => {
 };
 
 test("typeSchema derives JSON Schema from field types", () => {
-	assert.deepEqual(typeSchema(t.string().len(1, 5)), {
+	assert.deepEqual(typeSchema(t.string({ minLength: 1, maxLength: 5 })), {
 		type: "string",
 		minLength: 1,
 		maxLength: 5,
 	});
-	assert.deepEqual(typeSchema(t.number().int().min(0)), { type: "integer", minimum: 0 });
-	assert.deepEqual(typeSchema(t.enum("a", "b")), { enum: ["a", "b"] });
+	assert.deepEqual(typeSchema(t.int({ min: 0 })), { type: "integer", minimum: 0 });
+	assert.deepEqual(typeSchema(t.enum(["a", "b"])), { enum: ["a", "b"] });
 	assert.deepEqual(typeSchema(t.option(t.boolean())), {
 		anyOf: [{ type: "boolean" }, { type: "null" }],
 	});
@@ -122,7 +122,10 @@ test("typeSchema derives JSON Schema from field types", () => {
 		additionalProperties: false,
 	});
 	assert.equal(typeSchema(t.any()).type.length, 6, "any names every JSON type");
-	assert.match(typeSchema(t.number().where((n) => n % 2 === 0, "even")).description, /even/);
+	const even = compileType(t.number({ check: "even" }), {
+		even: { test: (n) => n % 2 === 0, description: "an even number" },
+	});
+	assert.equal(typeSchema(even).description, "Must be an even number.");
 });
 
 test("a scope with the schema checks agent meta's shape", () => {
@@ -157,6 +160,35 @@ test("agentProblems finds tools that name what the component doesn't have", () =
 	// lint reports them.
 	assert.ok(lint([Broken]).some((issue) => issue.code === "agent-meta"));
 	assert.equal(lint([Counter]).filter((issue) => issue.code === "agent-meta").length, 0);
+});
+
+test("instructions: a query whose text an instance's system prompt has after the domain's", () => {
+	const meta = (instructions) => ({
+		[AGENT_META]: { prompt: "A helper.", summary: "summary", instructions, tools: [] },
+	});
+	const Helper = component({
+		name: "Helper",
+		meta: meta("role"),
+		fields: { job: t.string() },
+		queries: {
+			get summary() {
+				return "nothing yet";
+			},
+			get role() {
+				return this.job === "" ? "" : `You are the ${this.job}.`;
+			},
+		},
+	});
+	assert.deepEqual(agentProblems(Helper), []);
+	const C = scoped(Helper);
+	assert.match(
+		systemPrompt(C.make("Helper", { job: "reviewer" })),
+		/A helper\.\n\nYou are the reviewer\.\n\nNow: nothing yet$/,
+	);
+	// One with nothing to say adds nothing.
+	assert.match(systemPrompt(C.make("Helper", {})), /A helper\.\n\nNow: nothing yet$/);
+	const Lost = component({ name: "Lost", meta: meta("nope"), queries: Helper.queries });
+	assert.deepEqual(agentProblems(Lost), ["its instructions nope isn't a zero-arg query"]);
 });
 
 test("toolsFor names the args and adds the shared tools the meta calls for", () => {

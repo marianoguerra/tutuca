@@ -6,16 +6,22 @@ import { classValueUsesOf } from "../css/classes.js";
 import { agentProblems, classesProblems, dataProblems, hasClassesMeta } from "../meta/index.js";
 import {
 	ANSWER_OUTCOMES,
+	AnyType,
 	ArrayType,
 	ComponentType,
 	DRAG_EVENTS,
 	HandlerSpec,
+	handlerSourcesEnabled,
 	IndexType,
-	Interface,
 	isRecord,
 	MapType,
+	NumberType,
+	OneOfType,
+	pathProblems,
+	pathSteps,
 	QuerySpec,
-	Type,
+	RecordType,
+	StringType,
 	unwrapOption,
 	ViewNode,
 	Walker,
@@ -37,7 +43,6 @@ const RENDER_KINDS = new Set([
 ]);
 const LOOP_HOOKS = ["prepare", "filter", "iter", "key", "enrich"];
 const EMIT_KINDS = new Set(["notify", "ask", "sendAt"]);
-const isTypeList = (a) => Array.isArray(a) && a.every((t) => t instanceof Type);
 const KEY_EVENTS = new Set(["keydown", "keyup", "keypress"]);
 // Per event arg: the prefix of its lint codes and where it can be used beyond send args.
 const EVENT_ARG_RULES = {
@@ -134,11 +139,7 @@ export class Lint extends Walker {
 		);
 		this.providedNames = new Set(this.registrations.flatMap((spec) => Object.keys(spec.provides)));
 		// The interface names registrations say they implement, which fields can hold.
-		this.implementedNames = new Set(
-			this.registrations.flatMap((spec) =>
-				spec.implements.map((it) => (it instanceof Interface ? it.name : it)),
-			),
-		);
+		this.implementedNames = new Set(this.registrations.flatMap((spec) => spec.implements));
 		this.spec = null;
 		this.viewName = null;
 		this.labels = [];
@@ -180,7 +181,7 @@ export class Lint extends Walker {
 		for (const [code, problemsOf] of META_PROBLEMS) {
 			for (const problem of problemsOf(spec)) this.report("error", code, null, problem);
 		}
-		this.functionsIn("provides", spec.provides);
+		for (const [name, path] of Object.entries(spec.provides)) this.lintProvide(name, path);
 		for (const [name, message] of Object.entries(spec.on)) {
 			this.lintMessage(`on.${name}`, message);
 		}
@@ -193,6 +194,9 @@ export class Lint extends Walker {
 			this.report("warning", "getter-in-methods", null, text);
 		}
 		this.functionsIn("binds", spec.binds);
+		if (spec.init !== undefined && typeof spec.init !== "function") {
+			this.report("error", "section-shape", null, "init must be a function: init(next, ctx)");
+		}
 		for (const [name, loop] of Object.entries(spec.loops)) {
 			this.lintLoop(name, loop);
 		}
@@ -204,11 +208,85 @@ export class Lint extends Walker {
 			this.report("error", "reserved-field", null, message);
 		}
 	}
+	// provides.name is a static path (tree/path.js) into the component's state: each step's
+	// fields are fields of the value the step starts from, item and seqItem ones of an array or
+	// a map, an item's key the kind of key it has, a seqItem's keyField a field holding a key.
+	// Past a value lint can't see the fields of (any, an interface, a choice of components),
+	// the rest goes unchecked.
+	lintProvide(name, path) {
+		const bad = (text) => this.report("error", "bad-provide", null, `provides.${name}: ${text}`);
+		const problems = pathProblems(path);
+		if (problems.length > 0) return bad(problems.join("; "));
+		if (Array.isArray(path) && path.length === 0)
+			return bad("an empty path provides the component itself");
+		let fields = this.spec.fields;
+		let current = null; // The type of the value the step starts from, the component's null.
+		let where = "the component";
+		for (const step of pathSteps(path)) {
+			if (fields === null) return;
+			// An integer is an index into the value, which must be an array.
+			if (typeof step === "number") {
+				if (!(current instanceof ArrayType))
+					return bad(`${where} isn't an array to index with ${step}`);
+				current = unwrapOption(current.valueType);
+				fields = this.fieldsOfType(current);
+				where = `an item of ${where}`;
+				continue;
+			}
+			const fieldName = typeof step === "string" ? step : (step.item ?? step.seqItem);
+			if (!Object.hasOwn(fields, fieldName)) {
+				const known = Object.keys(fields);
+				const has = known.length === 0 ? "it has none" : `its fields are ${known.join(", ")}`;
+				return bad(`${where} has no field ${fieldName} (${has})`);
+			}
+			let type = unwrapOption(fields[fieldName]);
+			if (typeof step !== "string") {
+				const isArray = type instanceof ArrayType;
+				if (!isArray && !(type instanceof MapType)) {
+					return bad(`${fieldName} has no items: an item step needs an array or a map field`);
+				}
+				if (step.item !== undefined && isArray !== Number.isInteger(step.key)) {
+					const kind = isArray ? "an array, its keys are integers" : "a map, its keys are strings";
+					return bad(`${fieldName} is ${kind}, not ${JSON.stringify(step.key)}`);
+				}
+				if (step.seqItem !== undefined) {
+					const keyType = fields[step.keyField];
+					if (keyType === undefined)
+						return bad(`${where} has no field ${step.keyField} to hold the key`);
+					const key = unwrapOption(keyType);
+					const holdsKey =
+						key instanceof IndexType ||
+						(isArray ? key instanceof NumberType : key instanceof StringType);
+					if (!holdsKey) {
+						const kind = isArray ? "a number" : "a string";
+						return bad(
+							`keyField ${step.keyField} holds a key of ${fieldName}, so it is t.index("${fieldName}") or ${kind}`,
+						);
+					}
+				}
+				type = unwrapOption(type.valueType);
+			}
+			current = type;
+			fields = this.fieldsOfType(type);
+			where = typeof step === "string" ? fieldName : `an item of ${fieldName}`;
+		}
+	}
+	// The fields a value of type has, as a path's next step reads them: a record's keys, a
+	// registered component's fields; null when lint can't know them.
+	fieldsOfType(type) {
+		if (type instanceof RecordType) return type.shape;
+		if (type instanceof ComponentType && type.names.length === 1) {
+			const spec = this.registrations.find((s) => s.name === type.name);
+			return spec === undefined ? null : spec.fields;
+		}
+		if (type instanceof ComponentType || type instanceof AnyType || type instanceof OneOfType)
+			return null;
+		return {};
+	}
 	// A named t.component() makes and checks its value through the scope.
 	lintFieldType(name, type, fields) {
 		if (type instanceof ComponentType) {
 			for (const componentName of type.names) {
-				if (componentName instanceof Interface) continue;
 				if (this.componentNames === null || this.componentNames.has(componentName)) continue;
 				if (this.implementedNames.has(componentName)) continue; // an interface's name
 				this.report(
@@ -275,16 +353,24 @@ export class Lint extends Walker {
 	lintMessage(label, message) {
 		const bad = (what) => this.report("error", "section-shape", null, `${label}${what}`);
 		if (!(message instanceof HandlerSpec)) return bad(" must be a function or a handler spec");
-		const { run, args, sourceKey, emits } = message;
+		// Its args and sourceKey are compiled types: component() rejects what isn't one.
+		const { run, emits } = message;
 		if (typeof run !== "function") bad(".run must be a function");
-		if (args !== undefined && !isTypeList(args)) bad(".args must be an array of types");
-		if (sourceKey !== undefined && !(sourceKey instanceof Type)) bad(".sourceKey must be a type");
 		this.functionsIn(label, message, ["pre", "why", "post"]);
 		if (emits !== undefined) {
 			const kinds = Object.entries(isRecord(emits) ? emits : { "": null });
 			if (kinds.some(([kind, names]) => !EMIT_KINDS.has(kind) || !Array.isArray(names))) {
 				bad(".emits must map notify, ask or sendAt to name arrays");
 			}
+		}
+		// A handler given as source is checked by what compiles it (tutuca/pure): its names,
+		// types, what it changes and whether a pure one uses ctx.
+		if (message.source !== null) {
+			this.lintSource(label, message);
+			if (message.pure && emits !== undefined) {
+				this.report("error", "pure-emits", null, `${label} is pure: it can't emit`);
+			}
+			return;
 		}
 		if (typeof run === "function") this.lintWorldReads(label, run);
 		if (message.pure) {
@@ -297,6 +383,26 @@ export class Lint extends Walker {
 			}
 		}
 	}
+	lintSource(label, message) {
+		const sources = handlerSourcesEnabled();
+		if (sources === null) {
+			this.report(
+				"error",
+				"handler-source",
+				null,
+				`${label} is source text, and nothing compiles it: enableHandlerSources(pureHandlers()) from tutuca/pure`,
+			);
+			return;
+		}
+		for (const d of sources.check(message, { spec: this.spec, specs: this.registrations })) {
+			this.report(
+				"error",
+				"handler-source",
+				null,
+				`${label}, ${d.where}: ${d.message} (purejs::${d.code})`,
+			);
+		}
+	}
 	// queries: getters, functions, { get, returns } or { run, args, returns }. They read: one
 	// that assigns to this changes what it was asked about.
 	lintQueries(spec) {
@@ -306,10 +412,6 @@ export class Lint extends Walker {
 				bad(" must be a getter, a function, { get, returns } or { run, args, returns }");
 				continue;
 			}
-			if (q.kind === "call" && q.args !== undefined && !isTypeList(q.args)) {
-				bad(".args must be an array of types");
-			}
-			if (q.returns !== undefined && !(q.returns instanceof Type)) bad(".returns must be a type");
 			if (q.fn === null) continue;
 			this.lintWorldReads(`queries.${name}`, q.fn);
 			if (/\bthis\.[\w$]+(\[[^\]]*\])*\s*([-+*/%]|\?\?|\|\||&&)?=(?!=)/.test(String(q.fn))) {

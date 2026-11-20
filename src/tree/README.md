@@ -10,7 +10,7 @@ the four interfaces in `scheduler.js`. It ships as `tutuca/tree`.
 | File | What it holds |
 |---|---|
 | `identity.js` | `idOf`, `isNode` (internal), `mint`: a node's identity ι; `copy`, a copy whose every node is new (M8) |
-| `path.js` | `KeyPath` (keys into the state), `Frame` and `DispatchPath` (π, the frames a message went through), `Selector`/`selectorFrom` and `Target` (a written path, before it is fixed) |
+| `path.js` | `KeyPath` (keys into the state), `Frame` and `DispatchPath` (π, the frames a message went through), `Selector`, `selectorOfPath`, `pathSteps`, `pathProblems` and `Target` (a written path, before it is fixed) |
 | `address.js` | `Address` (`(at π ι)`), `HOST` (`host`) |
 | `messages.js` | the envelope: `Task`, `NotifyTask`, `AskTask`, `AnswerTask` |
 | `watch.js` | `Watch`: what a watched `sendAt` caused, and `Watches`, which counts it until it settles |
@@ -27,14 +27,14 @@ the four interfaces in `scheduler.js`. It ships as `tutuca/tree`.
 | identity `ι` | `idOf(node)`, given once by `mint`; updates keep it |
 | `(copy pp)`, `(share pp)` | `copy(node)` (fresh identities); putting the same value in a second place (shared ones) |
 | path step `(field f)`, `(index f i)`, `(key f κ)` | a `Frame`: `keys` `[f]`, `item` `i` or `κ` |
-| written path `(sel f g)` | the selector op `seqItem(f, g)`, which `Selector.fix` turns into an `item` |
+| written path `(sel f g)` | the path step `{ seqItem: f, keyField: g }`, which `Selector.fix` turns into an `item` |
 | address `(at π ι)` | `Address`: `path` (a `DispatchPath`) and `id` |
 | `host` | `HOST`: the `from` of env events and of ask answers |
 | envelope `(msg mode m from to)` | `Task`: `name`, `args`, `from`, `to`; `mode` is the class |
 | `hkey`: `(send n)`, `(notify n)`, `(ok n)`, ... | `task.hkey`: `{ mode, name, outcome }`, looked up through `Handlers.handler` |
 | `(notify n e ...)` | `ctx.notify`. The hops are fixed by `Address.ancestors` when the bubble starts |
 | `(request n e ...)` | `ctx.ask`. Its handler is `Handlers.askHandler` (the host answering) |
-| `(send-at pp n e ...)` | `ctx.sendAt(name, args, (p) => p.field(...))`, fixed against the committed tree |
+| `(send-at pp n e ...)` | `ctx.sendAt(name, args, path)`, fixed against the committed tree |
 | `(reply n e ...)` | `ctx.reply`: a `Task` to `task.from` |
 | `stop`, `pass` | `ctx.stopNext()`; a hop with no handler passes |
 | transaction | one `Transact` call. `ctx.tasks` is staged and queued only on commit |

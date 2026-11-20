@@ -79,12 +79,10 @@ export const TrackerCell = component({
 	fields: {
 		section: t.component("Section"),
 		things: t.array(t.component("Thing")),
-		tz: t.number().int().min(-840).max(840),
+		tz: t.int({ min: -840, max: 840 }),
 	},
 	provides: {
-		things(b) {
-			b.field("things");
-		},
+		things: "things",
 	},
 	queries: {
 		// Each thing with its id and how often it's been logged, for an agent.
@@ -181,7 +179,7 @@ const choice = (id, action, emoji, label, blurb) =>
 export const Picker = component({
 	name: "Picker",
 	meta: metaFor("New cell", null, "Picks what a new cell becomes."),
-	fields: { step: t.enum("kind", "tracker") },
+	fields: { step: t.enum(["kind", "tracker"]) },
 	queries: {
 		get isPickingKind() {
 			return this.step === "kind";
@@ -245,7 +243,7 @@ export const Picker = component({
 	),
 	on: {
 		pick: {
-			args: [t.enum(...KIND_NAMES)],
+			args: [t.enum(KIND_NAMES)],
 			emits: { notify: ["become"] },
 			run(next, [kind], ctx) {
 				if (kind === "tracker") next.step = "tracker";
@@ -253,7 +251,7 @@ export const Picker = component({
 			},
 		},
 		pickGroup: {
-			args: [t.enum(...GROUP_IDS)],
+			args: [t.enum(GROUP_IDS)],
 			emits: { notify: ["become"] },
 			run(_next, [group], ctx) {
 				ctx.notify("become", ["tracker", group]);
@@ -340,7 +338,7 @@ export const Cell = component({
 			},
 		},
 		// From the picker, on its way to the notebook, which makes what it becomes.
-		become: { args: [t.enum(...KIND_NAMES), t.option(t.enum(...GROUP_IDS))], run() {} },
+		become: { args: [t.enum(KIND_NAMES), t.option(t.enum(GROUP_IDS))], run() {} },
 	},
 });
 
@@ -375,12 +373,12 @@ export const Notebook = component({
 		"Cells of notes, todos, boards, drawings and trackers, in the order you add them.",
 	),
 	fields: {
-		title: t.string("Notebook"),
+		title: t.string({ default: "Notebook" }),
 		// An ordered map: cells by key, and the keys in order. Keys are uuids, so cells added
 		// on two devices don't collide when they sync.
 		entries: t.map(t.component("Cell")),
 		order: t.array(t.string()),
-		tz: t.number().int().min(-840).max(840), // Minutes east of UTC, for the trackers.
+		tz: t.int({ min: -840, max: 840 }), // Minutes east of UTC, for the trackers.
 	},
 	loops: {
 		ordered: {
@@ -418,7 +416,7 @@ export const Notebook = component({
 			args: [],
 			run(next, _args, ctx) {
 				const key = ctx.uuid();
-				next.entries[key] = ctx.scope.components.Cell({ content: ctx.scope.make("Picker") });
+				next.entries[key] = ctx.scope.components.Cell({ content: ctx.make("Picker") });
 				next.order.push(key);
 			},
 		},
@@ -426,7 +424,7 @@ export const Notebook = component({
 			args: [t.index("entries")],
 			run(next, [before], ctx) {
 				const key = ctx.uuid();
-				next.entries[key] = ctx.scope.components.Cell({ content: ctx.scope.make("Picker") });
+				next.entries[key] = ctx.scope.components.Cell({ content: ctx.make("Picker") });
 				next.order.splice(this.order.indexOf(before), 0, key);
 			},
 		},
@@ -467,7 +465,7 @@ export const Notebook = component({
 		},
 		// From the picker of the cell at ctx.sourceKey: the cell's content becomes kind.
 		become: {
-			args: [t.enum(...KIND_NAMES), t.option(t.enum(...GROUP_IDS))],
+			args: [t.enum(KIND_NAMES), t.option(t.enum(GROUP_IDS))],
 			sourceKey: t.index("entries"),
 			run(next, [kind, group], ctx) {
 				ctx.stopNext();

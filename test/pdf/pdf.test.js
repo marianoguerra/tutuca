@@ -14,7 +14,7 @@ const { Circle, Group, Page, Path, MoveTo, Arc, Rect, Text } = ps;
 const Bars = component({
 	name: "Bars",
 	fields: { title: t.string(), values: t.array(t.number()) },
-	loops: { bars: { enrich: ({ value }) => ({ height: value * 10 }) } },
+	loops: { bars: { enrich: (_key, value) => ({ height: value * 10 }) } },
 	renders: {
 		ps: Page(
 			{ width: 200, height: 100 },

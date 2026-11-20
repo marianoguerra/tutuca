@@ -4,18 +4,20 @@
 // t.any() lists every JSON type rather than leaving type out: some providers' tool-call parsers
 // (GLM's, through OpenRouter) JSON-decode an argument only when its schema's type isn't string,
 // and with no type they hand an object over as its JSON text.
+import { compileType, Type } from "../tutuca.js";
+
 const ANY_TYPES = ["object", "array", "string", "number", "boolean", "null"];
 const ANY_DESCRIPTION =
 	"Any JSON value as itself: an object, array, string, number, boolean or null. Don't encode it as a JSON string.";
-const withWhere = (schema, type) => {
-	const where = type.constraints.where ?? [];
-	if (where.length === 0) return schema;
-	const names = where.map((w) => w.name || "a check").join(", ");
-	return { ...schema, description: `Must pass: ${names}.` };
+// A named check is opaque: what it says it checks goes in the description.
+const withChecks = (schema, type) => {
+	const checks = type.constraints.check ?? [];
+	if (checks.length === 0) return schema;
+	return { ...schema, description: `Must be ${checks.map((c) => c.description).join(", and ")}.` };
 };
-// A field type as JSON Schema. A where check is opaque: its name goes in the description. A
-// component type has no JSON form, so it's {}.
-export const typeSchema = (type) => {
+// A field type, compiled or as data, as JSON Schema. A component type has no JSON form, so it's {}.
+export const typeSchema = (typeOrData) => {
+	const type = typeOrData instanceof Type ? typeOrData : compileType(typeOrData);
 	const c = type?.constraints ?? {};
 	switch (type?.constructor?.kind) {
 		case "string": {
@@ -23,7 +25,7 @@ export const typeSchema = (type) => {
 			if (c.minLength > 0) s.minLength = c.minLength;
 			if (c.maxLength !== undefined && c.maxLength !== Infinity) s.maxLength = c.maxLength;
 			if (c.pattern instanceof RegExp) s.pattern = c.pattern.source;
-			return withWhere(s, type);
+			return withChecks(s, type);
 		}
 		case "boolean":
 			return { type: "boolean" };
@@ -31,14 +33,14 @@ export const typeSchema = (type) => {
 			const s = { type: c.int ? "integer" : "number" };
 			if (c.min !== undefined) s.minimum = c.min;
 			if (c.max !== undefined) s.maximum = c.max;
-			return withWhere(s, type);
+			return withChecks(s, type);
 		}
 		case "enum":
 			return { enum: [...type.members] };
 		case "option":
 			return { anyOf: [typeSchema(type.valueType), { type: "null" }] };
 		case "array":
-			return withWhere({ type: "array", items: typeSchema(type.valueType) }, type);
+			return withChecks({ type: "array", items: typeSchema(type.valueType) }, type);
 		case "map":
 			return { type: "object", additionalProperties: typeSchema(type.valueType) };
 		case "record":
@@ -55,7 +57,7 @@ export const typeSchema = (type) => {
 		case "index":
 			return { type: ["integer", "string"], description: "An index or key into a collection." };
 		case "any":
-			return withWhere({ type: ANY_TYPES, description: ANY_DESCRIPTION }, type);
+			return withChecks({ type: ANY_TYPES, description: ANY_DESCRIPTION }, type);
 		default:
 			return {};
 	}

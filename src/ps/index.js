@@ -19,7 +19,7 @@
 //   const Bars = component({
 //     name: "Bars",
 //     fields: { values: t.array(t.number()) },
-//     loops: { bars: { enrich: ({ value }) => ({ height: value * 10 }) } },
+//     loops: { bars: { enrich: (_key, value) => ({ height: value * 10 }) } },
 //     renders: {
 //       ps: Page(
 //         { width: 300, height: 200 },

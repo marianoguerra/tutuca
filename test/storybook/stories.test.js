@@ -267,7 +267,7 @@ test("a new registry carries each mounted story's state over to the new componen
 	// The next version: a new field, and an invariant the carried count breaks.
 	const Counter2 = component({
 		name: "Counter",
-		fields: { count: t.number(), label: t.string("clicks") },
+		fields: { count: t.number(), label: t.string({ default: "clicks" }) },
 		view: h("button", {}, field("label")),
 		invariants: {
 			belowOne() {
@@ -295,7 +295,7 @@ test("a new registry carries each mounted story's state over to the new componen
 		isCurrent: true,
 	});
 	assert.deepEqual(summary.reload, [
-		'Counter.label added: string = "clicks"',
+		'Counter.label added: { type: "string", default: "clicks" }',
 		".label added, at its default",
 	]);
 	assert.deepEqual(summary.problems, ["invalid state: Counter · invariant:belowOne"]);

@@ -12,8 +12,8 @@ const sample = {
 
 const edit = (C, value) => C.JsonEditor({ mode: "edit", value });
 // Path builders from the editor root.
-const atValue = (b) => b.field("value");
-const atItem = (i) => (b) => b.field("value").item("items", i);
+const atValue = "value";
+const atItem = (i) => ["value", { item: "items", key: i }];
 const toJsonIs = (expected) => (s) => JSON.stringify(s.toJson()) === JSON.stringify(expected);
 
 const valueMessages = [
@@ -107,9 +107,9 @@ export default book({
 			sequences: {
 				"add and rename an entry": [
 					step.event("click", "button[class*='cursor-pointer self-start']"),
-					step.send("setKey", ["b"], { to: (b) => b.field("value").item("entries", 1) }),
+					step.send("setKey", ["b"], { to: ["value", { item: "entries", key: 1 }] }),
 					step.send("setTo", ["string"], {
-						to: (b) => b.field("value").item("entries", 1).field("value"),
+						to: ["value", { item: "entries", key: 1 }, "value"],
 					}),
 					step.check("{ a: 1, b: '' }", toJsonIs({ a: 1, b: "" })),
 				],

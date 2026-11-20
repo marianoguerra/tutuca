@@ -212,7 +212,7 @@ test("expand all and collapse all reach every node", () => {
 test("a property passes setOpen to its schema", () => {
 	const { C } = setup();
 	const driver = new Driver({ root: schemaTree(C, nested), document });
-	driver.send("setOpen", [false], { to: (b) => b.field("node").item("properties", 0) });
+	driver.send("setOpen", [false], { to: ["node", { item: "properties", key: 0 }] });
 	assert.equal(driver.state.node.properties[0].schema.open, false);
 });
 

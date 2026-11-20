@@ -17,7 +17,7 @@ import {
 	withSample,
 } from "../../src/meta/index.js";
 import { Driver } from "../../src/testing/driver.js";
-import { component, query, Scope, Selector, scopeOf, t } from "../../src/tutuca.js";
+import { component, query, Scope, scopeOf, t } from "../../src/tutuca.js";
 import { callTool, document, ranTool, scopeWith, tick } from "../helpers.js";
 
 const C = () => scopeWith(markdownComponents).components;
@@ -90,7 +90,7 @@ const startCanvas = (text = "# Notes\n") => {
 	return new Driver({ root: canvas(comps, [[40, 60, md, "📄 Notes"]]), document });
 };
 const card = (d) => d.rootNode.querySelector("foreignObject > .canvas-card");
-const itemAt = (key) => new Selector().item("items", key);
+const itemAt = (key) => ({ item: "items", key });
 
 test("markdown on a canvas: it renders in md-view, and its edit view is a textarea that writes it", () => {
 	const d = startCanvas("# Hello");

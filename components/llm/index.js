@@ -522,8 +522,8 @@ export const InferenceRequest = component({
 		messages: t.array(t.component()),
 		tools: t.array(t.component("ToolDefinition")),
 		outputSchema: t.option(t.component("JsonSchemaEditor")),
-		temperature: t.number().min(0).max(2).default(1),
-		maxTokens: t.number().int().min(1).default(1024),
+		temperature: t.number({ min: 0, max: 2, default: 1 }),
+		maxTokens: t.int({ min: 1, default: 1024 }),
 		...sectionFields(),
 	},
 	methods: {
@@ -675,7 +675,7 @@ export const InferenceRequest = component({
 					: null;
 		},
 		addMessage: {
-			args: [t.enum(...Object.keys(TRANSCRIPT_PARTS))],
+			args: [t.enum(Object.keys(TRANSCRIPT_PARTS))],
 			run(next, [kind], ctx) {
 				next.messages.push(TRANSCRIPT_PARTS[kind](ctx.scope.components));
 			},
@@ -699,7 +699,7 @@ export const InferenceRequest = component({
 		},
 		add_message: {
 			pure: true,
-			args: [t.enum("user", "assistant"), t.string()],
+			args: [t.enum(["user", "assistant"]), t.string()],
 			run(next, [role, text]) {
 				const C = scopeOf(this).components;
 				next.messages.push(role === "user" ? userMessage(C, text) : assistantMessage(C, text));
@@ -707,21 +707,21 @@ export const InferenceRequest = component({
 		},
 		add_tool_call: {
 			pure: true,
-			args: [t.string().len(1), t.string().len(1), t.any()],
+			args: [t.string({ minLength: 1 }), t.string({ minLength: 1 }), t.any()],
 			run(next, [id, name, input]) {
 				next.messages.push(toolCall(scopeOf(this).components, { id, name, input: input ?? {} }));
 			},
 		},
 		add_tool_result: {
 			pure: true,
-			args: [t.string().len(1), t.any(), t.boolean()],
+			args: [t.string({ minLength: 1 }), t.any(), t.boolean()],
 			run(next, [callId, content, isError]) {
 				next.messages.push(toolResult(scopeOf(this).components, content, { callId, isError }));
 			},
 		},
 		set_tool: {
 			pure: true,
-			args: [t.string().len(1), t.string(), t.any()],
+			args: [t.string({ minLength: 1 }), t.string(), t.any()],
 			pre: (_self, [, , parameters]) => typeof parameters === "object" && parameters !== null,
 			why: () => "parameters is a JSON Schema object",
 			run(next, [name, description, parameters]) {
@@ -753,7 +753,7 @@ export const InferenceRequest = component({
 		},
 		set_options: {
 			pure: true,
-			args: [t.number().min(0).max(2), t.number().int().min(1)],
+			args: [t.number({ min: 0, max: 2 }), t.int({ min: 1 })],
 			run(next, [temperature, maxTokens]) {
 				next.temperature = temperature;
 				next.maxTokens = maxTokens;
@@ -817,12 +817,12 @@ export const InferenceResponse = component({
 	fields: {
 		model: t.string(),
 		content: t.array(t.component()),
-		stopReason: t.enum(...Object.keys(STOP_REASONS)),
+		stopReason: t.enum(Object.keys(STOP_REASONS)),
 		errorMessage: t.string(),
-		input: t.number().int().min(0),
-		output: t.number().int().min(0),
-		cacheRead: t.number().int().min(0),
-		cacheWrite: t.number().int().min(0),
+		input: t.int({ min: 0 }),
+		output: t.int({ min: 0 }),
+		cacheRead: t.int({ min: 0 }),
+		cacheWrite: t.int({ min: 0 }),
 		...sectionFields(),
 	},
 	methods: {
@@ -955,7 +955,7 @@ export const InferenceResponse = component({
 	on: {
 		...sectionMessages(RESPONSE_SECTIONS, ["content"]),
 		setModel: setField("model"),
-		setStopReason: setField("stopReason", t.enum(...Object.keys(STOP_REASONS))),
+		setStopReason: setField("stopReason", t.enum(Object.keys(STOP_REASONS))),
 		setErrorMessage: setField("errorMessage"),
 		...Object.fromEntries(USAGE.map(([name, , , set]) => [set, setNumber(name, isCount)])),
 	},

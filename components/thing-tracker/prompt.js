@@ -47,11 +47,11 @@ export const Prompt = component({
 		},
 	},
 	fields: {
-		measurementId: t.enum(...MEASUREMENTS.map((m) => m.id)),
+		measurementId: t.enum(MEASUREMENTS.map((m) => m.id)),
 		unitId: t.string(),
-		base: t.number().min(0),
+		base: t.number({ min: 0 }),
 		text: t.string(),
-		history: t.array(t.number().min(0)),
+		history: t.array(t.number({ min: 0 })),
 	},
 	queries: {
 		get measurement() {

@@ -23,7 +23,7 @@ const { div, input, label, li, p, span, ul } = tag;
 export const TagEditor = component({
 	name: "TagEditor",
 	fields: {
-		mode: t.enum("create", "edit"),
+		mode: t.enum(["create", "edit"]),
 		tagId: t.string(),
 		emoji: t.string(),
 		title: t.string(),

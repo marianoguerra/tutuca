@@ -141,15 +141,15 @@ export const TranscriptEntry = component({
 	name: "TranscriptEntry",
 	meta: { [CLASSES_META]: { classes: STYLE_CLASSES } },
 	fields: {
-		kind: t.enum("user", "assistant", "call", "result", "error"),
+		kind: t.enum(["user", "assistant", "call", "result", "error"]),
 		label: t.string(),
 		text: t.string(),
 		mono: t.boolean(),
 		args: t.option(t.component("JsonRoot")),
-		open: t.boolean(false), // Whether a tool call shows its arguments: it starts collapsed.
+		open: t.boolean({ default: false }), // Whether a tool call shows its arguments: it starts collapsed.
 		// A call's: the id its result answers, how it went, and what it gave back.
 		callId: t.string(),
-		status: t.enum("none", "running", "ok", "failed"), // none: not a call.
+		status: t.enum(["none", "running", "ok", "failed"]), // none: not a call.
 		result: t.string(),
 	},
 	queries: {
@@ -228,7 +228,7 @@ export const MessageGroup = component({
 	meta: { [CLASSES_META]: { classes: STYLE_CLASSES } },
 	fields: {
 		entries: t.array(t.component("TranscriptEntry")),
-		open: t.boolean(false),
+		open: t.boolean({ default: false }),
 	},
 	queries: {
 		// Its border says how its calls went: one failed, all done, or some still running.

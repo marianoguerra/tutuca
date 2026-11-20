@@ -44,12 +44,9 @@ export const fmt = (n) => {
 const abs = (n) => fmt(Math.abs(n));
 // A coefficient in a product: (−2) in parentheses when negative.
 const factor = (n) => (n < 0 ? `(${fmt(n)})` : fmt(n));
-const coefficient = () =>
-	t
-		.number()
-		.min(-20)
-		.max(20)
-		.arb((fc) => fc.integer({ min: -20, max: 20 }));
+// A coefficient: any number from −20 to 20, generated whole (check integral) for readable tests.
+const coefficient = (options = {}) =>
+	t.number({ min: -20, max: 20, check: "integral", ...options });
 
 const PRESETS = {
 	"two roots": [1, -3, 2],
@@ -61,12 +58,16 @@ const PRESETS = {
 export const Quadratic = component({
 	name: "Quadratic",
 	fields: {
-		a: coefficient()
-			.default(1)
-			.where((a) => a !== 0, "notZero")
-			.arb((fc) => fc.integer({ min: -20, max: 20 }).filter((n) => n !== 0)),
+		a: coefficient({ default: 1, check: "notZero" }),
 		b: coefficient(),
 		c: coefficient(),
+	},
+	checks: {
+		integral: { arb: (fc) => fc.integer({ min: -20, max: 20 }) },
+		notZero: {
+			test: (a) => a !== 0,
+			arb: (fc) => fc.integer({ min: -20, max: 20 }).filter((n) => n !== 0),
+		},
 	},
 	methods: {
 		f(x) {
@@ -372,7 +373,7 @@ export const Quadratic = component({
 	),
 	on: {
 		setCoefficient: {
-			args: [t.enum("a", "b", "c"), t.string()],
+			args: [t.enum(["a", "b", "c"]), t.string()],
 			run(next, [name, text]) {
 				const n = Number(text);
 				if (!Number.isFinite(n) || n < -20 || n > 20) return;
@@ -400,21 +401,15 @@ function mspace() {
 	return tag.mspace({ width: "1em" });
 }
 
-const entry = () =>
-	t
-		.number()
-		.int()
-		.min(-9)
-		.max(9)
-		.arb((fc) => fc.integer({ min: -9, max: 9 }));
+const entry = (options = {}) => t.int({ min: -9, max: 9, ...options });
 // A 2×2 matrix, its determinant and its inverse when it has one.
 export const Matrix2 = component({
 	name: "Matrix2",
 	fields: {
-		a: entry().default(2),
-		b: entry().default(1),
-		c: entry().default(1),
-		d: entry().default(3),
+		a: entry({ default: 2 }),
+		b: entry({ default: 1 }),
+		c: entry({ default: 1 }),
+		d: entry({ default: 3 }),
 	},
 	queries: {
 		get det() {
@@ -504,7 +499,7 @@ export const Matrix2 = component({
 	),
 	on: {
 		setEntry: {
-			args: [t.enum("a", "b", "c", "d"), t.string()],
+			args: [t.enum(["a", "b", "c", "d"]), t.string()],
 			run(next, [name, text]) {
 				const n = Number(text);
 				if (Number.isInteger(n) && n >= -9 && n <= 9) next[name] = n;

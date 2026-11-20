@@ -13,6 +13,7 @@ import llmBook from "./components/llm/stories.js";
 import markdownBook from "./components/markdown/stories.js";
 import mathBook, { workbenchBook } from "./components/math/stories.js";
 import musicBook from "./components/music/stories.js";
+import pureTodoBook from "./components/pure-todo/stories.js";
 import trackerBook from "./components/thing-tracker/stories.js";
 import todoBook from "./components/todo/stories.js";
 import treeSpecBook from "./components/tree-spec/stories.js";
@@ -34,6 +35,7 @@ export const books = [
 	agentBook,
 	httpBook,
 	musicBook,
+	pureTodoBook,
 	markdownBook,
 	studioBook,
 	dataViewsBook,

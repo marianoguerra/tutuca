@@ -2,8 +2,13 @@
 // a tree, and the factories that make components through them.
 
 import { metaProblems } from "./component-meta.js";
-import { Interface, interfaceProblems, resolveImplements } from "./interface.js";
-import { Type } from "./types.js";
+import {
+	compileInterface,
+	implementsIface,
+	interfaceProblems,
+	resolveImplements,
+} from "./interface.js";
+import { compileShape } from "./types.js";
 
 // A component ref is its scope's path and its name there: "Item" at the root, "editor/Item" below.
 const refSep = "/";
@@ -98,39 +103,38 @@ export class Scope {
 	lookupSpec(name) {
 		return this.lookup((scope) => scope.specs[name]);
 	}
-	// Interfaces by name, for components here and below to implement and fields to hold. One
-	// registered after a component is checked as the component is made.
+	// Interfaces by name, each its data (interface.js), compiled here, for components here and
+	// below to implement and fields to hold. One registered after a component is checked as the
+	// component is made.
 	registerInterfaces(ifaces) {
 		for (const name in ifaces) {
-			if (!(ifaces[name] instanceof Interface)) {
-				throw new Error(
-					`registerInterfaces needs Interfaces (iface()), got ${String(ifaces[name])} for ${name}`,
-				);
+			try {
+				this.interfaces[name] = compileInterface(name, ifaces[name]);
+			} catch (error) {
+				throw new Error(`registerInterfaces: ${name}: ${error.message}`, { cause: error });
 			}
-			this.interfaces[name] = ifaces[name];
 		}
 		this.recheck();
 	}
 	lookupInterface(name) {
 		return this.lookup((scope) => scope.interfaces[name]);
 	}
+	// Whether value implements face (an Interface): what a component type of an interface's
+	// name checks, here so types.js needn't import interface.js.
+	implementsInterface(value, face) {
+		return implementsIface(value, face);
+	}
 	// Schemas for meta namespaces, by URI: each a shape of field types the meta components here
 	// and below give under it is checked against, and metaOf fills defaults from. One registered
 	// after a component is checked as the component is made.
 	registerMetaSchemas(schemas) {
 		for (const uri in schemas) {
-			const shape = schemas[uri];
-			const ok =
-				URL.canParse(uri) &&
-				typeof shape === "object" &&
-				shape !== null &&
-				Object.values(shape).every((type) => type instanceof Type);
-			if (!ok) {
-				throw new Error(
-					`registerMetaSchemas needs URIs to shapes of types (key -> t.x()), got ${String(shape)} for ${uri}`,
-				);
+			if (!URL.canParse(uri)) throw new Error(`registerMetaSchemas: ${uri} isn't a URI`);
+			try {
+				this.metaSchemas[uri] = compileShape(schemas[uri], undefined, uri);
+			} catch (error) {
+				throw new Error(`registerMetaSchemas: ${error.message}`, { cause: error });
 			}
-			this.metaSchemas[uri] = shape;
 		}
 		this.recheck();
 	}
@@ -167,6 +171,25 @@ export class Scope {
 			);
 		}
 		this.checked.add(spec);
+	}
+	// The names of the components registered here, and with walk the parents' too (as make
+	// resolves them), each once, sorted.
+	componentNames(walk = false) {
+		const names = new Set();
+		for (let s = this; s !== null; s = walk ? s.parent : null) {
+			for (const name in s.specs) names.add(name);
+		}
+		return [...names].sort();
+	}
+	// make's result instead of its throw: { ok: the component }, or { err: { error, issues } },
+	// error saying why it can't be made (not registered, a field with no default, an interface
+	// it doesn't meet). issues is [] here: tutuca-wax's are its init's.
+	tryMake(name, args) {
+		try {
+			return { ok: this.make(name, args) };
+		} catch (error) {
+			return { err: { error: error.message, issues: [] } };
+		}
 	}
 	make(name, args) {
 		const spec = this.lookupSpec(name);

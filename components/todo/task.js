@@ -22,6 +22,7 @@ import {
 	applyEach,
 	CHECKS,
 	DUES,
+	dateChecks,
 	dueType,
 	hasTaskId,
 	ICON_BTN,
@@ -40,6 +41,7 @@ const TITLE_DONE = `${TITLE} line-through opacity-50`;
 
 export const TodoTask = component({
 	name: "TodoTask",
+	checks: dateChecks,
 	meta: {
 		[CLASSES_META]: {
 			classes: [DUE, ...Object.values(DUES), ...Object.values(CHECKS), TITLE_DONE].join(" "),
@@ -49,13 +51,13 @@ export const TodoTask = component({
 		id: t.string(),
 		title: t.string(),
 		description: t.string(),
-		projectId: t.string("inbox"),
+		projectId: t.string({ default: "inbox" }),
 		due: dueType(),
-		priority: t.enum(4, 1, 2, 3),
+		priority: t.enum([4, 1, 2, 3]),
 		labels: t.array(t.string()),
 		isCompleted: t.boolean(),
 		isEditing: t.boolean(),
-		isExpanded: t.boolean(true),
+		isExpanded: t.boolean({ default: true }),
 		subtasks: t.array(t.component("TodoTask")),
 		newSubtask: t.string(),
 		today: todayType(),
@@ -278,7 +280,7 @@ export const TodoTask = component({
 			},
 		},
 		// What an agent sets: a priority as a number, the labels as a list, and reopening.
-		setPriorityLevel: setField("priority", t.enum(1, 2, 3, 4), { pure: true }),
+		setPriorityLevel: setField("priority", t.enum([1, 2, 3, 4]), { pure: true }),
 		setLabels: setField("labels", t.array(t.string()), { pure: true }),
 		reopen: {
 			pure: true,
@@ -360,7 +362,7 @@ export const TodoTask = component({
 				const title = this.newSubtask.trim();
 				if (title === "") return;
 				const { projectId, today } = this;
-				const sub = ctx.scope.make("TodoTask", {
+				const sub = ctx.make("TodoTask", {
 					id: ctx.uuid(),
 					title,
 					projectId,
@@ -403,7 +405,7 @@ export const TodoTask = component({
 			},
 		},
 		moveTask: {
-			args: [t.enum(-1, 1)],
+			args: [t.enum([-1, 1])],
 			sourceKey: t.index("subtasks"),
 			run(next, [delta], ctx) {
 				const j = ctx.sourceKey + delta;

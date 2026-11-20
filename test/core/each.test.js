@@ -27,7 +27,7 @@ const ITEMS = [
 	{ id: "c", title: "C" },
 ];
 const listFields = () => ({
-	items: t.array().default(ITEMS),
+	items: t.array("any", { default: ITEMS }),
 	hidden: t.any(),
 	picked: t.any(),
 });
@@ -41,7 +41,7 @@ const listOptions = {
 		include(_index, value) {
 			return value.id !== this.hidden;
 		},
-		enrich({ value }) {
+		enrich(_key, value) {
 			return { title: value.title };
 		},
 	},
@@ -53,8 +53,8 @@ const listOptions = {
 			filter(index, value) {
 				return this.include(index, value);
 			},
-			enrich(binds) {
-				return this.enrich(binds);
+			enrich(key, value) {
+				return this.enrich(key, value);
 			},
 		},
 		keyed: {
@@ -63,8 +63,8 @@ const listOptions = {
 			},
 		},
 		enriched: {
-			enrich(binds) {
-				return this.enrich(binds);
+			enrich(key, value) {
+				return this.enrich(key, value);
 			},
 		},
 	},
@@ -224,12 +224,12 @@ test("loops run on the component, not on the item, inside nested each", () => {
 	const Nested = component({
 		name: "Nested",
 		fields: {
-			rows: t.array().default([{ cells: ["a", "b"] }, { cells: ["c"] }]),
-			prefix: t.string(">"),
+			rows: t.array("any", { default: [{ cells: ["a", "b"] }, { cells: ["c"] }] }),
+			prefix: t.string({ default: ">" }),
 		},
 		loops: {
 			cells: {
-				enrich({ value }) {
+				enrich(_key, value) {
 					return { label: `${this.prefix}${value}` };
 				},
 			},
@@ -246,7 +246,7 @@ test("Each defaults to source keys without keyWith", () => {
 		name: "DefaultKeys",
 		fields: {
 			...listFields(),
-			items: t.map().default({ a: { title: "A" }, b: { title: "B" } }),
+			items: t.map("any", { default: { a: { title: "A" }, b: { title: "B" } } }),
 		},
 		view: h("div", {}, each(field("items"), h("i", {}, lookupBind("title")), "enriched")),
 	});

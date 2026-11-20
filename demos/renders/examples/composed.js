@@ -61,8 +61,8 @@ export const Line = component({
 	name: "Line",
 	fields: {
 		name: t.string(),
-		price: t.number().min(0),
-		quantity: t.number(1).int().min(0),
+		price: t.number({ min: 0 }),
+		quantity: t.int({ min: 0, default: 1 }),
 	},
 	queries: {
 		get subtotal() {
@@ -158,13 +158,13 @@ export const Line = component({
 	},
 	on: {
 		step: {
-			args: [t.number().int()],
+			args: [t.int()],
 			run(next, [by]) {
 				next.quantity = Math.max(0, this.quantity + by);
 			},
 		},
 		setQuantity: {
-			args: [t.number().int().min(0)],
+			args: [t.int({ min: 0 })],
 			run(next, [quantity]) {
 				next.quantity = quantity;
 			},
@@ -352,7 +352,7 @@ export default book({
 			make: sample,
 			sequences: {
 				"change and remove": [
-					step.send("step", [1], { to: (b) => b.item("lines", 1) }),
+					step.send("step", [1], { to: { item: "lines", key: 1 } }),
 					step.check("two filters", (s) => s.lines[1].quantity === 2),
 					step.event("click", ".btn-ghost"),
 					step.check("coffee is gone", (s) => s.lines.length === 2 && s.total === "15.75"),

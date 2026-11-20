@@ -57,6 +57,7 @@ host.start(host.scope.components.Counter());
 | `tutuca/history` | time travel: `Timeline` and `historyEngine` |
 | `tutuca/history/bar` | the `TimeTravel` bar component |
 | `tutuca/lint` | the linter |
+| `tutuca/pure` | (experimental) handlers and whole components as checked source text (bring your own `pure-js`): `enableHandlerSources(pureHandlers())` lets a handler's `run` be pure-js source, and `componentModule(source)` loads a component written as a pure-tutuca module |
 | `tutuca/classes` | `collectClasses`, `classUsesOf`, `classNamesOf` and `ClassCompiler`, for CSS compilers that need class names listed. A component whose views compute a class (a field, query or bind in `class`) lists every class it can be in its classes meta, `meta: { [CLASSES_META]: { classes: "a b c" } }` (`CLASSES_META` is in `tutuca/meta`); lint warns with `undeclared-dynamic-class` when it doesn't |
 | `tutuca/testing` | the headless driver: `Driver` (send, answer, fire, drag), `testEnv` |
 | `tutuca/pbt` | property-based testing on the driver (bring your own `fast-check`) |
@@ -79,6 +80,7 @@ host.start(host.scope.components.Counter());
 
 - [`docs/paths.md`](docs/paths.md): how key paths, dispatch paths and selectors route messages.
 - [`docs/sync.md`](docs/sync.md): persisting and syncing state with sync engines.
+- [`docs/pure.md`](docs/pure.md): handlers and components as pure-js source text.
 - [`spec/README.md`](spec/README.md): the formal semantics in PLT Redex and how it maps to `src/`.
 
 ## Development

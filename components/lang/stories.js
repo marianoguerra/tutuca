@@ -58,7 +58,7 @@ export default book({
 					),
 				],
 				"add a statement": [
-					step.send("add", [], { to: (b) => b.field("program") }),
+					step.send("add", [], { to: "program" }),
 					step.check("its value is a hole", (s) => s.isError),
 				],
 			},

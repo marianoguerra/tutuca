@@ -4,8 +4,9 @@
 import assert from "node:assert/strict";
 import test from "node:test";
 import { assistantMessage } from "../../components/agent/llm.js";
+import { preferModel } from "../../demos/agent-api.js";
 import { bundleOf } from "../../demos/canvas/bundles.js";
-import { preferModel, start as startCanvas } from "../../demos/canvas/main.js";
+import { start as startCanvas } from "../../demos/canvas/main.js";
 import { lintScope } from "../../src/lint/index.js";
 import { specOf } from "../../src/tutuca.js";
 import { issueLines, mountDemo } from "../helpers.js";

@@ -88,16 +88,16 @@ const Item = component({
 });
 const rootFields = () => ({
 	title: t.string(),
-	kind: t.enum("note", "list"),
+	kind: t.enum(["note", "list"]),
 	items: t.array(t.component("Item")),
 	meta: t.map(t.number()),
 	note: t.option(t.string()),
-	open: t.boolean().sync("none"),
+	open: t.boolean({ sync: "none" }),
 });
 const Root = component({ name: "Root", fields: rootFields(), view: "<h1>{.title}</h1>" });
 const Root2 = component({
 	name: "Root",
-	fields: { ...rootFields(), meta: t.map(t.number().int()), body: t.string() },
+	fields: { ...rootFields(), meta: t.map(t.int()), body: t.string() },
 	view: "<h1>{.title}</h1>",
 });
 const V1 = { Root, Item };

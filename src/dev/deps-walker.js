@@ -47,6 +47,7 @@ export class DepsWalker extends RenderWalker {
 	}
 	render(node) {
 		const child = node.source.eval(this.ctx);
+		if (child === null || child === undefined) return; // Renders nothing, as RenderNode does.
 		this.component(child, this.ctx.enterFrame(child), node.viewName);
 	}
 	renderIt(node) {

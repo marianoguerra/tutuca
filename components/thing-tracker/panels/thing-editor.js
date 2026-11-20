@@ -29,10 +29,10 @@ export const ThingEditor = component({
 	name: "ThingEditor",
 	meta: { [CLASSES_META]: { classes: `${UNIT_ON} ${UNIT_OFF}` } },
 	fields: {
-		mode: t.enum("create", "edit"),
+		mode: t.enum(["create", "edit"]),
 		thingId: t.string(),
-		step: t.number().int().min(0).max(2),
-		emoji: t.string("⭐"),
+		step: t.int({ min: 0, max: 2 }),
+		emoji: t.string({ default: "⭐" }),
 		title: t.string(),
 		description: t.string(),
 		measurements: t.array(measureRef()),

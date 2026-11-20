@@ -35,9 +35,12 @@ const setup = () => {
 				ctx.notify("hello");
 			},
 			// Notifies, and turns into a new leaf in the same transaction.
-			swap(_next, _args, ctx) {
-				ctx.notify("hello");
-				return C.Leaf({ got: "swapped" });
+			swap: {
+				swap: true,
+				run(_next, _args, ctx) {
+					ctx.notify("hello");
+					return C.Leaf({ got: "swapped" });
+				},
 			},
 			answer(_next, _args, ctx) {
 				ctx.reply("hi", ["to the host"]);

@@ -45,7 +45,7 @@ test("the same components carry everything and report nothing", () => {
 });
 
 test("an added field takes its default and a removed one is dropped", () => {
-	const v2 = Item({ label: t.string(), priority: t.number(3) });
+	const v2 = Item({ label: t.string(), priority: t.number({ default: 3 }) });
 	const { root, added, dropped, reset } = carry(made(), scopeWith({ List: List(), Item: v2 }));
 	assert.deepEqual(added, [
 		["items", 0, "priority"],
@@ -61,7 +61,7 @@ test("an added field takes its default and a removed one is dropped", () => {
 });
 
 test("a value the new type rejects is reset to its default", () => {
-	const v2 = Item({ label: t.string(), done: t.enum("open", "done") });
+	const v2 = Item({ label: t.string(), done: t.enum(["open", "done"]) });
 	const { root, reset } = carry(made(), scopeWith({ List: List(), Item: v2 }));
 	assert.deepEqual(reset, [
 		{ path: ["items", 0, "done"], before: true, after: "open" },
@@ -73,7 +73,7 @@ test("a value the new type rejects is reset to its default", () => {
 test("a narrower type keeps the values that still fit", () => {
 	const scope = scopeWith({ List: List(), Item: v1 });
 	const prev = scope.components.List({ title: "ok" });
-	const narrower = List({ title: t.string().len(1), items: t.array(t.component("Item")) });
+	const narrower = List({ title: t.string({ minLength: 1 }), items: t.array(t.component("Item")) });
 	assert.deepEqual(carry(prev, scopeWith({ List: narrower, Item: v1 })).reset, []);
 });
 
@@ -131,7 +131,7 @@ test("invariants the carried state breaks are reported, and the state still carr
 });
 
 test("specChanges tells the fields and components that changed by ref", () => {
-	const v2 = Item({ label: t.string("?"), priority: t.number(3).int() });
+	const v2 = Item({ label: t.string({ default: "?" }), priority: t.int({ default: 3 }) });
 	const Extra = component({ name: "Extra", fields: {}, view: "<b></b>" });
 	const changes = specChanges(
 		scopeWith({ List: List(), Item: v1 }),
@@ -143,20 +143,39 @@ test("specChanges tells the fields and components that changed by ref", () => {
 			ref: "Item",
 			field: "label",
 			change: "changed",
-			before: 'string = ""',
-			after: 'string = "?"',
+			before: '"string"',
+			after: '{ type: "string", default: "?" }',
 		},
-		{ ref: "Item", field: "done", change: "removed", before: "boolean = false", after: null },
-		{ ref: "Item", field: "priority", change: "added", before: null, after: "number.int() = 3" },
+		{ ref: "Item", field: "done", change: "removed", before: '"boolean"', after: null },
+		{
+			ref: "Item",
+			field: "priority",
+			change: "added",
+			before: null,
+			after: '{ type: "number", int: true, default: 3 }',
+		},
 		{ ref: "Extra", field: null, change: "added", before: null, after: null },
 	]);
 });
 
-test("typeText writes a type like the builder that made it", () => {
-	assert.equal(typeText(t.number(0).int().min(0)), "number.int().min(0) = 0");
-	assert.equal(typeText(t.enum("a", "b").sync("local")), 'enum("a", "b").sync("local") = "a"');
-	assert.equal(typeText(t.option(t.array(t.component("Item")))), 'array(component("Item")) = []?');
-	assert.equal(typeText(t.record({ x: t.string() })), 'record(x: string = "")');
+test("typeText writes a type as its data", () => {
+	assert.equal(
+		typeText(t.int({ min: 0, default: 0 })),
+		'{ type: "number", int: true, min: 0, default: 0 }',
+	);
+	assert.equal(
+		typeText(t.enum(["a", "b"], { sync: "local" })),
+		'{ type: "enum", values: ["a", "b"], sync: "local" }',
+	);
+	assert.equal(
+		typeText(t.option(t.array(t.component("Item")))),
+		'{ type: "option", of: { type: "array", of: { type: "component", of: "Item" } } }',
+	);
+	assert.equal(
+		typeText(t.record({ x: t.string() })),
+		'{ type: "record", fields: { x: "string" } }',
+	);
+	assert.equal(typeText("string"), '"string"');
 });
 
 // --- state from another version: stored projections and peers' ops ---------------------------
@@ -164,7 +183,11 @@ test("typeText writes a type like the builder that made it", () => {
 test("rebuild reports only the fields its level sees as added", () => {
 	const Note = component({
 		name: "Note",
-		fields: { text: t.string(), seen: t.boolean().sync("local"), tag: t.string("x") },
+		fields: {
+			text: t.string(),
+			seen: t.boolean({ sync: "local" }),
+			tag: t.string({ default: "x" }),
+		},
 		view: "<b></b>",
 	});
 	const { added, reset, dropped } = rebuild(
@@ -180,7 +203,7 @@ test("rebuild reports only the fields its level sees as added", () => {
 test("startSynced reports what a projection stored by another version lost", async () => {
 	const reports = [];
 	const s = setupHost(
-		{ List: List(), Item: Item({ label: t.string(), done: t.enum("open", "done") }) },
+		{ List: List(), Item: Item({ label: t.string(), done: t.enum(["open", "done"]) }) },
 		{
 			sync: true,
 			onReport: ({ type, engine, added, reset, dropped }) =>

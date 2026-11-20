@@ -2,7 +2,7 @@
 // a DOM event is, and awaited with whenIdle.
 import assert from "node:assert/strict";
 import test from "node:test";
-import { component, DispatchPath, Host, h, Selector, send, t } from "../../src/tutuca.js";
+import { component, DispatchPath, Host, h, send, t } from "../../src/tutuca.js";
 
 const Worker = component({
 	name: "Worker",
@@ -27,7 +27,7 @@ const Agent = component({
 	fields: { seen: t.array(), worker: t.component("Worker") },
 	on: {
 		prompt(_next, [x], ctx) {
-			ctx.sendAt("work", [x], (p) => p.field("worker"));
+			ctx.sendAt("work", [x], "worker");
 		},
 		done(next, [x]) {
 			next.seen.push(x);
@@ -54,10 +54,10 @@ test("a component with no views renders nothing and still handles messages", asy
 	assert.deepEqual(host.root.worker.log, ["hi", "answer(hi)"]);
 });
 
-test("send reaches a component down a selector, a selector fn or a dispatch path", async () => {
+test("send reaches a component down a path or a dispatch path", async () => {
 	const host = headless();
-	host.send("work", ["a"], { to: new Selector().field("worker") });
-	host.send("work", ["b"], { to: (p) => p.field("worker") });
+	host.send("work", ["a"], { to: "worker" });
+	host.send("work", ["b"], { to: "worker" });
 	host.send("mark", ["c"], { to: new DispatchPath() });
 	await host.whenIdle();
 	assert.deepEqual(host.root.worker.log, ["a", "b", "answer(a)", "answer(b)"]);
@@ -76,7 +76,7 @@ test("whenIdle waits for the answers of asks in flight", async () => {
 	const host = headless();
 	let release;
 	host.scope.registerAskHandlers({ llm: () => new Promise((r) => (release = r)) });
-	host.send("work", ["x"], { to: (p) => p.field("worker") });
+	host.send("work", ["x"], { to: "worker" });
 	let idle = false;
 	const waiting = host.whenIdle().then(() => (idle = true));
 	await new Promise((r) => setTimeout(r, 10));

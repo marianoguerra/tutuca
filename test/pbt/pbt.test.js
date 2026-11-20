@@ -28,7 +28,7 @@ const RUNS = { numRuns: 50 };
 const Tabs = component({
 	name: "Tabs",
 	fields: {
-		tabs: t.array(t.component("Tab")).len(1),
+		tabs: t.array(t.component("Tab"), { minLength: 1 }),
 		selectedTabIndex: t.index("tabs"),
 	},
 	invariants: {
@@ -179,16 +179,11 @@ test("a handler that breaks the schema is found with a minimal sequence", () => 
 });
 
 test("a tab switch that forgets the old tab breaks the invariant", () => {
-	const tabSelected = Tabs.on.tabSelected;
 	const BuggyTabs = component({
-		name: "Tabs",
-		fields: Tabs.fields,
-		invariants: Tabs.invariants,
-		views: Tabs.views,
-		loops: Tabs.loops,
+		...Tabs.definition,
 		on: {
 			tabSelected: {
-				...tabSelected,
+				...Tabs.definition.on.tabSelected,
 				run(next, _args, ctx) {
 					next.tabs[ctx.sourceKey] = apply(next.tabs[ctx.sourceKey], "setSelected", true);
 					next.selectedTabIndex = ctx.sourceKey;
@@ -212,11 +207,11 @@ test("a tab switch that forgets the old tab breaks the invariant", () => {
 test("a post condition that doesn't hold is reported with the message", () => {
 	const Counter = component({
 		name: "Counter",
-		fields: { count: t.number().int().min(0).max(1000) },
+		fields: { count: t.int({ min: 0, max: 1000 }) },
 		view: "counter",
 		on: {
 			add: {
-				args: [t.number().int().min(0).max(10)],
+				args: [t.int({ min: 0, max: 10 })],
 				post: (prev, next, [n]) => next.count === prev.count + n,
 				run(next, [n]) {
 					next.count = Math.min(next.count + n, 1000);

@@ -1,0 +1,103 @@
+{
+ "codes": [],
+ "model": {
+  "format": 2,
+  "components": [
+   {
+    "name": "Words",
+    "fields": [
+     {
+      "name": "text",
+      "type": "string",
+      "constraints": null,
+      "default": "",
+      "sync": null,
+      "public": false
+     },
+     {
+      "name": "words",
+      "type": "string[]",
+      "constraints": null,
+      "default": [],
+      "sync": null,
+      "public": false
+     },
+     {
+      "name": "n",
+      "type": "number",
+      "constraints": null,
+      "default": 0,
+      "sync": null,
+      "public": false
+     },
+     {
+      "name": "longest",
+      "type": "string",
+      "constraints": null,
+      "default": "",
+      "sync": null,
+      "public": false
+     },
+     {
+      "name": "note",
+      "type": "string",
+      "constraints": null,
+      "default": "",
+      "sync": null,
+      "public": false
+     }
+    ],
+    "queries": [],
+    "messages": [
+     {
+      "name": "read",
+      "args": "[string]",
+      "pure": true,
+      "changes": null,
+      "constraints": null,
+      "sourceKey": null,
+      "pre": false,
+      "post": false,
+      "why": null
+     },
+     {
+      "name": "lie",
+      "args": "unknown[]",
+      "pure": true,
+      "changes": null,
+      "constraints": null,
+      "sourceKey": null,
+      "pre": false,
+      "post": false,
+      "why": null
+     },
+     {
+      "name": "boom",
+      "args": "unknown[]",
+      "pure": true,
+      "changes": null,
+      "constraints": null,
+      "sourceKey": null,
+      "pre": false,
+      "post": false,
+      "why": null
+     }
+    ],
+    "invariants": [],
+    "views": [
+     "main"
+    ],
+    "meta": null,
+    "implements": []
+   }
+  ],
+  "interfaces": [],
+  "metaSchemas": [],
+  "register": null,
+  "entries": {
+   "Words.on.read.run": "void",
+   "Words.on.lie.run": "void",
+   "Words.on.boom.run": "void"
+  }
+ }
+}

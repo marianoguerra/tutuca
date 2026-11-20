@@ -27,6 +27,7 @@ import {
 	allTasks,
 	applyEach,
 	COLORS,
+	dateChecks,
 	dueType,
 	hasTaskId,
 	NAV,
@@ -218,22 +219,23 @@ const AGENT = {
 
 export const TodoApp = component({
 	name: "TodoApp",
+	checks: dateChecks,
 	meta: metaFor("Todos", "✅", "Projects, labels and due dates.", null, {
 		[AGENT_META]: AGENT,
 		[CLASSES_META]: { classes: [NAV, NAV_ACTIVE, DOT_CLASSES].join(" ") },
 	}),
 	fields: {
 		today: todayType(),
-		projects: t.array(t.component("TodoProject")).len(1),
+		projects: t.array(t.component("TodoProject"), { minLength: 1 }),
 		labels: t.array(t.string()),
 		tasks: t.array(t.component("TodoTask")),
-		view: t.enum(...VIEWS).sync("local"),
-		projectIndex: t.index("projects").sync("local"),
-		labelIndex: t.option(t.index("labels")).sync("local"),
-		search: t.string().sync("none"),
-		showCompleted: t.boolean().sync("local"),
+		view: t.enum(VIEWS, { sync: "local" }),
+		projectIndex: t.index("projects", { sync: "local" }),
+		labelIndex: t.option(t.index("labels"), { sync: "local" }),
+		search: t.string({ sync: "none" }),
+		showCompleted: t.boolean({ sync: "local" }),
 		quickAdd: t.component("QuickAdd"),
-		newProject: t.string().sync("none"),
+		newProject: t.string({ sync: "none" }),
 	},
 	invariants: {
 		inboxFirst() {
@@ -254,9 +256,7 @@ export const TodoApp = component({
 		},
 	},
 	provides: {
-		projects(b) {
-			b.field("projects");
-		},
+		projects: "projects",
 	},
 	methods: {
 		inView(task) {
@@ -337,14 +337,14 @@ export const TodoApp = component({
 			filter(key) {
 				return key !== 0;
 			},
-			enrich({ value, key }) {
+			enrich(key, value) {
 				const active = this.view === "project" && this.projectIndex === key;
 				const n = this.openCount((task) => task.projectId === value.id);
 				return { count: n || "", navClass: active ? NAV_ACTIVE : NAV, dot: value.dotClass };
 			},
 		},
 		navLabels: {
-			enrich({ value, key }) {
+			enrich(key, value) {
 				const active = this.view === "label" && this.labelIndex === key;
 				const n = this.openCount((task) => task.labels.includes(value));
 				return { count: n || "", navClass: active ? NAV_ACTIVE : NAV };
@@ -365,7 +365,7 @@ export const TodoApp = component({
 			key(_index, task) {
 				return task.id;
 			},
-			enrich({ value }, state) {
+			enrich(_key, value, state) {
 				if (!this.isDated) return { showHeader: false, header: "" };
 				const header = this.groupOf(value);
 				const showHeader = header !== state.last;
@@ -503,7 +503,7 @@ export const TodoApp = component({
 		),
 	),
 	on: {
-		openView: setField("view", t.enum("inbox", "today", "upcoming")),
+		openView: setField("view", t.enum(["inbox", "today", "upcoming"])),
 		openProject: {
 			args: [t.index("projects")],
 			run(next, [key]) {
@@ -543,7 +543,7 @@ export const TodoApp = component({
 				if (name === "") return;
 				const id = ctx.uuid();
 				const color = Object.keys(COLORS)[this.projects.length % 6];
-				next.projects.push(ctx.scope.make("TodoProject", { id, name, color }));
+				next.projects.push(ctx.make("TodoProject", { id, name, color }));
 				next.newProject = "";
 				next.projectIndex = this.projects.length;
 				next.view = "project";
@@ -569,10 +569,10 @@ export const TodoApp = component({
 		// The agent's, on a task by its id.
 		complete_task: taskTool("complete"),
 		reopen_task: taskTool("reopen"),
-		rename_task: taskTool("setTitle", [t.string().len(1)]),
+		rename_task: taskTool("setTitle", [t.string({ minLength: 1 })]),
 		set_description: taskTool("setDescription", [t.string()]),
 		set_due: taskTool("setDue", [dueType()]),
-		set_priority: taskTool("setPriorityLevel", [t.enum(1, 2, 3, 4)]),
+		set_priority: taskTool("setPriorityLevel", [t.enum([1, 2, 3, 4])]),
 		set_labels: {
 			...taskTool("setLabels", [t.array(t.string())]),
 			run(next, [id, labels]) {
@@ -606,12 +606,12 @@ export const TodoApp = component({
 			},
 		},
 		add_project: {
-			args: [t.string().len(1)],
+			args: [t.string({ minLength: 1 })],
 			pre: (self, [name]) => projectNamed(self, name) === undefined,
 			why: (_self, [name]) => `there's a project ${name} already`,
 			run(next, [name], ctx) {
 				const color = Object.keys(COLORS)[this.projects.length % 6];
-				next.projects.push(ctx.scope.make("TodoProject", { id: ctx.uuid(), name, color }));
+				next.projects.push(ctx.make("TodoProject", { id: ctx.uuid(), name, color }));
 			},
 		},
 		// From QuickAdd: parses text against today and the project names.
@@ -625,7 +625,7 @@ export const TodoApp = component({
 				const named = this.projects.find((p) => p.name === parsed.project);
 				const here = this.view === "project" ? this.currentProject : this.projects[0];
 				const due = parsed.due || (this.view === "today" ? this.today : "");
-				const task = ctx.scope.make("TodoTask", {
+				const task = ctx.make("TodoTask", {
 					id: ctx.uuid(),
 					title: parsed.title,
 					projectId: (named ?? here).id,
@@ -649,7 +649,7 @@ export const TodoApp = component({
 		},
 		// Moves past the next task in the same project.
 		moveTask: {
-			args: [t.enum(-1, 1)],
+			args: [t.enum([-1, 1])],
 			sourceKey: t.index("tasks"),
 			run(next, [delta], ctx) {
 				ctx.stopNext();

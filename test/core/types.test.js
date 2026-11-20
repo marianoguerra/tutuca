@@ -2,6 +2,7 @@ import assert from "node:assert/strict";
 import test from "node:test";
 import { produce } from "../../deps/immer.js";
 import {
+	compileType,
 	component,
 	field,
 	findInvalid,
@@ -10,12 +11,13 @@ import {
 	NumberType,
 	specOf,
 	t,
+	typeProblems,
 	t as types,
 } from "../../src/tutuca.js";
 
 const Task = component({
 	name: "Task",
-	fields: { title: t.string("Just do it"), tags: t.array(), done: t.boolean() },
+	fields: { title: t.string({ default: "Just do it" }), tags: t.array(), done: t.boolean() },
 	methods: {
 		label() {
 			return this.done ? `${this.title} ✓` : this.title;
@@ -74,13 +76,13 @@ test("option fields accept null, and missing values take the default", () => {
 	const N = component({
 		name: "N",
 		fields: {
-			s: t.option(t.string()).default("d"),
-			n: t.option(t.number()).default(1),
-			b: t.option(t.boolean()).default(true),
-			a: t.option(t.array()).default([1]),
-			m: t.option(t.map()).default({ k: 1 }),
+			s: t.option(t.string(), { default: "d" }),
+			n: t.option(t.number(), { default: 1 }),
+			b: t.option(t.boolean(), { default: true }),
+			a: t.option(t.array(), { default: [1] }),
+			m: t.option(t.map(), { default: { k: 1 } }),
 			none: t.option(t.string()),
-			strict: t.string("d"),
+			strict: t.string({ default: "d" }),
 		},
 		view: "n",
 	});
@@ -92,72 +94,109 @@ test("option fields accept null, and missing values take the default", () => {
 	assert.deepEqual(fieldsOf(N.make({ s: 1, n: "x", none: "v" })), { ...defaults, none: "v" });
 });
 
-test("types have zero defaults and default() returns a changed copy", () => {
+test("types have zero defaults; a type is data, compiled into a Type", () => {
 	const Z = component({
 		name: "Z",
 		fields: { s: t.string(), n: t.number(), b: t.boolean(), a: t.array(), m: t.map() },
 		view: "z",
 	});
 	assert.deepEqual(fieldsOf(Z.make()), { s: "", n: 0, b: false, a: [], m: {} });
-	const base = types.number();
-	assert.equal(base.default(3).defaultValue, 3);
-	assert.equal(base.defaultValue, 0);
-	assert.ok(base.default(3) instanceof NumberType);
+	assert.deepEqual(types.int({ min: 0, default: 3 }), {
+		type: "number",
+		int: true,
+		min: 0,
+		default: 3,
+	});
+	assert.ok(Object.isFrozen(types.array(types.string())));
+	assert.deepEqual(types.array(types.string()).of, { type: "string" });
+	const three = compileType({ type: "number", default: 3 });
+	assert.ok(three instanceof NumberType);
+	assert.equal(three.defaultValue, 3);
+	assert.equal(compileType("number").defaultValue, 0, "a kind's name is its type with no options");
 });
 
-test("getters in methods read the instance", () => {
-	const P = component({
-		name: "P",
-		fields: { first: t.string(), last: t.string() },
-		methods: {
-			get full() {
-				return `${this.first} ${this.last}`;
-			},
-		},
-		view: "p",
-	});
-	const p = P.make({ first: "Ada", last: "Lovelace" });
-	assert.equal(p.full, "Ada Lovelace");
-	const renamed = produce(p, (d) => {
-		d.first = "Augusta";
-	});
-	assert.equal(renamed.full, "Augusta Lovelace");
+test("type data is checked as it's written and as it's compiled", () => {
+	assert.throws(() => types.number({ minLength: 1 }), /a number doesn't take minLength/);
+	assert.throws(
+		() => types.string({ pattern: "(" }),
+		/pattern must be a regular expression's source/,
+	);
+	assert.throws(() => types.enum([]), /values must be a non-empty array/);
+	assert.throws(() => compileType({ type: "list" }), /type "list" isn't a kind/);
+	assert.deepEqual(
+		typeProblems({ type: "record", fields: { a: "nope", b: { type: "array", of: 1 } } }),
+		[
+			"a: \"nope\" isn't a type's kind (any, string, boolean, number, enum, option, array, map, record, oneOf, index, component)",
+			"b.of: a type is a kind's name or { type: kind, ... }, not 1",
+		],
+	);
+	assert.throws(() => compileType({ type: "string", check: "iso" }), /No check iso/);
+	assert.throws(
+		() => component({ name: "Bad", fields: { n: { type: "number", sync: "everywhere" } } }),
+		/Component Bad: Not a type: fields.n: number's sync must be one of shared, local, none/,
+	);
 });
 
 test("constraints narrow what a type accepts and bounds pull the default in", () => {
-	const n = types.number().int().min(1).max(10);
+	const n = compileType(types.int({ min: 1, max: 10 }));
 	assert.equal(n.defaultValue, 1);
 	assert.deepEqual(
 		[3, 0, 11, 1.5, "3"].map((v) => n.isValid(v, null)),
 		[true, false, false, false, false],
 	);
-	const s = types
-		.string("ab")
-		.len(1, 3)
-		.match(/^[a-z]+$/);
+	const s = compileType(
+		types.string({ minLength: 1, maxLength: 3, pattern: "^[a-z]+$", default: "ab" }),
+	);
 	assert.deepEqual(
 		["a", "", "abcd", "A"].map((v) => s.isValid(v, null)),
 		[true, false, false, false],
 	);
-	const odd = types.number(1).where((v) => v % 2 === 1, "odd");
+	const odd = compileType(types.number({ default: 1, check: "odd" }), { odd: (v) => v % 2 === 1 });
 	assert.deepEqual([odd.isValid(3, null), odd.isValid(2, null)], [true, false]);
-	assert.equal(types.array().len(1).isValid([], null), false);
-	assert.throws(() => types.array().len(1).make(undefined, null), /has no default/);
-	assert.deepEqual(types.array().len(1).make([1], null), [1]);
-	assert.equal(types.map().len(0, 1).isValid({ a: 1, b: 2 }, null), false);
-	assert.deepEqual(types.number(), types.number(), "modifiers leave the original untouched");
+	const nonEmpty = compileType(types.array("any", { minLength: 1 }));
+	assert.equal(nonEmpty.isValid([], null), false);
+	assert.throws(() => nonEmpty.make(undefined, null), /has no default/);
+	assert.deepEqual(nonEmpty.make([1], null), [1]);
+	assert.equal(
+		compileType(types.map("any", { maxLength: 1 })).isValid({ a: 1, b: 2 }, null),
+		false,
+	);
+});
+
+test("a named check tests values, and may say how pbt generates them", () => {
+	const arb = () => "generated";
+	const type = compileType(types.string({ check: ["short", "lower"] }), {
+		short: { test: (v) => v.length < 3, arb, description: "under 3 letters" },
+		lower: (v) => v === v.toLowerCase(),
+	});
+	assert.deepEqual(
+		["ab", "abc", "AB"].map((v) => type.isValid(v, null)),
+		[true, false, false],
+	);
+	assert.equal(type.generator, arb);
+	assert.deepEqual(
+		type.constraints.check.map((c) => [c.name, c.description]),
+		[
+			["short", "under 3 letters"],
+			["lower", "lower"],
+		],
+	);
+	assert.equal(
+		compileType(types.number({ check: "whole" }), { whole: { arb } }).isValid(1.5, null),
+		true,
+	);
 });
 
 test("enum, record and oneOf check members, shape and alternatives", () => {
-	const e = types.enum("edit", "view");
+	const e = compileType(types.enum(["edit", "view"]));
 	assert.equal(e.makeDefault(null), "edit");
 	assert.deepEqual([e.isValid("view", null), e.isValid("other", null)], [true, false]);
-	const r = types.record({ x: types.number(), label: types.option(types.string()) });
+	const r = compileType(types.record({ x: types.number(), label: types.option(types.string()) }));
 	assert.deepEqual(r.makeDefault(null), { x: 0, label: null });
 	assert.equal(r.isValid({ x: 1, label: "a" }, null), true);
 	assert.equal(r.isValid({ x: 1 }, null), false, "a missing key is invalid");
 	assert.equal(r.isValid({ x: 1, label: null, extra: 1 }, null), false, "extra keys are invalid");
-	const u = types.oneOf(types.string("a"), types.number());
+	const u = compileType(types.oneOf([types.string({ default: "a" }), types.number()]));
 	assert.equal(u.makeDefault(null), "a");
 	assert.deepEqual(
 		[u.isValid(1, null), u.isValid("s", null), u.isValid(true, null)],
@@ -166,23 +205,27 @@ test("enum, record and oneOf check members, shape and alternatives", () => {
 });
 
 test("record and oneOf defaults meet the constraints of what they are made of", () => {
-	const three = types
-		.number()
-		.min(1)
-		.where((v) => v === 3, "three");
-	const r = types.record({ n: three });
+	const checks = { three: (v) => v === 3 };
+	const r = compileType(types.record({ n: types.number({ min: 1, check: "three" }) }), checks);
 	assert.throws(() => r.make(undefined, null), /n: has no default/);
-	assert.deepEqual(types.record({ n: three.default(3) }).make(undefined, null), { n: 3 });
-	const u = types.oneOf(types.string().len(1), types.number());
+	const made = compileType(
+		types.record({ n: types.number({ min: 1, check: "three", default: 3 }) }),
+		checks,
+	);
+	assert.deepEqual(made.make(undefined, null), { n: 3 });
+	const u = compileType(types.oneOf([types.string({ minLength: 1 }), types.number()]));
 	assert.throws(() => u.make(undefined, null), /has no default/);
-	assert.equal(types.oneOf(types.string("a").len(1)).make(undefined, null), "a");
+	assert.equal(
+		compileType(types.oneOf([types.string({ minLength: 1, default: "a" })])).make(undefined, null),
+		"a",
+	);
 });
 
 test("index fields are keys of a sibling collection", () => {
 	const Sel = component({
 		name: "Sel",
 		fields: {
-			items: t.array().default(["a", "b"]),
+			items: t.array("any", { default: ["a", "b"] }),
 			selected: t.index("items"),
 			byId: t.map(),
 			current: t.option(t.index("byId")),
@@ -206,7 +249,7 @@ test("index types inside arrays, maps and records are checked against the owner'
 	const Picks = component({
 		name: "Picks",
 		fields: {
-			items: t.array().default(["a", "b"]),
+			items: t.array("any", { default: ["a", "b"] }),
 			picked: t.array(t.index("items")),
 			byName: t.map(t.index("items")),
 			pair: t.record({ first: t.index("items") }),

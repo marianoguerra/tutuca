@@ -35,7 +35,7 @@ test("sourceKey is relative to the receiver for events, notifies, sends and repl
 		on: {
 			ping(_next, _args, ctx) {
 				seen.push(["top notify", ctx.sourceKey]);
-				ctx.sendAt("ping", [], (b) => b.item("mids", 1));
+				ctx.sendAt("ping", [], { item: "mids", key: 1 });
 			},
 		},
 	});

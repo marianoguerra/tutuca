@@ -1,5 +1,202 @@
 # Changelog
 
+## Unreleased
+
+### Added
+
+- The paths tour (`demos/paths/`): eighteen examples, one kind of path step at a time and then
+  together, each live next to its path tree. Hovering a step outlines what it rendered and
+  hovering the app lights its step, a switch outlines what each marker comment covers, and a
+  click is held and becomes steps to go through with a pager (first, previous, one per step,
+  next, last): the walk up the markers that makes its path, where each message lands (a
+  notify's hops, a `sendAt`'s target) and which components the change copied. The app has the
+  state from before the click until the step that delivers it, going back included.
+  Each place in the tree keeps what went through it, across events: its row counts the
+  events that happened there, the ones whose walk went up through it, the notifications that
+  passed and what was handled there (`1/0/2/1`, a colour per kind). Clicking a row opens the
+  place in an inspector under the tree, a kind lists its entries and an entry opens in full,
+  with the message's args, its outcome, where it came from and what caused it.
+  Agents can be put on the tree, as many as wanted, each at the place the inspector shows
+  and as one of the profiles the page offers (explorer, bug fixer, feature developer, designer,
+  style reviewer, and operator, which changes the application where the others study it: a
+  prompt each). An agent has a name made of a manner, a material and a tree
+  dweller ("Patient Moss Sloth"), which the pencil beside its tab changes (a name to type, taken
+  with ✓ or Enter and left with ✕), and the dweller's emoji is its mark on
+  the row it's at; a base, the place it was put at, marked with an anchor once it has left it;
+  and the place it's at. Its tools read a place, the current one or the base (`here`, `spec`,
+  `state`, `entries`, `entry`, `trace`, `busiest`, `agents`), move it (`up`, `down`, `go_to`,
+  `home`) and `send` the component there, or at its base, one of its messages, which changes the app and
+  leaves its entries in the trail. `tell` sends another agent, by its name, a message: it
+  reads it as the user's ("Message from Patient Moss Sloth: …") at once when it's idle, or once
+  it's done with what it was doing, and the teller doesn't wait for what it does about it. The
+  `Agent` does this for any target with a `mail` query and a pure `takeMail` (`checkMail` tells
+  it mail came). An agent on the tour takes up to 50 steps for a prompt, and an `Agent` that
+  stopped at its limit has a Continue button beside the error, which says "continue" as the
+  user and starts the steps over. The tour asks which models the inference server has as it
+  loads (`just app paths`, `?api=`, `?model=`) and new agents start with the first, or the
+  last one picked; without a server they use the echo model.
+  Under the tour, a Traces panel that opens shows the same entries by what caused what, as
+  OpenTelemetry would: a trace per event (or per message an agent sent), a span per task
+  under the span of the task that sent it (a notify's hops one under the other), with its
+  outcome as its status, what its handler emitted as its events, the place it ran at as its
+  resource and the component there as its scope. The picked trace is a waterfall on counted
+  ticks, one per place the path was read through and then one per task: each bar goes on
+  until everything the task caused was done, the part its own transaction took drawn solid.
+  A span points at its place's row and at the app, a click on it shows it in OpenTelemetry's
+  names and its place in the inspector, and the pager's step marks the span it's about.
+- `tutuca/pure` (experimental, bring your own `pure-js`): handlers and components as checked
+  source text (`docs/pure.md`). pure-js (`pure-js/`, its own package) is a subset of JavaScript
+  and erasable TypeScript checked to do only what its host allows, deterministically, and to
+  end. `enableHandlerSources(pureHandlers())` lets a handler's `run` be pure-js source, compiled
+  the first time it runs and checked by lint (`handler-source`); `componentModule(source)` loads
+  a whole component written as a pure-tutuca module (`name.tutuca.ts`: a state type and a
+  namespace in `component({...})`'s shape, with `tutuca/view` and `tutuca/data` as its host
+  modules), the same text tutuca-wax compiles to wasm. `spec/pure-tutuca/` has the format and the
+  corpus both are held to; `components/pure-todo/` is a todo list written both ways.
+- `eventProperty(name)`, a send argument that reads a property of the event, like a
+  `CustomEvent`'s `detail`: `send("rate", eventProperty("detail"))`.
+- Agent meta: `instructions`, a zero-arg query like `summary`, what one instance in
+  particular is told to do, which `systemPrompt` adds after the domain's prompt.
+  `agentProblems` checks it names a query.
+
+### Changed
+
+- `apiOf`, `modelOf`, `preferModel` and `rememberModel` moved from `demos/canvas/main.js` to
+  `demos/agent-api.js`, which the canvas and the paths tour share.
+- **Breaking: a component's definition is data, compiled once.** What isn't code in
+  `component({...})`, an interface or a meta schema is plain data, and the runtime compiles it
+  into the objects it runs with (`Type`, `Interface`, `Selector`) instead of reading the data
+  as it runs. `spec.definition` keeps what a component was made from, for another to spread.
+  - **Types** are a kind's name (`"string"`) or `{ type, ...options }`:
+    `{ type: "number", int: true, min: 0, default: 1, sync: "local", public: true }`. The kinds
+    take `of` (option, array, map, oneOf; a component's names), `fields` (record), `values`
+    (enum) and `keyOf` (index); constraints are `int`, `min`, `max`, `minLength`,
+    `maxLength`, `pattern` (a regular expression's source) and `check`. `t.*` writes the
+    same data, checked as it's written: `t.int({ min: 0 })`, `t.array(t.string(), { minLength:
+    1 })`, `t.enum(["a", "b"])`, `t.oneOf([a, b])`. The chained modifiers (`.int()`, `.min()`,
+    `.default()`, `.len()`, `.match()`, `.sync()`, `.public()`, `.where()`, `.arb()`) are gone,
+    as are positional defaults (`t.string("x")`) and function defaults. `compileType`,
+    `compileShape`, `checkType`, `typeProblems`, `dataText` and `signatureText` are exported;
+    `typeText` writes a type's data.
+  - **Named checks** replace `.where(fn)` and `.arb(fn)`: a type says `check: "iso"` and its
+    component says `checks: { iso: { test, arb, description } }` (or `iso: fn`). One with no
+    test only says how pbt generates the type's values.
+  - **Interfaces** are data registered by name (`scope.registerInterfaces({ TodoItem: {
+    pure, queries, notifies } })`, `iface(data)` checking it), and `implements` and
+    `t.component` name them: an `Interface` object is no longer passed around.
+    `implementsIface(value, name)` resolves the name in the value's scope.
+  - **Paths** replace selector functions: `ctx.sendAt(name, args, path)`, `ctx.forwardAt(path)`,
+    `host.send`/`apply`/`query`'s `to`, stories' `to` and `from` and `provides` take a step or an
+    array of steps, each `"f"`, an index, `{ item: "f", key }` or `{ seqItem: "f", keyField:
+    "g" }` (`[]` is the component itself; `selectorOfPath` compiles one, `pathProblems` says
+    what's wrong with one). `selectorFrom` and `Selector`'s `field`, `item` and `seqItem` are
+    gone. A provider's path is static and lint's `bad-provide` checks each step against the
+    fields and types it walks.
+  - pure-tutuca's constraints are tutuca's options under the same names, its `provides`
+    tutuca's paths, and its `ctx.sendAt(name, args, path)` tutuca's, with no adapter between.
+- **A handler's ctx is what pure-tutuca declares**, so pure handlers get it as it is, with no
+  facade: `ctx.make(name, fields)` makes a component in the handler's scope (`ctx.scope.make`
+  still works); `ctx.drag` is the drag as the handler reads it, `{ type, value, node, path,
+  key }`, `key` the key of its child the drag came from (**breaking**: it was the host's
+  `Drag`, `ctx.drag.sourceKeyIn(ctx.path)` for the key); `ctx.log(value)` notes a value in the
+  task's transition (`record.logs`, a draft as it was then), which a test or tool reads.
+- `ctx.tryMake(name, fields)` makes a component as a result, `{ ok: component }` or `{ err: {
+  error, issues } }`, instead of failing the task, and `ctx.componentNames(walk)` lists the names
+  the handler's scope can make (sorted; with `walk`, its parents' too), as tutuca-wax's
+  `ctx_try_make` and `ctx_component_names` do; an ask handler's ctx has `componentNames` too.
+  `scope.tryMake` and `scope.componentNames` are the same on a scope. pure-tutuca declares and
+  tcd lowers both (corpus case `scope-make`, run in both runtimes).
+- `component({ init(next, ctx) })`: what finishes an instance made from its fields, run by
+  `make` on a draft of it (`this` the fields as made), its `ctx` making the components it holds
+  in its scope (`InitContext`), as tutuca-wax's init; kanban starts with three lanes when made
+  with none. pure-tutuca declares it (`C.init`) and tcd lowers it to `{c}_init`.
+- **Event modifiers** (`"on:keydown+enter+prevent"`), as tutuca-wax's: a key held (`ctrl`,
+  `alt`, `shift`, `meta`), the key pressed (`enter`, `escape`, `tab`, `space`, `up`, `down`,
+  `left`, `right`, `delete`, `backspace`) and `prevent` and `stop`, which call
+  `preventDefault()` and `stopPropagation()` when the binding takes the event. A binding was
+  only ever taken by an event whose type was the whole spec, so todo_list's Enter did nothing;
+  an unknown modifier throws as the view is built (`eventBinding`, `bindingTakes`).
+- tutuca/data's `get(value, key)`: an object's own member or a list's item of a value pure-js
+  types `unknown`, for what's dragged and JSON. tcd lowers `typeof` and a module's literal
+  constants (negative numbers too), and rejects a send argument that reads the state
+  (`pure-tutuca.state-in-send`), as tutuca's lint does: tutuca works a send's arguments out
+  from the event alone.
+- pure-js: an alias of a union (`type Tag = "a" | "b"`) is its members, so `===` against one of
+  them can be true, and a value of an alias of strings or numbers goes to a helper that takes
+  one, read-only or not, as it can't change (the MoonBit port too, vendored into tutuca-wax).
+- tutuca-wax's kanban is a pure-tutuca module (`kanban.tutuca.ts`): its `.tcd` and `.wax` are
+  gone. A card's remove, tag and drop-before buttons send its `sourceKey()`.
+- tutuca-wax's json, layout, studio (and the five examples its assistant is shown), the
+  micro-agents' kit, shell and labs, and the playground's clicker are pure-tutuca modules: every
+  component tutuca-wax ships is one, and no `.tcd` or hand-written `.wax` is left outside tcd's
+  own tests. The studio edits one `name.tutuca.ts` (records `{ id, name, source }`, bundle
+  version 3), its assistant's `write_component` writes `{ source }` and is told the pure-tutuca
+  reference (`studio/assistant/2-module.md`), and the playground lost "Add missing functions".
+  Message, field, view and tool names are camelCase everywhere, the micro-agents' tools and
+  shared tools (`skillsRead`, `getState`, ...) too; a layout's edit view is `layoutEdit`.
+- The handler context's `ctx.metaOf(name, uri)`: what the type the scope makes as name says under
+  uri, over its meta schema's defaults (a hole labels its choices with it); an ask handler's
+  context has it too. pure-tutuca's `ctx.now()`; an ask handler's last parameter, typed
+  `AskCtx`, is the asker's context. An answer's handle is `Ctx_<C>_<ask>Answer`, apart from a
+  message of the same name.
+- pure-tutuca's types: an `interface` declaration is a component interface (not `<C>Notifies`
+  or `<C>Asks`; a `type` is data), so `JsonValue { readonly json: string }` is one; the host's
+  `Component` is any component; a union of components is one component type of those names,
+  made as the first (`JsonNull | JsonValue`), as `t.component(names)` is. An example's `expect`
+  names queries too. tutuca/data gains `toJson`, `parseJson`, `itemsOf` and `keysOf`. A
+  component's data may name the module's constants (`constraints: { s: { pattern: ISO } }`)
+  and templates of them, in both readers; before, the whole member was silently dropped.
+- The micro-agents' engines are typed host modules: `declaration` (specifier, module, members'
+  signatures) next to `make`, members answering rather than throwing, defined as
+  `Module.member`; the build writes `dist/engines/<name>.host.json` for tcd.
+- tcd names a pure-tutuca module's Wax as written (`KanbanLane_on_addCard`, not
+  `kanban_lane_on_add_card`) and holds its string unions as strings; it folds a view's strings
+  made of constants, reads a negative number in a view, a path held in a constant, a
+  `tutuca.errorMessage`, and a string method on a string it holds boxed (a helper's result,
+  a record's field), which it lowered as the list method, and makes a component field with no default as the first component its
+  type names.
+- **Breaking (tutuca-wax): tcd is the pure-tutuca compiler** (`tutuca-wax/pure-tutuca/`, the
+  `pure-tutuca` command, `dist/pure-tutuca/pure-tutuca.wasm` exporting `pt_check`, `pt_model`
+  and `pt_build`, loaded by `js/pt-web.js`'s `loadPureTutuca`), and the `.tcd` language is gone:
+  its parser, its resolver, its conditions, `stub` and the hints on hand-written Wax. The
+  compiler builds its model from the checked module (`pure/build.mbt`), views as view nodes,
+  and checks it there (`check/validate.mbt`, `check/views.mbt`); its diagnostics are
+  `pure-tutuca.*`, point at the module's lines and write types as TypeScript does. Interfaces
+  have queries (an interface's method that isn't `Pure` or `Notify`). The model js/pbt.js reads
+  is `model --pbt-model` (`*.pbt-model.json`), and an example's `expect` matches the fields it
+  names, saying which didn't. The `tutuca` section is format 2 (`source` in place of `tcd` and
+  `impls`); a micro-agent's manifest names its engines as `hostModules`.
+- **Breaking (tutuca-wax): ABI 19.** One number kind (an f64, -0 and NaN kept; a whole number
+  is `vtype_number` with `constraint_int`), no result kind: an outcome (a host call's,
+  `tryMake`'s, an ask's, `runtime.make`'s and `host.apply`'s at the JS boundary) is
+  `{ ok: value }` or `{ err: error }`. An ask's answer is a message named as the ask with an
+  `answer` (`ok`, `error`, `unhandled`), which reports carry next to `message`, not a dotted
+  `name.ok`. JS's `undefined` is the `undefined` value going in. lib/author.wax loses its
+  `cond_*`, `init_int` and `arg_int`.
+- An ask handler's context (`AskCtx` in pure-tutuca, both runtimes) has `log(value)`, which is
+  the asked transition's logs, `now()` and `uuid()`; it still sends nothing, which the module's
+  check rejects. tutuca-wax's `runtime.query` and `runtime.apply` (and `host.query`) give
+  `{ err: { code: "failed", detail } }` when what they ran throws (a host call that fails),
+  instead of throwing. tutuca-wax writes types as a module does, in TypeScript (`TodoItem[]`,
+  `number | null`, `"a" | "b"`, `{ [key: string]: T }`, `unknown`, `boolean`), in schemas,
+  interface gaps and problems; the micro-agents' tools read that.
+- **Breaking: a handler that replaces its component says `swap: true`**, as tutuca-wax's and
+  pure-tutuca's do: its `run` returns the component its own becomes, or nothing to stay with
+  what `next` has. A run that returns anything but nothing (or `next`) without `swap`, or a
+  swap's that returns what isn't a component, fails its task, saying so; `apply` throws
+  `ContractError` code `returned`. A swap replaces the root too, its draft written or not
+  (`leafProduce` holds the root in a record: immer refuses a recipe that writes its draft and
+  returns another value). `contractOf` says which messages swap. lang's `clear` and `fill` and
+  json's `setTo` say `swap: true`.
+- **Breaking: a loop's `enrich` takes `(key, value, prepared)`**, as its `key` and `filter`
+  do, instead of `({ key, value }, prepared)`. What it returns is still merged with `value`
+  and `key`. pure-tutuca's loops are tutuca's, with no adapter.
+
+### Fixed
+
+- `render(field("x"))` of a null, an option component field with none, renders nothing
+  instead of throwing in `getBestViewFor`; the deps walker skips it too.
+
 ## 1.0.0-beta.6
 
 `src/` exports less: what nothing outside a module used is gone, each concept has one name

@@ -25,8 +25,9 @@ import {
 } from "../../src/tutuca.js";
 
 // Registration only needs a root node to add delegated listeners to.
-const lintOf = (specs) => {
+const lintOf = (specs, interfaces = {}) => {
 	const host = new Host({ document: null, rootNode: { addEventListener() {} } });
+	host.scope.registerInterfaces(interfaces);
 	host.scope.register(specs);
 	return lintScope(host.scope).map(({ level, code, path }) => `${level} ${code} ${path}`);
 };
@@ -41,13 +42,11 @@ test("a component using every helper correctly is clean", () => {
 		name: "Page",
 		fields: { items: t.array(), selected: t.number(), query: t.string() },
 		loops: {
-			rows: { enrich: ({ value }) => ({ label: value.label }), view: "row" },
+			rows: { enrich: (_key, value) => ({ label: value.label }), view: "row" },
 		},
 		binds: { stats: () => ({ count: 1 }) },
 		provides: {
-			list(pb) {
-				pb.field("items");
-			},
+			list: "items",
 		},
 		view: h(
 			"div",
@@ -91,12 +90,46 @@ const cases = [
 			provides: { p: 1 },
 		},
 		[
-			"error section-shape Shapes",
+			"error bad-provide Shapes",
 			"error section-shape Shapes",
 			"error section-shape Shapes",
 			"error section-shape Shapes",
 			"error loop-view-type Shapes",
 		],
+	],
+	[
+		// A provide is a static path into the state: each step checked against what it walks.
+		"provides that aren't paths into the state",
+		{
+			name: "Provides",
+			view: "x",
+			fields: {
+				items: t.array(t.record({ label: t.string() })),
+				tags: t.map(t.string()),
+				selected: t.number(),
+				name: t.string(),
+				pick: t.option(t.index("items")),
+			},
+			provides: {
+				fn: (b) => b.field("items"),
+				empty: [],
+				missing: "nope",
+				noItems: { item: "name", key: 0 },
+				mapKey: { item: "tags", key: 1 },
+				badKeyField: { seqItem: "items", keyField: "name" },
+				noKeyField: { seqItem: "items", keyField: "nope" },
+				deep: [{ item: "items", key: 0 }, "nope"],
+				pastString: ["name", "length"],
+				extra: { item: "items", key: 0, also: 1 },
+				ok: [{ item: "items", key: 0 }, "label"],
+				okSeq: [{ seqItem: "items", keyField: "pick" }, "label"],
+				okNumber: { seqItem: "items", keyField: "selected" },
+				okMap: { item: "tags", key: "a" },
+				okIndex: ["items", 0, "label"],
+				badIndex: ["name", 0],
+			},
+		},
+		Array(11).fill("error bad-provide Provides"),
 	],
 	[
 		"a loop with both iter and filter",
@@ -292,7 +325,7 @@ for (const [name, options, expected] of cases) {
 test("field names are checked against the schema and methods, outside loop bodies", () => {
 	const Fields = component({
 		name: "Fields",
-		fields: { declared: t.number(1), label: t.string() },
+		fields: { declared: t.number({ default: 1 }), label: t.string() },
 		methods: {
 			computed() {
 				return this.declared;
@@ -349,13 +382,13 @@ test("lint reports defaults of the wrong kind, bad index targets and every unkno
 	const Bad = component({
 		name: "Bad",
 		fields: {
-			count: t.number().default("x"),
-			level: t.number().min(1).default(0),
-			mode: t.enum("a", "b").default("c"),
+			count: t.number({ default: "x" }),
+			level: t.number({ min: 1, default: 0 }),
+			mode: t.enum(["a", "b"], { default: "c" }),
 			label: t.string(),
 			selected: t.index("label"),
 			pick: t.option(t.component(["Item", "Nope"])),
-			fresh: t.string(() => "computed"),
+			fresh: t.string({ default: () => "computed" }),
 		},
 		view: "bad",
 	});
@@ -409,8 +442,8 @@ test("lint checks message specs and the sends that target them", () => {
 		on: {
 			set: { args: [t.number()], run() {} },
 			noRun: { args: [] },
-			badArgs: { args: ["number"], run() {} },
-			badHooks: { pre: 1, sourceKey: "k", emits: { notify: "x" }, run() {} },
+			dataArgs: { args: ["number"], run() {} },
+			badHooks: { pre: 1, emits: { notify: "x" }, run() {} },
 			notAnEntry: 42,
 		},
 	});
@@ -419,11 +452,19 @@ test("lint checks message specs and the sends that target them", () => {
 		"error section-shape Form",
 		"error section-shape Form",
 		"error section-shape Form",
-		"error section-shape Form",
-		"error section-shape Form",
 		"error send-arity Form.main > div > i > [on:click]",
 		"error send-arg-type Form.main > div > b > [on:click]",
 	]);
+});
+
+test("a handler's types are data, compiled as the component is made", () => {
+	const make = (entry) => () => component({ name: "Form", on: { bad: { run() {}, ...entry } } });
+	assert.throws(
+		make({ sourceKey: "k" }),
+		/Component Form: on.bad.sourceKey: Not a type: "k" isn't/,
+	);
+	assert.throws(make({ args: "number" }), /Component Form: on.bad.args must be an array of types/);
+	assert.throws(make({ args: [1] }), /on.bad.args\[0\]: Not a type/);
 });
 
 test("answers: a section of ok, error and unhandled handlers; an ask with none warns", () => {
@@ -454,10 +495,10 @@ test("answers: a section of ok, error and unhandled handlers; an ask with none w
 
 test("pure messages get no ctx and emit nothing; queries read", async () => {
 	const { $query, iface } = await import("../../src/tutuca.js");
-	const Item = iface("Item", { queries: { label: {} } });
+	const Item = iface({ queries: { label: {} } });
 	const Row = component({
 		name: "Row",
-		implements: [Item],
+		implements: ["Item"],
 		fields: { text: t.string() },
 		on: {
 			ok: {
@@ -496,7 +537,7 @@ test("pure messages get no ctx and emit nothing; queries read", async () => {
 		),
 	});
 	const List = component({ name: "List", fields: { rows: t.array(t.component("Item")) } });
-	assert.deepEqual(lintOf({ Row, List }), [
+	assert.deepEqual(lintOf({ Row, List }, { Item }), [
 		"error pure-uses-ctx Row",
 		"error pure-emits Row",
 		"error query-mutates-this Row",
@@ -544,7 +585,7 @@ test("a computed class needs the component's classes meta", () => {
 				return true;
 			},
 		},
-		loops: { chips: { enrich: (binds) => ({ ...binds, chip: "badge" }) } },
+		loops: { chips: { enrich: () => ({ chip: "badge" }) } },
 	});
 	assert.deepEqual(lintOf([Computed]), [
 		"warning undeclared-dynamic-class Computed.main > div > [class]",

@@ -1,0 +1,105 @@
+{
+ "codes": [],
+ "model": {
+  "format": 2,
+  "components": [
+   {
+    "name": "Picker",
+    "fields": [
+     {
+      "name": "names",
+      "type": "string[]",
+      "constraints": null,
+      "default": [],
+      "sync": null,
+      "public": false
+     },
+     {
+      "name": "made",
+      "type": "number",
+      "constraints": null,
+      "default": 0,
+      "sync": null,
+      "public": false
+     },
+     {
+      "name": "failed",
+      "type": "number",
+      "constraints": null,
+      "default": 0,
+      "sync": null,
+      "public": false
+     }
+    ],
+    "queries": [],
+    "messages": [
+     {
+      "name": "pick",
+      "args": "[string]",
+      "pure": false,
+      "changes": [
+       "names",
+       "made",
+       "failed"
+      ],
+      "constraints": null,
+      "sourceKey": null,
+      "pre": false,
+      "post": false,
+      "why": null
+     },
+     {
+      "name": "become",
+      "args": "[string]",
+      "pure": false,
+      "changes": [
+       "failed"
+      ],
+      "constraints": null,
+      "sourceKey": null,
+      "pre": false,
+      "post": false,
+      "why": null
+     }
+    ],
+    "invariants": [],
+    "views": [
+     "main"
+    ],
+    "meta": null,
+    "implements": []
+   },
+   {
+    "name": "Leaf",
+    "fields": [
+     {
+      "name": "n",
+      "type": "number",
+      "constraints": null,
+      "default": 0,
+      "sync": null,
+      "public": false
+     }
+    ],
+    "queries": [],
+    "messages": [],
+    "invariants": [],
+    "views": [
+     "main"
+    ],
+    "meta": null,
+    "implements": []
+   }
+  ],
+  "interfaces": [],
+  "metaSchemas": [],
+  "register": {
+   "Leaf": "Leaf",
+   "Picker": "Picker"
+  },
+  "entries": {
+   "Picker.on.pick.run": "void",
+   "Picker.on.become.run": "unknown"
+  }
+ }
+}

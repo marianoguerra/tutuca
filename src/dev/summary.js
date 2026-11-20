@@ -108,6 +108,7 @@ const EVENT_ARG_TITLES = {
 	eventKey: "the key a key event is for",
 	sourceKey: "the key the event came from",
 	dragKey: "the key the dragged element came from",
+	eventProperty: "a property of the event",
 };
 const sourceWords = (node) => (node instanceof ViewNode ? astTitle(node) : brief(node));
 const astTitle = (node) => {

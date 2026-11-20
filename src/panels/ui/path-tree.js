@@ -64,10 +64,10 @@ const PathStep = component({
 	name: "PathStep",
 	meta: { [CLASSES_META]: { classes: Object.values(TONES).join(" ") } },
 	fields: {
-		ref: t.number().int().min(0),
-		parts: t.array(t.record({ text: t.string(), tone: t.enum(...Object.keys(TONES)) })),
+		ref: t.int({ min: 0 }),
+		parts: t.array(t.record({ text: t.string(), tone: t.enum(Object.keys(TONES)) })),
 		comp: t.string(),
-		mark: t.enum("active", "inactive", "last"),
+		mark: t.enum(["active", "inactive", "last"]),
 		canFocus: t.boolean(),
 		canOpen: t.boolean(),
 		isOpen: t.boolean(),
@@ -93,7 +93,7 @@ const PathStep = component({
 	},
 	loops: {
 		parts: {
-			enrich({ value }) {
+			enrich(_key, value) {
 				return { tone: TONES[value.tone] };
 			},
 		},
@@ -153,8 +153,8 @@ const PathStep = component({
 const PathTree = component({
 	name: "PathTree",
 	fields: {
-		rootRef: t.number().int().min(0),
-		siblings: t.number().int().min(0),
+		rootRef: t.int({ min: 0 }),
+		siblings: t.int({ min: 0 }),
 		focusText: t.string(),
 		lastText: t.string(), // The focus showApp picked last.
 		error: t.string(), // What walking the tree threw.
@@ -202,7 +202,7 @@ const PathTree = component({
 	),
 	on: {
 		focusStep: {
-			args: [t.number().int().min(0)],
+			args: [t.int({ min: 0 })],
 			run(next, [ref], ctx) {
 				const step = deref(ref);
 				if (step === undefined) return;

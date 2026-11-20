@@ -1,0 +1,20 @@
+{
+ "specifier": "tutuca/data",
+ "module": "Data",
+ "members": {
+  "range": "(start: number, end: number) => number[]",
+  "without": "<V>(record: { [key: string]: V }, key: string) => { [key: string]: V }",
+  "kindOf": "(value: unknown) => \"null\" | \"undefined\" | \"boolean\" | \"number\" | \"string\" | \"list\" | \"object\" | \"component\"",
+  "get": "(value: unknown, key: string | number) => unknown",
+  "itemsOf": "(value: unknown) => readonly unknown[]",
+  "keysOf": "(value: unknown) => string[]",
+  "toJson": "(value: unknown, indent: number) => string",
+  "parseJson": "(text: string) => unknown"
+ },
+ "fresh": [
+  "Data.range",
+  "Data.without",
+  "Data.parseJson",
+  "Data.keysOf"
+ ]
+}

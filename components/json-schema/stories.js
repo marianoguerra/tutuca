@@ -49,9 +49,9 @@ const wide = (n) => ({
 
 const tree = (schema, options) => (C) => schemaTree(C, schema, options);
 // Path builders from the root.
-const atNode = (b) => b.field("node");
-const atProp = (i) => (b) => b.field("node").item("properties", i).field("schema");
-const atPager = (b) => b.field("node").field("pager");
+const atNode = "node";
+const atProp = (i) => ["node", { item: "properties", key: i }, "schema"];
+const atPager = ["node", "pager"];
 // JSON text with sorted keys, to compare schemas whatever their key order.
 const canonical = (v) =>
 	JSON.stringify(v, (_k, x) =>

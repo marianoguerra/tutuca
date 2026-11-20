@@ -108,13 +108,14 @@ const node = (edit, ...children) =>
 	);
 const clear = {
 	args: [],
+	swap: true,
 	run(_next, _args, ctx) {
-		return ctx.scope.make("Hole", {});
+		return ctx.make("Hole", {});
 	},
 };
 // A hole's placeNode on its way up to the editor: the nodes it passes leave it alone.
 // A key path's keys are field names and indices: other values can't name a property.
-const KEY_PATH = t.array(t.oneOf(t.string(), t.number().int().min(0)));
+const KEY_PATH = t.array(t.oneOf([t.string(), t.int({ min: 0 })]));
 const PLACE_ARGS = [KEY_PATH, KEY_PATH, t.boolean()];
 const placeNode = { args: PLACE_ARGS, run() {} };
 // node at keys below next: in a field of its own, or by the node the keys lead into.
@@ -273,10 +274,11 @@ export const Hole = component({
 		},
 		// Replaces itself with a new node of kind, its expressions holes.
 		fill: {
-			args: [t.enum(...Object.keys(KINDS))],
+			args: [t.enum(Object.keys(KINDS))],
+			swap: true,
 			run(_next, [kind], ctx) {
 				if (kind === "Call") return newCall(ctx.scope, BUILTIN_NAMES[0]);
-				return ctx.scope.make(kind, {});
+				return ctx.make(kind, {});
 			},
 		},
 	},
@@ -288,7 +290,7 @@ export const Num = component({
 	name: "Num",
 	// What textClass can be.
 	meta: { [CLASSES_META]: { classes: `${TEXT.number} ${INLINE} text-error` } },
-	fields: { value: t.number(), text: t.string("0") },
+	fields: { value: t.number(), text: t.string({ default: "0" }) },
 	invariants: {
 		valueFollowsText() {
 			const n = asNumber(this.text);
@@ -443,7 +445,7 @@ const setName = {
 
 export const Var = component({
 	name: "Var",
-	fields: { name: t.string("x") },
+	fields: { name: t.string({ default: "x" }) },
 	methods: {
 		evaluate(env) {
 			if (!env.has(this.name)) throw new LangError(`${this.name} is not defined`);
@@ -501,7 +503,7 @@ const binary = (name, ops, apply) =>
 	component({
 		name,
 		fields: {
-			op: t.enum(...Object.keys(ops)),
+			op: t.enum(Object.keys(ops)),
 			left: t.component(EXPR_NAMES),
 			right: t.component(EXPR_NAMES),
 		},
@@ -527,7 +529,7 @@ const binary = (name, ops, apply) =>
 		views: notations(binaryView(ops)),
 		on: {
 			setOp: {
-				args: [t.enum(...Object.keys(ops))],
+				args: [t.enum(Object.keys(ops))],
 				post: (_prev, next, [op]) => next.op === op,
 				run(next, [op]) {
 					next.op = op;
@@ -660,7 +662,7 @@ const commas = {
 	prepare(items) {
 		return { last: items.length - 1 };
 	},
-	enrich({ key }, { last }) {
+	enrich(key, _value, { last }) {
 		return { comma: key === last ? "" : ", " };
 	},
 };
@@ -668,7 +670,7 @@ const commas = {
 export const Call = component({
 	name: "Call",
 	fields: {
-		fn: t.enum(...BUILTIN_NAMES),
+		fn: t.enum(BUILTIN_NAMES),
 		args: t.array(t.component(EXPR_NAMES)),
 	},
 	methods: {
@@ -708,7 +710,7 @@ export const Call = component({
 	on: {
 		// Keeps the arguments that fit the new function and fills the rest with holes.
 		setFn: {
-			args: [t.enum(...BUILTIN_NAMES)],
+			args: [t.enum(BUILTIN_NAMES)],
 			post: (_prev, next, [fn]) => next.fn === fn && next.args.length === BUILTINS[fn][0],
 			run(next, [fn], ctx) {
 				const arity = BUILTINS[fn][0];
@@ -724,7 +726,7 @@ export const Call = component({
 
 export const Assign = component({
 	name: "Assign",
-	fields: { name: t.string("x"), value: t.component(EXPR_NAMES) },
+	fields: { name: t.string({ default: "x" }), value: t.component(EXPR_NAMES) },
 	methods: {
 		execute(env) {
 			env.set(this.name, this.value.evaluate(env));
@@ -870,8 +872,8 @@ export const Program = component({
 export const Editor = component({
 	name: "Editor",
 	fields: {
-		mode: t.enum("view", "edit").sync("local"),
-		notation: t.enum(...Object.keys(NOTATIONS)).sync("local"),
+		mode: t.enum(["view", "edit"], { sync: "local" }),
+		notation: t.enum(Object.keys(NOTATIONS), { sync: "local" }),
 		program: t.component("Program"),
 	},
 	queries: {
@@ -954,7 +956,7 @@ export const Editor = component({
 		),
 	),
 	on: {
-		setMode: setField("mode", t.enum("view", "edit")),
+		setMode: setField("mode", t.enum(["view", "edit"])),
 		// From a hole: the node at from, keys from the root, was dropped on the hole at to. It
 		// moves there, leaving a hole behind, or is copied. A node can't go into a hole inside
 		// itself, and only expressions from this editor's program move.
@@ -972,10 +974,10 @@ export const Editor = component({
 				const name = nameAt(source);
 				if (!EXPR_NAMES.includes(name) || name === "Hole" || nameAt(target) !== "Hole") return;
 				putAt(next, target.keys, source.getIn(this));
-				if (!copy) putAt(next, source.keys, ctx.scope.make("Hole", {}));
+				if (!copy) putAt(next, source.keys, ctx.make("Hole", {}));
 			},
 		},
-		setNotation: setField("notation", t.enum(...Object.keys(NOTATIONS))),
+		setNotation: setField("notation", t.enum(Object.keys(NOTATIONS))),
 	},
 });
 

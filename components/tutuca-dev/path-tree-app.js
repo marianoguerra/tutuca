@@ -48,7 +48,7 @@ export const pathTreeSpecs = {
 			current: t.string(),
 			todos: t.array(t.component("Todo")),
 		},
-		provides: { theme: (pb) => pb.field("theme") },
+		provides: { theme: "theme" },
 		loops: { open: { filter: (_k, todo) => !todo.done } },
 		view: h(
 			"main",

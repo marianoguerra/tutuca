@@ -1,0 +1,86 @@
+{
+ "codes": [],
+ "model": {
+  "format": 2,
+  "components": [
+   {
+    "name": "Counter",
+    "fields": [
+     {
+      "name": "count",
+      "type": "number",
+      "constraints": {
+       "int": true,
+       "min": 0,
+       "max": 100
+      },
+      "default": 0,
+      "sync": null,
+      "public": false
+     },
+     {
+      "name": "step",
+      "type": "number",
+      "constraints": {
+       "int": true,
+       "min": 1
+      },
+      "default": 1,
+      "sync": null,
+      "public": false
+     }
+    ],
+    "queries": [
+     {
+      "name": "doubled",
+      "type": "number"
+     }
+    ],
+    "messages": [
+     {
+      "name": "inc",
+      "args": "[]",
+      "pure": true,
+      "changes": [
+       "count"
+      ],
+      "constraints": null,
+      "sourceKey": null,
+      "pre": false,
+      "post": true,
+      "why": null
+     },
+     {
+      "name": "bump",
+      "args": "[number]",
+      "pure": false,
+      "changes": null,
+      "constraints": null,
+      "sourceKey": null,
+      "pre": false,
+      "post": false,
+      "why": null
+     }
+    ],
+    "invariants": [
+     "bounded"
+    ],
+    "views": [
+     "main"
+    ],
+    "meta": null,
+    "implements": []
+   }
+  ],
+  "interfaces": [],
+  "metaSchemas": [],
+  "register": null,
+  "entries": {
+   "Counter.queries.doubled": "number",
+   "Counter.invariants.bounded": "boolean",
+   "Counter.on.inc.post": "boolean",
+   "Counter.on.inc.run": "void",
+   "Counter.on.bump.run": "void"
+  }
+ }
+}

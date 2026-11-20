@@ -1,6 +1,6 @@
 // Views: the AST nodes view builders make, how they evaluate to vnodes, and the render context.
 
-import { DispatchPath, Frame, selectorFrom } from "../../tree/index.js";
+import { DispatchPath, Frame, selectorOfPath } from "../../tree/index.js";
 import { addChild, toVChildren, VFragment, VNode } from "../../vdom/index.js";
 import { isComponent, specOf } from "../model/spec.js";
 import { planElement } from "./element-plan.js";
@@ -111,14 +111,59 @@ export class ElementNode extends ViewNode {
 		return new VNode(shape, values, vchildren, keyExpr?.eval(ctx));
 	}
 }
-// Arrays of children splice into the element when the view is built, nested ones too. An on:type
-// attr is an event binding, { type, action }: the event's type and the send it makes.
+// on:type+modifier...: the modifiers are what the event must also be for the binding to take it
+// (a key held: ctrl, alt, shift, meta; the key pressed: enter, escape, tab, space, up, down,
+// left, right, delete, backspace) and what's done to it when it does (prevent:
+// preventDefault(), stop: stopPropagation()), as tutuca-wax's.
+const KEY_MODIFIERS = {
+	enter: "Enter",
+	escape: "Escape",
+	esc: "Escape",
+	tab: "Tab",
+	space: " ",
+	up: "ArrowUp",
+	down: "ArrowDown",
+	left: "ArrowLeft",
+	right: "ArrowRight",
+	delete: "Delete",
+	backspace: "Backspace",
+};
+const HELD_MODIFIERS = { ctrl: "ctrlKey", alt: "altKey", shift: "shiftKey", meta: "metaKey" };
+// The binding of on:spec: { type, action, key, held, prevent, stop }.
+export const eventBinding = (spec, action) => {
+	const [type, ...modifiers] = spec.split("+");
+	const binding = { type, action, key: null, held: [], prevent: false, stop: false };
+	for (const m of modifiers) {
+		if (Object.hasOwn(KEY_MODIFIERS, m)) binding.key = KEY_MODIFIERS[m];
+		else if (Object.hasOwn(HELD_MODIFIERS, m)) binding.held.push(HELD_MODIFIERS[m]);
+		else if (m === "prevent") binding.prevent = true;
+		else if (m === "stop") binding.stop = true;
+		else {
+			const known = [
+				...Object.keys(KEY_MODIFIERS),
+				...Object.keys(HELD_MODIFIERS),
+				"prevent",
+				"stop",
+			];
+			throw new Error(`Unknown event modifier ${m} in on:${spec} (one of ${known.join(", ")})`);
+		}
+	}
+	return binding;
+};
+// Whether binding takes event: its type, the key it names pressed and the keys it names held.
+export const bindingTakes = (binding, event) =>
+	binding.type === event.type &&
+	(binding.key === null || event.key === binding.key) &&
+	binding.held.every((k) => event[k] === true);
+// Arrays of children splice into the element when the view is built, nested ones too. An
+// on:type attr is an event binding (eventBinding): the event's type, its modifiers and the send
+// it makes.
 export const h = (tagName, attrs, ...children) => {
 	const props = [];
 	const bindings = [];
 	for (const key in attrs) {
 		const value = attrs[key];
-		if (key.startsWith("on:")) bindings.push({ type: key.slice(3), action: value });
+		if (key.startsWith("on:")) bindings.push(eventBinding(key.slice(3), value));
 		else props.push([key, toNode(value)]);
 	}
 	return new ElementNode(tagName, props, children.flat(Infinity).map(toNode), bindings);
@@ -165,6 +210,8 @@ export class RenderNode extends ViewNode {
 	}
 	eval(ctx) {
 		const child = this.source.eval(ctx);
+		// Nothing to render, as an option component field's null: nothing rendered.
+		if (child === null || child === undefined) return null;
 		const open = frameOpen(this.source.toFrame(ctx));
 		const childCtx = ctx.enterFrame(child, {}, ctx.slotIn(open));
 		return wrapOpen(open, renderView(child, childCtx, this.viewName));
@@ -194,7 +241,7 @@ export function* loopEntries(ctx, source, loop) {
 	for (const [key, value] of entries) {
 		const fragmentKey = loop.key === undefined ? key : loop.key.call(self, key, value, state);
 		const base = { value, key };
-		const binds = loop.enrich ? { ...loop.enrich.call(self, base, state), value, key } : base;
+		const binds = loop.enrich ? { ...loop.enrich.call(self, key, value, state), value, key } : base;
 		yield { key, value, binds, fragmentKey };
 	}
 }
@@ -319,26 +366,31 @@ const EVENT_ARGS = {
 	},
 	// The key a key event is for, as KeyboardEvent.key says it: "a", "Enter", "ArrowUp", ...
 	eventKey: (ctx) => ctx.event?.key ?? null,
+	// A property of the event, by name: a CustomEvent's detail, a pointer event's clientX.
+	eventProperty: (ctx, name) => ctx.event?.[name] ?? null,
 	sourceKey: (ctx) => ctx.sourceKey,
 	// The key of the child the dragged element is in, as sourceKey is for the event's element;
 	// null when nothing, or something from outside the component, is dragged.
 	dragKey: (ctx) => ctx.drag?.sourceKeyIn(ctx.path) ?? null,
 };
-// A send arg that reads the event, not the state: one of EVENT_ARGS, by name.
+// A send arg that reads the event, not the state: one of EVENT_ARGS, by name (and its arg, the
+// property eventProperty reads).
 export class EventArgNode extends ViewNode {
 	static kind = "eventArg";
-	constructor(name) {
+	constructor(name, arg = undefined) {
 		super();
 		this.name = name;
+		this.arg = arg;
 	}
 	eval(ctx) {
-		return EVENT_ARGS[this.name](ctx);
+		return EVENT_ARGS[this.name](ctx, this.arg);
 	}
 }
 export const targetValue = () => new EventArgNode("targetValue");
 export const eventKey = () => new EventArgNode("eventKey");
 export const sourceKey = () => new EventArgNode("sourceKey");
 export const dragKey = () => new EventArgNode("dragKey");
+export const eventProperty = (name) => new EventArgNode("eventProperty", name);
 export class LookupBindNode extends ViewNode {
 	static kind = "lookupBind";
 	constructor(name) {
@@ -416,7 +468,7 @@ export class RenderContext {
 		if (!providesAny(provides)) return this.provided; // OPT: nothing to copy the map for.
 		const newProvided = { ...this.provided };
 		for (const key in provides) {
-			const suffix = new DispatchPath(selectorFrom(provides[key], it).fix(it)).toKeyPath();
+			const suffix = new DispatchPath(selectorOfPath(provides[key]).fix(it)).toKeyPath();
 			newProvided[key] = { value: suffix.getIn(it), depth, keys: suffix.keys };
 		}
 		return newProvided;

@@ -95,9 +95,7 @@ for (const sourceName of ["field", "seqItem", "provided"]) {
 					provides:
 						sourceName === "provided"
 							? {
-									items(pb) {
-										pb.seqItem("groups", "selected");
-									},
+									items: { seqItem: "groups", keyField: "selected" },
 								}
 							: undefined,
 					view: h("main", {}, render(field("panel"))),
@@ -162,9 +160,7 @@ test("nested provided collection jumps preserve provider depths and shadowing", 
 		name: "Group",
 		fields: { items: t.map(), panel: t.component("InnerPanel") },
 		provides: {
-			items(pb) {
-				pb.field("items");
-			},
+			items: "items",
 		},
 		view: h("section", {}, render(field("panel"))),
 		on: {
@@ -186,9 +182,7 @@ test("nested provided collection jumps preserve provider depths and shadowing", 
 		name: "Root",
 		fields: { groups: t.array(), panel: t.component("OuterPanel") },
 		provides: {
-			items(pb) {
-				pb.field("groups");
-			},
+			items: "groups",
 		},
 		view: h("main", {}, render(field("panel"))),
 		on: {
@@ -226,7 +220,7 @@ test("rendered SeqItem collection stays frozen while sendAt captures producer co
 		),
 		on: {
 			queue(next, _args, ctx) {
-				ctx.sendAt("inc", [], (pb) => pb.seqItem("groups", "selected").field(0));
+				ctx.sendAt("inc", [], [{ seqItem: "groups", keyField: "selected" }, 0]);
 				next.selected = 1;
 			},
 		},
@@ -252,9 +246,7 @@ for (const depth of [0, 1, 2, 8]) {
 			name: "Node",
 			fields: { count: t.number(), id: t.number(), items: t.array() },
 			provides: {
-				items(pb) {
-					pb.field("items");
-				},
+				items: "items",
 			},
 			view: h(
 				"div",
@@ -287,7 +279,7 @@ for (const depth of [0, 1, 2, 8]) {
 	});
 }
 
-test("Selector item updates array and object items", () => {
+test("an item step updates array and object items", () => {
 	const Item = component({
 		name: "Item",
 		fields: { count: t.number() },
@@ -304,8 +296,8 @@ test("Selector item updates array and object items", () => {
 		view: h("button", { "on:click": send("update") }, "update"),
 		on: {
 			update(_next, _args, ctx) {
-				ctx.sendAt("inc", [], (pb) => pb.item("array", 0));
-				ctx.sendAt("inc", [], (pb) => pb.item("object", "a"));
+				ctx.sendAt("inc", [], { item: "array", key: 0 });
+				ctx.sendAt("inc", [], { item: "object", key: "a" });
 			},
 		},
 	});

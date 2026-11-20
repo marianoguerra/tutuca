@@ -59,11 +59,11 @@ export const Playground = component({
 		example: t.string(),
 		stories: t.array(t.record({ id: t.string(), label: t.string() })),
 		selectedId: t.string(),
-		run: t.number().int().min(0),
-		status: t.enum("loading", "ready", "failed"),
+		run: t.int({ min: 0 }),
+		status: t.enum(["loading", "ready", "failed"]),
 		error: t.string(),
-		panel: t.enum(...TABS),
-		issueCount: t.number().int().min(0),
+		panel: t.enum(TABS),
+		issueCount: t.int({ min: 0 }),
 		hasTerminal: t.boolean(), // The story's root renders tui: the terminal preview shows it.
 		...panelFields,
 		travel: t.component("TimeTravel"), // Under the preview, over the story's timeline.
@@ -184,7 +184,7 @@ export const Playground = component({
 		loaded: {
 			args: [
 				t.array(t.record({ id: t.string(), label: t.string() })),
-				t.number().int().min(0),
+				t.int({ min: 0 }),
 				t.string(),
 			],
 			run(next, [stories, run, wanted]) {
@@ -239,7 +239,7 @@ export const Playground = component({
 			},
 		},
 		setPanel: {
-			args: [t.enum(...TABS)],
+			args: [t.enum(TABS)],
 			run(next, [panel]) {
 				next.panel = panel;
 			},

@@ -33,10 +33,7 @@ const specs = Object.values(jsonComponents);
 const pathApp = makeApp(appScope().components, { todos: 12 });
 const docsSidebar = new DispatchPath([Frame.node("pages", "docs"), Frame.node("sidebar")]);
 const todoTags = new DispatchPath([new Frame(["todos"], 5, null, true), Frame.node("tags", 0)]);
-const stepTo =
-	(...rows) =>
-	(b) =>
-		rows.reduce((sel, i) => sel.item("rows", i), b.field("tree"));
+const stepTo = (...rows) => ["tree", ...rows.map((i) => ({ item: "rows", key: i }))];
 const rowsOf = (s, ...rows) => rows.reduce((step, i) => step.rows[i], s.tree);
 
 const opened = (node) => node.isOpen && node.rows.length > 0;
@@ -54,9 +51,14 @@ export default book({
 						"shows the fields (items, open) and spec",
 						(s) => opened(s) && s.rows.length === 4,
 					),
-					step.send("toggle", [], { to: (b) => b.item("rows", 0) }),
+					step.send("toggle", [], { to: { item: "rows", key: 0 } }),
 					step.check("the items array opens", (s) => opened(s.rows[0])),
-					step.send("toggle", [], { to: (b) => b.item("rows", 0).item("rows", 0) }),
+					step.send("toggle", [], {
+						to: [
+							{ item: "rows", key: 0 },
+							{ item: "rows", key: 0 },
+						],
+					}),
 					step.check("an item opens", (s) => opened(s.rows[0].rows[0])),
 					step.send("toggle"),
 					step.check("closing keeps the rows", (s) => !s.isOpen && s.rows.length === 4),

@@ -32,7 +32,7 @@ for (const placement of ["root", "field", "provided", "nested loops"]) {
 		const Panel = component({
 			name: "Panel",
 			fields: {
-				rows: t.array().default([{ cells: [{ label: "cell" }] }]),
+				rows: t.array("any", { default: [{ cells: [{ label: "cell" }] }] }),
 				child: t.component("Child"),
 				picked: t.any(),
 				result: t.any(),
@@ -54,7 +54,7 @@ for (const placement of ["root", "field", "provided", "nested loops"]) {
 					next.picked = key;
 					// The source key survives even though derived tasks use the component path.
 					assert.equal(ctx.sourceKey, 0);
-					ctx.sendAt("inc", [], (b) => b.field("child"));
+					ctx.sendAt("inc", [], "child");
 					ctx.ask("load");
 					ctx.notify("changed");
 				},
@@ -66,7 +66,7 @@ for (const placement of ["root", "field", "provided", "nested loops"]) {
 				load: {
 					ok(next, [value], ctx) {
 						next.result = value;
-						ctx.sendAt("inc", [], (b) => b.field("child"));
+						ctx.sendAt("inc", [], "child");
 					},
 				},
 			},
@@ -81,9 +81,7 @@ for (const placement of ["root", "field", "provided", "nested loops"]) {
 			provides:
 				placement === "provided"
 					? {
-							panel(b) {
-								b.field("storage").field("panel");
-							},
+							panel: ["storage", "panel"],
 						}
 					: undefined,
 			view: h(
@@ -152,7 +150,7 @@ test("forwardAt from an event handler forwards the sent message and keeps the DO
 		on: {
 			act(next, _args, ctx) {
 				next.causeType = ctx.event.type;
-				ctx.forwardAt((b) => b.field("child"));
+				ctx.forwardAt("child");
 			},
 		},
 	});

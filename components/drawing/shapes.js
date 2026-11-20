@@ -27,13 +27,30 @@ export const PALETTE = [
 const COLOR = /^#[0-9a-f]{6}$/;
 export const isPaint = (v) => v === "none" || COLOR.test(v);
 // A color or "none", as SVG's fill and stroke take them.
-export const paintType = (fallback) =>
-	t
-		.string(fallback)
-		.where(isPaint, "colorOrNone")
-		.arb((fc) => fc.constantFrom("none", ...PALETTE));
+// A component with these types has shapeChecks in its checks.
+export const paintType = (fallback) => t.string({ default: fallback, check: "paint" });
+// x, y pairs, at least minPairs of them, generated between 0 and 600.
+const pairsCheck = (minPairs, description) => ({
+	test: (ps) => ps.length >= minPairs * 2 && ps.length % 2 === 0,
+	description,
+	arb: (fc) =>
+		fc
+			.array(fc.integer({ min: 0, max: 600 }), { minLength: minPairs * 2, maxLength: 8 })
+			.map((ps) => (ps.length % 2 === 0 ? ps : ps.slice(1))),
+});
+// The named checks of the shapes' types: paint for paintType, pairs for a polyline's points,
+// twoPairs for the points an agent adds a polyline with.
+export const shapeChecks = {
+	paint: {
+		test: isPaint,
+		description: "a color like #1f2937, or none",
+		arb: (fc) => fc.constantFrom("none", ...PALETTE),
+	},
+	pairs: pairsCheck(1, "x, y pairs"),
+	twoPairs: pairsCheck(2, "at least two x, y pairs"),
+};
 export const COORD_MAX = 10000;
-export const coord = () => t.number().min(-COORD_MAX).max(COORD_MAX);
+export const coord = () => t.number({ min: -COORD_MAX, max: COORD_MAX });
 const fit = (v) => clamp(v, -COORD_MAX, COORD_MAX);
 // The part of a move that keeps the whole shape within range, so it stops at the edge unchanged.
 const moveInRange = (shape, dx, dy) => [
@@ -64,7 +81,7 @@ export const shapeFields = () => ({
 	id: t.string(),
 	fill: paintType("none"),
 	stroke: paintType("#000000"),
-	width: t.enum(2, 1, 4, 8),
+	width: t.enum([2, 1, 4, 8]),
 });
 // Pressing a shape selects it or starts a new shape over it, as the tool says.
 // The canvas captures the pointer, so a drag's moves and release reach it, not the shape.
@@ -100,7 +117,7 @@ export const pointer = {
 export const styleOn = {
 	setStyle: {
 		pure: true,
-		args: [paintType("none"), paintType("#000000"), t.enum(2, 1, 4, 8)],
+		args: [paintType("none"), paintType("#000000"), t.enum([2, 1, 4, 8])],
 		run(next, [fill, stroke, width]) {
 			next.fill = fill;
 			next.stroke = stroke;
@@ -172,6 +189,7 @@ export const cornerFields = () => ({ x0: coord(), y0: coord(), x1: coord(), y1: 
 
 export const Rect = component({
 	name: "Rect",
+	checks: shapeChecks,
 	fields: { ...shapeFields(), ...cornerFields() },
 	queries: cornerQueries,
 	methods: mix(cornerMethods, {
@@ -192,6 +210,7 @@ export const Rect = component({
 
 export const Ellipse = component({
 	name: "Ellipse",
+	checks: shapeChecks,
 	fields: { ...shapeFields(), ...cornerFields() },
 	queries: mix(cornerQueries, {
 		get cx() {
@@ -225,6 +244,7 @@ export const Ellipse = component({
 
 export const Line = component({
 	name: "Line",
+	checks: shapeChecks,
 	fields: { ...shapeFields(), ...cornerFields() },
 	queries: cornerQueries,
 	methods: mix(cornerMethods, {
@@ -244,18 +264,11 @@ export const Line = component({
 	on: cornerOn,
 });
 
-const pointsType = () =>
-	t
-		.array(coord())
-		.where((ps) => ps.length >= 2 && ps.length % 2 === 0, "pairs")
-		.arb((fc) =>
-			fc
-				.array(fc.integer({ min: 0, max: 600 }), { minLength: 2, maxLength: 8 })
-				.map((ps) => (ps.length % 2 === 0 ? ps : ps.slice(1))),
-		);
+const pointsType = () => t.array(coord(), { check: "pairs" });
 // Built a point per click; while drawing, the last point follows the pointer.
 export const Polyline = component({
 	name: "Polyline",
+	checks: shapeChecks,
 	fields: { ...shapeFields(), points: pointsType() },
 	methods: {
 		isEmpty() {

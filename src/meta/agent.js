@@ -35,7 +35,7 @@ import { typeSchema } from "./json-schema.js";
 export const AGENT_META = "https://tutuca.dev/meta/agent";
 const toolType = t.record({
 	name: t.string(), // The tool's name, as the model calls it.
-	kind: t.enum("message", "query"),
+	kind: t.enum(["message", "query"]),
 	target: t.option(t.string()), // The message or query it runs; its name when null.
 	description: t.option(t.string()),
 	params: t.array(t.string()), // The args' names, in order.
@@ -46,12 +46,15 @@ export const agentMetaSchemas = {
 		// What the domain is and how to work in it, for the system prompt.
 		prompt: t.option(t.string()),
 		// A zero-arg query, a short text with ids the model can name things by, in every prompt.
-		summary: t.string("summary"),
+		summary: t.string({ default: "summary" }),
+		// A zero-arg query, what this instance in particular is told to do (a role it was given),
+		// in every prompt after the domain's; null when it has none.
+		instructions: t.option(t.string()),
 		tools: t.array(toolType),
 		skills: t.map(t.string()), // path -> text.
 		// The most model turns for one prompt; MAX_STEPS when null. One that drives other agents
 		// takes more.
-		maxSteps: t.option(t.number().int().min(1).max(200)),
+		maxSteps: t.option(t.int({ min: 1, max: 200 })),
 	},
 };
 // A tool for an agent meta's tools: name runs the message or query of that name (or target),
@@ -124,6 +127,9 @@ export const agentProblems = (c, scope = undefined) => {
 	}
 	if (!isZeroArgQuery(spec, meta.summary)) {
 		problems.push(`its summary ${meta.summary} isn't a zero-arg query`);
+	}
+	if (meta.instructions !== null && !isZeroArgQuery(spec, meta.instructions)) {
+		problems.push(`its instructions ${meta.instructions} isn't a zero-arg query`);
 	}
 	return problems;
 };
@@ -230,7 +236,7 @@ Every tool that changes something answers with what it looks like after. Use ids
 to name things. When a tool fails, read why and try something else; don't repeat the same call.
 Keep your answers short.`;
 // What c's agent is told before the conversation: the preamble, what c is (its display meta),
-// its domain prompt and its summary now.
+// its domain prompt, what this one was told to do (its instructions query) and its summary now.
 export const systemPrompt = (c) => {
 	const meta = agentOf(c);
 	const display = displayOf(c);
@@ -238,6 +244,8 @@ export const systemPrompt = (c) => {
 	const parts = [PREAMBLE];
 	if (what) parts.push(`The component: ${what}`);
 	if (meta.prompt) parts.push(meta.prompt);
+	const instructions = meta.instructions === null ? "" : readText(c, meta.instructions);
+	if (instructions) parts.push(instructions);
 	parts.push(`Now: ${summaryOf(c)}`);
 	return parts.join("\n\n");
 };
@@ -247,6 +255,14 @@ export const summaryOf = (c) => {
 		return asText(query(c, agentOf(c).summary));
 	} catch (error) {
 		return `(no summary: ${contractErrorText(c, error)})`;
+	}
+};
+// c's zero-arg query's value as text; "" when it can't be read.
+const readText = (c, name) => {
+	try {
+		return asText(query(c, name));
+	} catch {
+		return "";
 	}
 };
 const asText = (v) => (typeof v === "string" ? v : JSON.stringify(v));

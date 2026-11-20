@@ -49,7 +49,7 @@ for (const value of ["hello", 42, false, null]) {
 		]) {
 			const Root = component({
 				name: "Root",
-				fields: { items: t.array().default([{}, {}]) },
+				fields: { items: t.array("any", { default: [{}, {}] }) },
 				binds: { bindings: () => ({}) },
 				views: { main: body },
 			});
@@ -155,7 +155,7 @@ test("render(provided) is a frame naming the value; its provider's marker says w
 	const Tabs = component({
 		name: "Tabs",
 		fields: { tabs: t.array(t.component("Item")), selected: t.number(), viewer: t.any() },
-		provides: { cur: (pb) => pb.seqItem("tabs", "selected") },
+		provides: { cur: { seqItem: "tabs", keyField: "selected" } },
 		view: h("div", {}, render(field("viewer"))),
 	});
 	const { host, rootNode, C } = setup({ Tabs, Viewer, Item });
@@ -180,7 +180,7 @@ test("loop key, filter, prepare and enrich are called on the component", () => {
 	const keyCalls = [];
 	const Root = component({
 		name: "Root",
-		fields: { items: t.array(), hidden: t.string("b") },
+		fields: { items: t.array(), hidden: t.string({ default: "b" }) },
 		loops: {
 			visible: {
 				prepare(items) {
@@ -193,7 +193,7 @@ test("loop key, filter, prepare and enrich are called on the component", () => {
 					keyCalls.push([k, v.label, state.count]);
 					return v.label;
 				},
-				enrich({ value }, state) {
+				enrich(_key, value, state) {
 					return { title: `${value.label}/${state.count}` };
 				},
 			},
@@ -301,8 +301,14 @@ test("a required component field without a default fails with its path", () => {
 		view: "x",
 	});
 	const { C } = setup({ Root, Pane, Item });
-	assert.throws(() => C.Pane(), /^Error: Pane\.body: required t\.component\(\) has no default/);
-	assert.throws(() => C.Root(), /^Error: Root\.left: Pane\.body: required t\.component\(\)/);
+	assert.throws(
+		() => C.Pane(),
+		/^Error: Pane\.body: a required component with no name has no default/,
+	);
+	assert.throws(
+		() => C.Root(),
+		/^Error: Root\.left: Pane\.body: a required component with no name/,
+	);
 	assert.equal(C.Pane({ body: C.Item() }).maybe, null);
 	const Named = component({
 		name: "Named",
@@ -310,4 +316,69 @@ test("a required component field without a default fails with its path", () => {
 		view: "x",
 	});
 	assert.throws(() => Named.make(), /^Error: Named\.item: no scope to make Item in/);
+});
+
+test("ctx.componentNames lists what a handler can make, ctx.tryMake makes one as a result", async () => {
+	const { Driver } = await import("../../src/testing/driver.js");
+	const { Scope } = await import("../../src/tutuca.js");
+	const Leaf = component({ name: "Leaf", fields: { n: t.number() } });
+	const Needy = component({ name: "Needy", fields: { child: t.component() } });
+	const Hole = component({
+		name: "Hole",
+		fields: { names: t.array(t.string()), made: t.any(), why: t.string() },
+		on: {
+			pick(next, [name, walk], ctx) {
+				next.names = ctx.componentNames(walk);
+				const r = ctx.tryMake(name, { n: 3 });
+				if ("ok" in r) next.made = r.ok.n;
+				else next.why = r.err.error;
+			},
+		},
+	});
+	const root = new Scope();
+	root.register({ Leaf });
+	const inner = root.enter("inner");
+	inner.register({ Hole, Needy });
+	const d = new Driver({ root: inner.make("Hole") });
+	d.send("pick", ["Leaf", false]);
+	assert.deepEqual(d.state.names, ["Hole", "Needy"], "its own scope's, sorted");
+	assert.equal(d.state.made, 3, "make resolves in the parents too");
+	d.send("pick", ["Needy", true]);
+	assert.deepEqual(d.state.names, ["Hole", "Leaf", "Needy"], "with walk, the parents' too");
+	assert.match(d.state.why, /^Needy\.child: a required component with no name has no default/);
+	d.send("pick", ["Nope", false]);
+	assert.match(d.state.why, /Component Nope is not registered/);
+	assert.deepEqual(d.problems, []);
+	assert.deepEqual(inner.tryMake("Nope").err.issues, []);
+});
+
+test("init finishes a component made from its fields, making what it holds in its scope", async () => {
+	const { Scope, idOf } = await import("../../src/tutuca.js");
+	const Lane = component({ name: "Lane", fields: { title: t.string() } });
+	const Board = component({
+		name: "Board",
+		fields: { lanes: t.array(t.component("Lane")), made: t.number() },
+		init(next, ctx) {
+			next.made += 1;
+			if (this.lanes.length > 0) return;
+			next.lanes = ["To do", "Done"].map((title) => ctx.make("Lane", { title }));
+		},
+	});
+	const scope = new Scope();
+	const { Board: makeBoard, Lane: makeLane } = scope.register({ Board, Lane });
+	const board = makeBoard();
+	assert.deepEqual(
+		board.lanes.map((l) => l.title),
+		["To do", "Done"],
+	);
+	assert.equal(board.made, 1);
+	assert.notEqual(idOf(board), undefined, "it keeps the identity make gave it");
+	assert.deepEqual(
+		makeBoard({ lanes: [makeLane({ title: "Only" })] }).lanes.map((l) => l.title),
+		["Only"],
+	);
+	assert.throws(
+		() => Board.make(),
+		/^Error: Board\.init: ctx\.make\(Lane\): Board is made with no scope/,
+	);
 });

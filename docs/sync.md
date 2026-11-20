@@ -78,7 +78,7 @@ scope, so a reloaded app finds it. The name in a ref is the registered one, so a
 
 ### Levels: how far a field goes
 
-`.sync(level)` on a field type says which engines see it:
+A field type's `sync` (`t.string({ sync: "local" })`) says which engines see it:
 
 | Level | Replicated | Persisted | For |
 |---|---|---|---|
@@ -256,7 +256,7 @@ An app that syncs must:
    `null`, arrays, records, maps and components. No `undefined`, `Date`, `Map`, `Set` or class
    instances. A change that can't be projected fails its task.
 4. **Make components through scopes.** Use `scope.make`, `C.Name()` or, in a handler,
-   `ctx.scope.make`, so each one knows its scope. Name every scope you enter: `scope.enter(name)`.
+   `ctx.make`, so each one knows its scope. Name every scope you enter: `scope.enter(name)`.
 5. **Don't name a field `$`.** It marks components in the projection; lint reports it
    (`reserved-field`).
 6. **Keep the app's behavior inside handlers.** Engines see committed changes only. State changed
@@ -296,7 +296,7 @@ takes its default and the others stay, whether it came in a stored projection or
 - `added`: paths of fields the data lacked, now at their default. Only fields the level sees
   count: a "shared" projection lacking a "local" field isn't missing it.
 - `reset`: `{ path, before, after }` for values the type rejects, now at its default. A narrower
-  type keeps the values that still fit it: `number` → `number().int()` keeps integers.
+  type keeps the values that still fit it: `t.number()` → `t.int()` keeps integers.
 - `dropped`: paths of fields the components don't declare, and of values that can't be made.
 
 `rebuild(plain, scope, { level })` makes a projection into a state this way and returns

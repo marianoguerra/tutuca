@@ -6,6 +6,7 @@ import {
 	component,
 	DispatchPath,
 	each,
+	eventProperty,
 	Frame,
 	field,
 	HOST,
@@ -186,6 +187,26 @@ test("an element outside HTML and SVG routes its events too", () => {
 	assert.equal(host.root.count, 1);
 });
 
+test("eventProperty reads a property of the event: a custom event's detail", () => {
+	const Stars = component({
+		name: "Stars",
+		fields: { stars: t.number() },
+		views: { main: h("tw-stars", { "on:rated": send("rate", eventProperty("detail")) }) },
+		on: {
+			rate(next, [n]) {
+				next.stars = n;
+			},
+		},
+	});
+	const { host, rootNode, C } = setup({ Stars });
+	host.start(C.Stars());
+	const el = rootNode.querySelector("tw-stars");
+	el.dispatchEvent(
+		new el.ownerDocument.defaultView.CustomEvent("rated", { detail: 4, bubbles: true }),
+	);
+	assert.equal(host.root.stars, 4);
+});
+
 test("a message with no handler, sent by an event or otherwise, is a no-op that's reported", () => {
 	const Mute = component({
 		name: "Mute",
@@ -330,7 +351,7 @@ test("a notification's hops run back to back; what a hop sends waits until the b
 		on: {
 			ping(_next, _args, ctx) {
 				seen.push("middle");
-				ctx.sendAt("echo", [], () => {});
+				ctx.sendAt("echo", [], []);
 			},
 			echo() {
 				seen.push("echo");
@@ -463,21 +484,48 @@ test("targetValue reads values and checkbox state", () => {
 	assert.equal(host.root.done, true);
 });
 
-test("a handler's return value replaces the component", () => {
+test("a swap's return value replaces the component, root or not, its draft written or not", () => {
 	const Reset = component({
 		name: "Reset",
-		fields: { count: t.number(5) },
+		fields: { count: t.number({ default: 5 }), keep: t.boolean() },
 		view: h("button", { "on:click": send("reset") }),
 		on: {
-			reset() {
-				return Reset.make({ count: 0 });
+			reset: {
+				swap: true,
+				run(next) {
+					next.count = 99;
+					if (this.keep) return undefined;
+					return Reset.make({ count: 0, keep: true });
+				},
+			},
+			sneaky() {
+				return Reset.make({ count: 1 });
+			},
+			junk: {
+				swap: true,
+				run() {
+					return 42;
+				},
 			},
 		},
 	});
-	const { host, rootNode, C } = setup({ Reset });
+	const { host, rootNode, C, failures } = setup({ Reset });
 	host.start(C.Reset());
 	rootNode.querySelector("button").click();
-	assert.equal(host.root.count, 0);
+	assert.equal(host.root.count, 0, "the root is replaced, what next had dropped");
+	rootNode.querySelector("button").click();
+	assert.equal(host.root.count, 99, "nothing returned keeps it, with what next has");
+	assert.deepEqual(failures, []);
+	host.send("sneaky", [], { now: true });
+	host.send("junk", [], { now: true });
+	assert.equal(host.root.count, 99, "a failed task changes nothing");
+	assert.deepEqual(
+		failures.map((e) => e.message),
+		[
+			"sneaky returned a value: a message that replaces its component says swap: true",
+			"junk is a swap: it returns the component its own becomes, or nothing, not 42",
+		],
+	);
 });
 
 test("a throwing handler keeps the state and reports taskFailed", () => {
@@ -611,7 +659,7 @@ for (const source of ["field", "seqItem"]) {
 			fields: {
 				child: t.component("Child"),
 				items: t.array(),
-				selected: t.number(1),
+				selected: t.number({ default: 1 }),
 			},
 			view: pushView(
 				"compact",
@@ -740,7 +788,7 @@ test("a child-scope registration after startup adds only its event listeners", (
 test("targetValue reads the element with the handler, not the child that was clicked", () => {
 	const Tabs = component({
 		name: "Tabs",
-		fields: { tab: t.string("a") },
+		fields: { tab: t.string({ default: "a" }) },
 		view: h(
 			"button",
 			{ value: "b", "on:click": send("setTab", targetValue()) },
@@ -782,4 +830,51 @@ test("a render that throws is reported, and the host goes on", () => {
 	click(rootNode.querySelector("button"));
 	assert.equal(host.root.n, 1);
 	assert.ok(reports.includes("renderFailed"), reports.join());
+});
+
+test("an unknown event modifier throws as the view is built", () => {
+	assert.throws(
+		() => h("input", { "on:keydown+s": send("x") }),
+		/Unknown event modifier s in on:keydown\+s \(one of enter, escape/,
+	);
+});
+
+test("event modifiers match what tutuca-wax's do", () => {
+	const KeyBox = component({
+		name: "KeyBox",
+		fields: { log: t.array(t.string()) },
+		view: h("input", {
+			"on:keydown+enter+prevent": send("enter"),
+			"on:keyup+ctrl+stop": send("ctrlUp"),
+		}),
+		on: {
+			enter(next) {
+				next.log.push("enter");
+			},
+			ctrlUp(next) {
+				next.log.push("ctrlUp");
+			},
+		},
+	});
+	const { host, rootNode, C } = setup({ KeyBox });
+	host.start(C.KeyBox());
+	const input = rootNode.querySelector("input");
+	const fire = (type, init) => {
+		const e = new input.ownerDocument.defaultView.KeyboardEvent(type, {
+			bubbles: true,
+			cancelable: true,
+			...init,
+		});
+		input.dispatchEvent(e);
+		return e;
+	};
+	assert.equal(
+		fire("keydown", { key: "a" }).defaultPrevented,
+		false,
+		"another key: not taken, not prevented",
+	);
+	assert.equal(fire("keydown", { key: "Enter" }).defaultPrevented, true);
+	fire("keyup", { key: "x" });
+	fire("keyup", { key: "x", ctrlKey: true });
+	assert.deepEqual(host.root.log, ["enter", "ctrlUp"]);
 });

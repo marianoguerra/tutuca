@@ -1,0 +1,84 @@
+{
+ "codes": [],
+ "model": {
+  "format": 2,
+  "components": [
+   {
+    "name": "Gauge",
+    "fields": [
+     {
+      "name": "level",
+      "type": "number",
+      "constraints": null,
+      "default": 0,
+      "sync": null,
+      "public": false
+     },
+     {
+      "name": "max",
+      "type": "number",
+      "constraints": null,
+      "default": 10,
+      "sync": null,
+      "public": false
+     }
+    ],
+    "queries": [],
+    "messages": [
+     {
+      "name": "raise",
+      "args": "[number]",
+      "pure": true,
+      "changes": null,
+      "constraints": null,
+      "sourceKey": null,
+      "pre": false,
+      "post": false,
+      "why": null
+     },
+     {
+      "name": "drop",
+      "args": "[]",
+      "pure": true,
+      "changes": null,
+      "constraints": null,
+      "sourceKey": null,
+      "pre": false,
+      "post": true,
+      "why": null
+     },
+     {
+      "name": "setMax",
+      "args": "[number]",
+      "pure": true,
+      "changes": null,
+      "constraints": null,
+      "sourceKey": null,
+      "pre": true,
+      "post": false,
+      "why": null
+     }
+    ],
+    "invariants": [
+     "underMax"
+    ],
+    "views": [
+     "main"
+    ],
+    "meta": null,
+    "implements": []
+   }
+  ],
+  "interfaces": [],
+  "metaSchemas": [],
+  "register": null,
+  "entries": {
+   "Gauge.invariants.underMax": "boolean",
+   "Gauge.on.raise.run": "void",
+   "Gauge.on.drop.post": "boolean",
+   "Gauge.on.drop.run": "void",
+   "Gauge.on.setMax.pre": "boolean",
+   "Gauge.on.setMax.run": "void"
+  }
+ }
+}

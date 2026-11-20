@@ -26,7 +26,7 @@ export const TRANSITION_OUTCOMES = [
 export class Transition extends Record {
 	/**
 	 * @param {object} fields what happened, plain: seq, cause, origin, mode, name, args, from,
-	 *   to, outcome, error, emitted, unhandled, watch
+	 *   to, outcome, error, emitted, unhandled, watch, logs
 	 * @param {object} heavy what it refers to, hidden: task, before, after, instance
 	 */
 	constructor(fields, heavy = {}) {
@@ -44,6 +44,7 @@ export class Transition extends Record {
 		this.emitted = []; // What its handler sent, as { kind, name, args }.
 		this.unhandled = []; // Messages it made that nobody handles.
 		this.watch = null; // The id of the watch it ran in.
+		this.logs = []; // What its handler logged (ctx.log), in order.
 		Object.assign(this, fields);
 		hidden(this, { task: null, before: null, after: null, instance: null, ...heavy });
 	}
@@ -69,6 +70,7 @@ export class Transition extends Record {
 				emitted: ctx?.emitted ?? [],
 				unhandled: ctx?.unhandled ?? [],
 				watch: task.watch?.id ?? null,
+				logs: ctx?.logs ?? [],
 			},
 			{ task, before, after: after ?? before, instance },
 		);

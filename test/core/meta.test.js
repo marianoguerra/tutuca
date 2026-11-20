@@ -8,8 +8,8 @@ const CANVAS = "https://example.com/meta/canvas";
 const OTHER = "urn:example:other";
 const shape = {
 	title: t.option(t.string()),
-	width: t.option(t.number().int().min(0)),
-	transparent: t.boolean(false),
+	width: t.option(t.int({ min: 0 })),
+	transparent: t.boolean({ default: false }),
 };
 const Card = component({
 	name: "Card",
@@ -57,7 +57,7 @@ test("a component whose meta breaks a schema can't be registered", () => {
 		/meta https:\/\/example.com\/meta\/canvas has no key color.*width isn't/,
 	);
 	const required = new Scope();
-	required.registerMetaSchemas({ [OTHER]: { needed: t.string().len(1) } });
+	required.registerMetaSchemas({ [OTHER]: { needed: t.string({ minLength: 1 }) } });
 	assert.throws(() => required.register({ Card }), /lacks needed, which has no default/);
 });
 
@@ -66,8 +66,11 @@ test("schemas are resolved in the component's scope, and checked as it's made wh
 	const inner = root.enter("inner");
 	const Wide = component({ name: "Wide", meta: { [CANVAS]: { width: 9000 } } });
 	const { Wide: make } = inner.register({ Wide });
-	root.registerMetaSchemas({ [CANVAS]: { width: t.number().max(4000) } });
+	root.registerMetaSchemas({ [CANVAS]: { width: t.number({ max: 4000 }) } });
 	assert.throws(() => make(), /width isn't/);
-	assert.throws(() => root.registerMetaSchemas({ canvas: shape }), /needs URIs/);
-	assert.throws(() => root.registerMetaSchemas({ [CANVAS]: { width: 3 } }), /needs URIs/);
+	assert.throws(() => root.registerMetaSchemas({ canvas: shape }), /canvas isn't a URI/);
+	assert.throws(
+		() => root.registerMetaSchemas({ [CANVAS]: { width: 3 } }),
+		/registerMetaSchemas: .*canvas\.width: a type is a kind's name or \{ type: kind, \.\.\. \}, not 3/,
+	);
 });

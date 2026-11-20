@@ -7,8 +7,7 @@ import {
 	Address,
 	DispatchPath,
 	HOST,
-	Selector,
-	selectorFrom,
+	selectorOfPath,
 	Target,
 	Transition,
 } from "../../tree/index.js";
@@ -173,8 +172,8 @@ export class Host {
 		}
 		this.drags.afterEvent(e);
 	}
-	// Sends name(...args) from the host to the component at to: an Address, a DispatchPath, a
-	// Selector or a selector fn (as ctx.sendAt takes) from the root; the root by default. One
+	// Sends name(...args) from the host to the component at to: an Address, a DispatchPath or a
+	// path (as ctx.sendAt takes it) from the root; the root by default. One
 	// sent now (as a DOM event is: spec/tree's env rule) has run when send returns: it goes ahead
 	// of the queue, behind the ones sent now before it and a bubble under way. Any other waits at
 	// the back of the queue for the next tick. event, node and drag are what the handler reads as
@@ -402,9 +401,5 @@ export class Host {
 const destinationOf = (to = new DispatchPath()) => {
 	if (to instanceof Address) return to;
 	if (to instanceof DispatchPath) return new Target(to);
-	if (to instanceof Selector) return new Target(new DispatchPath(), to);
-	if (typeof to === "function") return new Target(new DispatchPath(), selectorFrom(to));
-	throw new Error(
-		`send needs an Address, DispatchPath, Selector or selector fn, got ${String(to)}`,
-	);
+	return new Target(new DispatchPath(), selectorOfPath(to));
 };

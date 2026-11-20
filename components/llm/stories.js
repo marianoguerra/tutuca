@@ -55,13 +55,14 @@ const Editable = component({
 const editable = (make) => (C) => C.Editable({ content: make(C) });
 const edit = step.event("click", '[title="Edit it"]');
 const sameJson = (a, b) => JSON.stringify(a) === JSON.stringify(b);
-// Adds name to the required list of the schema editor at: its JSON's third entry is required.
+// Adds name to the required list of the schema editor at (a path): its JSON's third entry is
+// required.
 const addRequired = (at, name) => {
-	const list = (b) => at(b).field("json").item("entries", 2).field("value");
+	const list = [at, "json", { item: "entries", key: 2 }, "value"].flat();
 	return [
 		step.send("add", [], { to: list }),
-		step.send("setTo", ["string"], { to: (b) => list(b).item("items", 1) }),
-		step.send("setValue", [name], { to: (b) => list(b).item("items", 1) }),
+		step.send("setTo", ["string"], { to: [...list, { item: "items", key: 1 }] }),
+		step.send("setValue", [name], { to: [...list, { item: "items", key: 1 }] }),
 	];
 };
 const type = (label, value) => step.event("input", `[aria-label="${label}"]`, { value });
@@ -161,7 +162,7 @@ export default book({
 					edit,
 					type("Tool name", "get_forecast"),
 					step.check("renamed", (s) => s.content.toJson().name === "get_forecast"),
-					...addRequired((b) => b.field("content").field("parameters"), "unit"),
+					...addRequired(["content", "parameters"], "unit"),
 					step.check("now both are required", (s) =>
 						sameJson(s.content.parameters.toSchema().required, ["city", "unit"]),
 					),
@@ -185,7 +186,7 @@ export default book({
 				],
 				"drop a JSON file on its input": [
 					step.answer("readText", "ok", '{ "city": "Lima" }', {
-						to: (b) => b.field("content").field("input"),
+						to: ["content", "input"],
 					}),
 					step.check("the dropped input", (s) =>
 						sameJson(s.content.toJson().input, { city: "Lima" }),
@@ -214,7 +215,7 @@ export default book({
 				"a schema the output doesn't follow": [
 					step.check("matches at first", (s) => s.content.isValid),
 					edit,
-					...addRequired((b) => b.field("content").field("schema"), "humidity"),
+					...addRequired(["content", "schema"], "humidity"),
 					step.check("humidity is missing", (s) =>
 						s.content.problems.some((p) => p.text === "$ is missing humidity"),
 					),
@@ -285,7 +286,7 @@ export default book({
 					step.check("the others stay open", (s) => s.content.systemOpen && s.content.toolsOpen),
 					step.event("click", '.llm-request > section > h3 > button[value="transcript"]'),
 					step.check("open again", (s) => s.content.transcriptOpen),
-					step.send("setSectionsOpen", [false], { to: (b) => b.field("content") }),
+					step.send("setSectionsOpen", [false], { to: "content" }),
 					step.check("every section is closed", (s) =>
 						["system", "transcript", "tools"].every((n) => !s.content[`${n}Open`]),
 					),
@@ -294,7 +295,7 @@ export default book({
 						return !call.inputOpen && !result.contentOpen && !s.content.tools[0].schemaOpen;
 					}),
 					step.check("and their JSON", (s) => !s.content.messages[1].input.value.open),
-					step.send("setSectionsOpen", [true], { to: (b) => b.field("content") }),
+					step.send("setSectionsOpen", [true], { to: "content" }),
 					step.check("everything opens", (s) => {
 						const [, call] = s.content.messages;
 						return s.content.transcriptOpen && call.inputOpen && call.input.value.open;
@@ -341,7 +342,7 @@ export default book({
 					step.check("collapsed", (s) => !s.content.json.open),
 					edit,
 					step.check("no tree while editing", (s) => s.content.isJson),
-					...addRequired((b) => b.field("content"), "wind"),
+					...addRequired("content", "wind"),
 					step.check("the schema follows", (s) => s.content.toSchema().required.includes("wind")),
 				],
 			},

@@ -30,7 +30,7 @@ const setup = (handlers, askHandlers = {}) => {
 	};
 	return { store, scheduler, run, send, settle, log: () => store.get().log };
 };
-const worker = (s) => s.field("worker");
+const worker = "worker";
 const logged = (n, entry) => ({ ...n, log: [...n.log, entry] });
 // The root starts name on the worker, watched, and logs how it settled.
 const starter = (name, args = [], watch = {}) => ({
@@ -45,7 +45,7 @@ test("a send settles after the messages it causes and a notification it bubbles"
 		root: { ...starter("work"), heard: (n) => logged(n, "heard") },
 		worker: {
 			work: (n, _a, ctx) => {
-				ctx.sendAt("more", [], (s) => s);
+				ctx.sendAt("more", [], []);
 				return n;
 			},
 			more: (n, _a, ctx) => {
@@ -93,10 +93,10 @@ test("a watch inside another settles first, and the outer waits for it", () => {
 		},
 		worker: {
 			outer: (_n, _a, ctx) => {
-				ctx.sendAt("inner", [], (s) => s, { settled: "innerDone" });
+				ctx.sendAt("inner", [], [], { settled: "innerDone" });
 			},
 			inner: (_n, _a, ctx) => {
-				ctx.sendAt("leaf", [], (s) => s);
+				ctx.sendAt("leaf", [], []);
 			},
 			leaf: (n) => ({ ...n, n: n.n + 1 }),
 			innerDone: (n, [report]) => {
@@ -114,7 +114,7 @@ test("a handler that throws in the watch makes it failed, and it still settles",
 		root: starter("work"),
 		worker: {
 			work: (_n, _a, ctx) => {
-				ctx.sendAt("boom", [], (s) => s);
+				ctx.sendAt("boom", [], []);
 			},
 			boom: () => {
 				throw new Error("boom");
@@ -133,7 +133,7 @@ test("a message to a node that was replaced is dropped and releases its watch", 
 		},
 		worker: {
 			work: (_n, _a, ctx) => {
-				ctx.sendAt("later", [], (s) => s); // Stale once the root replaces it.
+				ctx.sendAt("later", [], []); // Stale once the root replaces it.
 				ctx.notify("replace");
 			},
 			later: (n) => ({ ...n, n: 1 }),
@@ -229,7 +229,7 @@ test("progress is told after what runs in the watch, one at a time", () => {
 		},
 		worker: {
 			work: (n, [left], ctx) => {
-				if (left > 0) ctx.sendAt("work", [left - 1], (s) => s);
+				if (left > 0) ctx.sendAt("work", [left - 1], []);
 				return { ...n, n: n.n + 1 };
 			},
 		},

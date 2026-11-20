@@ -47,7 +47,7 @@ const Root = component({
 			next.mids.reverse();
 		},
 		replaceChild(next, _args, ctx) {
-			next.mids[0] = ctx.scope.make("Mid", { leaf: ctx.scope.make("Leaf", { n: 5 }) });
+			next.mids[0] = ctx.make("Mid", { leaf: ctx.make("Leaf", { n: 5 }) });
 		},
 	},
 });
@@ -94,7 +94,7 @@ test("host.apply is checked as a handler is", () => {
 	const { host } = setup();
 	const reports = [];
 	host.publish = (record) => reports.push(record);
-	host.apply("bumpLeafDirectly", [], { to: (p) => p.field("mids").item(0) });
+	host.apply("bumpLeafDirectly", [], { to: { item: "mids", key: 0 } });
 	assert.deepEqual(messageReasons(reports), ["foreign-write:Leaf.n"]);
 });
 

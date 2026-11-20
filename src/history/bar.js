@@ -22,8 +22,8 @@ export const TimeTravel = component({
 	name: "TimeTravel",
 	fields: {
 		appKey: t.string(), // Passed along with each op: the app the timeline belongs to.
-		size: t.number().int().min(0),
-		cursor: t.number().int().min(0),
+		size: t.int({ min: 0 }),
+		cursor: t.int({ min: 0 }),
 		label: t.string(),
 		origin: t.string(),
 	},
@@ -87,13 +87,13 @@ export const TimeTravel = component({
 	on: {
 		show: {
 			pure: true,
-			args: [t.number().int().min(0), t.number().int().min(0), t.string(), t.string()],
+			args: [t.int({ min: 0 }), t.int({ min: 0 }), t.string(), t.string()],
 			run(next, [size, cursor, label, origin]) {
 				Object.assign(next, { size, cursor, label, origin });
 			},
 		},
 		op: {
-			args: [t.enum(...MOVES)],
+			args: [t.enum(MOVES)],
 			emits: { ask: ["history"] },
 			run(_next, [op], ctx) {
 				ctx.ask("history", [this.appKey, op, null]);

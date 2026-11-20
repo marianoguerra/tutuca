@@ -10,7 +10,16 @@ export {
 	NotifyTask,
 	Task,
 } from "./messages.js";
-export { DispatchPath, Frame, KeyPath, Selector, selectorFrom, Target } from "./path.js";
+export {
+	DispatchPath,
+	Frame,
+	KeyPath,
+	pathProblems,
+	pathSteps,
+	Selector,
+	selectorOfPath,
+	Target,
+} from "./path.js";
 export { hidden, plainOf, Record } from "./record.js";
 export { Scheduler } from "./scheduler.js";
 export { errorMessage, jsonText, keyText, pathText } from "./text.js";

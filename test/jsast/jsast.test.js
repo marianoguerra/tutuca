@@ -127,7 +127,7 @@ const roundTrips = (instance, opts) => {
 
 const Adder = component({
 	name: "Adder",
-	fields: { fn: t.string("add"), n: t.number(1) },
+	fields: { fn: t.string({ default: "add" }), n: t.number({ default: 1 }) },
 	renders: {
 		js: FunctionDeclaration(
 			id(ident(field("fn"))),
@@ -224,9 +224,9 @@ test("the rendered tree is checked, every issue at its ESTree path", () => {
 	const Bad = component({
 		name: "Bad",
 		fields: {
-			name: t.any(null),
-			n: t.any(null),
-			stmt: t.boolean(true),
+			name: t.any({ default: null }),
+			n: t.any({ default: null }),
+			stmt: t.boolean({ default: true }),
 			child: t.component("Stmt"),
 		},
 		renders: {
@@ -261,7 +261,7 @@ test("the rendered tree is checked, every issue at its ESTree path", () => {
 test("text from a field, a missing slot and an empty each are found when it renders", () => {
 	const Call = component({
 		name: "Call",
-		fields: { fn: t.any(null), xs: t.array().default([]) },
+		fields: { fn: t.any({ default: null }), xs: t.array("any", { default: [] }) },
 		renders: {
 			js: ExpressionStatement(
 				expression(
@@ -276,7 +276,7 @@ test("text from a field, a missing slot and an empty each are found when it rend
 	]);
 	const Seq = component({
 		name: "Seq",
-		fields: { xs: t.array().default([]) },
+		fields: { xs: t.array("any", { default: [] }) },
 		renders: {
 			js: js.SequenceExpression(expressions(each(field("xs"), lit(lookupBind("value"))))),
 		},
@@ -287,7 +287,7 @@ test("text from a field, a missing slot and an empty each are found when it rend
 test("each splices into an array slot", () => {
 	const Arr = component({
 		name: "Arr",
-		fields: { xs: t.array().default([1, "two", true]) },
+		fields: { xs: t.array("any", { default: [1, "two", true] }) },
 		renders: {
 			js: ExpressionStatement(
 				expression(
@@ -320,8 +320,8 @@ const Case = component({
 const Lookup = component({
 	name: "Lookup",
 	fields: {
-		name: t.string("lookup"),
-		cases: t.array(t.component("Case")).default([]),
+		name: t.string({ default: "lookup" }),
+		cases: t.array(t.component("Case"), { default: [] }),
 		fallback: t.component("Case"),
 	},
 	renders: {
@@ -369,7 +369,7 @@ test("render puts child components' renders.js into a slot, by view name too", (
 test("pushView picks a named js view, and a component without renders.js can't render", () => {
 	const Greeting = component({
 		name: "Greeting",
-		fields: { who: t.string("world") },
+		fields: { who: t.string({ default: "world" }) },
 		renders: {
 			js: {
 				main: ExpressionStatement(
@@ -394,7 +394,7 @@ test("pushView picks a named js view, and a component without renders.js can't r
 	});
 	const Holder = component({
 		name: "Holder",
-		fields: { g: t.component("Greeting"), style: t.string("main") },
+		fields: { g: t.component("Greeting"), style: t.string({ default: "main" }) },
 		renders: { js: Program(body(pushView(field("style"), render(field("g"))))) },
 	});
 	const C = scope({ Greeting, Holder });
@@ -412,7 +412,7 @@ test("pushView picks a named js view, and a component without renders.js can't r
 test("an ES2022 module with a class prints and parses back", () => {
 	const Field = component({
 		name: "Field",
-		fields: { name: t.string(), initial: t.number(), private: t.boolean(false) },
+		fields: { name: t.string(), initial: t.number(), private: t.boolean({ default: false }) },
 		renders: {
 			js: PropertyDefinition(
 				key(
@@ -424,7 +424,10 @@ test("an ES2022 module with a class prints and parses back", () => {
 	});
 	const Module = component({
 		name: "Module",
-		fields: { className: t.string("Counter"), fields: t.array(t.component("Field")).default([]) },
+		fields: {
+			className: t.string({ default: "Counter" }),
+			fields: t.array(t.component("Field"), { default: [] }),
+		},
 		renders: {
 			js: Program(
 				{ sourceType: "module" },

@@ -4,7 +4,19 @@
 // which the components registered there are checked and from which metaOf fills defaults.
 
 import { scopeOf, specOrSelf } from "./spec.js";
-import { isRecord, unlessNoDefault } from "./types.js";
+import { compileShape, isRecord, Type, unlessNoDefault } from "./types.js";
+
+// A shape (key -> type) compiled, once per shape: a registered schema already is.
+const compiled = new WeakMap();
+const shapeTypes = (shape) => {
+	if (Object.values(shape).every((v) => v instanceof Type)) return shape;
+	let out = compiled.get(shape);
+	if (out === undefined) {
+		out = compileShape(shape, undefined, "meta schema");
+		compiled.set(shape, out);
+	}
+	return out;
+};
 
 const emptyMeta = Object.freeze({});
 export const toMeta = (name, meta) => {
@@ -21,7 +33,8 @@ export const toMeta = (name, meta) => {
 	return Object.freeze(out);
 };
 // What values, the meta spec gives under uri, break of shape, as messages.
-export const metaProblems = (uri, values, shape, scope = null) => {
+export const metaProblems = (uri, values, shapeData, scope = null) => {
+	const shape = shapeTypes(shapeData);
 	const problems = [];
 	for (const key of Object.keys(values)) {
 		if (!Object.hasOwn(shape, key)) problems.push(`its meta ${uri} has no key ${key}`);
@@ -49,7 +62,8 @@ export const metaOf = (c, uri, scope = scopeOf(c)) => {
 	return shape === null ? given : Object.freeze(Object.assign(defaultsOf(shape, scope), given));
 };
 // The default of each key of shape that has one.
-const defaultsOf = (shape, scope) => {
+const defaultsOf = (shapeData, scope) => {
+	const shape = shapeTypes(shapeData);
 	const out = {};
 	for (const key in shape) {
 		unlessNoDefault(

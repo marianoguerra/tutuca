@@ -149,7 +149,7 @@ export const JsonNumber = component({
 	name: "JsonNumber",
 	// What textClass can be.
 	meta: { [CLASSES_META]: { classes: `${TEXT.number} ${INLINE} text-error` } },
-	fields: { value: t.number(), text: t.string("0") },
+	fields: { value: t.number(), text: t.string({ default: "0" }) },
 	invariants: {
 		valueFollowsText() {
 			const n = asNumber(this.text);
@@ -295,10 +295,11 @@ export const JsonSelector = component({
 		{
 			// Replaces itself with an empty value of type.
 			setTo: {
-				args: [t.enum(...Object.keys(CHOICES))],
+				args: [t.enum(Object.keys(CHOICES))],
+				swap: true,
 				run(_next, [type], ctx) {
 					const [name] = CHOICES[type];
-					return ctx.scope.make(name, {});
+					return ctx.make(name, {});
 				},
 			},
 		},
@@ -311,7 +312,7 @@ const commas = {
 	prepare(items) {
 		return { last: items.length - 1 };
 	},
-	enrich({ key }, { last }) {
+	enrich(key, _value, { last }) {
 		return { comma: key === last ? "" : "," };
 	},
 };
@@ -412,7 +413,7 @@ const openable = (key) => ({
 
 export const JsonArray = component({
 	name: "JsonArray",
-	fields: { items: t.array(t.component(VALUE_NAMES)), open: t.boolean(true) },
+	fields: { items: t.array(t.component(VALUE_NAMES)), open: t.boolean({ default: true }) },
 	methods: {
 		toJson() {
 			return this.items.map((item) => item.toJson());
@@ -442,7 +443,7 @@ export const JsonArray = component({
 				args: [],
 				post: (prev, next) => next.items.length === prev.items.length + 1,
 				run(next, _args, ctx) {
-					next.items.push(ctx.scope.make("JsonSelector", {}));
+					next.items.push(ctx.make("JsonSelector", {}));
 				},
 			},
 			removeAt: {
@@ -521,7 +522,7 @@ export const JsonEntry = component({
 
 export const JsonObject = component({
 	name: "JsonObject",
-	fields: { entries: t.array(t.component("JsonEntry")), open: t.boolean(true) },
+	fields: { entries: t.array(t.component("JsonEntry")), open: t.boolean({ default: true }) },
 	methods: {
 		// Later entries win, as in JSON.parse.
 		toJson() {
@@ -654,7 +655,7 @@ export const JsonEditor = component({
 	meta: metaFor("JSON", "{}", "A JSON value, viewed or edited in place, with its text."),
 	fields: {
 		value: t.component(VALUE_NAMES),
-		mode: t.enum("view", "edit"),
+		mode: t.enum(["view", "edit"]),
 		showText: t.boolean(),
 	},
 	methods: {
@@ -716,7 +717,7 @@ export const JsonEditor = component({
 				ctx.stopNext();
 			},
 		},
-		setMode: setField("mode", t.enum("view", "edit")),
+		setMode: setField("mode", t.enum(["view", "edit"])),
 		setShowText: setField("showText", t.boolean()),
 	},
 });

@@ -1,0 +1,67 @@
+{
+ "codes": [],
+ "model": {
+  "format": 2,
+  "components": [
+   {
+    "name": "Tag",
+    "fields": [
+     {
+      "name": "text",
+      "type": "string",
+      "constraints": null,
+      "default": "",
+      "sync": null,
+      "public": false
+     }
+    ],
+    "queries": [],
+    "messages": [],
+    "invariants": [],
+    "views": [
+     "main"
+    ],
+    "meta": {
+     "urn:example:badge": {
+      "label": "Tag",
+      "size": 16
+     }
+    },
+    "implements": []
+   }
+  ],
+  "interfaces": [],
+  "metaSchemas": [
+   {
+    "name": "Badge",
+    "uri": "urn:example:badge",
+    "fields": [
+     {
+      "name": "label",
+      "type": "string | null",
+      "constraints": null,
+      "default": null
+     },
+     {
+      "name": "size",
+      "type": "number | null",
+      "constraints": {
+       "int": true,
+       "min": 1,
+       "max": 64
+      },
+      "default": null
+     },
+     {
+      "name": "round",
+      "type": "boolean",
+      "constraints": null,
+      "default": false
+     }
+    ]
+   }
+  ],
+  "register": null,
+  "entries": {}
+ }
+}

@@ -25,17 +25,17 @@ export const Thing = component({
 	name: "Thing",
 	fields: {
 		id: t.string(),
-		emoji: t.string("⭐").len(1, 16),
-		title: t.string().len(0, 120),
+		emoji: t.string({ minLength: 1, maxLength: 16, default: "⭐" }),
+		title: t.string({ minLength: 0, maxLength: 120 }),
 		description: t.string(),
 		measurements: t.array(measureRef()),
 		color: t.string(),
 		archived: t.boolean(),
 		bundleId: t.string(),
 		// Kept by the app from the events.
-		total: t.number().int().min(0),
-		lastText: t.string("never"),
-		tagsText: t.string("No tags"),
+		total: t.int({ min: 0 }),
+		lastText: t.string({ default: "never" }),
+		tagsText: t.string({ default: "No tags" }),
 	},
 	queries: {
 		get hasMeasurements() {
@@ -108,7 +108,7 @@ export const Thing = component({
 		// What the app derives from its events and tags.
 		setStats: {
 			pure: true,
-			args: [t.number().int().min(0), t.string(), t.string()],
+			args: [t.int({ min: 0 }), t.string(), t.string()],
 			run(next, [total, lastText, tagsText]) {
 				next.total = total;
 				next.lastText = lastText;
@@ -127,7 +127,12 @@ export const Thing = component({
 		// What the thing editor edits.
 		edited: {
 			pure: true,
-			args: [t.string().len(1, 16), t.string().len(0, 120), t.string(), t.array(measureRef())],
+			args: [
+				t.string({ minLength: 1, maxLength: 16 }),
+				t.string({ minLength: 0, maxLength: 120 }),
+				t.string(),
+				t.array(measureRef()),
+			],
 			run(next, [emoji, title, description, measurements]) {
 				next.emoji = emoji;
 				next.title = title;
@@ -166,10 +171,10 @@ export const Tag = component({
 	name: "Tag",
 	fields: {
 		id: t.string(),
-		title: t.string().len(0, 120),
+		title: t.string({ minLength: 0, maxLength: 120 }),
 		emoji: t.string(),
 		description: t.string(),
-		sortOrder: t.number().int().min(0).max(1000000),
+		sortOrder: t.int({ min: 0, max: 1000000 }),
 		thingIds: t.array(t.string()),
 		bundleId: t.string(),
 	},
@@ -208,7 +213,7 @@ export const Tag = component({
 		// What the tag editor edits.
 		edited: {
 			pure: true,
-			args: [t.string().len(0, 120), t.string(), t.array(t.string())],
+			args: [t.string({ minLength: 0, maxLength: 120 }), t.string(), t.array(t.string())],
 			run(next, [title, emoji, thingIds]) {
 				next.title = title;
 				next.emoji = emoji;
@@ -251,7 +256,7 @@ export const Section = component({
 		title: t.string(),
 		emoji: t.string(),
 		memberIds: t.array(t.string()),
-		isOpen: t.boolean(true),
+		isOpen: t.boolean({ default: true }),
 		compact: t.boolean(),
 	},
 	queries: {
@@ -334,10 +339,10 @@ export const Bucket = component({
 	name: "Bucket",
 	fields: {
 		label: t.string(),
-		start: t.number().int(),
-		end: t.number().int(),
-		total: t.number().int().min(0),
-		gap: t.number().int().min(0),
+		start: t.int(),
+		end: t.int(),
+		total: t.int({ min: 0 }),
+		gap: t.int({ min: 0 }),
 		chips: t.array(
 			t.record({
 				thingId: t.string(),

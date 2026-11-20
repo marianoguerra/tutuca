@@ -49,7 +49,7 @@ const SWATCH_OTHER = "border-transparent";
 // Every class palette()'s swatches can have.
 export const PALETTE_CLASSES = [SWATCH, SWATCH_PAINT, SWATCH_OTHER].join(" ");
 // An instrument's palette: paint is the color a click marks with.
-export const paintFields = () => ({ paint: t.string().default(COLORS.note) });
+export const paintFields = () => ({ paint: t.string({ default: COLORS.note }) });
 export const paintQueries = {
 	swatches: {
 		get() {
@@ -64,13 +64,7 @@ export const paintQueries = {
 };
 export const paintMessages = {
 	setPaint: {
-		args: [
-			t
-				.number()
-				.int()
-				.min(0)
-				.max(PALETTE.length - 1),
-		],
+		args: [t.int({ min: 0, max: PALETTE.length - 1 })],
 		run(next, [at]) {
 			next.paint = PALETTE[at][1];
 		},
@@ -234,7 +228,7 @@ export const TOGGLE_PICKED = "btn-primary";
 export const TOGGLE_OTHER = "bg-base-100";
 // Every class instrumentToggle()'s buttons can have.
 export const INSTRUMENT_TOGGLE_CLASSES = [TOGGLE_BUTTON, TOGGLE_PICKED, TOGGLE_OTHER].join(" ");
-export const instrumentField = () => ({ instrument: t.enum(...INSTRUMENTS) });
+export const instrumentField = () => ({ instrument: t.enum(INSTRUMENTS) });
 export const instrumentQueries = {
 	onPiano: {
 		get() {
@@ -253,18 +247,12 @@ export const instrumentQueries = {
 };
 export const instrumentMessages = {
 	setInstrument: {
-		args: [
-			t
-				.number()
-				.int()
-				.min(0)
-				.max(INSTRUMENTS.length - 1),
-		],
+		args: [t.int({ min: 0, max: INSTRUMENTS.length - 1 })],
 		run(next, [at]) {
 			next.instrument = INSTRUMENTS[at];
 		},
 	},
-	set_instrument: setField("instrument", t.enum(...INSTRUMENTS), { pure: true }),
+	set_instrument: setField("instrument", t.enum(INSTRUMENTS), { pure: true }),
 };
 export const octaveTool = () =>
 	agentTool("shift_octave", "message", ["by"], "Move it up or down by octaves.", {
@@ -350,9 +338,13 @@ const paintOf = (name) => PAINT_NAMES[name] ?? COLORS.note;
 export const COLOR_NAMES = Object.keys(PAINT_NAMES).join(", ");
 // What an agent marks an instrument with, by note names: markedOf(parsed) is what's marked
 // (a MIDI number on a piano, a pitch class on a guitar's neck).
+// Its notes are checked as note names: a component with them has markChecks in its checks.
+export const markChecks = {
+	noteName: { test: isNoteName, description: "a note name like C, F♯, Bb or E♭4" },
+};
 export const agentMarkMessages = (markedOf) => {
-	const notesType = t.array(t.string().where(isNoteName, "a note name like C, F♯, Bb or E♭4"));
-	const colorType = t.enum(...Object.keys(PAINT_NAMES));
+	const notesType = t.array(t.string({ check: "noteName" }));
+	const colorType = t.enum(Object.keys(PAINT_NAMES));
 	const marksOf = (notes, color) =>
 		notes.map((text) => {
 			const note = parseNoteName(text);

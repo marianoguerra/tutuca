@@ -1,0 +1,90 @@
+{
+ "codes": [],
+ "model": {
+  "format": 2,
+  "components": [
+   {
+    "name": "TodoItem",
+    "fields": [
+     {
+      "name": "id",
+      "type": "number",
+      "constraints": {
+       "int": true,
+       "min": 0
+      },
+      "default": 0,
+      "sync": null,
+      "public": false
+     },
+     {
+      "name": "text",
+      "type": "string",
+      "constraints": null,
+      "default": "",
+      "sync": null,
+      "public": false
+     },
+     {
+      "name": "done",
+      "type": "boolean",
+      "constraints": null,
+      "default": false,
+      "sync": null,
+      "public": false
+     }
+    ],
+    "queries": [],
+    "messages": [
+     {
+      "name": "setDone",
+      "args": "[boolean]",
+      "pure": true,
+      "changes": null,
+      "constraints": null,
+      "sourceKey": null,
+      "pre": false,
+      "post": false,
+      "why": null
+     },
+     {
+      "name": "toggle",
+      "args": "unknown[]",
+      "pure": false,
+      "changes": null,
+      "constraints": null,
+      "sourceKey": null,
+      "pre": false,
+      "post": false,
+      "why": null
+     },
+     {
+      "name": "removeMe",
+      "args": "[]",
+      "pure": false,
+      "changes": null,
+      "constraints": null,
+      "sourceKey": null,
+      "pre": false,
+      "post": false,
+      "why": null
+     }
+    ],
+    "invariants": [],
+    "views": [
+     "main"
+    ],
+    "meta": null,
+    "implements": []
+   }
+  ],
+  "interfaces": [],
+  "metaSchemas": [],
+  "register": null,
+  "entries": {
+   "TodoItem.on.setDone.run": "void",
+   "TodoItem.on.toggle.run": "void",
+   "TodoItem.on.removeMe.run": "void"
+  }
+ }
+}

@@ -83,13 +83,13 @@ const specs = (counts, { middleProvides = false } = {}) => ({
 	Middle: component({
 		name: "Middle",
 		fields: { leaf: t.component("Leaf"), theme: t.string() },
-		provides: middleProvides ? { theme: (pb) => pb.field("theme") } : {},
+		provides: middleProvides ? { theme: "theme" } : {},
 		view: h("div", {}, new Count(counts, "middle"), render(field("leaf"))),
 	}),
 	Root: component({
 		name: "Root",
 		fields: { middle: t.component("Middle"), theme: t.string(), other: t.number() },
-		provides: { theme: (pb) => pb.field("theme") },
+		provides: { theme: "theme" },
 		view: h("main", {}, new Count(counts, "root"), render(field("middle"))),
 	}),
 });
@@ -153,7 +153,7 @@ cacheTest(
 		const Themed = component({
 			name: "Themed",
 			fields: { leaves: t.array() },
-			provides: { theme: (pb) => pb.field("tone") },
+			provides: { theme: "tone" },
 			methods: {
 				get tone() {
 					return "warm";
@@ -365,7 +365,7 @@ const movingSpecs = (counts) => ({
 	Group: component({
 		name: "Group",
 		fields: { items: t.array(), panel: t.component("Panel") },
-		provides: { items: (pb) => pb.field("items") },
+		provides: { items: "items" },
 		view: h("section", {}, render(field("panel"))),
 	}),
 	Wrap: component({
@@ -417,7 +417,7 @@ cacheTest(
 		const Root = component({
 			name: "Root",
 			fields: { leaves: t.array(), wrap: t.component("Wrap"), theme: t.string() },
-			provides: { theme: (pb) => pb.field("theme") },
+			provides: { theme: "theme" },
 			view: h("main", {}, renderEach(field("leaves")), render(field("wrap"))),
 		});
 		const { change, text } = setup({ Leaf, Wrap, Root }, (C) =>
@@ -458,7 +458,7 @@ const boxSpecs = (counts) => ({
 	Box: component({
 		name: "Box",
 		fields: { items: t.array(), selected: t.number(), viewer: t.any() },
-		provides: { cur: (pb) => pb.seqItem("items", "selected") },
+		provides: { cur: { seqItem: "items", keyField: "selected" } },
 		view: h("section", {}, render(field("viewer"))),
 	}),
 	Root: component({
@@ -525,7 +525,7 @@ cacheTest("a provided value is found at the nearest component that provides it",
 	const Own = component({
 		name: "Own",
 		fields: { item: t.component("Item") },
-		provides: { cur: (pb) => pb.field("item") },
+		provides: { cur: "item" },
 		view: h("p", {}, render(provided("cur"))),
 	});
 	const { host, rootNode, click } = setup({ ...base, Own }, (C) =>

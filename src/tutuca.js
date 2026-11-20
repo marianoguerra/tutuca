@@ -1,7 +1,7 @@
 // The core: components, views, schemas, specs, paths, tasks and the host. Each lives in its own module;
 // this one is the public surface npm consumers and dist/ bundle.
 
-export { ComponentSpec, component } from "./core/component.js";
+export { ComponentSpec, component, InitContext } from "./core/component.js";
 export { DRAG_EVENTS, DROP_EVENTS, Drag } from "./core/host/drag.js";
 export { browserEnv, Host } from "./core/host/host.js";
 export { HostEvent } from "./core/host/host-event.js";
@@ -36,7 +36,9 @@ export {
 } from "./core/model/interface.js";
 export { Scope } from "./core/model/scope.js";
 export {
+	enableHandlerSources,
 	HandlerSpec,
+	handlerSourcesEnabled,
 	isComponent,
 	QuerySpec,
 	scopeOf,
@@ -50,6 +52,10 @@ export {
 	ArrayType,
 	BooleanType,
 	ComponentType,
+	checkType,
+	compileShape,
+	compileType,
+	dataText,
 	EnumType,
 	IndexType,
 	isRecord,
@@ -60,9 +66,12 @@ export {
 	prefixed,
 	RecordType,
 	StringType,
+	signatureText,
 	syncsAt,
+	TYPE_KINDS,
 	Type,
 	t,
+	typeProblems,
 	typeText,
 	unlessNoDefault,
 	unwrapOption,
@@ -93,6 +102,7 @@ export {
 	EventArgNode,
 	each,
 	eventKey,
+	eventProperty,
 	field,
 	h,
 	lookupBind,
@@ -126,10 +136,12 @@ export {
 	KeyPath,
 	MessageContext,
 	NotifyTask,
+	pathProblems,
+	pathSteps,
 	plainOf,
 	Scheduler,
 	Selector,
-	selectorFrom,
+	selectorOfPath,
 	Target,
 	Task,
 	TRANSITION_OUTCOMES,

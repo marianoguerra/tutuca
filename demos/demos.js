@@ -88,6 +88,15 @@ export const demos = [
 		sources: ["tree-spec"],
 	},
 	{
+		dir: "paths",
+		emoji: "🛤️",
+		title: "Paths tour",
+		blurb:
+			"How a component is reached, one kind of path step at a time: each example live next to its path tree, and a click played back as its path is read from the page and its message goes up or down the tree.",
+		story: null,
+		sources: [],
+	},
+	{
 		dir: "renders",
 		emoji: "🪞",
 		title: "Renders",

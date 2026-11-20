@@ -39,9 +39,9 @@ export const toolResultMessage = (call, text, isError = false) => ({
 // caused ran (ok), some of it threw (failed), or it was stopped (cancelled, timeout).
 export const reportType = t.record({
 	id: t.number(),
-	outcome: t.enum(...WATCH_OUTCOMES),
-	tasks: t.number().int().min(0),
-	failed: t.number().int().min(0),
+	outcome: t.enum(WATCH_OUTCOMES),
+	tasks: t.int({ min: 0 }),
+	failed: t.int({ min: 0 }),
 });
 // What answers a message tool's call once its watch settled with report: what c looks
 // like after (its result query) and, when it didn't go well, why; and whether it's an error.

@@ -1,0 +1,12 @@
+{
+	"specifier": "tutuca/test/words",
+	"module": "Words",
+	"members": {
+		"split": "(text: string) => string[]",
+		"count": "(text: string, word: string) => number",
+		"stats": "(text: string) => { words: number; longest: string; first?: string }",
+		"lie": "() => string",
+		"boom": "() => string"
+	},
+	"fresh": ["Words.split"]
+}

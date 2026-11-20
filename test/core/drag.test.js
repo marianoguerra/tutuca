@@ -31,7 +31,7 @@ const start = (specs, make) => {
 
 const List = component({
 	name: "List",
-	fields: { items: t.array(), dropped: t.any(null), seen: t.any(null) },
+	fields: { items: t.array(), dropped: t.any({ default: null }), seen: t.any({ default: null }) },
 	view: h(
 		"ul",
 		{},
@@ -194,5 +194,51 @@ test("generated drags keep the state valid and the patched DOM equal to a fresh 
 	fc.assert(
 		fc.property(eventCommands(A), (cmds) => runCommands(A, root, cmds, { document })),
 		{ numRuns: 30 },
+	);
+});
+
+test("a handler reads the drag as ctx.drag, with key its own child's, logs it and makes components", () => {
+	const Tag = component({
+		name: "Tag",
+		fields: { text: t.string() },
+		view: h("b", {}, field("text")),
+	});
+	const Board = component({
+		name: "Board",
+		fields: { items: t.array(), tags: t.array(t.component("Tag")) },
+		view: h(
+			"ul",
+			{ "on:drop": send("dropped") },
+			each(field("items"), h("li", { draggable: "true", "data-dragtype": "item" }, field("label"))),
+		),
+		on: {
+			dropped(next, _args, ctx) {
+				const { type, value, key } = ctx.drag;
+				ctx.log({ type, label: value.label, key });
+				ctx.log(next.tags);
+				next.tags.push(ctx.make("Tag", { text: value.label }));
+			},
+		},
+	});
+	const d = start({ Board, Tag }, (C) => C.Board({ items }));
+	const lis = [...d.rootNode.querySelectorAll("li")];
+	d.drag(lis[1], lis[2]);
+	assert.deepEqual(d.problems, []);
+	assert.deepEqual(
+		d.state.tags.map((tag) => tag.text),
+		["b"],
+	);
+	const dropped = d.transitions.find((r) => r.name === "dropped");
+	assert.deepEqual(
+		dropped.logs,
+		[{ type: "item", label: "b", key: 1 }, []],
+		"a draft is logged as it was",
+	);
+	const NoScope = component({ name: "NoScope", on: { go: (_n, _a, ctx) => ctx.make("Tag") } });
+	const lone = new Driver({ root: NoScope.make(), document });
+	lone.send("go");
+	assert.match(
+		String(lone.transitions.at(-1).error),
+		/ctx.make\(Tag\): the component has no scope/,
 	);
 });

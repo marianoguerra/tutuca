@@ -1,0 +1,107 @@
+{
+ "codes": [],
+ "model": {
+  "format": 2,
+  "components": [
+   {
+    "name": "PureTodoList",
+    "fields": [
+     {
+      "name": "text",
+      "type": "string",
+      "constraints": null,
+      "default": "",
+      "sync": null,
+      "public": false
+     },
+     {
+      "name": "items",
+      "type": "Item[]",
+      "constraints": null,
+      "default": [],
+      "sync": null,
+      "public": false
+     }
+    ],
+    "queries": [
+     {
+      "name": "left",
+      "type": "number"
+     },
+     {
+      "name": "isEmpty",
+      "type": "boolean"
+     },
+     {
+      "name": "leftText",
+      "type": "string"
+     }
+    ],
+    "messages": [
+     {
+      "name": "setText",
+      "args": "[string]",
+      "pure": true,
+      "changes": null,
+      "constraints": null,
+      "sourceKey": null,
+      "pre": false,
+      "post": false,
+      "why": null
+     },
+     {
+      "name": "add",
+      "args": "[]",
+      "pure": false,
+      "changes": null,
+      "constraints": null,
+      "sourceKey": null,
+      "pre": false,
+      "post": false,
+      "why": null
+     },
+     {
+      "name": "toggle",
+      "args": "[number]",
+      "pure": false,
+      "changes": null,
+      "constraints": null,
+      "sourceKey": null,
+      "pre": false,
+      "post": false,
+      "why": null
+     },
+     {
+      "name": "remove",
+      "args": "[number]",
+      "pure": false,
+      "changes": null,
+      "constraints": null,
+      "sourceKey": null,
+      "pre": false,
+      "post": false,
+      "why": null
+     }
+    ],
+    "invariants": [],
+    "views": [
+     "main"
+    ],
+    "meta": null,
+    "implements": []
+   }
+  ],
+  "interfaces": [],
+  "metaSchemas": [],
+  "register": null,
+  "entries": {
+   "PureTodoList.queries.left": "number",
+   "PureTodoList.queries.isEmpty": "boolean",
+   "PureTodoList.queries.leftText": "string",
+   "PureTodoList.on.setText.run": "void",
+   "PureTodoList.on.add.run": "void",
+   "PureTodoList.on.toggle.run": "void",
+   "PureTodoList.on.remove.run": "void"
+  }
+ }
+}

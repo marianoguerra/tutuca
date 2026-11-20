@@ -1,11 +1,11 @@
 // Component specs: component() turns options into a ComponentSpec that makes instances. This is
 // where the model (fields, messages, queries: model/) and the views (view/) of a component meet;
 // neither imports the other's directory.
-import { immerable } from "../../deps/immer.js";
+import { immerable, produce } from "../../deps/immer.js";
 import { mint } from "../tree/index.js";
 import { toMeta } from "./model/component-meta.js";
 import { QuerySpec, scopeSym, specSym, toAnswers, toMessages, toQueries } from "./model/spec.js";
-import { prefixed } from "./model/types.js";
+import { compileShape, compileType, prefixed } from "./model/types.js";
 import { enabledTarget, enabledTargetNames } from "./view/targets.js";
 import { toNode, ViewNode } from "./view/view.js";
 import { eventBindingsOf } from "./view/walk.js";
@@ -26,8 +26,19 @@ export class ComponentSpec {
 		queries,
 		implements: implemented,
 		meta,
+		checks,
+		definition,
+		init,
 	}) {
 		this.name = name;
+		// init(next, ctx): what finishes an instance made from its fields (make), on a draft of it,
+		// this the instance as its fields made it; ctx makes components in its scope.
+		this.init = init;
+		// The options component() made it from, data and code as given: what a component made
+		// from this one spreads (component({ ...Base.definition, name: "Other" })).
+		this.definition = definition;
+		// The named checks its types use (types.js): name -> a function or { test, arb, description }.
+		this.checks = checks;
 		/** @type {Object<string, import("./model/types.js").Type>} */
 		this.fields = fields;
 		this.methods = methods;
@@ -42,8 +53,8 @@ export class ComponentSpec {
 			const descriptor = q.kind === "get" ? { get: q.fn } : { value: q.fn, writable: true };
 			Object.defineProperty(this.proto, qname, { ...descriptor, configurable: true });
 		}
-		// The interfaces it says it implements: Interfaces, or names resolved in the scope it is
-		// registered in (scope.js checks them there).
+		// The interfaces it says it implements, by name, resolved in the scope it is registered in
+		// (scope.js checks them there).
 		this.implements = implemented;
 		// What it says about itself to hosts, by namespace URI (component-meta.js's toMeta), frozen.
 		this.meta = meta;
@@ -78,7 +89,27 @@ export class ComponentSpec {
 				throw prefixed(`${this.name}.${key}`, error);
 			}
 		}
-		return state;
+		if (typeof this.init !== "function") return state;
+		const ctx = new InitContext(this.name, scope);
+		try {
+			return produce(state, (draft) => {
+				this.init.call(state, draft, ctx);
+			});
+		} catch (error) {
+			throw prefixed(`${this.name}.init`, error);
+		}
+	}
+}
+// What an init reads: it makes the components its instance holds, in the scope it's made in.
+export class InitContext {
+	constructor(name, scope) {
+		this.name = name;
+		this.scope = scope;
+	}
+	make(name, fields = {}) {
+		if (this.scope === null)
+			throw new Error(`ctx.make(${name}): ${this.name} is made with no scope`);
+		return this.scope.make(name, fields);
 	}
 }
 const ownEntries = (record) => Object.assign(Object.create(null), record); // no toString &c in entries
@@ -126,14 +157,49 @@ const rendersOf = (name, renders) => {
 	}
 	return out;
 };
+// A component's types are data (types.js), compiled here with its checks; a type that isn't
+// one, or names a check it doesn't have, throws as the component is made.
+// implements names interfaces, resolved where the component is registered.
+const implementsOf = (name, implemented) => {
+	const names = [implemented ?? []].flat();
+	for (const it of names) {
+		if (typeof it !== "string")
+			throw new TypeError(`Component ${name}: implements names interfaces, not ${String(it)}`);
+	}
+	return names;
+};
 export const component = (opts) => {
-	const { name, fields = {}, methods = {}, view, views = {}, renders = {} } = opts;
+	const { name, methods = {}, view, views = {}, renders = {} } = opts;
+	const checks = ownEntries(opts.checks);
+	// The compileType of its types under a section (on., answers., queries.), and how it
+	// fails there.
+	const typesIn = (section) => {
+		const type = (data, at) => {
+			try {
+				return compileType(data, checks);
+			} catch (error) {
+				throw new TypeError(`Component ${name}: ${section}${at}: ${error.message}`, {
+					cause: error,
+				});
+			}
+		};
+		type.fail = (message) => {
+			throw new TypeError(`Component ${name}: ${section}${message}`);
+		};
+		return type;
+	};
+	let fields;
+	try {
+		fields = compileShape(opts.fields ?? {}, checks);
+	} catch (error) {
+		throw new TypeError(`Component ${name}: ${error.message}`, { cause: error });
+	}
 	const exprs = viewsOf(view, views);
 	// A component with no views at all only handles messages (headless) and renders nothing;
 	// one with views needs a main one.
 	if (view === undefined && Object.keys(views).length === 0) exprs.main = toNode("");
 	if (!("main" in exprs)) throw new Error(`Component ${name} has no main view`);
-	const queries = toQueries(opts.queries, fields);
+	const queries = toQueries(opts.queries, fields, typesIn(""));
 	collisions(name, fields, queries, methods);
 	return new ComponentSpec({
 		name,
@@ -141,14 +207,17 @@ export const component = (opts) => {
 		methods,
 		views: exprs,
 		renders: rendersOf(name, renders),
-		on: toMessages(opts.on),
-		answers: toAnswers(opts.answers),
+		on: toMessages(opts.on, typesIn("on.")),
+		answers: toAnswers(opts.answers, typesIn("answers.")),
 		loops: ownEntries(opts.loops),
 		binds: ownEntries(opts.binds),
 		provides: ownEntries(opts.provides),
 		invariants: ownEntries(opts.invariants),
 		queries,
-		implements: [opts.implements ?? []].flat(),
+		implements: implementsOf(name, opts.implements),
 		meta: toMeta(name, opts.meta),
+		checks,
+		definition: Object.freeze({ ...opts }),
+		init: opts.init,
 	});
 };

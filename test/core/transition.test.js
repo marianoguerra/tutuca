@@ -38,7 +38,12 @@ const Child = component({
 const Middle = component({ name: "Middle", fields: { child: t.component("Child") } });
 const Parent = component({
 	name: "Parent",
-	fields: { child: t.component("Child"), seen: t.number(), got: t.any(null), jobs: t.number() },
+	fields: {
+		child: t.component("Child"),
+		seen: t.number(),
+		got: t.any({ default: null }),
+		jobs: t.number(),
+	},
 	on: {
 		pinged(next, [n]) {
 			next.seen += n;
@@ -50,7 +55,7 @@ const Parent = component({
 			next.child.n = 5; // the child's field, not through its messages
 		},
 		startAndCancel(_next, _args, ctx) {
-			const id = ctx.sendAt("bump", [], (p) => p.field("child"), { settled: "done" });
+			const id = ctx.sendAt("bump", [], "child", { settled: "done" });
 			ctx.cancel(id);
 		},
 		done() {},
@@ -67,9 +72,10 @@ const Parent = component({
 const start = (
 	components = { Parent, Child, Middle },
 	root = (C) => C.Parent({ child: C.Child() }),
+	askHandlers = { double: ([n]) => n * 2 },
 ) => {
 	const scope = scopeWith(components);
-	scope.registerAskHandlers({ double: ([n]) => n * 2 });
+	scope.registerAskHandlers(askHandlers);
 	const driver = new Driver({ root: root(scope.components) });
 	return Object.assign(driver, { C: scope.components });
 };
@@ -174,6 +180,19 @@ test("an ask is asked, and its answer is a transition caused by it", () => {
 		["ask", "asked", load.seq, "double.ok", "answer", "handled", ask.seq],
 	);
 	assert.equal(answer.origin, load.seq);
+	assert.equal(driver.state.got, 42);
+});
+
+test("what an ask handler logs is its asked transition's logs", () => {
+	const driver = start(undefined, undefined, {
+		double: ([n], ctx) => {
+			ctx.log(`doubling ${n}`);
+			return n * 2;
+		},
+	});
+	driver.send("load");
+	const [, ask] = driver.transitions;
+	assert.deepEqual([ask.outcome, ask.logs], ["asked", ["doubling 21"]]);
 	assert.equal(driver.state.got, 42);
 });
 

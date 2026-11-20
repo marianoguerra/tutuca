@@ -22,6 +22,12 @@ export class Drag {
 	sourceKeyIn(receiver) {
 		return this.path.sourceKeyIn(receiver);
 	}
+	// The drag as the handler at receiver reads it (ctx.drag): its type, value, node and path,
+	// and key, the key of receiver's child it was dragged from (null from outside receiver).
+	at(receiver) {
+		const { path, type, node, value } = this;
+		return Object.freeze({ path, type, node, value, key: this.sourceKeyIn(receiver) });
+	}
 }
 // The host's drag state, from dragstart to dragend: the Drag, if one of the root's elements is
 // dragged, and the drop target marked with data-draggingover.
@@ -64,7 +70,7 @@ export class DragTracker {
 		} else if (e.type === "dragleave") {
 			if (!this.rootNode.contains(e.relatedTarget ?? null)) this.mark(null);
 		} else {
-			const info = bindingFor(e.target, "drop", this.rootNode, root, true);
+			const info = bindingFor(e.target, (b) => b.type === "drop", this.rootNode, root, true);
 			// The browser shows a move cursor over a drop target, a not-allowed one elsewhere. A
 			// drag from outside the page (a file) is copied: the browser forbids moving most.
 			if (info !== null) {

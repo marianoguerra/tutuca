@@ -17,7 +17,10 @@
 			"!_site",
 			"!tutuca-mb",
 			"!tutuca-wax",
+			"!pure-js",
 			"!grow",
+			"!spec/pure-tutuca/golden",
+			"!spec/pure-tutuca/host",
 			"!tdata/mbt/_build",
 			"!tdata/mbt/dist",
 			"!tutuca-core.*"
@@ -56,6 +59,19 @@
 		}
 	},
 	"overrides": [
+		{
+			"includes": ["**/*.tutuca.ts"],
+			"linter": {
+				"rules": {
+					"correctness": {
+						"noUnresolvedImports": "off",
+						"noEmptyPattern": "off",
+						"noUnusedFunctionParameters": "off",
+						"noUndeclaredVariables": "off"
+					}
+				}
+			}
+		},
 		{
 			"includes": ["site/examples/**/*.js", "demos/renders/examples/**/*.js", "tdata/mbt/load.mjs"],
 			"linter": {

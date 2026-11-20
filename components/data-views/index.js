@@ -49,11 +49,11 @@ export const JsonView = component({
 		id: t.string(),
 		label: t.string(),
 		text: t.string(),
-		mode: t.enum("tree", "raw"),
+		mode: t.enum(["tree", "raw"]),
 		editable: t.boolean(),
-		json: t.boolean(true), // false: plain text (no tree, no JSON errors), still with Copy.
-		on: t.string("json_edited"),
-		rows: t.number(10).int().min(1),
+		json: t.boolean({ default: true }), // false: plain text (no tree, no JSON errors), still with Copy.
+		on: t.string({ default: "json_edited" }),
+		rows: t.int({ min: 1, default: 10 }),
 		collapsed: t.array(t.string()), // The pointers of the folded nodes.
 		copied: t.boolean(),
 	},
@@ -187,11 +187,11 @@ export const JsonView = component({
 		// What its holder may change: the text it shows, and its label.
 		set_text: setField("text", t.string(), { pure: true }),
 		set_label: setField("label", t.string(), { pure: true }),
-		show: setField("mode", t.enum("tree", "raw"), { pure: true }),
+		show: setField("mode", t.enum(["tree", "raw"]), { pure: true }),
 		// A click on a tree row folds or unfolds it; with Ctrl (Cmd on a Mac) its siblings that
 		// have children do the same.
 		fold: {
-			args: [t.number().int().min(0)],
+			args: [t.int({ min: 0 })],
 			run(next, [i], ctx) {
 				const row = this.treeRows[i];
 				if (row === undefined || row.toggle === " ") return;
@@ -292,8 +292,8 @@ const pagerNames = (prefix = "") => {
 export const pagerFields = (prefix = "") => {
 	const N = pagerNames(prefix);
 	return {
-		[N.page]: t.number(0).int().min(0),
-		[N.pageSize]: t.number(10).int().min(1),
+		[N.page]: t.int({ min: 0, default: 0 }),
+		[N.pageSize]: t.int({ min: 1, default: 10 }),
 		[N.open]: t.boolean(),
 	};
 };
@@ -510,9 +510,9 @@ export const DataTable = component({
 	name: "DataTable",
 	fields: {
 		id: t.string(),
-		kind: t.enum("table", "csv"),
+		kind: t.enum(["table", "csv"]),
 		rows: t.array(t.any()),
-		delimiter: t.string(","),
+		delimiter: t.string({ default: "," }),
 		edited: t.boolean(), // Changed since it was opened, so encode writes it back.
 		...pagerFields(),
 	},
@@ -615,7 +615,7 @@ export const List = component({
 		name: t.string(),
 		items: t.array(t.component()),
 		addLabel: t.string(),
-		removeTitle: t.string("Remove"),
+		removeTitle: t.string({ default: "Remove" }),
 		...pagerFields(),
 	},
 	queries: mix(pagerQueries("items"), {
@@ -681,7 +681,7 @@ export const List = component({
 		// What its holder (listHandlers) changes: the items and their order, through these.
 		move_item: {
 			pure: true,
-			args: [t.number().int().min(0), t.number().int().min(0)],
+			args: [t.int({ min: 0 }), t.int({ min: 0 })],
 			run(next, [from, to]) {
 				if (from >= this.items.length || from === to) return;
 				const [item] = next.items.splice(from, 1);
@@ -690,7 +690,7 @@ export const List = component({
 		},
 		remove_item_at: {
 			pure: true,
-			args: [t.number().int().min(0)],
+			args: [t.int({ min: 0 })],
 			pre: (self, [i]) => i < self.items.length,
 			run(next, [i]) {
 				next.items.splice(i, 1);
@@ -756,14 +756,14 @@ export const listHandlers = (
 	const items = (x) => x[name].items;
 	const handlers = {
 		[`move_${name}`]: {
-			args: [t.number().int().min(0), t.number().int().min(0)],
+			args: [t.int({ min: 0 }), t.int({ min: 0 })],
 			run(next, [from, to], ctx) {
 				ctx.stopNext();
 				next[name] = apply(next[name], "move_item", from, to);
 			},
 		},
 		[`remove_${name}_at`]: {
-			args: [t.number().int().min(0)],
+			args: [t.int({ min: 0 })],
 			pre: (self, [i]) => i < items(self).length,
 			run(next, [i], ctx) {
 				ctx.stopNext();
@@ -774,7 +774,7 @@ export const listHandlers = (
 		},
 		[`reorder_${name}`]: {
 			pure: true,
-			args: [t.string(), t.number().int().min(0)],
+			args: [t.string(), t.int({ min: 0 })],
 			pre: (self, [key]) => items(self).some((x) => id(x) === key),
 			run(next, [key, index]) {
 				const from = items(this).findIndex((x) => id(x) === key);

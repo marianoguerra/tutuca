@@ -47,7 +47,7 @@ const ThemedItem = component({
 const List = component({
 	name: "List",
 	fields: { items: t.array(), tick: t.number() },
-	provides: { tick: (pb) => pb.field("tick") },
+	provides: { tick: "tick" },
 	view: h("ul", {}, renderEach(field("items"))),
 });
 const TreeNode = component({

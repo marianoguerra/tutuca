@@ -2,7 +2,7 @@ import { book, step } from "../../src/storybook/index.js";
 import { sampleApp, TODAY, todoAppArb } from "./fixtures.js";
 import { todoApp, todoComponents, todoTask } from "./index.js";
 
-const atTask = (i) => (b) => b.item("tasks", i);
+const atTask = (i) => ({ item: "tasks", key: i });
 const appMessages = [
 	"TodoApp.openView",
 	"TodoApp.openProject",
@@ -88,11 +88,11 @@ export default book({
 				}),
 			sequences: {
 				"complete, reorder and remove subtasks": [
-					step.send("toggle", [], { to: (b) => b.item("subtasks", 0) }),
+					step.send("toggle", [], { to: { item: "subtasks", key: 0 } }),
 					step.check("2/3 done", (s) => s.subtaskProgress === "▾ 2/3"),
-					step.send("moveTask", [1], { from: (b) => b.item("subtasks", 0) }),
+					step.send("moveTask", [1], { from: { item: "subtasks", key: 0 } }),
 					step.check("Pack books second", (s) => s.subtasks[1].title === "Pack books"),
-					step.send("remove", [], { to: (b) => b.item("subtasks", 2) }),
+					step.send("remove", [], { to: { item: "subtasks", key: 2 } }),
 					step.check("two left", (s) => s.subtasks.length === 2),
 					step.send("toggle"),
 					step.check("completing completes all", (s) => s.subtasks.every((x) => x.isCompleted)),
@@ -162,8 +162,8 @@ export default book({
 					step.check("overdue and today", (s) => s.pageBinds().todayCount === 3),
 					step.send("toggle", [], { to: atTask(0) }),
 					step.check("one less", (s) => s.pageBinds().todayCount === 2),
-					step.send("setText", ["Stretch"], { to: (b) => b.field("quickAdd") }),
-					step.send("submit", [], { to: (b) => b.field("quickAdd") }),
+					step.send("setText", ["Stretch"], { to: "quickAdd" }),
+					step.send("submit", [], { to: "quickAdd" }),
 					step.check("due today", (s) => s.tasks.at(-1).due === TODAY),
 				],
 			},
@@ -176,9 +176,9 @@ export default book({
 				"rename, then delete the project": [
 					step.event("dblclick", 'h2[title="Double-click to rename"]'),
 					step.event("input", '[aria-label="Project name"]', { value: "Job" }),
-					step.send("endRename", [], { to: (b) => b.item("projects", 1) }),
+					step.send("endRename", [], { to: { item: "projects", key: 1 } }),
 					step.check("renamed", (s) => s.projects[1].name === "Job"),
-					step.send("remove", [], { to: (b) => b.item("projects", 1) }),
+					step.send("remove", [], { to: { item: "projects", key: 1 } }),
 					step.check("gone", (s) => s.projects.length === 2 && s.view === "inbox"),
 					step.check("its tasks in the inbox", (s) => s.tasks[2].projectId === "inbox"),
 				],

@@ -97,8 +97,8 @@ const DevNode = component({
 		label: t.string(),
 		title: t.string(),
 		detail: t.string(),
-		tokens: t.array(t.record({ text: t.string(), tone: t.enum(...TONE_NAMES) })),
-		ref: t.number().int().min(0), // 0 for values with nothing to expand.
+		tokens: t.array(t.record({ text: t.string(), tone: t.enum(TONE_NAMES) })),
+		ref: t.int({ min: 0 }), // 0 for values with nothing to expand.
 		canOpen: t.boolean(),
 		isOpen: t.boolean(),
 		rows: t.array(t.component("DevNode")),
@@ -116,7 +116,7 @@ const DevNode = component({
 	},
 	loops: {
 		tokens: {
-			enrich({ value }) {
+			enrich(_key, value) {
 				return { tone: TONES[value.tone] };
 			},
 		},
@@ -178,7 +178,7 @@ const DevSection = component({
 	name: "DevSection",
 	fields: {
 		title: t.string(),
-		emptyText: t.string("Nothing to show."),
+		emptyText: t.string({ default: "Nothing to show." }),
 		nodes: t.array(t.component("DevNode")),
 	},
 	queries: {
@@ -217,7 +217,7 @@ const DevLint = component({
 	fields: {
 		issues: t.array(
 			t.record({
-				level: t.enum("error", "warning"),
+				level: t.enum(["error", "warning"]),
 				code: t.string(),
 				path: t.string(),
 				message: t.string(),
@@ -239,7 +239,7 @@ const DevLint = component({
 	},
 	loops: {
 		issues: {
-			enrich({ value }) {
+			enrich(_key, value) {
 				return { badge: LEVELS[value.level] };
 			},
 		},
@@ -281,7 +281,7 @@ const VIEW_BUTTON = "btn btn-xs join-item";
 const DevPanel = component({
 	name: "DevPanel",
 	fields: {
-		view: t.enum("main", "code"),
+		view: t.enum(["main", "code"]),
 		state: t.component("DevSection"),
 		transitions: t.component("DevSection"),
 		specs: t.component("DevSection"),
@@ -329,7 +329,7 @@ const DevPanel = component({
 	),
 	on: {
 		setView: {
-			args: [t.enum("main", "code")],
+			args: [t.enum(["main", "code"])],
 			run(next, [view]) {
 				next.view = view;
 			},

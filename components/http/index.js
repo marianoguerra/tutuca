@@ -75,7 +75,7 @@ const methodSelect = () =>
 		...METHOD_NAMES.map((m) => option({ value: m }, m)),
 	);
 const setMethod = () => ({
-	args: [t.enum(...METHOD_NAMES)],
+	args: [t.enum(METHOD_NAMES)],
 	run(next, [method]) {
 		next.method = method;
 	},
@@ -220,13 +220,7 @@ const headerMessages = () => ({
 	// The body is none, text or JSON: switching converts it, JSON to its text and text that
 	// parses to JSON, keeping what it was when it can't.
 	setBodyKind: {
-		args: [
-			t
-				.number()
-				.int()
-				.min(0)
-				.max(BODY_KINDS.length - 1),
-		],
+		args: [t.int({ min: 0, max: BODY_KINDS.length - 1 })],
 		run(next, [at], ctx) {
 			const kind = BODY_KINDS[at][0];
 			const C = ctx.scope.components;
@@ -250,7 +244,7 @@ const sameName = (a, b) => a.toLowerCase() === b.toLowerCase();
 const agentMessageHandlers = () => ({
 	set_header: {
 		pure: true,
-		args: [t.string().len(1), t.string()],
+		args: [t.string({ minLength: 1 }), t.string()],
 		run(next, [name, value]) {
 			const header = scopeOf(this).components.HttpHeader({ name, value });
 			const at = this.headers.findIndex((h) => sameName(h.name, name));
@@ -269,7 +263,7 @@ const agentMessageHandlers = () => ({
 	},
 	set_body: {
 		pure: true,
-		args: [t.enum("none", "text", "json"), t.any()],
+		args: [t.enum(["none", "text", "json"]), t.any()],
 		run(next, [kind, value]) {
 			next.bodyKind = kind;
 			if (kind === "text") {
@@ -314,7 +308,7 @@ const parseJson = (text) => {
 	}
 };
 const bodyFields = () => ({
-	bodyKind: t.enum(...BODY_KINDS.map(([k]) => k)),
+	bodyKind: t.enum(BODY_KINDS.map(([k]) => k)),
 	body: t.option(t.component("JsonRoot")), // Kept while it's text, to switch back.
 	bodyText: t.string(),
 });
@@ -418,7 +412,7 @@ export const HttpRequest = component({
 		},
 	),
 	fields: {
-		method: t.enum(...METHOD_NAMES),
+		method: t.enum(METHOD_NAMES),
 		url: t.string(),
 		headers: t.array(t.component("HttpHeader")),
 		...bodyFields(),
@@ -529,7 +523,7 @@ export const HttpResponse = component({
 		},
 	),
 	fields: {
-		status: t.number().int().min(100).max(599).default(200),
+		status: t.int({ min: 100, max: 599, default: 200 }),
 		headers: t.array(t.component("HttpHeader")),
 		...bodyFields(),
 		...sectionFields(),
@@ -603,7 +597,7 @@ export const HttpResponse = component({
 		...sectionMessages(RESPONSE_SECTIONS, ["headers", "body"]),
 		...headerMessages(),
 		setStatus: setNumber("status", isStatus),
-		set_status: setField("status", t.number().int().min(100).max(599), { pure: true }),
+		set_status: setField("status", t.int({ min: 100, max: 599 }), { pure: true }),
 		...agentMessageHandlers(),
 		load: loadFrom(RESPONSE_SCHEMA, (C, json) => responseFields(C, json)),
 	},
@@ -748,7 +742,7 @@ export const ApiOperation = component({
 		},
 	),
 	fields: {
-		method: t.enum(...METHOD_NAMES),
+		method: t.enum(METHOD_NAMES),
 		path: t.string(),
 		operationId: t.string(),
 		summary: t.string(),
@@ -927,7 +921,7 @@ export const ApiOperation = component({
 		},
 		set_response: {
 			pure: true,
-			args: [t.string().len(1), t.string(), t.any()],
+			args: [t.string({ minLength: 1 }), t.string(), t.any()],
 			pre: (_self, [, , schema]) => schema === null || isSchemaValue(schema),
 			why: () => "a schema is an object or a boolean, or null for no body",
 			run(next, [status, description, schema]) {

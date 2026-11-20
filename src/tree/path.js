@@ -118,24 +118,10 @@ const selectorOpText = (op) =>
 	`.${op.name}${op.t === "item" ? `[${jsonText(op.key)}]` : op.t === "seqItem" ? `[${op.keyName}]` : ""}`;
 // A written path, relative to a node: field (field f), item (index f i) or (key f κ), and
 // seqItem (sel f g), the item of f at the key in the node's g. fix(value) turns it into frames
-// against the value it starts from. item, field and seqItem add an op and return the selector,
-// so a selector fn writes one as sel.field("items").item("items", 3).
+// against the value it starts from. Code writes one as a path (selectorOfPath, below).
 export class Selector {
 	constructor(ops = []) {
 		this.ops = ops;
-	}
-	item(name, key) {
-		return this.add({ t: "item", name, key });
-	}
-	field(name) {
-		return this.add({ t: "field", name });
-	}
-	seqItem(name, keyName) {
-		return this.add({ t: "seqItem", name, keyName });
-	}
-	add(op) {
-		this.ops.push(op);
-		return this;
 	}
 	toString() {
 		return this.ops.map(selectorOpText).join("") || "·";
@@ -162,9 +148,45 @@ export class Target {
 		return this.base.concat(this.selector.fix(this.base.toKeyPath().getIn(root)));
 	}
 }
-// The selector fn writes, called with self as this.
-export const selectorFrom = (fn, self) => {
-	const selector = new Selector();
-	fn.call(self, selector);
-	return selector;
+// A path written as data, relative to a node: a step or an array of steps ([] is the node
+// itself), each "f" (the field f), an integer (that index of the array the path is at),
+// { item: "f", key } (the item at key of the collection in f) or { seqItem: "f", keyField:
+// "g" } (the item of f at the key in the node's field g): a Selector's ops.
+export const pathSteps = (path) => (Array.isArray(path) ? path : [path]);
+const STEP_TEXT =
+	'"field", an index, { item: "field", key } or { seqItem: "field", keyField: "field" }';
+const isKey = (k) => typeof k === "string" || Number.isInteger(k);
+const hasOnly = (step, keys) => Object.keys(step).every((k) => keys.includes(k));
+// The Selector op of one step, or a problem's text.
+const stepOp = (step) => {
+	if (typeof step === "string")
+		return step === "" ? "a field step names a field" : { t: "field", name: step };
+	if (Number.isInteger(step) && step >= 0) return { t: "field", name: step };
+	if (step === null || typeof step !== "object" || Array.isArray(step))
+		return `a step is ${STEP_TEXT}, not ${typeof step === "function" ? "a function" : jsonText(step)}`;
+	if (typeof step.item === "string" && hasOnly(step, ["item", "key"])) {
+		if (!isKey(step.key)) return `{ item: "${step.item}" } needs a key, an integer or a string`;
+		return { t: "item", name: step.item, key: step.key };
+	}
+	if (typeof step.seqItem === "string" && hasOnly(step, ["seqItem", "keyField"])) {
+		if (typeof step.keyField !== "string")
+			return `{ seqItem: "${step.seqItem}" } needs keyField, the field its key is in`;
+		return { t: "seqItem", name: step.seqItem, keyName: step.keyField };
+	}
+	return `a step is ${STEP_TEXT}, not ${jsonText(step)}`;
+};
+// What's wrong with path as a path, [] when nothing is.
+export const pathProblems = (path) => {
+	if (typeof path === "function")
+		return [`a path is data (${STEP_TEXT}, or an array of them), not a function`];
+	return pathSteps(path).flatMap((step) => {
+		const op = stepOp(step);
+		return typeof op === "string" ? [op] : [];
+	});
+};
+// The Selector path writes; a TypeError when it isn't a path.
+export const selectorOfPath = (path) => {
+	const problems = pathProblems(path);
+	if (problems.length > 0) throw new TypeError(`Not a path: ${problems.join("; ")}`);
+	return new Selector(pathSteps(path).map(stepOp));
 };

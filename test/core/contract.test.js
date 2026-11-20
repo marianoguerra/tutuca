@@ -8,6 +8,7 @@ import {
 	ContractError,
 	canApply,
 	canQuery,
+	compileType,
 	component,
 	contractOf,
 	field,
@@ -21,7 +22,7 @@ import {
 	t,
 } from "../../src/tutuca.js";
 
-const TodoItem = iface("TodoItem", {
+const TodoItem = iface({
 	pure: { setDone: [t.boolean()] },
 	queries: { done: { returns: t.boolean() }, label: { returns: t.string() } },
 	notifies: { removeMe: [] },
@@ -29,7 +30,11 @@ const TodoItem = iface("TodoItem", {
 const Card = component({
 	name: "Card",
 	implements: ["TodoItem"],
-	fields: { done: t.boolean(false).public(), text: t.string(""), hits: t.number(0) },
+	fields: {
+		done: t.boolean({ default: false, public: true }),
+		text: t.string({ default: "" }),
+		hits: t.number({ default: 0 }),
+	},
 	on: {
 		setDone: {
 			pure: true,
@@ -178,7 +183,7 @@ test("each way an operation breaks its contract has its code", () => {
 test("a post that doesn't hold is reported", () => {
 	const Liar = component({
 		name: "Liar",
-		fields: { done: t.boolean(false) },
+		fields: { done: t.boolean({ default: false }) },
 		on: { setDone: { pure: true, args: [t.boolean()], post: () => false, run() {} } },
 	});
 	throwsCode(() => apply(Liar.make(), "setDone", true), "post");
@@ -222,27 +227,36 @@ test("interfaces are resolved in the scope a component is registered in", () => 
 	assert.throws(() => bare.register({ Card }), /TodoItem, which isn't an interface here/);
 	const { scope, makeCard } = setup();
 	const inner = scope.enter("inner");
-	const Other = iface("TodoItem", { queries: { other: {} } });
-	inner.registerInterfaces({ TodoItem: Other });
+	inner.registerInterfaces({ TodoItem: iface({ queries: { other: {} } }) });
 	assert.throws(() => inner.register({ Card }), /query other is missing/);
 	const card = makeCard({});
-	assert.equal(implementsIface(card, TodoItem), true);
-	assert.equal(implementsIface(card, Other), false);
+	assert.equal(implementsIface(card, "TodoItem"), true);
+	assert.equal(implementsIface(card, inner.lookupInterface("TodoItem")), false);
 	assert.deepEqual(interfaceGaps(card, "TodoItem"), []);
 });
 
-test("an Interface instance in implements needs no registration", () => {
-	const Counter = iface("Counter", { queries: { count: { returns: t.number() } } });
+test("implements names interfaces, and an interface is data registered by name", () => {
+	assert.throws(
+		() => component({ name: "C", implements: [TodoItem] }),
+		/implements names interfaces, not \[object Object\]/,
+	);
+	assert.throws(
+		() =>
+			new Scope().registerInterfaces({ Counter: { queries: { count: { returns: "integer" } } } }),
+		/registerInterfaces: Counter: Not a type: "integer" isn't a type's kind/,
+	);
+	assert.throws(() => iface({ message: {} }), /an interface has no message/);
+	const scope = new Scope();
+	scope.registerInterfaces({ Counter: { queries: { count: { returns: t.number() } } } });
 	const C = component({
 		name: "C",
-		implements: [Counter],
-		fields: { count: t.number(0).public() },
+		implements: ["Counter"],
+		fields: { count: t.number({ default: 0, public: true }) },
 	});
-	const scope = new Scope();
 	const { C: makeC } = scope.register({ C });
-	assert.equal(implementsIface(makeC(), Counter), true);
-	assert.equal(t.component(Counter).isValid(makeC(), scope), true);
-	const NotC = component({ name: "NotC", implements: [Counter], fields: { count: t.number(0) } });
+	assert.equal(implementsIface(makeC(), "Counter"), true);
+	assert.equal(compileType(t.component("Counter")).isValid(makeC(), scope), true);
+	const NotC = component({ name: "NotC", implements: ["Counter"], fields: { count: t.number() } });
 	assert.throws(() => scope.register({ NotC }), /query count is missing/);
 });
 
@@ -259,7 +273,7 @@ test("an interface registered after a component is checked as it is made", () =>
 	assert.throws(() => scope.register({ Plain }));
 	const Loose = component({ name: "Loose", fields: {} });
 	scope.register({ Loose });
-	scope.registerInterfaces({ Loose: iface("Loose", { pure: { x: [] } }) });
+	scope.registerInterfaces({ Loose: iface({ pure: { x: [] } }) });
 	assert.throws(() => scope.make("Loose"), /pure message x is missing/);
 });
 
@@ -267,7 +281,7 @@ test("t.component of an interface name takes any component implementing it", () 
 	const { scope, makeCard } = setup();
 	const Plain = component({ name: "Plain", fields: {} });
 	const { Plain: makePlain } = scope.register({ Plain });
-	const type = t.component("TodoItem");
+	const type = compileType(t.component("TodoItem"));
 	assert.equal(type.isValid(makeCard(), scope), true);
 	assert.equal(type.isValid(makePlain(), scope), false);
 });

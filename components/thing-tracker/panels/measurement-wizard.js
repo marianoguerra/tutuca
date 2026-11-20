@@ -22,7 +22,7 @@ export const MeasurementWizard = component({
 		thingId: t.string(),
 		emoji: t.string(),
 		title: t.string(),
-		prompts: t.array(t.component("Prompt")).len(1),
+		prompts: t.array(t.component("Prompt"), { minLength: 1 }),
 		step: t.index("prompts"),
 		confirming: t.boolean(),
 	},

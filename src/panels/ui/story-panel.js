@@ -21,13 +21,13 @@ const { button, div, h3, input, li, ol, option, pre, section, select, span, ul }
 
 const stepFields = {
 	label: t.string(),
-	status: t.enum("pending", "ok", "failed", "skipped"),
+	status: t.enum(["pending", "ok", "failed", "skipped"]),
 	isNext: t.boolean(),
 };
 const entryFields = {
 	label: t.string(),
-	origin: t.enum(...Object.keys(ORIGINS)),
-	problemCount: t.number().int().min(0),
+	origin: t.enum(Object.keys(ORIGINS)),
+	problemCount: t.int({ min: 0 }),
 	isCurrent: t.boolean(),
 };
 // An <option> for each string a loop goes through.
@@ -50,7 +50,7 @@ const summaryFields = {
 	sequence: t.string(),
 	steps: t.array(t.record(stepFields)),
 	timeline: t.array(t.record(entryFields)),
-	cursor: t.number().int().min(0),
+	cursor: t.int({ min: 0 }),
 	problems: t.array(t.string()),
 	stateJson: t.string(),
 	changes: t.array(t.string()),
@@ -76,13 +76,13 @@ export const StoryPanel = component({
 	fields: {
 		appKey: t.string(),
 		...summaryFields,
-		target: t.number().int().min(0),
+		target: t.int({ min: 0 }),
 		messages: t.array(t.string()),
 		message: t.string(),
 		sourceKeys: t.array(t.string()),
 		sourceKey: t.string(),
-		argsJson: t.string("[]"),
-		argSeed: t.number(1).int(),
+		argsJson: t.string({ default: "[]" }),
+		argSeed: t.int({ default: 1 }),
 		isPlaying: t.boolean(),
 	},
 	queries: {
@@ -104,12 +104,12 @@ export const StoryPanel = component({
 	},
 	loops: {
 		steps: {
-			enrich({ value }) {
+			enrich(_key, value) {
 				return { badge: BADGES[value.status] };
 			},
 		},
 		timeline: {
-			enrich({ value }) {
+			enrich(_key, value) {
 				return { icon: ORIGINS[value.origin] };
 			},
 		},
@@ -314,7 +314,7 @@ export const StoryPanel = component({
 			},
 		},
 		op: {
-			args: [t.enum(...TRANSPORT.map(([op]) => op))],
+			args: [t.enum(TRANSPORT.map(([op]) => op))],
 			emits: { ask: ["story"] },
 			run(_next, [op], ctx) {
 				askStory(ctx, this, op);

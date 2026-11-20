@@ -15,9 +15,9 @@ export const TodoProject = component({
 	name: "TodoProject",
 	meta: { [CLASSES_META]: { classes: DOT_CLASSES } },
 	fields: {
-		id: t.string("inbox"),
-		name: t.string("Inbox"),
-		color: t.enum(...Object.keys(COLORS)),
+		id: t.string({ default: "inbox" }),
+		name: t.string({ default: "Inbox" }),
+		color: t.enum(Object.keys(COLORS)),
 		isEditing: t.boolean(),
 	},
 	queries: {

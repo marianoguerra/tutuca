@@ -109,7 +109,7 @@ export default book({
 						(s) => s.items["item-1"].content.target.columns.length === 3,
 					),
 					step.send("ask", ['/remove_card {"id": "c00"}'], {
-						to: (b) => b.item("items", "item-1").field("content"),
+						to: [{ item: "items", key: "item-1" }, "content"],
 					}),
 					step.check("the agent changed the board", (s) =>
 						s.items["item-1"].content.target.columns[0].cards.every((c) => c.id !== "c00"),

@@ -13,6 +13,7 @@ import {
 	between,
 	COLOR_NAMES,
 	COLORS,
+	markChecks,
 	markFields,
 	markMessage,
 	PALETTE_CLASSES,
@@ -192,6 +193,7 @@ const neck = () =>
 // palette's paint, or unmarks it, unless it's locked, as it is in a card that marks it.
 export const GuitarNeck = component({
 	name: "GuitarNeck",
+	checks: markChecks,
 	meta: metaFor(
 		"Guitar neck",
 		"🎸",
@@ -207,9 +209,9 @@ export const GuitarNeck = component({
 		},
 	),
 	fields: {
-		startFret: t.number().int().min(0).max(22),
-		frets: t.number().int().min(1).max(24).default(12),
-		...markFields(t.number().int().min(0).max(11)),
+		startFret: t.int({ min: 0, max: 22 }),
+		frets: t.int({ min: 1, max: 24, default: 12 }),
+		...markFields(t.int({ min: 0, max: 11 })),
 		...paintFields(),
 		locked: t.boolean(),
 	},
@@ -267,7 +269,7 @@ export const GuitarNeck = component({
 		setStartFret: setNumber("startFret", between(0, 22)),
 		setFrets: setNumber("frets", between(1, 24)),
 		pressFret: {
-			args: [t.number().int().min(0)],
+			args: [t.int({ min: 0 })],
 			run(next, [at]) {
 				const position = this.neck().positions[at];
 				if (this.locked || position === undefined) return;
@@ -276,7 +278,7 @@ export const GuitarNeck = component({
 			},
 		},
 		...paintMessages,
-		...markMessage(t.number().int().min(0).max(11)),
+		...markMessage(t.int({ min: 0, max: 11 })),
 		...agentMarkMessages((note) => note.pc),
 	},
 });

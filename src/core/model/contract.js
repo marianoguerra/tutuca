@@ -6,7 +6,7 @@
 import { current, freeze, isDraft, produce } from "../../../deps/immer.js";
 import { idOf } from "../../tree/index.js";
 import { Interface, interfaceProblems, resolveImplements } from "./interface.js";
-import { HandlerSpec, isSpec, QuerySpec, scopeOf, specOf } from "./spec.js";
+import { HandlerSpec, isComponent, isSpec, QuerySpec, scopeOf, specOf } from "./spec.js";
 import { argIssues, brokenInvariants, postHolds, preHolds } from "./validate.js";
 
 // Calling an interface operation a component doesn't support, or with what breaks its contract.
@@ -74,11 +74,20 @@ export const apply = (c, name, ...args) => {
 	checkCall(spec, name, handler, prev, args, scopeOf(c));
 	applied?.add(idOf(c));
 	let next;
-	if (isDraft(c)) {
-		const result = handler.run.call(prev, c, args);
-		next = result === undefined ? c : result;
-	} else {
-		next = produce(c, (draft) => handler.run.call(prev, draft, args));
+	const ran = (draft) => {
+		const result = handler.run.call(prev, draft, args);
+		if (result === undefined || result === draft) return draft;
+		if (!handler.swap || !isComponent(result))
+			throw new ContractError(spec.name, name, ["returned"]);
+		return result;
+	};
+	if (isDraft(c)) next = ran(c);
+	else {
+		const held = produce({ c }, (holder) => {
+			const out = ran(holder.c);
+			if (out !== holder.c) holder.c = out;
+		});
+		next = held.c;
 	}
 	if (!postHolds(handler, prev, next, args, {})) throw new ContractError(spec.name, name, ["post"]);
 	if (!isDraft(next) && next !== c) checkInvariants(spec, name, next);
@@ -113,7 +122,7 @@ export const query = (c, name, ...args) => {
 export const canApply = (c, name) => specOf(c)?.on[name]?.pure === true;
 export const canQuery = (c, name) => specOf(c)?.queries[name] instanceof QuerySpec;
 // What c (a component or its spec) offers: the interfaces it implements (resolved in its
-// scope), its messages, which pure, its queries and the notifies its handlers declare. No state.
+// scope), its messages, which pure and which swap (replace it), its queries and the notifies its handlers declare. No state.
 export const contractOf = (c) => {
 	const spec = isSpec(c) ? c : specOrThrow(c, "contract");
 	const scope = isSpec(c) ? null : scopeOf(c);
@@ -122,7 +131,7 @@ export const contractOf = (c) => {
 		.filter((m) => m instanceof HandlerSpec)
 		.map((m) => {
 			for (const n of m.emits?.notify ?? []) notifies.add(n);
-			return { name: m.name, pure: m.pure, args: m.args };
+			return { name: m.name, pure: m.pure, swap: m.swap, args: m.args };
 		});
 	const queries = Object.values(spec.queries)
 		.filter((q) => q instanceof QuerySpec)

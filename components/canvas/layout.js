@@ -59,9 +59,9 @@ export const canvasMetaSchemas = {
 	...displayMetaSchemas,
 	...dataMetaSchemas,
 	[CANVAS_META]: {
-		width: t.option(t.number().int().min(0).max(4000)),
-		height: t.option(t.number().int().min(0).max(4000)),
-		transparent: t.boolean(false),
+		width: t.option(t.int({ min: 0, max: 4000 })),
+		height: t.option(t.int({ min: 0, max: 4000 })),
+		transparent: t.boolean({ default: false }),
 	},
 };
 // What c (a component or, with scope, its spec) says to the canvas.
@@ -182,7 +182,7 @@ export const kindHandlers = (kinds) => {
 };
 
 // What a hole notifies its layout or canvas with: the component, its label and width.
-export const BECOME_ARGS = [t.component(), t.string(), t.number().int().min(0)];
+export const BECOME_ARGS = [t.component(), t.string(), t.int({ min: 0 })];
 
 const MENU =
 	"choices menu menu-sm w-full flex-nowrap overflow-y-auto rounded-box border border-base-300 bg-base-100";
@@ -212,11 +212,11 @@ export const Hole = component({
 		// A meta URI: only what says something under it can go here ("" for anything).
 		meta: t.string(),
 		// closed, kind while the kinds are listed, choice while the picked kind's choices are.
-		step: t.enum("closed", "kind", "choice").sync("none"),
+		step: t.enum(["closed", "kind", "choice"], { sync: "none" }),
 		// The host's answer to componentKinds, while the menu is open: not part of the layout.
-		kinds: t.array(kindType).sync("none"),
-		kindId: t.string().sync("none"), // The kind whose choices are listed.
-		error: t.string().sync("none"), // Why the last ask failed, empty when it didn't.
+		kinds: t.array(kindType, { sync: "none" }),
+		kindId: t.string({ sync: "none" }), // The kind whose choices are listed.
+		error: t.string({ sync: "none" }), // Why the last ask failed, empty when it didn't.
 	},
 	queries: {
 		get isClosed() {
@@ -460,7 +460,7 @@ export const Grid = component({
 	meta: layoutMeta("Grid", "▦", "Components in rows and columns.", 560),
 	fields: {
 		items: t.array(t.component()),
-		columns: t.number().int().min(1).max(MAX_COLUMNS).default(2),
+		columns: t.int({ min: 1, max: MAX_COLUMNS, default: 2 }),
 	},
 	queries: {
 		get gridStyle() {
@@ -552,7 +552,7 @@ export const Tabs = component({
 		items: t.array(t.component()),
 		// The tabs' names, by item; a missing or empty one shows as "Tab n".
 		labels: t.array(t.string()),
-		active: t.number().int().min(0),
+		active: t.int({ min: 0 }),
 	},
 	invariants: {
 		activeInRange() {

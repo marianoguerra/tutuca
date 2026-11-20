@@ -86,7 +86,7 @@ test("a renders.md renders its fields into the mdast it says, text joined into t
 	});
 	const Joined = component({
 		name: "Joined",
-		fields: { n: t.number(3) },
+		fields: { n: t.number({ default: 3 }) },
 		renders: { md: Paragraph("Count: ", field("n"), "!") },
 	});
 	assert.deepEqual(renderMdAst(Joined.make()).children, [{ type: "text", value: "Count: 3!" }]);
@@ -178,7 +178,11 @@ test("what a view says is checked when the tags are built", () => {
 test("the rendered tree is checked, every issue at its mdast path", () => {
 	const Bad = component({
 		name: "Bad",
-		fields: { depth: t.any(9), url: t.any(null), done: t.any("yes") },
+		fields: {
+			depth: t.any({ default: 9 }),
+			url: t.any({ default: null }),
+			done: t.any({ default: "yes" }),
+		},
 		renders: {
 			md: Root(
 				Heading({ depth: field("depth") }, "x"),
@@ -195,7 +199,7 @@ test("the rendered tree is checked, every issue at its mdast path", () => {
 	);
 	const Two = component({
 		name: "Two",
-		fields: { xs: t.array(t.number()).default([1, 2]) },
+		fields: { xs: t.array(t.number(), { default: [1, 2] }) },
 		renders: { md: each(field("xs"), Paragraph("x")) },
 	});
 	fails(() => renderMdAst(Two.make()), "a md render renders one node, this one rendered 2");
@@ -217,7 +221,7 @@ test("render and renderEach put child components' renders.md among the children,
 		fields: {
 			items: t.array(t.component("Item")),
 			top: t.component("Item"),
-			style: t.string("main"),
+			style: t.string({ default: "main" }),
 		},
 		renders: {
 			md: Root(

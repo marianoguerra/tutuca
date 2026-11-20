@@ -113,15 +113,17 @@ const remarking = (notesOf, handlers, marksOf = onPiano) =>
 		}),
 	);
 // A root as an agent names it: C, F♯, Bb.
-const rootName = () => t.string().where(isNoteName, "a note name like C, F♯ or Bb");
+// A root note's name; a component taking one has rootChecks in its checks.
+const rootName = () => t.string({ check: "rootName" });
+const rootChecks = { rootName: { test: isNoteName, description: "a note name like C, F♯ or Bb" } };
 const pcOfText = (text) => parseNoteName(text).pc;
 const MUSIC_PROMPT =
 	"Name notes as C, F♯ or Bb (b and # work for ♭ and ♯). Explain the theory in plain words when you change something.";
 
 const rootHandlers = {
-	setRoot: setField("root", t.number().int().min(0).max(11)),
+	setRoot: setField("root", t.int({ min: 0, max: 11 })),
 	shiftOctave: {
-		args: [t.number().int()],
+		args: [t.int()],
 		run(next, [by]) {
 			next.octave = Math.min(7, Math.max(0, this.octave + by));
 		},
@@ -149,6 +151,7 @@ const PICKER_CLASSES = `${ROOT_PICKER_CLASSES} ${INSTRUMENT_TOGGLE_CLASSES}`;
 // piano and its guitar's neck and, when they're a chord's, named.
 export const IntervalPicker = component({
 	name: "IntervalPicker",
+	checks: rootChecks,
 	meta: metaFor(
 		"Interval picker",
 		"📐",
@@ -174,9 +177,9 @@ export const IntervalPicker = component({
 		},
 	),
 	fields: {
-		root: t.number().int().min(0).max(11),
-		octave: t.number().int().min(0).max(7).default(4),
-		intervals: t.array(t.enum(...PICKABLE)),
+		root: t.int({ min: 0, max: 11 }),
+		octave: t.int({ min: 0, max: 7, default: 4 }),
+		intervals: t.array(t.enum(PICKABLE)),
 		piano: t.component("Piano"),
 		guitar: t.component("GuitarNeck"),
 		...instrumentField(),
@@ -241,20 +244,14 @@ export const IntervalPicker = component({
 				...rootHandlers,
 				set_intervals: {
 					pure: true,
-					args: [rootName(), t.array(t.enum(...PICKABLE))],
+					args: [rootName(), t.array(t.enum(PICKABLE))],
 					run(next, [root, intervals]) {
 						next.root = pcOfText(root);
 						next.intervals = sortIntervals([...new Set(intervals)]);
 					},
 				},
 				toggleInterval: {
-					args: [
-						t
-							.number()
-							.int()
-							.min(0)
-							.max(PICKABLE.length - 1),
-					],
+					args: [t.int({ min: 0, max: PICKABLE.length - 1 })],
 					run(next, [at]) {
 						const key = PICKABLE[at];
 						next.intervals = this.intervals.includes(key)
@@ -295,6 +292,7 @@ const chordOf = ({ root, kind, octave, inversion }) =>
 // guitar's neck.
 export const ChordExplorer = component({
 	name: "ChordExplorer",
+	checks: rootChecks,
 	meta: metaFor(
 		"Chord explorer",
 		"🎼",
@@ -319,10 +317,10 @@ export const ChordExplorer = component({
 		},
 	),
 	fields: {
-		root: t.number().int().min(0).max(11),
-		kind: t.enum(...Object.keys(CHORDS)),
-		octave: t.number().int().min(0).max(7).default(4),
-		inversion: t.number().int().min(0).max(3),
+		root: t.int({ min: 0, max: 11 }),
+		kind: t.enum(Object.keys(CHORDS)),
+		octave: t.int({ min: 0, max: 7, default: 4 }),
+		inversion: t.int({ min: 0, max: 3 }),
 		piano: t.component("Piano"),
 		guitar: t.component("GuitarNeck"),
 		...instrumentField(),
@@ -381,7 +379,7 @@ export const ChordExplorer = component({
 				...rootHandlers,
 				set_chord: {
 					pure: true,
-					args: [rootName(), t.enum(...Object.keys(CHORDS)), t.number().int().min(0).max(3)],
+					args: [rootName(), t.enum(Object.keys(CHORDS)), t.int({ min: 0, max: 3 })],
 					pre: (_self, [, kind, inversion]) => inversion < CHORDS[kind].intervals.length,
 					why: (_self, [, kind]) =>
 						`a ${CHORDS[kind].name} chord has ${CHORDS[kind].intervals.length} notes, so inversions 0 to ${CHORDS[kind].intervals.length - 1}`,
@@ -392,14 +390,14 @@ export const ChordExplorer = component({
 					},
 				},
 				setKind: {
-					args: [t.enum(...Object.keys(CHORDS))],
+					args: [t.enum(Object.keys(CHORDS))],
 					run(next, [kind]) {
 						next.kind = kind;
 						next.inversion = Math.min(this.inversion, CHORDS[kind].intervals.length - 1);
 					},
 				},
 				setInversion: {
-					args: [t.number().int().min(0).max(3)],
+					args: [t.int({ min: 0, max: 3 })],
 					run(next, [inversion]) {
 						if (inversion < CHORDS[this.kind].intervals.length) next.inversion = inversion;
 					},
@@ -453,6 +451,7 @@ const scaleNotesOf = ({ root, kind, octave }) => scaleNotes(ROOTS[root].name, ki
 // others in blue.
 export const ScaleExplorer = component({
 	name: "ScaleExplorer",
+	checks: rootChecks,
 	meta: metaFor(
 		"Scale explorer",
 		"🪜",
@@ -471,9 +470,9 @@ export const ScaleExplorer = component({
 		},
 	),
 	fields: {
-		root: t.number().int().min(0).max(11),
-		kind: t.enum(...Object.keys(SCALES)),
-		octave: t.number().int().min(0).max(7).default(4),
+		root: t.int({ min: 0, max: 11 }),
+		kind: t.enum(Object.keys(SCALES)),
+		octave: t.int({ min: 0, max: 7, default: 4 }),
 		piano: t.component("Piano"),
 		guitar: t.component("GuitarNeck"),
 		...instrumentField(),
@@ -522,13 +521,13 @@ export const ScaleExplorer = component({
 				...rootHandlers,
 				set_scale: {
 					pure: true,
-					args: [rootName(), t.enum(...Object.keys(SCALES))],
+					args: [rootName(), t.enum(Object.keys(SCALES))],
 					run(next, [root, kind]) {
 						next.root = pcOfText(root);
 						next.kind = kind;
 					},
 				},
-				setKind: setField("kind", t.enum(...Object.keys(SCALES))),
+				setKind: setField("kind", t.enum(Object.keys(SCALES))),
 			},
 			onBoth,
 		),
@@ -618,6 +617,7 @@ const wedgeView = (handler) =>
 // subdominant), its signature and its scale.
 export const CircleOfFifths = component({
 	name: "CircleOfFifths",
+	checks: rootChecks,
 	meta: metaFor(
 		"Circle of fifths",
 		"⭕",
@@ -638,8 +638,8 @@ export const CircleOfFifths = component({
 		},
 	),
 	fields: {
-		selected: t.number().int().min(0).max(11),
-		mode: t.enum("major", "minor"),
+		selected: t.int({ min: 0, max: 11 }),
+		mode: t.enum(["major", "minor"]),
 	},
 	queries: {
 		get majors() {
@@ -686,7 +686,7 @@ export const CircleOfFifths = component({
 		// The key whose tonic sounds as tonic does in mode (F♯ major and G♭ major are one).
 		set_key: {
 			pure: true,
-			args: [rootName(), t.enum("major", "minor")],
+			args: [rootName(), t.enum(["major", "minor"])],
 			run(next, [tonic, mode]) {
 				const pc = pcOfText(tonic);
 				next.selected = CIRCLE.findIndex((k) => pcOfName(k[mode]) === pc);
@@ -697,7 +697,7 @@ export const CircleOfFifths = component({
 });
 function pick(mode) {
 	return {
-		args: [t.number().int().min(0).max(11)],
+		args: [t.int({ min: 0, max: 11 })],
 		run(next, [i]) {
 			next.selected = i;
 			next.mode = mode;

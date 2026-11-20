@@ -13,6 +13,7 @@ import {
 	between,
 	COLOR_NAMES,
 	COLORS,
+	markChecks,
 	markFields,
 	markMessage,
 	PALETTE_CLASSES,
@@ -110,6 +111,7 @@ const keyboard = () =>
 // as it is in a card that marks it.
 export const Piano = component({
 	name: "Piano",
+	checks: markChecks,
 	meta: metaFor("Piano", "🎹", "A piano that marks keys: pick its octaves in its edit view.", 420, {
 		[CLASSES_META]: { classes: PALETTE_CLASSES },
 		[AGENT_META]: {
@@ -127,9 +129,9 @@ export const Piano = component({
 		},
 	}),
 	fields: {
-		startOctave: t.number().int().min(0).max(8).default(3),
-		octaves: t.number().int().min(1).max(7).default(2),
-		...markFields(t.number().int()),
+		startOctave: t.int({ min: 0, max: 8, default: 3 }),
+		octaves: t.int({ min: 1, max: 7, default: 2 }),
+		...markFields(t.int()),
 		...paintFields(),
 		locked: t.boolean(),
 	},
@@ -188,11 +190,11 @@ export const Piano = component({
 		pressWhite: pressKey("whites"),
 		pressBlack: pressKey("blacks"),
 		...paintMessages,
-		...markMessage(t.number().int()),
+		...markMessage(t.int()),
 		...agentMarkMessages((note) => midiOf(note.pc, note.octave ?? 4)),
 		set_range: {
 			pure: true,
-			args: [t.number().int().min(0).max(8), t.number().int().min(1).max(7)],
+			args: [t.int({ min: 0, max: 8 }), t.int({ min: 1, max: 7 })],
 			run(next, [startOctave, octaves]) {
 				next.startOctave = startOctave;
 				next.octaves = octaves;
@@ -202,7 +204,7 @@ export const Piano = component({
 });
 function pressKey(list) {
 	return {
-		args: [t.number().int().min(0)],
+		args: [t.int({ min: 0 })],
 		run(next, [at]) {
 			const key = this.keys()[list][at];
 			if (this.locked || key === undefined) return;

@@ -39,13 +39,13 @@ const tabButton = (id, label) =>
 export const Workbench = component({
 	name: "Workbench",
 	fields: {
-		tab: t.enum(...TABS.map(([id]) => id)),
+		tab: t.enum(TABS.map(([id]) => id)),
 		quadratic: t.component("Quadratic"),
 		matrix: t.component("Matrix2"),
 		gallery: t.component("FormulaGallery"),
 		history: t.array(
 			t.record({
-				kind: t.enum("quadratic", "matrix"),
+				kind: t.enum(["quadratic", "matrix"]),
 				label: t.string(),
 				values: t.array(t.number()),
 			}),
@@ -147,7 +147,7 @@ export const Workbench = component({
 		),
 	),
 	on: {
-		setTab: setField("tab", t.enum(...TABS.map(([id]) => id))),
+		setTab: setField("tab", t.enum(TABS.map(([id]) => id))),
 		saveProblem: {
 			args: [],
 			run(next) {

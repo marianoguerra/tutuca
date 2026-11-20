@@ -20,14 +20,14 @@ const { div, input, label, p, textarea } = tag;
 export const EventEditor = component({
 	name: "EventEditor",
 	fields: {
-		mode: t.enum("create", "edit"),
+		mode: t.enum(["create", "edit"]),
 		eventId: t.string(),
 		thingId: t.string(),
-		heading: t.string("Entry"),
+		heading: t.string({ default: "Entry" }),
 		subtitle: t.string(),
-		recordedAt: t.number().int(),
+		recordedAt: t.int(),
 		when: t.string(),
-		tz: t.number().int().min(-840).max(840),
+		tz: t.int({ min: -840, max: 840 }),
 		notes: t.string(),
 		values: t.array(t.component("Prompt")),
 		confirming: t.boolean(),

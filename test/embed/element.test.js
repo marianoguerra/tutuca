@@ -19,7 +19,7 @@ const Counter = component({
 // Holds an inner app and counts its own clicks and the reports the app sends.
 const Outer = component({
 	name: "Outer",
-	fields: { key: t.string("a"), clicks: t.number(), reports: t.array() },
+	fields: { key: t.string({ default: "a" }), clicks: t.number(), reports: t.array() },
 	view: h(
 		"div",
 		{ "on:click": send("clicked") },

@@ -147,7 +147,7 @@ export const Card = component({
 	on: {
 		// Shifts it by columns, by: its column says which card, the board moves it.
 		shift: {
-			args: [t.number().int()],
+			args: [t.int()],
 			emits: { notify: ["cardShifted"] },
 			run(_next, [by], ctx) {
 				ctx.notify("cardShifted", [by]);
@@ -177,7 +177,7 @@ export const Column = component({
 	fields: {
 		title: t.string(),
 		cards: t.array(t.component("Card")),
-		text: t.string().sync("none"), // The new card's title, being typed.
+		text: t.string({ sync: "none" }), // The new card's title, being typed.
 	},
 	view: section(
 		{ class: "flex flex-col gap-2" },
@@ -295,15 +295,15 @@ export const Column = component({
 				ctx.event?.preventDefault();
 				const title = this.text.trim();
 				if (title === "") return;
-				next.cards.push(ctx.scope.make("Card", { id: ctx.uuid(), title }));
+				next.cards.push(ctx.make("Card", { id: ctx.uuid(), title }));
 				next.text = "";
 			},
 		},
 		// A card titled title at the end, leaving what's typed.
 		addCard: {
-			args: [t.string().len(1)],
+			args: [t.string({ minLength: 1 })],
 			run(next, [title], ctx) {
-				next.cards.push(ctx.scope.make("Card", { id: ctx.uuid(), title }));
+				next.cards.push(ctx.make("Card", { id: ctx.uuid(), title }));
 			},
 		},
 		// What the board does to move a card: take it out, put it in at a position.
@@ -316,7 +316,7 @@ export const Column = component({
 		},
 		putCard: {
 			pure: true,
-			args: [t.component("Card"), t.number().int().min(0)],
+			args: [t.component("Card"), t.int({ min: 0 })],
 			run(next, [card, at]) {
 				next.cards.splice(at, 0, card);
 			},
@@ -333,7 +333,7 @@ export const Column = component({
 		},
 		// From the card at ctx.sourceKey: shift it by columns.
 		cardShifted: {
-			args: [t.number().int()],
+			args: [t.int()],
 			sourceKey: t.index("cards"),
 			emits: { notify: ["shiftCard"] },
 			run(_next, [by], ctx) {
@@ -486,7 +486,7 @@ export const Board = component({
 			return 120 + PRINT.header + cards * (PRINT.card + PRINT.cardGap);
 		},
 		cards_in: {
-			args: [t.number().int().min(0)],
+			args: [t.int({ min: 0 })],
 			run(column) {
 				return (this.columns[column]?.cards ?? []).map(({ id, title }) => ({ id, title }));
 			},
@@ -600,11 +600,11 @@ export const Board = component({
 		},
 		// The agent's: a new card, with a new id, at the end of column.
 		add_card: {
-			args: [t.number().int().min(0), t.string().len(1)],
+			args: [t.int({ min: 0 }), t.string({ minLength: 1 })],
 			pre: (self, [column]) => hasColumn(self, column),
 			why: (self, [column]) => `there's no column ${column}, there are ${self.columns.length}`,
 			run(next, [column, title], ctx) {
-				const card = ctx.scope.make("Card", { id: ctx.uuid(), title });
+				const card = ctx.make("Card", { id: ctx.uuid(), title });
 				next.columns[column] = apply(
 					next.columns[column],
 					"putCard",
@@ -615,7 +615,7 @@ export const Board = component({
 		},
 		move_card: {
 			pure: true,
-			args: [t.string(), t.number().int().min(0), t.number().int().min(0)],
+			args: [t.string(), t.int({ min: 0 }), t.int({ min: 0 })],
 			pre: (self, [id, column]) => hasCard(self, id) && hasColumn(self, column),
 			why: (self, [id, column]) =>
 				hasCard(self, id) ? `there's no column ${column}` : `there's no card ${id}`,
@@ -625,7 +625,7 @@ export const Board = component({
 		},
 		rename_card: {
 			pure: true,
-			args: [t.string(), t.string().len(1)],
+			args: [t.string(), t.string({ minLength: 1 })],
 			pre: (self, [id]) => hasCard(self, id),
 			why: (_self, [id]) => `there's no card ${id}`,
 			run(next, [id, title]) {
@@ -647,7 +647,7 @@ export const Board = component({
 		},
 		add_column: {
 			pure: true,
-			args: [t.string().len(1)],
+			args: [t.string({ minLength: 1 })],
 			run(next, [title]) {
 				next.columns.push(scopeOf(this).make("Column", { title, cards: [] }));
 			},
@@ -674,7 +674,7 @@ export const Board = component({
 		// From the column at ctx.sourceKey: shift its card id by columns, to the end of the one
 		// it lands in. Past the first or last column it stays.
 		shiftCard: {
-			args: [t.string(), t.number().int()],
+			args: [t.string(), t.int()],
 			sourceKey: t.index("columns"),
 			run(next, [id, by], ctx) {
 				ctx.stopNext();
@@ -684,7 +684,7 @@ export const Board = component({
 		},
 		// From the column at ctx.sourceKey: the card id was dropped on one of its cards.
 		moveCard: {
-			args: [t.string(), t.number().int().min(0)],
+			args: [t.string(), t.int({ min: 0 })],
 			sourceKey: t.index("columns"),
 			run(next, [id, at], ctx) {
 				ctx.stopNext(); // The board may be inside another component.

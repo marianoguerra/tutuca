@@ -47,8 +47,8 @@ if (existsSync(spec)) {
 // The tutuca-wax demos, playground and studio, in wax/: their pages with the files they load, at the same
 // relative paths. dist/ is built by tutuca-wax's build (wax-mb, moon and wasm-opt); CI builds it
 // first. Only the optimized modules: not the .debug.wasm copies, the assembled .wax or the
-// generated prelude. The playground compiles in the browser with dist/tcd/tcd.wasm, from the
-// runtime's prelude, collections and ABI and the components' .tcd and .wax sources.
+// generated prelude. The playground compiles in the browser with dist/pure-tutuca/pure-tutuca.wasm, from the
+// runtime's prelude, collections and ABI and the components' pure-tutuca modules (.tutuca.ts).
 const wax = "tutuca-wax";
 if (existsSync(`${wax}/dist/tutuca-rt.wasm`)) {
 	for (const path of [
@@ -62,7 +62,7 @@ if (existsSync(`${wax}/dist/tutuca-rt.wasm`)) {
 		"vendor/margaui/margaui-css.wasm",
 		"vendor/margaui/themes",
 		"dist/tutuca-rt.wasm",
-		"dist/tcd/tcd.wasm",
+		"dist/pure-tutuca/pure-tutuca.wasm",
 		"dist/examples.json",
 	]) {
 		cpSync(`${wax}/${path}`, `${out}/wax/${path}`, {
@@ -75,7 +75,7 @@ if (existsSync(`${wax}/dist/tutuca-rt.wasm`)) {
 		...globSync(`${wax}/dist/components/*.wasm`),
 		// The sources the playground and the studio compile and use, and the
 		// scripts components need (media's rating.js).
-		...globSync(`${wax}/components/*/*.{tcd,wax,js}`),
+		...globSync(`${wax}/components/*/*.{ts,js}`),
 	]) {
 		if (!file.endsWith(".debug.wasm")) cpSync(file, `${out}/wax/${file.slice(wax.length + 1)}`);
 	}

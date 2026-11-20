@@ -71,7 +71,7 @@ export const Instance = component({
 	name: "Instance",
 	fields: {
 		kind: t.string(),
-		id: t.number().int().min(0),
+		id: t.int({ min: 0 }),
 		control: t.string(), // its control state (M7), "" without
 		locals: t.array(t.record({ name: t.string(), value: t.string() })),
 		slots: t.array(t.component("Slot")),
@@ -238,7 +238,7 @@ export const Instance = component({
 	},
 	loops: {
 		edges: {
-			enrich({ value: e }) {
+			enrich(_key, e) {
 				return { line: `M ${e.x1} ${e.y1} L ${e.x2} ${e.y2}` };
 			},
 		},
@@ -250,7 +250,7 @@ export const Slot = component({
 	name: "Slot",
 	fields: {
 		name: t.string(),
-		type: t.enum("field", "list", "map", "none"),
+		type: t.enum(["field", "list", "map", "none"]),
 		items: t.array(t.component("Item")),
 	},
 	queries: {
@@ -355,18 +355,18 @@ export const Message = component({
 	name: "Message",
 	meta: { [CLASSES_META]: { classes: Object.values(NOTE_CLASS).join(" ") } },
 	fields: {
-		index: t.number().int().min(0), // its number among the state's messages, its arrows'
-		mode: t.enum("send", "notify", "request", "response"),
+		index: t.int({ min: 0 }), // its number among the state's messages, its arrows'
+		mode: t.enum(["send", "notify", "request", "response"]),
 		name: t.string(),
 		args: t.string(),
-		request: t.number().int().min(-1), // ρ, -1 for none
+		request: t.int({ min: -1 }), // ρ, -1 for none
 		urgent: t.boolean(),
 		result: t.string(),
 		from: t.string(),
 		to: t.string(),
 		hop: t.boolean(),
 		note: t.string(), // where its address leads under the policy
-		status: t.enum("ok", "host", "misroute", "stale", "orphaned"),
+		status: t.enum(["ok", "host", "misroute", "stale", "orphaned"]),
 	},
 	queries: {
 		get color() {
@@ -453,13 +453,13 @@ const panel = (title, ...body) =>
 export const World = component({
 	name: "World",
 	fields: {
-		policy: t.enum("by-path", "by-path-checked", "by-identity", "anchored"),
-		gran: t.enum("turn", "per-hop"),
+		policy: t.enum(["by-path", "by-path-checked", "by-identity", "anchored"]),
+		gran: t.enum(["turn", "per-hop"]),
 		tree: t.component("Instance"),
 		hostX: t.number(),
 		hostY: t.number(),
-		width: t.number().min(1).default(300),
-		height: t.number().min(1).default(200),
+		width: t.number({ min: 1, default: 300 }),
+		height: t.number({ min: 1, default: 200 }),
 		queue: t.array(t.component("Message")),
 		inflight: t.array(t.component("Message")),
 		arrows: t.array(t.record({ d: t.string(), status: t.string(), msg: t.number() })),
@@ -467,9 +467,9 @@ export const World = component({
 		obs: t.array(t.component("Observation")),
 		quiescent: t.boolean(),
 		// What the reader is looking at: an instance, a message, how many observations are old.
-		selected: t.number().int().min(-1).default(-1),
-		focused: t.number().int().min(-1).default(-1),
-		seen: t.number().int().min(0),
+		selected: t.int({ min: -1, default: -1 }),
+		focused: t.int({ min: -1, default: -1 }),
+		seen: t.int({ min: 0 }),
 	},
 	queries: {
 		get viewBox() {
@@ -625,7 +625,7 @@ export const World = component({
 	),
 	loops: {
 		arrows: {
-			enrich({ value: a }) {
+			enrich(_key, a) {
 				const focused = this.focused === -1 || this.focused === a.msg;
 				return {
 					color: COLORS[a.status],
@@ -637,14 +637,14 @@ export const World = component({
 			},
 		},
 		obs: {
-			enrich({ key, value }) {
+			enrich(key, value) {
 				return { view: value.bad ? "bad" : key >= this.seen ? "fresh" : "main" };
 			},
 		},
 	},
 	on: {
 		// How many of its observations are old news.
-		markSeen: setField("seen", t.number().int().min(0), { pure: true }),
+		markSeen: setField("seen", t.int({ min: 0 }), { pure: true }),
 		// From the instance clicked: select it, or unselect it when it was.
 		picked: {
 			args: [t.number()],
@@ -702,12 +702,12 @@ export const Explorer = component({
 		title: t.string(),
 		blurb: t.string(),
 		program: t.component("Program"),
-		states: t.array(t.component("World")).len(1),
+		states: t.array(t.component("World"), { minLength: 1 }),
 		edges: t.array(
 			t.record({ from: t.number(), to: t.number(), rule: t.string(), label: t.string() }),
 		),
 		current: t.index("states"),
-		trail: t.array(t.number().int().min(0)), // the states before this one, to go back
+		trail: t.array(t.int({ min: 0 })), // the states before this one, to go back
 	},
 	queries: {
 		get choices() {
@@ -776,7 +776,7 @@ export const Explorer = component({
 	),
 	loops: {
 		choices: {
-			enrich({ value }) {
+			enrich(_key, value) {
 				return { hint: RULE_HINT[value.rule] ?? value.rule };
 			},
 		},
@@ -784,7 +784,7 @@ export const Explorer = component({
 	on: {
 		// The choice at that index in choices: move to the state it leads to.
 		go: {
-			args: [t.number().int().min(0)],
+			args: [t.int({ min: 0 })],
 			run(next, [choice]) {
 				const edge = this.choices[choice];
 				if (edge === undefined) return;

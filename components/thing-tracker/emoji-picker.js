@@ -34,9 +34,9 @@ export const EmojiPicker = component({
 	meta: { [CLASSES_META]: { classes: [CELL_ON, CELL_OFF, CHIP_ON, CHIP_OFF].join(" ") } },
 	fields: {
 		query: t.string(),
-		category: t.enum(...CATEGORIES),
+		category: t.enum(CATEGORIES),
 		value: t.string(),
-		recent: t.array(t.string()).len(0, 16),
+		recent: t.array(t.string(), { minLength: 0, maxLength: 16 }),
 		paste: t.string(),
 	},
 	methods: {

@@ -105,7 +105,7 @@ export const targetOf = (item) => {
 // on its way: the queue is FIFO).
 export const passModel = (self, ctx, key) => {
 	if (self.agentModel === "") return;
-	ctx.sendAt("useModel", [self.agentModel], (s) => s.item("items", key).field("content"));
+	ctx.sendAt("useModel", [self.agentModel], [{ item: "items", key: key }, "content"]);
 };
 export const agentBusy = (item) => item?.isWrapped === true && item.content.isBusy;
 // An item's line in the summary: key, label, where, how big, and its agent.

@@ -2,7 +2,7 @@ import assert from "node:assert/strict";
 import test from "node:test";
 import { canvas, canvasComponents } from "../../components/canvas/index.js";
 import { Driver } from "../../src/testing/driver.js";
-import { idOf, Selector, scopeOf } from "../../src/tutuca.js";
+import { idOf, scopeOf } from "../../src/tutuca.js";
 import { document, scopeWith, tick } from "../helpers.js";
 
 const start = () => {
@@ -42,7 +42,7 @@ test("a clone changes on its own", () => {
 	const d = start();
 	clone(d, "item-1");
 	const key = d.state.order[1];
-	d.host.apply("moveTo", [300, 300], { to: (p) => p.field("items").item(key) });
+	d.host.apply("moveTo", [300, 300], { to: { item: "items", key } });
 	d.drain();
 	assert.deepEqual([d.state.items[key].x, d.state.items["item-1"].x], [300, 40]);
 	assert.deepEqual(d.problems, []);
@@ -107,7 +107,7 @@ test("picking a drawing tool by its key shows them; the hole tool hides them", (
 // An item holding what says its data (DATA_META): the board, which loads a board's JSON.
 const itemCard = (d, key) =>
 	d.rootNode.querySelectorAll("foreignObject > .canvas-card")[d.state.order.indexOf(key)];
-const itemAt = (key) => new Selector().item("items", key);
+const itemAt = (key) => ({ item: "items", key });
 
 test("an item whose content says its data downloads it as JSON", async () => {
 	const d = start();

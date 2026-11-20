@@ -24,16 +24,21 @@ export const DATA_META = "https://tutuca.dev/meta/data";
 export const dataMetaSchemas = {
 	[DATA_META]: {
 		// A pure message of one arg, the content as JSON, which replaces the whole content.
-		load: t.string("load"),
+		load: t.string({ default: "load" }),
 		// A zero-arg query whose value, plain JSON, load takes back; none when null.
 		data: t.option(t.string()),
-		// The JSON Schema of what load takes, when its arg type can't say it (an any with a where
+		// The JSON Schema of what load takes, when its arg type can't say it (an any with a named
 		// check); null derives it from the type.
 		schema: t.option(t.any()),
 		samples: t.map(t.any()), // name -> what load takes.
 		// The file its data is, when it's text (load takes a string, the file's text as is):
 		// its mime type and extensions, the first one its name's; null for a JSON file.
-		file: t.option(t.record({ type: t.string(), extensions: t.array(t.string().len(2)).len(1) })),
+		file: t.option(
+			t.record({
+				type: t.string(),
+				extensions: t.array(t.string({ minLength: 2 }), { minLength: 1 }),
+			}),
+		),
 	},
 };
 // The file a component's data is when its data meta names none: JSON.

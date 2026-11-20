@@ -20,19 +20,19 @@ const { div, h3, input, label, li, ol, option, pre, section, select, span } = ta
 
 // What a stress run reports, as fields of the panel and showStress's arg.
 const resultFields = {
-	status: t.enum("idle", "running", "passed", "failed", "cancelled", "unavailable"),
-	done: t.number().int().min(0),
-	total: t.number().int().min(0),
+	status: t.enum(["idle", "running", "passed", "failed", "cancelled", "unavailable"]),
+	done: t.int({ min: 0 }),
+	total: t.int({ min: 0 }),
 	error: t.string(),
 	commands: t.array(t.string()),
 	log: t.array(t.string()),
 };
 // A run's settings: the story's (stressSettings) until the user changes them.
 const settingFields = {
-	numRuns: t.number(STRESS_DEFAULTS.numRuns).int().min(1).max(100000),
-	maxCommands: t.number(STRESS_DEFAULTS.maxCommands).int().min(1).max(1000),
-	seed: t.number(STRESS_DEFAULTS.seed).int(),
-	from: t.enum("story", "generated", "current"),
+	numRuns: t.int({ min: 1, max: 100000, default: STRESS_DEFAULTS.numRuns }),
+	maxCommands: t.int({ min: 1, max: 1000, default: STRESS_DEFAULTS.maxCommands }),
+	seed: t.int({ default: STRESS_DEFAULTS.seed }),
+	from: t.enum(["story", "generated", "current"]),
 	events: t.boolean(),
 };
 // A labeled number input for the numeric option name.
@@ -178,7 +178,7 @@ export const StressPanel = component({
 			},
 		},
 		setNumber: {
-			args: [t.enum("numRuns", "maxCommands", "seed"), t.string()],
+			args: [t.enum(["numRuns", "maxCommands", "seed"]), t.string()],
 			run(next, [name, value]) {
 				const n = Number.parseInt(value, 10);
 				if (!Number.isFinite(n)) return;
@@ -187,7 +187,7 @@ export const StressPanel = component({
 			},
 		},
 		setFrom: {
-			args: [t.enum("story", "generated", "current")],
+			args: [t.enum(["story", "generated", "current"])],
 			run(next, [from]) {
 				next.from = from;
 			},

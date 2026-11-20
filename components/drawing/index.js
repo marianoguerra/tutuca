@@ -33,6 +33,7 @@ import {
 	Polyline,
 	paintType,
 	Rect,
+	shapeChecks,
 	svgPoint,
 } from "./shapes.js";
 import { swatchStyle, TOOL_OFF, TOOL_ON, toolButton, toolButtons } from "./tools.js";
@@ -64,7 +65,7 @@ const newId = (ctx) => `s-${ctx.uuid()}`;
 const shapeAt = (self, id) => self.shapes.findIndex((s) => s.id === id);
 const hasShape = (self, id) => shapeAt(self, id) !== -1;
 const noShape = (_self, [id]) => `there's no shape ${id}`;
-const widthType = () => t.enum(2, 1, 4, 8);
+const widthType = () => t.enum([2, 1, 4, 8]);
 const shapeLine = (s) => {
 	const kind = specOf(s).name.toLowerCase();
 	const where =
@@ -113,28 +114,33 @@ const AGENT = {
 
 export const Drawing = component({
 	name: "Drawing",
+	checks: shapeChecks,
 	meta: metaFor("Drawing", "🎨", "Shapes you draw, move and layer.", null, {
 		[AGENT_META]: AGENT,
 		// The cls of toolButtons and widthButtons.
 		[CLASSES_META]: { classes: [ON, OFF].join(" ") },
 	}),
 	fields: {
-		width: t.number(640).int().min(16).max(4000),
-		height: t.number(400).int().min(16).max(4000),
-		tool: t.enum(...TOOLS.map(([id]) => id)).sync("local"),
+		width: t.int({ min: 16, max: 4000, default: 640 }),
+		height: t.int({ min: 16, max: 4000, default: 400 }),
+		tool: t.enum(
+			TOOLS.map(([id]) => id),
+			{ sync: "local" },
+		),
 		fill: paintType("#99d9ea"), // For new shapes, and the selected one.
 		stroke: paintType("#000000"),
-		strokeWidth: t.enum(2, 1, 4, 8),
+		strokeWidth: t.enum([2, 1, 4, 8]),
 		shapes: t.array(t.component(SHAPES)),
-		selected: t.string().sync("none"), // The selected shape's id, or "".
-		current: t.option(t.component(SHAPES)).sync("none"), // The shape being drawn.
-		dragFrom: t.option(t.array(coord()).len(2, 2)).sync("none"), // Where moving the selection was last.
-		past: t
-			.array(t.array(t.component(SHAPES)))
-			.len(0, MAX_HISTORY)
-			.sync("none"), // Undo stays per tab.
-		future: t.array(t.array(t.component(SHAPES))).sync("none"),
-		cursor: t.string().sync("none"),
+		selected: t.string({ sync: "none" }), // The selected shape's id, or "".
+		current: t.option(t.component(SHAPES), { sync: "none" }), // The shape being drawn.
+		dragFrom: t.option(t.array(coord(), { minLength: 2, maxLength: 2 }), { sync: "none" }), // Where moving the selection was last.
+		past: t.array(t.array(t.component(SHAPES)), {
+			minLength: 0,
+			maxLength: MAX_HISTORY,
+			sync: "none",
+		}), // Undo stays per tab.
+		future: t.array(t.array(t.component(SHAPES)), { sync: "none" }),
+		cursor: t.string({ sync: "none" }),
 	},
 	invariants: {
 		uniqueIds() {
@@ -474,7 +480,7 @@ export const Drawing = component({
 				};
 				const shape =
 					kind === "Polyline" ? { points: [x, y, x, y] } : { x0: x, y0: y, x1: x, y1: y };
-				next.current = ctx.scope.make(kind, { id: newId(ctx), ...style, ...shape });
+				next.current = ctx.make(kind, { id: newId(ctx), ...style, ...shape });
 			},
 		},
 		moveTo: {
@@ -516,7 +522,7 @@ export const Drawing = component({
 					if (kept.at(-2) !== points[i] || kept.at(-1) !== points[i + 1])
 						kept.push(points[i], points[i + 1]);
 				}
-				commit(this, next, ctx.scope.make("Polyline", { ...shape, points: kept }));
+				commit(this, next, ctx.make("Polyline", { ...shape, points: kept }));
 			},
 		},
 		cancel: {
@@ -595,7 +601,7 @@ export const Drawing = component({
 				const s = this.selection;
 				if (s === null) return;
 				remember(this, next);
-				const copy = ctx.scope.make(specOf(s).name, { ...s, id: newId(ctx) });
+				const copy = ctx.make(specOf(s).name, { ...s, id: newId(ctx) });
 				const at = this.selectedIndex + 1;
 				next.shapes.splice(at, 0, copy);
 				// Toward the side with room, so a copy at the edge still shows apart.
@@ -618,7 +624,7 @@ export const Drawing = component({
 		// The agent's: shapes made and changed by id, each change undoable.
 		add_shape: {
 			args: [
-				t.enum("rect", "ellipse", "line"),
+				t.enum(["rect", "ellipse", "line"]),
 				coord(),
 				coord(),
 				coord(),
@@ -630,30 +636,19 @@ export const Drawing = component({
 			run(next, [kind, x0, y0, x1, y1, fill, stroke, width], ctx) {
 				const name = { rect: "Rect", ellipse: "Ellipse", line: "Line" }[kind];
 				remember(this, next);
-				next.shapes.push(
-					ctx.scope.make(name, { id: newId(ctx), x0, y0, x1, y1, fill, stroke, width }),
-				);
+				next.shapes.push(ctx.make(name, { id: newId(ctx), x0, y0, x1, y1, fill, stroke, width }));
 			},
 		},
 		add_polyline: {
 			args: [
-				t
-					.array(coord())
-					.where((ps) => ps.length >= 4 && ps.length % 2 === 0, "at least two x, y pairs")
-					.arb((fc) =>
-						fc
-							.array(fc.integer({ min: 0, max: 600 }), { minLength: 4, maxLength: 8 })
-							.map((ps) => (ps.length % 2 === 0 ? ps : ps.slice(1))),
-					),
+				t.array(coord(), { check: "twoPairs" }),
 				paintType("none"),
 				paintType("#000000"),
 				widthType(),
 			],
 			run(next, [points, fill, stroke, width], ctx) {
 				remember(this, next);
-				next.shapes.push(
-					ctx.scope.make("Polyline", { id: newId(ctx), points, fill, stroke, width }),
-				);
+				next.shapes.push(ctx.make("Polyline", { id: newId(ctx), points, fill, stroke, width }));
 			},
 		},
 		move_shape: {
@@ -680,7 +675,7 @@ export const Drawing = component({
 		},
 		layer_shape: {
 			pure: true,
-			args: [t.string(), t.enum("front", "back", "up", "down")],
+			args: [t.string(), t.enum(["front", "back", "up", "down"])],
 			pre: (self, [id]) => hasShape(self, id),
 			why: noShape,
 			run(next, [id, to]) {

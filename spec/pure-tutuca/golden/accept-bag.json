@@ -1,0 +1,134 @@
+{
+ "codes": [],
+ "model": {
+  "format": 2,
+  "components": [
+   {
+    "name": "Bag",
+    "fields": [
+     {
+      "name": "labels",
+      "type": "string[]",
+      "constraints": null,
+      "default": [],
+      "sync": null,
+      "public": false
+     },
+     {
+      "name": "tags",
+      "type": "{ [key: string]: number }",
+      "constraints": null,
+      "default": {},
+      "sync": null,
+      "public": false
+     },
+     {
+      "name": "kinds",
+      "type": "string[]",
+      "constraints": null,
+      "default": [],
+      "sync": null,
+      "public": false
+     }
+    ],
+    "queries": [
+     {
+      "name": "names",
+      "type": "string"
+     },
+     {
+      "name": "total",
+      "type": "number"
+     }
+    ],
+    "messages": [
+     {
+      "name": "label",
+      "args": "[number]",
+      "pure": true,
+      "changes": null,
+      "constraints": null,
+      "sourceKey": null,
+      "pre": false,
+      "post": false,
+      "why": null
+     },
+     {
+      "name": "tag",
+      "args": "[string]",
+      "pure": true,
+      "changes": null,
+      "constraints": null,
+      "sourceKey": null,
+      "pre": false,
+      "post": false,
+      "why": null
+     },
+     {
+      "name": "untag",
+      "args": "[string]",
+      "pure": true,
+      "changes": null,
+      "constraints": null,
+      "sourceKey": null,
+      "pre": false,
+      "post": false,
+      "why": null
+     },
+     {
+      "name": "double",
+      "args": "unknown[]",
+      "pure": true,
+      "changes": null,
+      "constraints": null,
+      "sourceKey": null,
+      "pre": false,
+      "post": false,
+      "why": null
+     },
+     {
+      "name": "copyTags",
+      "args": "unknown[]",
+      "pure": true,
+      "changes": null,
+      "constraints": null,
+      "sourceKey": null,
+      "pre": false,
+      "post": false,
+      "why": null
+     },
+     {
+      "name": "kind",
+      "args": "[unknown]",
+      "pure": true,
+      "changes": null,
+      "constraints": null,
+      "sourceKey": null,
+      "pre": false,
+      "post": false,
+      "why": null
+     }
+    ],
+    "invariants": [],
+    "views": [
+     "main"
+    ],
+    "meta": null,
+    "implements": []
+   }
+  ],
+  "interfaces": [],
+  "metaSchemas": [],
+  "register": null,
+  "entries": {
+   "Bag.queries.names": "string",
+   "Bag.queries.total": "number",
+   "Bag.on.label.run": "void",
+   "Bag.on.tag.run": "void",
+   "Bag.on.untag.run": "void",
+   "Bag.on.double.run": "void",
+   "Bag.on.copyTags.run": "void",
+   "Bag.on.kind.run": "void"
+  }
+ }
+}

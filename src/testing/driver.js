@@ -14,8 +14,8 @@ import {
 	isProblem,
 	NullCache,
 	problemLines,
-	Selector,
 	scopeOf,
+	selectorOfPath,
 	specOf,
 	Target,
 	Task,
@@ -136,17 +136,19 @@ export class Driver {
 		return this.reports.filter((r) => r.kind === "hostEvent");
 	}
 	// Sends name(...args) to the component at to, as host.send takes it (the root by default),
-	// and runs what it causes. from is the frames (or a Selector) from it to the child the
-	// message comes through, which sets ctx.sourceKey: then the child sends it, as a test can and
-	// the host can't, and to is a DispatchPath or a Selector.
+	// and runs what it causes. from is the frames (or a path) from it to the child the message
+	// comes through, which sets ctx.sourceKey: then the child sends it, as a test can and the host
+	// can't, and to is a DispatchPath or a path.
 	send(name, args = [], { to = new DispatchPath(), from = [] } = {}) {
-		if (from.length === 0 || (from instanceof Selector && from.ops.length === 0)) {
+		if (isNoPath(from)) {
 			this.host.send(name, args, { to });
 			return this.drain();
 		}
-		const base = to instanceof Selector ? new DispatchPath(to.fix(this.state)) : to;
-		const fromFrames =
-			from instanceof Selector ? from.fix(base.toKeyPath().getIn(this.state)) : from;
+		const base =
+			to instanceof DispatchPath ? to : new DispatchPath(selectorOfPath(to).fix(this.state));
+		const fromFrames = isFrames(from)
+			? from
+			: selectorOfPath(from).fix(base.toKeyPath().getIn(this.state));
 		const sender = Address.at(base.concat(fromFrames), this.state);
 		const task = new Task(name, args, sender, new Target(base), null);
 		task.prepare(this.state);
@@ -200,6 +202,9 @@ export class Driver {
 	}
 }
 
+// from as Driver.send takes it: none (an empty array or path), frames, or a path.
+const isNoPath = (from) => Array.isArray(from) && from.length === 0;
+const isFrames = (from) => Array.isArray(from) && from.every((f) => f instanceof Frame);
 // The frame that reads keys from the previous component: the last key is the item, if
 // any collection was crossed.
 const frameFor = (keys) =>

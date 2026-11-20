@@ -2,7 +2,7 @@
 // handlers read from the world.
 import { Address } from "./address.js";
 import { AskTask, NotifyTask, Task } from "./messages.js";
-import { selectorFrom, Target } from "./path.js";
+import { selectorOfPath, Target } from "./path.js";
 import { Watch } from "./watch.js";
 
 export class MessageContext {
@@ -31,6 +31,12 @@ export class MessageContext {
 		this.unhandled = []; // The messages it had no handler for.
 		this.nextHop = null; // For a notification going on up: its next hop.
 		this.cancels = []; // The ids of the watches it cancels, once it commits.
+		this.logs = []; // What the handler logged, in order: its transition's logs.
+	}
+	// Notes value in what the handler did, for whoever reads its transition (a test, a tool);
+	// a failed handler's logs are kept too.
+	log(value) {
+		this.logs.push(value);
 	}
 	// A message nobody handles here (instance is null when there is no node to handle it, as for
 	// a notification from the root or a reply to the host): reported after the commit.
@@ -59,19 +65,20 @@ export class MessageContext {
 	stopNext() {
 		this.isStopNextSet = true;
 	}
-	// A message down the path the selector fn writes, relative to here (spec/tree's send-at).
+	// A message down path (path.js: a step, "f", { item: "f", key } or { seqItem: "f", keyField },
+	// or an array of them), relative to here (spec/tree's send-at).
 	// With a watch it opens one (watch.js) and returns its id: settled, a name or
 	// [name, args], is sent back here, with args and the watch's report after them, once the
 	// message and everything it caused ran; progress, likewise, after what runs in it, at most
 	// one queued at a time; timeout (ms) cancels it if it hasn't settled by then. Detached, it's
 	// in no watch: nothing waits for it.
-	sendAt(name, args, selectorFn, watch = {}) {
+	sendAt(name, args, path, watch = {}) {
 		this.emitted.push({ kind: "sendAt", name, args });
 		const task = new Task(
 			name,
 			args,
 			this.address,
-			new Target(this.path, selectorFrom(selectorFn)),
+			new Target(this.path, selectorOfPath(path)),
 			this.task,
 		);
 		this.tasks.push(task);
@@ -86,9 +93,9 @@ export class MessageContext {
 	cancel(id) {
 		this.cancels.push(id);
 	}
-	// Sends the message being handled on, as it is, down the path the selector fn writes.
-	forwardAt(selectorFn) {
-		this.sendAt(this.task.name, this.task.args, selectorFn);
+	// Sends the message being handled on, as it is, down path.
+	forwardAt(path) {
+		this.sendAt(this.task.name, this.task.args, path);
 	}
 	// A message to the sender of the one being handled, where and as it was when it sent it: a
 	// sender another node replaced since is stale. A notification keeps its sender at every

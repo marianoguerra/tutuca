@@ -23,9 +23,9 @@ export const eventRecord = () =>
 	t.record({
 		id: t.string(),
 		thingId: t.string(),
-		recordedAt: t.number().int(),
-		actualAt: t.number().int(),
-		measurements: t.array(t.record({ measurementId: t.string(), value: t.number().min(0) })),
+		recordedAt: t.int(),
+		actualAt: t.int(),
+		measurements: t.array(t.record({ measurementId: t.string(), value: t.number({ min: 0 }) })),
 		notes: t.string(),
 	});
 

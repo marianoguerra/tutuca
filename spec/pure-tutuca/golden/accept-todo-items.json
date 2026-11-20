@@ -1,0 +1,100 @@
+{
+ "codes": [],
+ "model": {
+  "format": 2,
+  "components": [
+   {
+    "name": "TodoItems",
+    "fields": [
+     {
+      "name": "items",
+      "type": "TodoItem[]",
+      "constraints": null,
+      "default": [],
+      "sync": null,
+      "public": false
+     },
+     {
+      "name": "nextId",
+      "type": "number",
+      "constraints": {
+       "int": true,
+       "min": 0
+      },
+      "default": 0,
+      "sync": null,
+      "public": false
+     }
+    ],
+    "queries": [
+     {
+      "name": "remaining",
+      "type": "number"
+     }
+    ],
+    "messages": [
+     {
+      "name": "completeAll",
+      "args": "unknown[]",
+      "pure": true,
+      "changes": null,
+      "constraints": null,
+      "sourceKey": null,
+      "pre": false,
+      "post": false,
+      "why": null
+     },
+     {
+      "name": "add",
+      "args": "[]",
+      "pure": false,
+      "changes": null,
+      "constraints": null,
+      "sourceKey": null,
+      "pre": false,
+      "post": false,
+      "why": null
+     }
+    ],
+    "invariants": [],
+    "views": [
+     "main"
+    ],
+    "meta": null,
+    "implements": []
+   }
+  ],
+  "interfaces": [
+   {
+    "name": "TodoItem",
+    "fields": [
+     {
+      "name": "id",
+      "type": "number"
+     },
+     {
+      "name": "done",
+      "type": "boolean"
+     }
+    ],
+    "messages": [
+     {
+      "name": "setDone",
+      "args": "[boolean]",
+      "pure": true
+     }
+    ],
+    "notifies": [
+     "removeMe"
+    ]
+   }
+  ],
+  "metaSchemas": [],
+  "register": null,
+  "entries": {
+   "TodoItems.queries.remaining": "number",
+   "TodoItems.on.completeAll.run": "void",
+   "TodoItems.on.add.run": "void"
+  }
+ }
+}

@@ -9,7 +9,7 @@ import { MINUTE } from "./time.js";
 const SAMPLE_THINGS = BUNDLES.filter((b) => b.id === "habits" || b.id === "hydration").flatMap(
 	(b) => b.pack.things.map((t) => t.id),
 );
-const atPanel = (b) => b.field("panel");
+const atPanel = "panel";
 const lastEvent = (s) => s.events.at(-1);
 
 const appMessages = [
@@ -148,7 +148,7 @@ export default book({
 					step.check("1 of 2", (s) => s.stepText === "1 of 2" && s.primaryLabel === "Next"),
 					step.send("next"),
 					step.check("can't log nothing", (s) => s.cannotGo),
-					step.send("setText", ["28"], { to: (b) => b.item("prompts", 1) }),
+					step.send("setText", ["28"], { to: { item: "prompts", key: 1 } }),
 					step.check("logs 28m", (s) => s.primaryLabel === "Log 28m"),
 					step.send("back"),
 					step.check("back to distance", (s) => s.step === 0),
@@ -186,7 +186,7 @@ export default book({
 				"create a thing in three steps": [
 					step.check("needs a name", (s) => s.cannotGo),
 					step.event("input", '[aria-label="Name"]', { value: "Swim" }),
-					step.send("pick", ["🏊"], { to: (b) => b.field("picker") }),
+					step.send("pick", ["🏊"], { to: "picker" }),
 					step.check("picked, picker closed", (s) => s.emoji === "🏊" && !s.pickerOpen),
 					step.send("next"),
 					step.event("change", 'input[value="distance"]', { value: true }),
@@ -416,7 +416,7 @@ export default book({
 					),
 				],
 				"share a tag": [
-					step.send("shareTag", [], { from: (b) => b.item("groups", 0) }),
+					step.send("shareTag", [], { from: { item: "groups", key: 0 } }),
 					step.check("shared", (s) => s.toast.title === "Shared"),
 				],
 			},

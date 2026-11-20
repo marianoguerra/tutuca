@@ -2,10 +2,10 @@
 // issues spelled out, for data's loadData and an agent's tool results.
 import { ContractError, errorMessage, specOf } from "../tutuca.js";
 
-// A type in words: an any with where checks is what its checks are named.
+// A type in words: an any with named checks is what they say they check.
 const argTypeText = (type) => {
-	const where = type.constructor?.kind === "any" ? (type.constraints.where ?? []) : [];
-	return where.length > 0 ? where.map((w) => w.name || "valid").join(" and ") : type.text();
+	const checks = type.constructor?.kind === "any" ? (type.constraints.check ?? []) : [];
+	return checks.length > 0 ? checks.map((c) => c.description).join(" and ") : type.text();
 };
 // Why calling operation name on c failed, in words a person or a model reads; params name its
 // args, in order.
@@ -28,6 +28,8 @@ export const contractErrorText = (c, error, params = []) => {
 		if (issue.startsWith("invariant:"))
 			return `it would break ${issue.slice(10)}, so nothing changed`;
 		if (issue === "returns") return `${op} gave back something it shouldn't`;
+		if (issue === "returned")
+			return `${op} returned a value, which only a swap message does, and then a component`;
 		return issue;
 	});
 	return words.join("; ");

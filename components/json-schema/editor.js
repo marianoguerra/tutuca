@@ -11,7 +11,7 @@ import { applyBelow, openAllButtons } from "../common/open.js";
 import { segmented } from "../common/ui.js";
 import { fromJson, jsonComponents, VALUE_NAMES } from "../json/index.js";
 import { validate } from "../llm/validate.js";
-import { schemaComponents } from "./index.js";
+import { schemaChecks, schemaComponents } from "./index.js";
 import { fromSchema, isSchema } from "./read.js";
 
 // The longest summary an agent reads of a schema: longer, it's cut, and get_state has it whole.
@@ -27,6 +27,7 @@ const bareTree = (C, schema) => C.SchemaRoot({ node: fromSchema(C, schema), bare
 
 export const JsonSchemaEditor = component({
 	name: "JsonSchemaEditor",
+	checks: schemaChecks,
 	meta: metaFor(
 		"JSON Schema",
 		"📐",
@@ -64,7 +65,7 @@ export const JsonSchemaEditor = component({
 		json: t.component(VALUE_NAMES), // The schema as edited.
 		source: t.string(), // The last JSON that read as a schema, as text.
 		tree: t.component("SchemaRoot"), // source, read, without its toolbar.
-		reading: t.enum("compact", "json"),
+		reading: t.enum(["compact", "json"]),
 	},
 	methods: {
 		toSchema() {
@@ -139,7 +140,7 @@ export const JsonSchemaEditor = component({
 		),
 	},
 	on: {
-		setReading: setField("reading", t.enum("compact", "json")),
+		setReading: setField("reading", t.enum(["compact", "json"])),
 		// Both readings open or close, so switching keeps what's shown.
 		setOpenDeep: {
 			pure: true,
@@ -151,7 +152,7 @@ export const JsonSchemaEditor = component({
 		// A schema replaces the one edited.
 		load: {
 			pure: true,
-			args: [t.any().where(isSchema, "a JSON Schema: an object or a boolean")],
+			args: [t.any({ check: "schema" })],
 			run(next, [schema]) {
 				const C = scopeOf(this).components;
 				next.json = fromJson(C, schema);

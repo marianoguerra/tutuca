@@ -1,32 +1,84 @@
 // Interfaces: what a component offers other components, by name and type, and the checks of
-// a spec against one. Field types are in types.js, which imports this module, so this one
-// reads a type's text through its text() method instead of importing types.js.
+// a spec against one. An interface is data, its types as types.js writes them, registered by
+// name in a scope, which compiles it into an Interface.
 import { HandlerSpec, QuerySpec, scopeOf, specOf } from "./spec.js";
+import { compileType, isRecord, signatureText } from "./types.js";
 
-// An interface: what a component offers other components, by name and type, and no state.
-// messages and pure map names to arg types; queries map names to { args, returns }, args
-// empty for a get one; notifies map names to arg types, of the messages it notifies up with.
+// An interface, compiled: messages and pure map names to arg types; queries map names to
+// { args, returns }, args empty for a get one; notifies map names to arg types, of the messages
+// it notifies up with. data is what it was compiled from.
 export class Interface {
-	constructor(name, { messages = {}, pure = {}, queries = {}, notifies = {} } = {}) {
+	constructor(name, { messages, pure, queries, notifies }, data) {
 		this.name = name;
 		this.messages = messages;
 		this.pure = pure;
 		this.queries = queries;
 		this.notifies = notifies;
+		this.data = data;
 	}
 }
-export const iface = (name, operations) => new Interface(name, operations);
-// A type as its signature: what it accepts, without its default.
-const sigText = (type) => type.with({ defaultValue: undefined }).text();
+const SECTIONS = ["messages", "pure", "queries", "notifies", "checks"];
+// What's wrong with data as an interface, [] when nothing is.
+export const interfaceDataProblems = (data) => {
+	if (!isRecord(data)) return [`an interface is { ${SECTIONS.join(", ")} }, not ${String(data)}`];
+	const problems = [];
+	for (const key of Object.keys(data)) {
+		if (!SECTIONS.includes(key))
+			problems.push(`an interface has no ${key} (it has ${SECTIONS.join(", ")})`);
+	}
+	for (const section of ["messages", "pure", "notifies"]) {
+		for (const [name, args] of Object.entries(data[section] ?? {})) {
+			if (!Array.isArray(args)) problems.push(`${section}.${name} must be an array of arg types`);
+		}
+	}
+	for (const [name, q] of Object.entries(data.queries ?? {})) {
+		if (!isRecord(q) || Object.keys(q).some((k) => k !== "args" && k !== "returns"))
+			problems.push(`queries.${name} must be { args, returns }`);
+		else if (q.args !== undefined && !Array.isArray(q.args))
+			problems.push(`queries.${name}.args must be an array of arg types`);
+	}
+	return problems;
+};
+// An interface's data, checked: what iface() gives and registerInterfaces takes.
+export const iface = (data) => {
+	const problems = interfaceDataProblems(data);
+	if (problems.length > 0) throw new TypeError(`Not an interface: ${problems.join("; ")}`);
+	return data;
+};
+// The Interface data says, under name: its types compiled with its checks.
+export const compileInterface = (name, data) => {
+	iface(data);
+	const { checks } = data;
+	const types = (section) => {
+		const out = {};
+		for (const [op, args] of Object.entries(data[section] ?? {}))
+			out[op] = args.map((a) => compileType(a, checks));
+		return out;
+	};
+	const queries = {};
+	for (const [op, q] of Object.entries(data.queries ?? {})) {
+		queries[op] = {
+			args: (q.args ?? []).map((a) => compileType(a, checks)),
+			returns: q.returns === undefined ? undefined : compileType(q.returns, checks),
+		};
+	}
+	const sections = {
+		messages: types("messages"),
+		pure: types("pure"),
+		queries,
+		notifies: types("notifies"),
+	};
+	return new Interface(name, sections, data);
+};
 const sameTypes = (want = [], got = undefined) =>
 	got !== undefined &&
 	want.length === got.length &&
-	want.every((t, i) => sigText(t) === sigText(got[i]));
+	want.every((t, i) => signatureText(t) === signatureText(got[i]));
 // What spec lacks to implement face, as messages: each of face's messages a handler with the
 // same arg types (a pure one does too), each pure message a pure one, each query one of the
 // same args and returns. Undeclared types only match no args. notifies aren't checked: a
 // handler need not declare what it emits.
-const takes = (args) => `takes (${(args ?? []).map(sigText).join(", ")})`;
+const takes = (args) => `takes (${(args ?? []).map(signatureText).join(", ")})`;
 export const interfaceProblems = (spec, face) => {
 	const problems = [];
 	const missing = (what, name) => problems.push(`its ${what} ${name} is missing`);
@@ -55,24 +107,24 @@ export const interfaceProblems = (spec, face) => {
 			mismatch("query", name, takes(q.args));
 		if (want.returns !== undefined) {
 			if (q.returns === undefined) problems.push(`its query ${name} doesn't say what it returns`);
-			else if (sigText(want.returns) !== sigText(q.returns))
-				mismatch("query", name, `returns ${sigText(q.returns)}`);
+			else if (signatureText(want.returns) !== signatureText(q.returns))
+				mismatch("query", name, `returns ${signatureText(q.returns)}`);
 		}
 	}
 	return problems;
 };
-// The interfaces spec says it implements, resolved in scope: an Interface as it is, a name as
-// the scope has it (null when it doesn't).
+// The interfaces spec says it implements, by name, as scope has them (null where it doesn't).
 export const resolveImplements = (spec, scope) =>
-	spec.implements.map((it) =>
-		it instanceof Interface ? it : (scope?.lookupInterface(it) ?? null),
-	);
-// Whether value is a component implementing face: it says so, in its scope, or its scope makes
-// it by the interface's name.
-export const implementsIface = (value, face) => {
+	spec.implements.map((name) => scope?.lookupInterface(name) ?? null);
+// Whether value is a component implementing face, an Interface or an interface's name in
+// value's scope: it says so, in its scope, or its scope makes it by the interface's name.
+export const implementsIface = (value, faceOrName) => {
 	const spec = specOf(value);
 	if (spec === undefined) return false;
 	const scope = scopeOf(value);
+	const face =
+		typeof faceOrName === "string" ? (scope?.lookupInterface(faceOrName) ?? null) : faceOrName;
+	if (face === null) return false;
 	if (resolveImplements(spec, scope).includes(face)) return true;
 	if (scope === null) return false;
 	for (const s of scope.ancestors()) {

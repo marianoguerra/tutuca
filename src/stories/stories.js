@@ -4,16 +4,16 @@
 import { argsLabel } from "../core/text.js";
 import { Driver, describeProblems } from "../testing/driver.js";
 import { arbitraries, eventCommands, messageCommands, runCommands } from "../testing/pbt.js";
-import { DispatchPath, errorMessage, Scope, selectorFrom, specOf } from "../tutuca.js";
+import { DispatchPath, errorMessage, Scope, selectorOfPath, specOf } from "../tutuca.js";
 
-// Where a step's to and from say: a selector fn is run; anything else (a DispatchPath, frames)
-// is as Driver.send takes it. The root and no child, without one.
-const whereOf = (where, none) =>
-	where === undefined ? none : typeof where === "function" ? selectorFrom(where) : where;
+// Where a step's to and from say, as Driver.send takes them: a path, a DispatchPath or frames.
+// The root and no child, without one.
+const whereOf = (where, none) => where ?? none;
 const toOf = (to) => whereOf(to, new DispatchPath());
-const toText = (to) => (to === undefined ? "·" : String(toOf(to)));
-// Steps of a sequence, as plain data. to and from are selector functions relative to
-// the story root, as in ctx.sendAt (or what they'd write, as Driver.send takes it); from is the
+const toText = (to) =>
+	to === undefined ? "·" : String(to instanceof DispatchPath ? to : selectorOfPath(to));
+// Steps of a sequence, as plain data. to and from are paths relative to the story root, as
+// ctx.sendAt takes them (or a DispatchPath, frames, as Driver.send takes them); from is the
 // child the message comes through.
 export const step = {
 	send: (name, args = [], { to, from, label } = {}) => ({

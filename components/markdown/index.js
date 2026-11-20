@@ -145,14 +145,14 @@ export const Markdown = component({
 		setText: setField("text", t.string(), { pure: true }),
 		append: {
 			pure: true,
-			args: [t.string().len(1)],
+			args: [t.string({ minLength: 1 })],
 			run(next, [text]) {
 				next.text = this.isEmpty ? text : `${this.text.replace(/\s+$/, "")}\n\n${text}`;
 			},
 		},
 		replace: {
 			pure: true,
-			args: [t.string().len(1), t.string()],
+			args: [t.string({ minLength: 1 }), t.string()],
 			pre: (self, [find]) => self.text.includes(find),
 			why: (_self, [find]) => `the text has no ${JSON.stringify(find)}`,
 			run(next, [find, replacement]) {

@@ -12,7 +12,7 @@ export const StoryLink = component({
 		group: t.string(),
 		name: t.string(),
 		showGroup: t.boolean(), // The first of its group shows the group's header.
-		groupSize: t.number().int().min(0),
+		groupSize: t.int({ min: 0 }),
 		isGenerated: t.boolean(),
 		isSelected: t.boolean(),
 		isCollapsed: t.boolean(), // Its group is, and no filter shows it anyway.

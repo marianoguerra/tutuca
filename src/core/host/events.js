@@ -14,6 +14,7 @@ import {
 	providedNameOf,
 	providesOfMarker,
 } from "../view/markers.js";
+import { bindingTakes } from "../view/view.js";
 
 function* enclosingMarkers(node) {
 	let closed = 0;
@@ -95,7 +96,8 @@ export const pathOf = (node, rootNode) => {
 // The event binding for a type event on target, with the address of its component and its element.
 // Only the component target is in handles it, unless bubbles: then the nearest enclosing
 // component with a binding for it does.
-export const bindingFor = (target, type, rootNode, root, bubbles = false) => {
+// takes(binding) says whether a binding takes the event.
+export const bindingFor = (target, takes, rootNode, root, bubbles = false) => {
 	const walk = walkUp(target, rootNode);
 	if (walk === null) return null;
 	const levels = bubbles ? walk.components.length : Math.min(1, walk.components.length);
@@ -108,7 +110,7 @@ export const bindingFor = (target, type, rootNode, root, bubbles = false) => {
 		const { eventBindings } = specOf(to.keyPath.getIn(root));
 		for (const { eid, node } of eids) {
 			for (const binding of eventBindings.get(eid) ?? []) {
-				if (binding.type === type) return { binding, to, node };
+				if (takes(binding)) return { binding, to, node };
 			}
 		}
 	}
@@ -118,9 +120,11 @@ export const bindingFor = (target, type, rootNode, root, bubbles = false) => {
 // event arrives, as a handler's context would (view.js's EVENT_ARGS read the event, the element with the
 // binding, the drag and the key of the item the event reached); null when no binding takes it.
 export const eventSend = (event, rootNode, root, drag, bubbles = false) => {
-	const found = bindingFor(event.target, event.type, rootNode, root, bubbles);
+	const found = bindingFor(event.target, (b) => bindingTakes(b, event), rootNode, root, bubbles);
 	if (found === null) return null;
 	const { binding, to, node } = found;
+	if (binding.prevent) event.preventDefault?.();
+	if (binding.stop) event.stopPropagation?.();
 	return {
 		name: binding.action.name,
 		args: eventArgs(binding.action, to, event, node, drag),

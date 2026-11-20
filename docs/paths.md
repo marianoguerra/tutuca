@@ -11,7 +11,7 @@ Tutuca has four kinds of path. Each has one job:
 |---|---|---|
 | `KeyPath` | the property keys from the root state to a value | reading and writing state (`getIn`, `setIn`) |
 | `DispatchPath` | a list of `Frame`s: how a component was reached while rendering | metadata comments, event routing, notify bubbling, `sourceKey` |
-| `Selector` | selector calls (`field`, `item`, `seqItem`) | addressing a component from code (`ctx.sendAt`, `provides`) |
+| `Selector` | a path's steps (`"f"`, an index, `{ item }`, `{ seqItem }`), compiled | addressing a component from code (`ctx.sendAt`, `provides`) |
 | `Target` | a `DispatchPath` plus a `Selector` below it | where a task goes, before its address is fixed |
 | `Address` | a `DispatchPath`, its key path, and the identity of the component it reached | where a task goes (`to`) and who sent it (`from`) |
 
@@ -114,8 +114,9 @@ To route an event, the runtime walks from the event target up to the root node:
    hides one opening comment, and comments that only look like metadata are skipped.
 3. It reads the metadata from the outermost in to rebuild the `DispatchPath`.
 4. From the dispatch path it fixes the address, and so the instance.
-5. The handler is the first one matching the event type, trying the eids innermost first,
-   in that instance's class.
+5. The handler is the first binding that takes the event (its type and, with modifiers as in
+   `on:keydown+enter`, the key pressed and the keys held), trying the eids innermost first, in
+   that instance's class.
 
 ### Component paths and parent paths
 
@@ -180,11 +181,12 @@ Drag events use the same routing, with two differences.
 - **The host keeps the drag.** On `dragstart` it finds the closest `draggable="true"`
   element and keeps a `Drag`: its full dispatch path (loop items included), its
   `data-dragtype` and the value at that path. It keeps this until `dragend`. Handlers of drag
-  events read it as `ctx.drag`.
+  events read it as `ctx.drag`: `{ type, value, node, path, key }`, `key` being the key of the
+  handling component's child it was dragged from (`Drag.at(ctx.path)`).
 
-`dragKey()` in a send is `ctx.drag.sourceKeyIn(ctx.path)`, the drag's `sourceKey`. It
-uses `sourceKeyIn` on the drag's path from the receiver's point of view, and is `null` when
-nothing is dragged or the drag started outside the receiver. A list that reorders itself
+`dragKey()` in a send is that key, the drag's `sourceKey`: `sourceKeyIn` on the drag's path
+from the receiver's point of view, `null` when nothing is dragged or the drag started outside
+the receiver. A list that reorders itself
 sends `send("move", dragKey(), sourceKey())`. A drop across components, such as a card into
 another column, reads `ctx.drag.value` instead.
 
@@ -196,24 +198,31 @@ they are for styles only, and sync never sees them.
 
 ## Selectors: addressing from code
 
-Code builds selectors with a selector function, which gets an empty `Selector` and adds ops to it:
+Code says where a message goes, or where a provided value is, as a **path**: data, a step or
+an array of steps, relative to the component it starts from (`[]` is that component). Each
+step is a field's name, an integer (an index into the array the path is at), `{ item: f, key:
+k }` (the item at `k` of the collection in field `f`) or `{ seqItem: f, keyField: kf }` (the
+item of `f` at the key field `kf` holds):
 
 ```js
-ctx.sendAt("inc", [], (b) => b.seqItem("items", "selected"));
-provides: { tab: (b) => b.seqItem("tabs", "selected") }
+ctx.sendAt("inc", [], { seqItem: "items", keyField: "selected" });
+ctx.sendAt("rename", [name], ["panel", { item: "rows", key: id }]);
+provides: { tab: { seqItem: "tabs", keyField: "selected" } }
 ```
 
-A `Selector` is just the list of calls. It reads nothing until it is **fixed**:
-`selector.fix(value)` walks the calls from `value` and returns one component frame per
-call:
+`selectorOfPath` compiles a path into a `Selector`, its ops, and throws on anything that isn't
+a path. A provider's path is static, so lint (`bad-provide`) checks each step against the
+fields and types it walks; one that isn't a path, or is empty, is an error. A `Selector` reads
+nothing until it is **fixed**: `selector.fix(value)` walks its steps from `value` and returns
+one component frame per step:
 
-| Call | Frame |
+| Step | Frame |
 |---|---|
-| `b.field(f)` | `keys: [f]` |
-| `b.item(f, k)` | `keys: [f], item: k` |
-| `b.seqItem(f, kf)` | `keys: [f], item: value[kf]`, reading `kf` when it is fixed |
+| `"f"`, or an index `f` | `keys: [f]` |
+| `{ item: f, key: k }` | `keys: [f], item: k` |
+| `{ seqItem: f, keyField: kf }` | `keys: [f], item: value[kf]`, reading `kf` when it is fixed |
 
-Providers fix their selector against the providing instance at render time. The
+Providers fix their path against the providing instance at render time. The
 resolved keys are the provider's `keys`, and the value they reach is what `provided(name)`
 reads.
 
@@ -249,7 +258,7 @@ Two timing rules decide which state a path reads:
   tasks already queued, after the events before it and the rest of a notify under way, as
   spec/tree's environment events do.
 - **Programmatic targets are fixed at their producer's commit.** A `sendAt` with
-  `seqItem("items", "selected")` reads `selected` from the state the producer committed,
+  `{ seqItem: "items", keyField: "selected" }` reads `selected` from the state the producer committed,
   including the producer's own changes. Tasks queued after it can't change where it goes. If
   fixing fails (for example, a selector below a missing field), the whole producer
   transaction is rolled back with its children.
@@ -314,7 +323,7 @@ too: following it to its new place would need an index from identities to paths.
 ## A walk through
 
 Take `Root { panel: Panel { selected: 1, items: [a, b] } }`. `Root` renders
-`render(field("panel"))`, `Panel` provides `cur: (b) => b.seqItem("items", "selected")` and
+`render(field("panel"))`, `Panel` provides `cur: { seqItem: "items", keyField: "selected" }` and
 renders `render(provided("cur"))`, and `b` renders a button.
 
 1. **Render.** The button is preceded by these metadata comments:

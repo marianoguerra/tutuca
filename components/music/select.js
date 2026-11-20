@@ -55,8 +55,8 @@ export const NoteChordSelector = component({
 		[CLASSES_META]: { classes: ROOT_PICKER_CLASSES },
 	}),
 	fields: {
-		root: t.number().int().min(0).max(11),
-		kind: t.enum(...SELECTION_KINDS),
+		root: t.int({ min: 0, max: 11 }),
+		kind: t.enum(SELECTION_KINDS),
 	},
 	methods: {
 		// Its notes, from the root in octave.
@@ -95,7 +95,7 @@ export const NoteChordSelector = component({
 	),
 	on: {
 		setRoot: {
-			args: [t.number().int().min(0).max(11)],
+			args: [t.int({ min: 0, max: 11 })],
 			emits: CHANGED,
 			run(next, [root], ctx) {
 				next.root = root;
@@ -103,7 +103,7 @@ export const NoteChordSelector = component({
 			},
 		},
 		setKind: {
-			args: [t.enum(...SELECTION_KINDS)],
+			args: [t.enum(SELECTION_KINDS)],
 			emits: CHANGED,
 			run(next, [kind], ctx) {
 				next.kind = kind;
@@ -144,7 +144,7 @@ export const OffsetSelector = component({
 	),
 	fields: {
 		selector: t.component("NoteChordSelector"),
-		offset: t.number().int().min(-12).max(12),
+		offset: t.int({ min: -12, max: 12 }),
 	},
 	methods: {
 		notes(octave) {

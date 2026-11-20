@@ -76,15 +76,15 @@ divides it.
 Instances are values: there is no identity and no inheritance. The route is the only identity
 an instance has.
 
-**Types** mirror `t.*`:
+**Types** mirror tutuca's type data (what `t.*` writes):
 
 | Model | Runtime |
 |---|---|
 | `Any`, `String`, `Number`, `Boolean` | `t.any()`, `t.string()`, `t.number()`, `t.boolean()` |
 | `(Enum v …)`, `(Option τ)`, `(Array τ)`, `(Map τ)` | `t.enum`, `t.option`, `t.array`, `t.map` |
 | `(Record (f τ) …)`, `(OneOf τ …)`, `(Index f)`, `(Component C …)` | `t.record`, `t.oneOf`, `t.index`, `t.component` |
-| `(Refine τ check …)` | `.int()`, `.min()`, `.max()`, `.len()`, `.where()` |
-| `(Default τ v)` | `.default(v)` |
+| `(Refine τ check …)` | `int`, `min`, `max`, `minLength`, `maxLength`, `pattern`, `check` |
+| `(Default τ v)` | `default: v` |
 
 An owner is the component holding the field. Inside arrays, maps and records there is none,
 as in the runtime. A class without a `fields` section has no schema: its fields are not
@@ -107,7 +107,7 @@ undeclared.
   body runs. With no enabled case, the handler throws.
 - `(next (lv …) e)` assigns into `next`. Every update reads `self`, never `next`, so updates
   are simultaneous. A field no update names keeps its value (UNCHANGED).
-- `(become e)` replaces the instance, as returning a value from a handler does.
+- `(become e)` replaces the instance, as a `swap: true` handler returning a component does.
 - Effects run in order and may read `next`: `notify`, `ask`, `send-at`, `forward-at`, `stop`
   (`stopNext`), `log` and `fail` (throw).
 - Handlers are deterministic. All nondeterminism is in the host: when events arrive, the order
@@ -192,7 +192,7 @@ There are four kinds, one per job, as in `docs/paths.md`:
 |---|---|---|---|
 | update path | `upath`: property keys | `KeyPath` | `getIn`/`setIn`, nothing else |
 | dispatch path | `dpath`: frames | `DispatchPath` of `Frame`s | rendered ancestry: metadata, event routing, notify bubbling, `sourceKey` |
-| selector | `sel`: builder calls | `Selector` (built by its own calls) | `sendAt` targets, frozen at commit; `provides`, frozen at render |
+| selector | `sel`: builder calls | `Selector` (compiled from a path by `selectorOfPath`) | `sendAt` targets, frozen at commit; `provides`, frozen at render |
 | target | `(at dpath sel)` | `Target` | where a task goes, before its route is fixed |
 
 A route pairs a dispatch path with its update path, `(dpath upath)` here and
@@ -226,8 +226,9 @@ loop becomes an unkeyed group of keyed item groups, and an element with handlers
   the eids of each enclosing component in turn, nearest first.
 - It reads enclosing metadata by scanning previous siblings. Each closing comment hides one
   opening comment, and look-alike comments are skipped.
-- The handler is the first one matching the event type, trying the eids innermost first, in
-  the table of the class the update path reaches.
+- The handler is the first one matching the event type (the runtime's modifiers, as in
+  `on:keydown+enter`, are not modelled), trying the eids innermost first, in the table of the
+  class the update path reaches.
 
 ## The host
 
@@ -326,7 +327,7 @@ Two of these are equivalent only when other code doesn't edit or remove the node
 - Loop `prepare`/`iter` (arbitrary iteration protocols).
 - `methods` and `queries` (getters, computed properties): `field` reads only own fields. In the
   TLA+ reading they would be operator definitions.
-- `.match()` (regular expressions), sync levels and pbt generators on types.
+- Sync levels and pbt generators on types.
 - Scope chains, aliases and lifetimes. A `Component` type checks class names, not scope
   lookups, and has no default (the runtime makes one through the scope). Ask handlers live
   in one table and are pure. Class names are unique.
@@ -357,7 +358,7 @@ Two of these are equivalent only when other code doesn't edit or remove the node
   foreign nodes stay, and morphing into itself keeps every node in place.
 - **Normalize:** idempotent (`redex-check`).
 - **Types:** `make` keeps valid arguments, otherwise yields the default, and always yields a
-  valid value when every `.default(v)` has its type (`redex-check`). A record's default makes
+  valid value when every `default: v` has its type (`redex-check`). A record's default makes
   each key, and a union's its first alternative, as a field with no argument.
 - **Actions:** handlers refine their contracts from valid states that meet `pre`, and a
   handler that breaks its contract is caught (`redex-check`).

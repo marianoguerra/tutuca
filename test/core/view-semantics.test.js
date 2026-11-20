@@ -45,7 +45,7 @@ test("literal condition uses JS truthiness and only evaluates the selected branc
 test("attributes and children read fields, and $if selects values", () => {
 	const Greeting = component({
 		name: "Greeting",
-		fields: { name: t.string("world"), loud: t.boolean() },
+		fields: { name: t.string({ default: "world" }), loud: t.boolean() },
 		view: h(
 			"p",
 			{ class: $if(field("loud"), "loud", "quiet"), title: field("name") },
@@ -97,7 +97,7 @@ test("view names don't resolve to inherited properties", () => {
 test("arrays of children splice into their parent, nested ones too", () => {
 	const Root = component({
 		name: "Root",
-		fields: { show: t.boolean(true) },
+		fields: { show: t.boolean({ default: true }) },
 		view: h("p", {}, [h("b", {}, "x"), [$if(field("show"), h("i", {}, "y"), ""), "z"]]),
 	});
 	const { host, rootNode } = setup({ Root });

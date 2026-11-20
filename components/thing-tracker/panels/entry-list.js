@@ -28,10 +28,10 @@ const entryRow = () =>
 export const EntryList = component({
 	name: "EntryList",
 	fields: {
-		heading: t.string("All entries"),
+		heading: t.string({ default: "All entries" }),
 		subtitle: t.string(),
 		rows: t.array(entryRow()),
-		remaining: t.number().int().min(0),
+		remaining: t.int({ min: 0 }),
 		confirming: t.boolean(),
 	},
 	methods: {
@@ -104,7 +104,7 @@ export const EntryList = component({
 		// The entries it shows, how many more there are and, unless null, its subtitle.
 		showRows: {
 			pure: true,
-			args: [t.array(entryRow()), t.number().int().min(0), t.option(t.string())],
+			args: [t.array(entryRow()), t.int({ min: 0 }), t.option(t.string())],
 			run(next, [rows, remaining, subtitle]) {
 				next.rows = rows;
 				next.remaining = remaining;

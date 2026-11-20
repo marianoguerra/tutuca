@@ -95,7 +95,7 @@ const studioDrop = fileDrop({
 export const Studio = component({
 	name: "Studio",
 	fields: {
-		sample: t.enum(...SAMPLE_IDS),
+		sample: t.enum(SAMPLE_IDS),
 		title: t.string(),
 		editor: t.component("JsonEditor"),
 		schema: t.component("SchemaRoot"),
@@ -229,7 +229,7 @@ export const Studio = component({
 			},
 		},
 		loadSample: {
-			args: [t.enum(...SAMPLE_IDS)],
+			args: [t.enum(SAMPLE_IDS)],
 			run(next, [id], ctx) {
 				const C = ctx.scope.components;
 				const { title, value } = SAMPLES[id];

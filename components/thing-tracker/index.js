@@ -243,48 +243,48 @@ export const TrackerApp = component({
 	name: "TrackerApp",
 	meta: { [CLASSES_META]: { classes: APP_CLASSES } },
 	fields: {
-		now: t.number().int().min(0),
-		tz: t.number().int().min(-840).max(840),
-		tab: t.enum("track", "insights", "manage"),
+		now: t.int({ min: 0 }),
+		tz: t.int({ min: -840, max: 840 }),
+		tab: t.enum(["track", "insights", "manage"]),
 		things: t.array(t.component("Thing")),
 		groups: t.array(t.component("Tag")),
 		events: t.array(eventRecord()),
 		order: t.array(t.string()),
 		collapsed: t.array(t.string()),
-		query: t.string().sync("none"),
+		query: t.string({ sync: "none" }),
 		compact: t.boolean(),
 		sections: t.array(t.component("Section")),
-		granularity: t.enum("day", "week", "month"),
+		granularity: t.enum(["day", "week", "month"]),
 		groupFilter: t.string(),
 		buckets: t.array(t.component("Bucket")),
-		shownEntries: t.number(200).int().min(1),
+		shownEntries: t.int({ min: 1, default: 200 }),
 		listContext: t.option(t.record({ thingId: t.string(), start: t.number(), end: t.number() })),
-		manageTab: t.enum(...MANAGE_TABS.map(([id]) => id)),
-		manageQuery: t.string().sync("none"),
+		manageTab: t.enum(MANAGE_TABS.map(([id]) => id)),
+		manageQuery: t.string({ sync: "none" }),
 		panel: t.option(t.component(PANELS)),
 		toast: t.option(
 			t.record({
-				id: t.number().int(),
+				id: t.int(),
 				title: t.string(),
 				text: t.string(),
 				eventId: t.string(),
-				kind: t.enum("info", "logged", "error"),
+				kind: t.enum(["info", "logged", "error"]),
 			}),
 		),
-		toastSeq: t.number().int().min(0),
+		toastSeq: t.int({ min: 0 }),
 		hintShown: t.boolean(),
 		backup: t.record({
-			lastAt: t.number().min(0), // 0 when never.
-			intervalDays: t.enum(7, 1, 3, 14, 30, 90, 0),
-			dismissedAt: t.number().min(0),
+			lastAt: t.number({ min: 0 }), // 0 when never.
+			intervalDays: t.enum([7, 1, 3, 14, 30, 90, 0]),
+			dismissedAt: t.number({ min: 0 }),
 			rangeText: t.string(),
 		}),
-		importMode: t.enum("merge", "replace"),
-		importText: t.string().sync("none"),
-		importSource: t.string().sync("none"),
-		importTitle: t.string().sync("none"),
-		showPreview: t.boolean().sync("none"),
-		overwrite: t.boolean().sync("none"),
+		importMode: t.enum(["merge", "replace"]),
+		importText: t.string({ sync: "none" }),
+		importSource: t.string({ sync: "none" }),
+		importTitle: t.string({ sync: "none" }),
+		showPreview: t.boolean({ sync: "none" }),
+		overwrite: t.boolean({ sync: "none" }),
 	},
 	invariants: {
 		statsMatchEvents() {
@@ -301,9 +301,7 @@ export const TrackerApp = component({
 		},
 	},
 	provides: {
-		things(b) {
-			b.field("things");
-		},
+		things: "things",
 	},
 	methods: {
 		snapshot() {
@@ -562,7 +560,7 @@ export const TrackerApp = component({
 					([, a], [, b]) => a.sortOrder - b.sortOrder || a.title.localeCompare(b.title),
 				);
 			},
-			enrich({ value }) {
+			enrich(_key, value) {
 				return { chip: pick(value.id === this.groupFilter) };
 			},
 		},
@@ -679,7 +677,7 @@ export const TrackerApp = component({
 			},
 		},
 		setNow: {
-			args: [t.number().int().min(0)],
+			args: [t.int({ min: 0 })],
 			run(next, [now]) {
 				next.now = now;
 				refresh(this, next);
@@ -761,7 +759,7 @@ export const TrackerApp = component({
 		commitLog: {
 			args: [
 				t.string(),
-				t.array(t.record({ measurementId: t.string(), value: t.number().min(0) })),
+				t.array(t.record({ measurementId: t.string(), value: t.number({ min: 0 }) })),
 			],
 			run(next, [thingId, values], ctx) {
 				ctx.stopNext();
@@ -799,13 +797,15 @@ export const TrackerApp = component({
 		saveEntry: {
 			args: [
 				t.record({
-					mode: t.enum("create", "edit"),
+					mode: t.enum(["create", "edit"]),
 					id: t.string(),
 					thingId: t.string(),
-					recordedAt: t.number().int(),
-					actualAt: t.number().int(),
+					recordedAt: t.int(),
+					actualAt: t.int(),
 					notes: t.string(),
-					measurements: t.array(t.record({ measurementId: t.string(), value: t.number().min(0) })),
+					measurements: t.array(
+						t.record({ measurementId: t.string(), value: t.number({ min: 0 }) }),
+					),
 				}),
 			],
 			run(next, [entry], ctx) {
@@ -977,11 +977,11 @@ export const TrackerApp = component({
 		},
 		saveThing: {
 			args: [
-				t.enum("create", "edit"),
+				t.enum(["create", "edit"]),
 				t.record({
 					id: t.string(),
-					emoji: t.string().len(1, 16),
-					title: t.string().len(0, 120),
+					emoji: t.string({ minLength: 1, maxLength: 16 }),
+					title: t.string({ minLength: 0, maxLength: 120 }),
 					description: t.string(),
 					measurements: t.array(measureRef()),
 				}),
@@ -1042,10 +1042,10 @@ export const TrackerApp = component({
 		},
 		saveTag: {
 			args: [
-				t.enum("create", "edit"),
+				t.enum(["create", "edit"]),
 				t.record({
 					id: t.string(),
-					title: t.string().len(0, 120),
+					title: t.string({ minLength: 0, maxLength: 120 }),
 					emoji: t.string(),
 					thingIds: t.array(t.string()),
 				}),

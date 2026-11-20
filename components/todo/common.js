@@ -6,17 +6,19 @@ import { addDays, isIso, isoToday } from "./dates.js";
 
 // Dates in a two year window, for generated states.
 const isoArb = (fc) => fc.integer({ min: 0, max: 730 }).map((n) => addDays("2026-01-01", n));
-export const dueType = () =>
-	t
-		.string()
-		.where((d) => d === "" || isIso(d), "isoOrEmpty")
-		.arb((fc) => fc.oneof(fc.constant(""), isoArb(fc)));
-// The app's date, copied into every task so they can label their due dates.
-export const todayType = () =>
-	t
-		.string(() => isoToday())
-		.where(isIso, "iso")
-		.arb(isoArb);
+// A component with these types has dateChecks in its checks.
+export const dueType = () => t.string({ check: "isoOrEmpty" });
+// The app's date, copied into every task so they can label their due dates: the day the
+// component is defined, until the app's today ask says what it is.
+export const todayType = () => t.string({ default: isoToday(), check: "iso" });
+export const dateChecks = {
+	isoOrEmpty: {
+		test: (d) => d === "" || isIso(d),
+		description: "an ISO date like 2026-01-31, or empty",
+		arb: (fc) => fc.oneof(fc.constant(""), isoArb(fc)),
+	},
+	iso: { test: isIso, description: "an ISO date like 2026-01-31", arb: isoArb },
+};
 
 export const CHECKS = {
 	1: "checkbox checkbox-sm checkbox-error rounded-full",

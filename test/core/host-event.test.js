@@ -18,7 +18,7 @@ import { document, scopeWith, setupHost } from "../helpers.js";
 
 const Counter = component({
 	name: "Counter",
-	fields: { count: t.number().min(0), limit: t.number(3) },
+	fields: { count: t.number({ min: 0 }), limit: t.number({ default: 3 }) },
 	view: h("button", { "on:click": send("inc") }, field("count")),
 	invariants: {
 		underLimit() {
@@ -30,7 +30,7 @@ const Counter = component({
 			next.count += 1;
 		},
 		watched(_next, _args, ctx) {
-			ctx.sendAt("inc", [], (p) => p, { settled: "done" });
+			ctx.sendAt("inc", [], [], { settled: "done" });
 		},
 		done() {},
 	},

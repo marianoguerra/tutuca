@@ -138,7 +138,7 @@ const openBelow = (next, below, open) => {
 };
 export const sectionMessages = (names, below = []) => ({
 	toggleSection: {
-		args: [t.enum(...names)],
+		args: [t.enum(names)],
 		run(next, [name], ctx) {
 			const e = ctx.event;
 			const open = this.closed.includes(name);

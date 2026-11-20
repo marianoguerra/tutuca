@@ -102,10 +102,10 @@ export const Notes = component({
 		},
 	},
 	fields: {
-		title: t.string("Shared notes"),
+		title: t.string({ default: "Shared notes" }),
 		notes: t.array(t.component("Note")),
-		filter: t.enum("all", "open", "done").sync("local"),
-		draft: t.string().sync("none"),
+		filter: t.enum(["all", "open", "done"], { sync: "local" }),
+		draft: t.string({ sync: "none" }),
 	},
 	queries: {
 		get summary() {
@@ -182,7 +182,7 @@ export const Notes = component({
 			},
 		},
 		setFilter: {
-			args: [t.enum("all", "open", "done")],
+			args: [t.enum(["all", "open", "done"])],
 			run(next, [filter]) {
 				next.filter = filter;
 			},
@@ -192,13 +192,13 @@ export const Notes = component({
 				ctx.event?.preventDefault();
 				const text = this.draft.trim();
 				if (text === "") return;
-				next.notes.push(ctx.scope.make("Note", { text }));
+				next.notes.push(ctx.make("Note", { text }));
 				next.draft = "";
 			},
 		},
 		add_notes: {
 			pure: true,
-			args: [t.array(t.string().len(1))],
+			args: [t.array(t.string({ minLength: 1 }))],
 			run(next, [texts]) {
 				const scope = scopeOf(this);
 				for (const text of texts) next.notes.push(scope.make("Note", { text }));
@@ -206,7 +206,7 @@ export const Notes = component({
 		},
 		set_note: {
 			pure: true,
-			args: [t.number().int(), t.string().len(1)],
+			args: [t.int(), t.string({ minLength: 1 })],
 			pre: (self, [i]) => hasNote(self, i),
 			why: noNote,
 			run(next, [i, text]) {
@@ -215,7 +215,7 @@ export const Notes = component({
 		},
 		set_done: {
 			pure: true,
-			args: [t.number().int(), t.boolean()],
+			args: [t.int(), t.boolean()],
 			pre: (self, [i]) => hasNote(self, i),
 			why: noNote,
 			run(next, [i, done]) {
@@ -224,7 +224,7 @@ export const Notes = component({
 		},
 		remove_note: {
 			pure: true,
-			args: [t.number().int()],
+			args: [t.int()],
 			pre: (self, [i]) => hasNote(self, i),
 			why: noNote,
 			run(next, [i]) {

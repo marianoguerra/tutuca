@@ -29,9 +29,7 @@ function setup(rootHandlers, { answers = {}, ...itemHandlers } = {}, useProvided
 		name: "Root",
 		fields: { selected: t.number(), committed: t.number(), items: t.array() },
 		provides: {
-			selectedItem(pb) {
-				pb.seqItem("items", "selected");
-			},
+			selectedItem: { seqItem: "items", keyField: "selected" },
 		},
 		view: h(
 			"div",
@@ -67,7 +65,7 @@ function setup(rootHandlers, { answers = {}, ...itemHandlers } = {}, useProvided
 test("generated paths capture producer commit before intervening tasks run", () => {
 	const { host, notices, queueEvents, drain } = setup({
 		queue(next, _args, ctx) {
-			ctx.sendAt("inc", [], (pb) => pb.seqItem("items", "selected"));
+			ctx.sendAt("inc", [], { seqItem: "items", keyField: "selected" });
 			next.selected = 1;
 		},
 		change(next) {
@@ -103,7 +101,7 @@ test("failed producers discard drafts and children but preserve older tasks", ()
 	const { host, notices, queueEvents, drain, rootNode } = setup({
 		fail(next, _args, ctx) {
 			next.selected = 1;
-			ctx.sendAt("inc", [], (pb) => pb.seqItem("items", "selected"));
+			ctx.sendAt("inc", [], { seqItem: "items", keyField: "selected" });
 			throw error;
 		},
 		keep(next) {
@@ -131,8 +129,8 @@ test("child path preparation failure rolls back the producer and all its childre
 		fail(next, _args, ctx) {
 			failedContext = ctx;
 			next.selected = 1;
-			ctx.sendAt("inc", [], (pb) => pb.seqItem("items", "selected"));
-			ctx.sendAt("inc", [], (pb) => pb.field("missing").seqItem("items", "selected"));
+			ctx.sendAt("inc", [], { seqItem: "items", keyField: "selected" });
+			ctx.sendAt("inc", [], ["missing", { seqItem: "items", keyField: "selected" }]);
 		},
 		keep(next) {
 			next.committed++;
@@ -151,7 +149,7 @@ test("child path preparation failure rolls back the producer and all its childre
 		["failed"],
 	);
 	// A retained context must not revive children of an aborted transaction.
-	failedContext.sendAt("inc", [], (pb) => pb.item("items", 0));
+	failedContext.sendAt("inc", [], { item: "items", key: 0 });
 	assert.equal(host.tasks.length, 0);
 });
 
@@ -163,7 +161,7 @@ test("a throwing sync ok reply fails its own reply task, not the ask, and doesn'
 	const { host, notices, queueEvents, drain } = setup(
 		{
 			queue(_next, _args, ctx) {
-				ctx.sendAt("request", [], (pb) => pb.seqItem("items", "selected"));
+				ctx.sendAt("request", [], { seqItem: "items", keyField: "selected" });
 			},
 		},
 		{
@@ -174,7 +172,7 @@ test("a throwing sync ok reply fails its own reply task, not the ask, and doesn'
 				load: {
 					ok(next, _args, ctx) {
 						next.reply = "ok";
-						ctx.sendAt("inc", [], (_pb) => {});
+						ctx.sendAt("inc", [], []);
 						throw error;
 					},
 					error(next) {
@@ -202,12 +200,12 @@ for (const rejected of [false, true]) {
 		});
 		const replyHandler = (next, [value], ctx) => {
 			next.reply = value;
-			ctx.sendAt("inc", [], (_pb) => {});
+			ctx.sendAt("inc", [], []);
 		};
 		const { host, notices, queueEvents, drain } = setup(
 			{
 				queue(next, _args, ctx) {
-					ctx.sendAt("request", [], (pb) => pb.seqItem("items", "selected"));
+					ctx.sendAt("request", [], { seqItem: "items", keyField: "selected" });
 					next.selected = 1;
 				},
 				change(next) {
@@ -246,7 +244,7 @@ for (const rejected of [false, true]) {
 test("reentrant draining cannot execute children before their producer commits", () => {
 	const { host, queueEvents, drain } = setup({
 		queue(next, _args, ctx) {
-			ctx.sendAt("inc", [], (pb) => pb.seqItem("items", "selected"));
+			ctx.sendAt("inc", [], { seqItem: "items", keyField: "selected" });
 			host.handleTasks();
 			next.selected = 1;
 		},
@@ -309,7 +307,7 @@ test("dynamic selectors below provided frames capture commit and retain bubbling
 		},
 		{
 			inc(next, _args, ctx) {
-				ctx.sendAt("bump", [], (pb) => pb.seqItem("children", "selected"));
+				ctx.sendAt("bump", [], { seqItem: "children", keyField: "selected" });
 				next.selected = 1;
 			},
 			bump(next, _args, ctx) {
@@ -347,7 +345,7 @@ test("a reply to an asker that a list shift replaced at its index is dropped as 
 	const { host, notices, queueEvents, drain, C } = setup(
 		{
 			ask(_next, _args, ctx) {
-				ctx.sendAt("request", [], (pb) => pb.item("items", 0));
+				ctx.sendAt("request", [], { item: "items", key: 0 });
 			},
 			shift(next) {
 				next.items.unshift(C.Item({ count: 100 }));
@@ -387,7 +385,7 @@ test("a reply to an asker that a list shift replaced at its index is dropped as 
 test("a send queued to a component that is replaced before it runs is dropped as stale", () => {
 	const { host, notices, queueEvents, drain, C } = setup({
 		poke(_next, _args, ctx) {
-			ctx.sendAt("inc", [], (pb) => pb.item("items", 0));
+			ctx.sendAt("inc", [], { item: "items", key: 0 });
 		},
 		renew(next) {
 			next.items[0] = C.Item({ count: 50 });
@@ -406,7 +404,7 @@ test("a send queued to a component that is replaced before it runs is dropped as
 test("updating a component keeps its identity: a send queued before still reaches it", () => {
 	const { host, notices, queueEvents, drain } = setup({
 		poke(_next, _args, ctx) {
-			ctx.sendAt("inc", [], (pb) => pb.item("items", 0));
+			ctx.sendAt("inc", [], { item: "items", key: 0 });
 		},
 		touch(next) {
 			next.items[0].selected = 1;
@@ -445,10 +443,10 @@ test("an answer handler reads the request it answers; a message named like it is
 	const { host, notices, queueEvents, drain } = setup(
 		{
 			queue(_next, _args, ctx) {
-				ctx.sendAt("request", [], (pb) => pb.item("items", 0));
+				ctx.sendAt("request", [], { item: "items", key: 0 });
 			},
 			fake(_next, _args, ctx) {
-				ctx.sendAt("load.ok", ["forged"], (pb) => pb.item("items", 0));
+				ctx.sendAt("load.ok", ["forged"], { item: "items", key: 0 });
 			},
 		},
 		{

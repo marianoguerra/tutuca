@@ -66,7 +66,15 @@ const HINT = "click: this node / ctrl: its siblings / ctrl+alt: everything below
 // A keyword the schema writes as a number, kept as its text: "" when the schema has none.
 const NUMERIC = /^(-?\d+(\.\d+)?([eE][-+]?\d+)?)?$/;
 const isFiniteText = (text) => text === "" || Number.isFinite(Number(text));
-const numText = () => t.string().match(NUMERIC).where(isFiniteText);
+// A number keyword's text; a component with one has numChecks in its checks.
+const numText = () => t.string({ pattern: NUMERIC.source, check: "finiteText" });
+const numChecks = {
+	finiteText: { test: isFiniteText, description: "a finite number's text, or empty" },
+};
+// What a schema load takes, in the checks of a component that loads one.
+export const schemaChecks = {
+	schema: { test: isSchema, description: "a JSON Schema: an object or a boolean" },
+};
 const schemaNode = () => t.component(SCHEMA_NAMES);
 const notesFields = () => ({ title: t.string(), description: t.string() });
 
@@ -147,9 +155,9 @@ const openableMessages = {
 export const SchemaPager = component({
 	name: "SchemaPager",
 	fields: {
-		total: t.number().int().min(0),
-		perPage: t.number(DEFAULT_PER_PAGE).int().min(1),
-		page: t.number().int().min(0),
+		total: t.int({ min: 0 }),
+		perPage: t.int({ min: 1, default: DEFAULT_PER_PAGE }),
+		page: t.int({ min: 0 }),
 		settings: t.boolean(),
 	},
 	invariants: {
@@ -261,7 +269,7 @@ export const SchemaPager = component({
 		},
 		// Keeps the first item of the page in view.
 		setPerPage: {
-			args: [t.number().int().min(1)],
+			args: [t.int({ min: 1 })],
 			post: (_prev, next, [n]) => next.perPage === n,
 			run(next, [n]) {
 				const first = this.page * this.perPage;
@@ -370,10 +378,11 @@ const SCHEMA_DATA = {
 // file dropped on it replaces the tree.
 export const SchemaRoot = component({
 	name: "SchemaRoot",
+	checks: schemaChecks,
 	meta: { [DATA_META]: SCHEMA_DATA },
 	fields: {
 		node: schemaNode(),
-		view: t.enum("main", "format"),
+		view: t.enum(["main", "format"]),
 		bare: t.boolean(), // No toolbar: what holds it has its own.
 		...jsonDropFields(),
 	},
@@ -432,13 +441,13 @@ export const SchemaRoot = component({
 		// A schema replaces the tree, read the way it is.
 		load: {
 			pure: true,
-			args: [t.any().where(isSchema, "a JSON Schema: an object or a boolean")],
+			args: [t.any({ check: "schema" })],
 			run(next, [json]) {
 				next.node = fromSchema(scopeOf(this).components, json);
 			},
 		},
 		setView: {
-			args: [t.enum("main", "format")],
+			args: [t.enum(["main", "format"])],
 			post: (_prev, next, [view]) => next.view === view,
 			run(next, [view]) {
 				next.view = view;
@@ -462,7 +471,7 @@ export const SchemaObject = component({
 		...notesFields(),
 		properties: t.array(t.component("SchemaProperty")),
 		additional: t.option(schemaNode()), // What additionalProperties allows, if it says.
-		open: t.boolean(true),
+		open: t.boolean({ default: true }),
 		pager: t.option(t.component("SchemaPager")),
 	},
 	methods: {
@@ -599,12 +608,13 @@ export const SchemaProperty = component({
 // type: array.
 export const SchemaArray = component({
 	name: "SchemaArray",
+	checks: numChecks,
 	fields: {
 		...notesFields(),
 		items: t.option(schemaNode()), // What every element must be, if it says.
 		minItems: numText(),
 		maxItems: numText(),
-		open: t.boolean(true),
+		open: t.boolean({ default: true }),
 	},
 	methods: {
 		toSchema() {
@@ -673,6 +683,7 @@ export const SchemaArray = component({
 
 export const SchemaString = component({
 	name: "SchemaString",
+	checks: numChecks,
 	fields: {
 		...notesFields(),
 		format: t.string(),
@@ -723,6 +734,7 @@ export const SchemaString = component({
 const numeric = (name, kind) =>
 	component({
 		name,
+		checks: numChecks,
 		fields: {
 			...notesFields(),
 			minimum: numText(),
@@ -823,7 +835,7 @@ export const SchemaEnum = component({
 	fields: {
 		...notesFields(),
 		values: t.array(t.component(VALUE_NAMES)),
-		open: t.boolean(true),
+		open: t.boolean({ default: true }),
 		pager: t.option(t.component("SchemaPager")),
 	},
 	methods: {
@@ -927,7 +939,7 @@ const combinator = (name, key, label) =>
 		fields: {
 			...notesFields(),
 			branches: t.array(schemaNode()),
-			open: t.boolean(true),
+			open: t.boolean({ default: true }),
 			pager: t.option(t.component("SchemaPager")),
 		},
 		methods: {

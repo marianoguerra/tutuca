@@ -63,12 +63,15 @@ const inferRequest = (target, transcript, model) => ({
 	transcript,
 });
 
+// What the agent says when it took the most steps its target allows for one prompt.
+const limitError = (max) => `Stopped after ${max} steps.`;
+
 // The agent's loop from where it is, with appended the messages to add first: runs every tool
 // call it can here, until it has to infer, wait for a sent message, or stop. this is self.
-const advance = (self, next, ctx, appended, steps = self.steps) => {
+const advance = (self, next, ctx, appended, steps = self.steps, from = self.target) => {
 	// A target that holds agents of its own (a canvas) hears which model this one uses, so
 	// theirs is the same unless someone picked one for them.
-	let target = usesModel(self.target) ? apply(self.target, "useModel", self.model) : self.target;
+	let target = usesModel(from) ? apply(from, "useModel", self.model) : from;
 	const transcript = [...self.transcript.messages, ...appended];
 	const added = [...appended];
 	const answer = (call, text, isError) => {
@@ -80,11 +83,20 @@ const advance = (self, next, ctx, appended, steps = self.steps) => {
 	let error = "";
 	loop: for (;;) {
 		const { action, calls } = nextAction(transcript);
-		if (action === "complete") break;
+		if (action === "complete") {
+			// Done with what it was asked: the mail its target got meanwhile is asked next.
+			const mail = mailOf(target);
+			if (mail === null) break;
+			transcript.push(mail.turn);
+			added.push(mail.turn);
+			target = mail.target;
+			steps = 0;
+			continue;
+		}
 		if (action === "infer") {
 			const max = maxStepsOf(target);
 			if (steps >= max) {
-				error = `Stopped after ${max} steps.`;
+				error = limitError(max);
 				break;
 			}
 			status = "thinking";
@@ -101,7 +113,7 @@ const advance = (self, next, ctx, appended, steps = self.steps) => {
 			// A message that needs a context: the target handles it, and once it and what it
 			// caused settled, toolSettled answers it.
 			status = "running";
-			next.job = ctx.sendAt(plan.send.name, plan.send.args, (s) => s.field("target"), {
+			next.job = ctx.sendAt(plan.send.name, plan.send.args, "target", {
 				settled: ["toolSettled", [call.id, call.name, plan.result]],
 				progress: "toolProgress",
 			});
@@ -158,7 +170,28 @@ const chatPanel = () =>
 				),
 			),
 		),
-		$if(field("hasError"), p({ class: "text-xs text-error" }, field("error")), ""),
+		// Stopped at the steps limit, a button beside the error asks it to go on.
+		$if(
+			field("hasError"),
+			div(
+				{ class: "agent-error flex items-center gap-2" },
+				p({ class: "text-xs text-error" }, field("error")),
+				$if(
+					field("canContinue"),
+					button(
+						{
+							class: "agent-continue btn btn-outline btn-xs",
+							type: "button",
+							title: "Say continue, for as many steps again",
+							"on:click": send("continue"),
+						},
+						"Continue",
+					),
+					"",
+				),
+			),
+			"",
+		),
 		form(
 			{ class: "agent-prompt flex flex-col gap-1", "on:submit": send("prompt") },
 			textarea({
@@ -248,12 +281,21 @@ const usesModel = (target) => specOf(target)?.on?.useModel?.pure === true;
 // Whether the target holds agents of its own, which stopping this one stops too.
 const holdsAgents = (target) => specOf(target)?.on?.stopAgents !== undefined;
 
+// Whether the target takes mail, messages for its agent from others: its takeMail is pure.
+const takesMail = (target) => specOf(target)?.on?.takeMail?.pure === true;
+// The mail the target holds (its mail query's text) as the user's message, and the target
+// without it; null when it has none.
+const mailOf = (target) => {
+	if (!takesMail(target) || target.mail === "") return null;
+	return { turn: { role: "user", content: target.mail }, target: apply(target, "takeMail") };
+};
+
 // What a tool's watch says while it runs.
 const progressType = t.record({
 	id: t.number(),
-	tasks: t.number().int().min(0),
-	open: t.number().int().min(0),
-	failed: t.number().int().min(0),
+	tasks: t.int({ min: 0 }),
+	open: t.int({ min: 0 }),
+	failed: t.int({ min: 0 }),
 });
 
 // Its handlers that advance the loop declare no emits: what they send to the target is the
@@ -281,33 +323,33 @@ export const Agent = component({
 	fields: {
 		target: t.component(),
 		transcript: t.component("Transcript"),
-		draft: t.string().sync("none"),
+		draft: t.string({ sync: "none" }),
 		// The model, "provider/id": echo/echo needs no keys.
-		model: t.string(ECHO_MODEL),
+		model: t.string({ default: ECHO_MODEL }),
 		// Where the model came from: default (the first the host offers, or echo), given (the
 		// agent that prompts this one uses it: useModel) or chosen (picked in the select), which
 		// neither of the others changes.
-		modelFrom: t.enum("default", "given", "chosen"),
+		modelFrom: t.enum(["default", "given", "chosen"]),
 		// idle, thinking while the model is asked, running while a sent tool runs. Not kept:
 		// after a reload nothing is running.
-		status: t.enum("idle", "thinking", "running").sync("none"),
+		status: t.enum(["idle", "thinking", "running"], { sync: "none" }),
 		// The watch of the tool running (0 when none) and how many tasks it ran so far.
-		job: t.number().int().min(0).sync("none"),
-		jobTasks: t.number().int().min(0).sync("none"),
+		job: t.int({ min: 0, sync: "none" }),
+		jobTasks: t.int({ min: 0, sync: "none" }),
 		// split: the target and the chat side by side, halves; side: the chat a narrow column
 		// beside a wide target (a canvas).
-		layout: t.enum("split", "side"),
-		steps: t.number().int().min(0),
+		layout: t.enum(["split", "side"]),
+		steps: t.int({ min: 0 }),
 		error: t.string(),
-		chatOpen: t.boolean(true), // Off, the agent shows the component alone.
+		chatOpen: t.boolean({ default: true }), // Off, the agent shows the component alone.
 		// Whether it can drive another component: not when what holds it put it there (a canvas
 		// item, which ejects it instead).
-		canChange: t.boolean(true),
+		canChange: t.boolean({ default: true }),
 		// The models the host offers besides echo (its answer to the models ask), and whether
 		// it was asked: unasked until the agent gets a target or the select is focused.
-		models: t.array(t.record({ id: t.string(), name: t.string() })).sync("none"),
-		modelsAsked: t.boolean(false).sync("none"),
-		toolsOpen: t.boolean(false).sync("none"),
+		models: t.array(t.record({ id: t.string(), name: t.string() }), { sync: "none" }),
+		modelsAsked: t.boolean({ default: false, sync: "none" }),
+		toolsOpen: t.boolean({ default: false, sync: "none" }),
 	},
 	queries: {
 		get hasTarget() {
@@ -397,6 +439,10 @@ export const Agent = component({
 		get hasError() {
 			return this.error !== "";
 		},
+		// Whether it stopped at the steps limit, and can be asked to go on.
+		get canContinue() {
+			return !this.isBusy && this.hasTarget && this.error === limitError(maxStepsOf(this.target));
+		},
 		// The target's own tools, for people to see what the model can do: ⚙️ a message, 🔍 a query.
 		get tools() {
 			if (!this.hasTarget) return [];
@@ -470,7 +516,7 @@ export const Agent = component({
 		// picked for it.
 		useModel: {
 			pure: true,
-			args: [t.string().len(1)],
+			args: [t.string({ minLength: 1 })],
 			run(next, [model]) {
 				if (this.modelFrom === "chosen") return;
 				next.model = model;
@@ -495,12 +541,36 @@ export const Agent = component({
 				sendDraft(this, next, ctx);
 			},
 		},
+		// The button beside the steps limit's error: says continue as the user, which starts the
+		// steps over.
+		continue: {
+			args: [],
+			pre: (self) => self.canContinue,
+			run(next, _args, ctx) {
+				advance(this, next, ctx, userTurn(this, "continue"), 0);
+			},
+		},
 		// Says text as the user, from outside (a test, a story, another component).
 		ask: {
-			args: [t.string().len(1)],
+			args: [t.string({ minLength: 1 })],
 			pre: (self) => self.hasTarget && !self.isBusy,
 			run(next, [text], ctx) {
 				advance(this, next, ctx, userTurn(this, text), 0);
+			},
+		},
+		// Its target got mail (a message from another agent, which its mail query says and its
+		// takeMail drops): asked now as the user's message; while busy, once it's done.
+		checkMail: {
+			args: [],
+			run(next, _args, ctx) {
+				if (this.isBusy) return;
+				const mail = mailOf(this.target);
+				if (mail === null) return;
+				const closed = pendingResults(
+					this.transcript.messages,
+					"It was stopped before it finished.",
+				);
+				advance(this, next, ctx, [...closed, mail.turn], 0, mail.target);
 			},
 		},
 		// Stops what it's doing: the tool running is cancelled (and whatever it started), the
@@ -509,7 +579,7 @@ export const Agent = component({
 			args: [],
 			run(next, _args, ctx) {
 				if (this.job !== 0) ctx.cancel(this.job);
-				if (holdsAgents(this.target)) ctx.sendAt("stopAgents", [], (s) => s.field("target"));
+				if (holdsAgents(this.target)) ctx.sendAt("stopAgents", [], "target");
 				const closed = pendingResults(this.transcript.messages, "Stopped by the user.");
 				if (closed.length > 0) next.transcript = apply(next.transcript, "append", closed);
 				next.status = "idle";
@@ -530,7 +600,7 @@ export const Agent = component({
 		changeTarget: {
 			args: [],
 			run(next, _args, ctx) {
-				next.target = ctx.scope.make("Hole", { meta: AGENT_META });
+				next.target = ctx.make("Hole", { meta: AGENT_META });
 				next.transcript = apply(next.transcript, "clear");
 				next.status = "idle";
 				next.steps = 0;
@@ -560,7 +630,7 @@ export const Agent = component({
 			run(next, [id, name, result, report], ctx) {
 				if (this.status !== "running" || report.id !== this.job) return;
 				if (report.outcome === "timeout" && holdsAgents(this.target)) {
-					ctx.sendAt("stopAgents", [], (s) => s.field("target"));
+					ctx.sendAt("stopAgents", [], "target");
 				}
 				const { text, isError } = settledText(this.target, result, report);
 				advance(this, next, ctx, [toolResultMessage({ id, name }, text, isError)]);
