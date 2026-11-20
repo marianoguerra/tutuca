@@ -1,0 +1,23 @@
+// Generated using `moon info`, DON'T EDIT IT
+package "marianoguerra/pure-js/write"
+
+import {
+  "marianoguerra/pure-js/ast",
+}
+
+// Values
+pub fn print(@ast.Program, types? : Bool) -> String
+
+pub fn print_function(@ast.Program, types? : Bool) -> String
+
+pub fn print_module(@ast.Module, types? : Bool) -> String
+
+pub fn print_type(@ast.TypeNode) -> String
+
+// Errors
+
+// Types and methods
+
+// Type aliases
+
+// Traits

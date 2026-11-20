@@ -16,6 +16,7 @@ const packages = [
 	"@codemirror/commands",
 	"@codemirror/language",
 	"@codemirror/lint",
+	"@codemirror/lang-javascript",
 	"@lezer/highlight",
 ];
 const versionOf = (name) => JSON.parse(readFileSync(join(MODULES, name, "package.json"), "utf8")).version;

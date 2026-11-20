@@ -39,11 +39,23 @@ test("the rules offer the generations asked for, from any provider, and nothing 
 	assert.equal(modelRule("kimi-k3:batch"), null);
 });
 
-test("the system prompt has the reference, the examples, the runtime's functions and the component", async () => {
-	const prompt = await systemPrompt({ name: "mine", tcd: "package tutuca:mine@0.1.0;", wax: "// nothing" });
-	for (const part of ["# You are the tutuca-wax studio's assistant", "# The .tcd language", "## Example: note", "fn list_push(list: &value, item: &value) -> &value;", "fn value_member(v: &value, name: js_string) -> &value;", "# The module you're editing: mine", "package tutuca:mine@0.1.0;", "### Operators: i32 and f64 differ", "### What Wax doesn't have", "## When it doesn't build", "## Example: score", "fn int_max(a: i32, b: i32) -> i32;", "fn int_clamp(n: i32, lo: i32, hi: i32) -> i32;"]) {
+test("the system prompt has the reference, the examples and the component", async () => {
+	const prompt = await systemPrompt({ name: "mine", source: 'export const register = { Mine: "Mine" };' });
+	for (const part of [
+		"# You are the tutuca-wax studio's assistant",
+		"# A component module",
+		"## What the code can be",
+		"## Views",
+		"## When it doesn't build",
+		"## Example: note",
+		"note.tutuca.ts:",
+		"## Example: score",
+		"# The module you're editing: mine",
+		'export const register = { Mine: "Mine" };',
+	]) {
 		assert.ok(prompt.includes(part), part);
 	}
+	assert.ok(!prompt.includes(".wax"), "nothing about Wax");
 });
 
 // What the model reads of a diagnostic: the line it points at, with carets

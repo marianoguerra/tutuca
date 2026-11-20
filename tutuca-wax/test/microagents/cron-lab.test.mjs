@@ -21,13 +21,13 @@ test("the sample's summary describes each cron, its next run and its expectation
 
 test("the rows show the runs in UTC and as they read in the cron's timezone", async () => {
 	const s = await session(await agent(ID), "schedules");
-	const [standup, backup] = s.get("cron_rows");
+	const [standup, backup] = s.get("cronRows");
 	assert.equal(standup.status, "pass");
-	assert.equal(standup.from_label, "next runs after 2025-03-07T12:00Z (computed in UTC, also shown in Europe/Berlin)");
+	assert.equal(standup.fromLabel, "next runs after 2025-03-07T12:00Z (computed in UTC, also shown in Europe/Berlin)");
 	assert.match(standup.runs[0].text, /^2025-03-10T09:30Z · 2025-03-10 10:30 /);
 	assert.equal(backup.runs[0].text, "2025-01-02T00:00Z");
-	assert.equal(backup.from_label, "next runs after 2025-01-01T00:00Z (computed in UTC)");
-	assert.equal(s.get("cron_rows")[4].error, "minute: 61 is out of range 0-59");
+	assert.equal(backup.fromLabel, "next runs after 2025-01-01T00:00Z (computed in UTC)");
+	assert.equal(s.get("cronRows")[4].error, "minute: 61 is out of range 0-59");
 });
 
 test("explain gives the fields and next runs; bad ids are errors", async () => {
@@ -42,84 +42,84 @@ test("explain gives the fields and next runs; bad ids are errors", async () => {
 	assert.equal((await s.call("explain", { id: "nope" })).isError, true);
 });
 
-test("next_runs looks further ahead, bounded to 1..100", async () => {
+test("nextRuns looks further ahead, bounded to 1..100", async () => {
 	const s = await session(await agent(ID), "schedules");
-	const out = await s.json("next_runs", { id: "poll", count: 3 });
+	const out = await s.json("nextRuns", { id: "poll", count: 3 });
 	assert.deepEqual(out, { id: "poll", from: "2025-01-01T00:00Z", runs: ["2025-01-01T08:00Z", "2025-01-01T08:15Z", "2025-01-01T08:30Z"] });
-	const day = await s.json("next_runs", { id: "poll", count: 45 });
+	const day = await s.json("nextRuns", { id: "poll", count: 45 });
 	assert.equal(day.runs[44], "2025-01-02T08:00Z");
-	assert.equal((await s.call("next_runs", { id: "poll", count: 0 })).isError, true);
-	assert.equal((await s.call("next_runs", { id: "broken", count: 3 })).isError, true);
+	assert.equal((await s.call("nextRuns", { id: "poll", count: 0 })).isError, true);
+	assert.equal((await s.call("nextRuns", { id: "broken", count: 3 })).isError, true);
 });
 
-test("set_expression and set_field change an expression; a bad id changes nothing", async () => {
+test("setExpression and setField change an expression; a bad id changes nothing", async () => {
 	const s = await session(await agent(ID), "schedules");
-	await s.call("set_expression", { id: "broken", expression: "59 23 * * *" });
+	await s.call("setExpression", { id: "broken", expression: "59 23 * * *" });
 	assert.equal(s.get("headline"), "5 expressions · 0 invalid · 2 pass · 0 fail");
-	await s.call("set_field", { id: "backup", name: "hour", value: "3" });
+	await s.call("setField", { id: "backup", name: "hour", value: "3" });
 	assert.equal(s.get("crons")[1].expression, "0 3 * * *");
 	assert.match(s.get("summary"), /backup: "0 3 \* \* \*" \(UTC\) "At 03:00", next 2025-01-01T03:00Z/);
 	const before = s.get("crons");
-	assert.equal((await s.call("set_expression", { id: "nope", expression: "* * * * *" })).isError, true);
-	assert.equal((await s.call("set_field", { id: "backup", name: "second", value: "1" })).isError, true);
+	assert.equal((await s.call("setExpression", { id: "nope", expression: "* * * * *" })).isError, true);
+	assert.equal((await s.call("setField", { id: "backup", name: "second", value: "1" })).isError, true);
 	assert.deepEqual(s.get("crons"), before);
 	assert.deepEqual(s.host.issues, []);
 });
 
 test("expectations: a moved reference time fails one; bad ISO times are rejected", async () => {
 	const s = await session(await agent(ID), "schedules");
-	await s.call("set_from", { id: "poll", iso: "2025-01-01T18:50:00Z" });
-	assert.equal(s.get("cron_rows")[2].status, "fail");
+	await s.call("setFrom", { id: "poll", iso: "2025-01-01T18:50:00Z" });
+	assert.equal(s.get("cronRows")[2].status, "fail");
 	assert.match(s.get("summary"), /expects next 2025-01-01T08:00:00Z: fail/);
-	await s.call("set_expected_next", { id: "poll", iso: "2025-01-02T08:00Z" });
-	assert.equal(s.get("cron_rows")[2].status, "pass");
-	await s.call("set_expected_next", { id: "poll", iso: "" });
-	assert.equal(s.get("cron_rows")[2].status, "none");
-	assert.equal((await s.call("set_expected_next", { id: "poll", iso: "tomorrow" })).isError, true);
-	assert.equal((await s.call("set_from", { id: "poll", iso: "soon" })).isError, true);
+	await s.call("setExpectedNext", { id: "poll", iso: "2025-01-02T08:00Z" });
+	assert.equal(s.get("cronRows")[2].status, "pass");
+	await s.call("setExpectedNext", { id: "poll", iso: "" });
+	assert.equal(s.get("cronRows")[2].status, "none");
+	assert.equal((await s.call("setExpectedNext", { id: "poll", iso: "tomorrow" })).isError, true);
+	assert.equal((await s.call("setFrom", { id: "poll", iso: "soon" })).isError, true);
 	assert.equal(s.get("headline"), "5 expressions · 1 invalid · 1 pass · 0 fail");
 	assert.deepEqual(s.host.issues, []);
 });
 
 test("the timezone shows the runs in another zone, never moving them", async () => {
 	const s = await session(await agent(ID), "schedules");
-	await s.call("set_timezone", { id: "backup", timezone: "America/New_York" });
-	const row = s.get("cron_rows")[1];
+	await s.call("setTimezone", { id: "backup", timezone: "America/New_York" });
+	const row = s.get("cronRows")[1];
 	assert.match(row.runs[0].text, /^2025-01-02T00:00Z · 2025-01-01 19:00 /);
-	await s.call("set_timezone", { id: "backup", timezone: "UTC" });
-	assert.equal(s.get("cron_rows")[1].runs[0].text, "2025-01-02T00:00Z");
+	await s.call("setTimezone", { id: "backup", timezone: "UTC" });
+	assert.equal(s.get("cronRows")[1].runs[0].text, "2025-01-02T00:00Z");
 });
 
 test("add, remove and reorder crons", async () => {
 	const s = await session(await agent(ID), "schedules");
-	await s.call("add_cron", { expression: "@hourly" });
+	await s.call("addCron", { expression: "@hourly" });
 	assert.deepEqual(ids(s), ["standup", "backup", "poll", "report", "broken", "c6"]);
 	assert.equal(s.get("crons")[5].timezone, "UTC");
-	await s.call("reorder_crons", { id: "c6", index: 0 });
+	await s.call("reorderCrons", { id: "c6", index: 0 });
 	assert.equal(ids(s)[0], "c6");
-	await s.call("remove_cron", { id: "broken" });
+	await s.call("removeCron", { id: "broken" });
 	assert.equal(ids(s).length, 5);
-	assert.equal((await s.call("remove_cron", { id: "broken" })).isError, true);
+	assert.equal((await s.call("removeCron", { id: "broken" })).isError, true);
 	assert.deepEqual(s.host.issues, []);
 });
 
 test("the builder's chips toggle values of the focused cron", async () => {
 	const s = await session(await agent(ID), "schedules");
 	s.send("focus", "backup");
-	assert.equal(s.get("focus_label"), "backup: @daily");
+	assert.equal(s.get("focusLabel"), "backup: @daily");
 	const chips = s.get("chips");
 	assert.equal(chips.length, 5 + 60 + 24 + 31 + 12 + 7);
 	assert.deepEqual(chips[0], { label: "minute", status: "label", title: "" });
 	assert.equal(chips[1].status, "on"); // minute 0
 	// hour 6: the hour label is at 61, hour 0 at 62.
-	s.send("toggle_chip", 68);
+	s.send("toggleChip", 68);
 	assert.equal(s.get("crons")[1].expression, "0 0,6 * * *");
 	// weekday MON: the weekday label is at 131, SUN at 132. * holds every day, so MON goes.
-	s.send("toggle_chip", 133);
+	s.send("toggleChip", 133);
 	assert.equal(s.get("crons")[1].expression, "0 0,6 * * 0,2-6");
-	s.send("toggle_chip", 133);
+	s.send("toggleChip", 133);
 	assert.equal(s.get("crons")[1].expression, "0 0,6 * * *");
-	s.send("toggle_chip", 131); // a label does nothing
+	s.send("toggleChip", 131); // a label does nothing
 	assert.equal(s.get("crons")[1].expression, "0 0,6 * * *");
 	assert.deepEqual(s.host.issues, []);
 });

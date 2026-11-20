@@ -1,14 +1,14 @@
-// The custom element studio.tcd's Editor holds. Its DOM is its own: the
+// The custom element studio.tutuca.ts's Editor holds. Its DOM is its own: the
 // renderer morphs only the nodes it made, so what it adds inside stays.
 //
-// tw-code-editor: a component's .tcd and .wax in CodeMirror (the playground's
-// editor). Its properties say what to show: name (the files are name.tcd and
-// name.wax), tcd and wax (their text: set from outside, they replace what's
-// shown; set to what it last said, they're already shown), current ("tcd" or
-// "wax"), diagnostics (tcd's, each { file, line, col, end_line, end_col,
-// severity, message }), and goto ("wax:12:5"), jumped to whenever jumps
-// changes. It fires tcd-change and wax-change, CustomEvents whose detail is
-// the file's text, as it's edited, and run on Ctrl/Cmd-Enter.
+// tw-code-editor: a component's pure-tutuca module (name.tutuca.ts,
+// TypeScript) in CodeMirror (the playground's editor). Its properties say
+// what to show: name (the file is name.tutuca.ts), source (its text: set from
+// outside, it replaces what's shown; set to what it last said, it's already
+// shown), diagnostics (pure-tutuca's, each { file, line, col, endLine, endCol,
+// severity, message }), and goto ("12:5"), jumped to whenever jumps changes.
+// It fires source-change, a CustomEvent whose detail is the text, as it's
+// edited, and run on Ctrl/Cmd-Enter.
 
 import { createEditor } from "../playground/deps/editor.js";
 
@@ -19,8 +19,7 @@ export function defineStudioElements(win = globalThis) {
 	class CodeEditor extends win.HTMLElement {
 		#editor = null;
 		#name = "";
-		#texts = { tcd: "", wax: "" };
-		#current = "tcd";
+		#source = "";
 		#diagnostics = [];
 		#goto = "";
 		#jumps = 0;
@@ -42,16 +41,12 @@ export function defineStudioElements(win = globalThis) {
 			this.#name = name;
 			this.#open();
 		}
-		set tcd(text) {
-			this.#setText("tcd", text);
-		}
-		set wax(text) {
-			this.#setText("wax", text);
-		}
-		set current(kind) {
-			if (kind === this.#current) return;
-			this.#current = kind;
-			this.#editor?.show(this.#file(kind));
+		set source(text) {
+			if (text === this.#source) return;
+			this.#source = text;
+			if (!this.#editor) return;
+			this.#editor.open(this.#file(), text, { lang: "ts" });
+			this.#showDiagnostics();
 		}
 		set diagnostics(list) {
 			this.#diagnostics = list ?? [];
@@ -63,35 +58,26 @@ export function defineStudioElements(win = globalThis) {
 		set jumps(n) {
 			if (n === this.#jumps) return;
 			this.#jumps = n;
-			const [kind, line, col] = this.#goto.split(":");
-			this.#current = kind;
-			this.#editor?.goto(this.#file(kind), Number(line), Number(col));
+			const [line, col] = this.#goto.split(":");
+			this.#editor?.goto(this.#file(), Number(line), Number(col));
 		}
 
-		#file(kind) {
-			return `${this.#name}.${kind}`;
+		#file() {
+			return `${this.#name}.tutuca.ts`;
 		}
-		// Both files afresh, under the name.
+		// The file afresh, under the name.
 		#open() {
 			const editor = this.#editor;
 			if (!editor) return;
 			for (const name of editor.names()) editor.remove(name);
-			for (const kind of ["tcd", "wax"]) editor.open(this.#file(kind), this.#texts[kind], { lang: kind });
-			editor.show(this.#file(this.#current));
-			this.#showDiagnostics();
-		}
-		#setText(kind, text) {
-			if (text === this.#texts[kind]) return;
-			this.#texts[kind] = text;
-			if (!this.#editor) return;
-			this.#editor.open(this.#file(kind), text, { lang: kind });
+			editor.open(this.#file(), this.#source, { lang: "ts" });
+			editor.show(this.#file());
 			this.#showDiagnostics();
 		}
 		#changed(file) {
-			const kind = file.endsWith(".wax") ? "wax" : "tcd";
 			const text = this.#editor.text(file);
-			this.#texts[kind] = text;
-			this.dispatchEvent(new win.CustomEvent(`${kind}-change`, { detail: text, bubbles: true }));
+			this.#source = text;
+			this.dispatchEvent(new win.CustomEvent("source-change", { detail: text, bubbles: true }));
 		}
 		#showDiagnostics() {
 			const byFile = {};
@@ -99,8 +85,8 @@ export function defineStudioElements(win = globalThis) {
 				(byFile[d.file] ??= []).push({
 					line: d.line,
 					col: d.col,
-					endLine: d.end_line,
-					endCol: d.end_col,
+					endLine: d.endLine,
+					endCol: d.endCol,
 					severity: d.severity === "note" ? "info" : d.severity,
 					message: d.message,
 				});

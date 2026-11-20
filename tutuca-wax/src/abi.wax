@@ -28,14 +28,24 @@ fn abi_value_bool(v: i32) -> &value {
     value_bool(v);
 }
 
-#[export = "value_int"]
-fn abi_value_int(v: i32) -> &value {
-    value_int(v);
+#[export = "value_undefined"]
+fn abi_value_undefined() -> &value {
+    value_undefined();
 }
 
-#[export = "value_float"]
-fn abi_value_float(v: f64) -> &value {
-    value_float(v);
+#[export = "value_number"]
+fn abi_value_number(n: f64) -> &value {
+    value_number(n);
+}
+
+#[export = "map_has"]
+fn abi_map_has(map: &value, key: js_string) -> i32 {
+    map_has(map, key);
+}
+
+#[export = "constraint_int"]
+fn abi_constraint_int() -> &constraint {
+    constraint_int();
 }
 
 #[export = "value_string"]
@@ -44,20 +54,32 @@ fn abi_value_string(v: js_string) -> &value {
 }
 
 // Calls the page's function name (runtime.defineHostFn) with args, a list
-// value, now: an ok result with what it returned, or an error result.
+// value, now: { ok: what it returned }, or { err: why it failed }.
 #[export = "host_call"]
 fn abi_host_call(name: js_string, args: &value) -> &value {
     host_call(name, args as &extern);
 }
 
-#[export = "value_ok"]
-fn abi_value_ok(v: &value) -> &value {
-    value_ok(v);
+// Outcomes (collections.wax): { ok: value } and { err: error }, whether one
+// is ok, and what it holds.
+#[export = "outcome_ok"]
+fn abi_outcome_ok(v: &value) -> &value {
+    outcome_ok(v);
 }
 
-#[export = "value_err"]
-fn abi_value_err(v: &value) -> &value {
-    value_err(v);
+#[export = "outcome_err"]
+fn abi_outcome_err(e: &value) -> &value {
+    outcome_err(e);
+}
+
+#[export = "outcome_is_ok"]
+fn abi_outcome_is_ok(o: &value) -> i32 {
+    outcome_is_ok(o);
+}
+
+#[export = "outcome_value"]
+fn abi_outcome_value(o: &value) -> &value {
+    outcome_value(o);
 }
 
 #[export = "value_component"]
@@ -78,11 +100,6 @@ fn abi_value_truthy(v: &value) -> i32 {
 #[export = "value_string_of"]
 fn abi_value_string_of(v: &value) -> js_string_opt {
     value_string_of(v);
-}
-
-#[export = "value_as_component"]
-fn abi_value_as_component(v: &value) -> &?component {
-    value_as_component(v);
 }
 
 // Text, as JS's string methods do it: s.slice(start, end) (negative
@@ -162,8 +179,7 @@ fn abi_list_assoc(list: &value, i: i32, item: &value) -> &value {
     list_assoc(list, i, item);
 }
 
-// Lists of records (maps): removing, inserting and moving items, finding
-// one by a member's string value, and the next free id (collections.wax).
+// Lists: removing and inserting items (collections.wax).
 #[export = "list_remove_at"]
 fn abi_list_remove_at(list: &value, i: i32) -> &value {
     list_remove_at(list, i);
@@ -172,21 +188,6 @@ fn abi_list_remove_at(list: &value, i: i32) -> &value {
 #[export = "list_insert"]
 fn abi_list_insert(list: &value, i: i32, item: &value) -> &value {
     list_insert(list, i, item);
-}
-
-#[export = "list_move"]
-fn abi_list_move(list: &value, from: i32, to: i32) -> &value {
-    list_move(list, from, to);
-}
-
-#[export = "list_find"]
-fn abi_list_find(list: &value, key: js_string, value: js_string) -> i32 {
-    list_find(list, key, value);
-}
-
-#[export = "list_next_id"]
-fn abi_list_next_id(list: &value, key: js_string, prefix: js_string) -> js_string {
-    list_next_id(list, key, prefix);
 }
 
 #[export = "list_pop"]
@@ -649,8 +650,9 @@ fn abi_component_apply(c: &value, name: js_string, args: &value_array) -> &value
     component_apply(c, name, args);
 }
 
-// The same as a result: Ok(the component after it), or Err({ code, issues,
-// detail, component, message }) for the handler to show or work around.
+// The same as an outcome: { ok: the component after it }, or { err: { code,
+// issues, detail, component, message } } for the handler to show or work
+// around.
 #[export = "component_try_apply"]
 fn abi_component_try_apply(c: &value, name: js_string, args: &value_array) -> &value {
     value_try_apply(c, name, args, 0);
@@ -839,11 +841,6 @@ fn abi_init_ok(instance: &eq, issues: &value) -> &init_result {
     init_ok(instance, issues);
 }
 
-#[export = "init_int"]
-fn abi_init_int(fields: &value, name: js_string, default: i32, issues: &value) -> (i32, &value) {
-    init_int(fields, name, default, issues);
-}
-
 #[export = "init_bool"]
 fn abi_init_bool(fields: &value, name: js_string, default: i32, issues: &value) -> (i32, &value) {
     init_bool(fields, name, default, issues);
@@ -864,44 +861,9 @@ fn abi_init_string(
     init_string(fields, name, default, issues);
 }
 
-#[export = "arg_int"]
-fn abi_arg_int(args: &value_array, i: i32) -> (i32, i32) {
-    arg_int(args, i);
-}
-
 #[export = "arg_bool"]
 fn abi_arg_bool(args: &value_array, i: i32) -> (i32, i32) {
     arg_bool(args, i);
-}
-
-#[export = "int_text"]
-fn abi_int_text(n: i32) -> js_string {
-    int_text(n);
-}
-
-#[export = "int_min"]
-fn abi_int_min(a: i32, b: i32) -> i32 {
-    int_min(a, b);
-}
-
-#[export = "int_max"]
-fn abi_int_max(a: i32, b: i32) -> i32 {
-    int_max(a, b);
-}
-
-#[export = "int_abs"]
-fn abi_int_abs(n: i32) -> i32 {
-    int_abs(n);
-}
-
-#[export = "int_clamp"]
-fn abi_int_clamp(n: i32, lo: i32, hi: i32) -> i32 {
-    int_clamp(n, lo, hi);
-}
-
-#[export = "parse_int"]
-fn abi_parse_int(s: js_string) -> (i32, i32) {
-    parse_int(s);
 }
 
 #[export = "number_text"]
@@ -914,21 +876,20 @@ fn abi_parse_number(s: js_string) -> (i32, f64) {
     parse_number(s);
 }
 
+// s as JS's Number(s) reads it: blank text is 0, what isn't a number NaN.
+#[export = "number_of_text"]
+fn abi_number_of_text(s: js_string) -> f64 {
+    if js_string_length(host_str_trim(s)) == 0 {
+        return 0.0;
+    }
+    host_parse_number(s);
+}
+
 // A value as JSON text, as JSON.stringify writes it, indented by indent
 // spaces (0: on one line).
 #[export = "value_json"]
 fn abi_value_json(v: &value, indent: i32) -> js_string {
     host_value_json(v as &extern, indent);
-}
-
-#[export = "json_string"]
-fn abi_json_string(s: js_string) -> js_string {
-    json_string(s);
-}
-
-#[export = "json_indent"]
-fn abi_json_indent(text: js_string) -> js_string {
-    json_indent(text);
 }
 
 // Schemas (schema.wax): value types, constraints, the schemas of fields,
@@ -950,14 +911,9 @@ fn abi_vtype_bool() -> &vtype {
     vtype_bool();
 }
 
-#[export = "vtype_int"]
-fn abi_vtype_int() -> &vtype {
-    vtype_int();
-}
-
-#[export = "vtype_float"]
-fn abi_vtype_float() -> &vtype {
-    vtype_float();
+#[export = "vtype_number"]
+fn abi_vtype_number() -> &vtype {
+    vtype_number();
 }
 
 #[export = "vtype_string"]
@@ -998,11 +954,6 @@ fn abi_vtype_one_of(types: &vtype_array) -> &vtype {
 #[export = "vtype_component"]
 fn abi_vtype_component(names: &str_array) -> &vtype {
     vtype_component(names);
-}
-
-#[export = "vtype_result"]
-fn abi_vtype_result(ok: &vtype, err: &vtype) -> &vtype {
-    vtype_result(ok, err);
 }
 
 #[export = "constraint_min"]
@@ -1154,6 +1105,13 @@ fn abi_message_schema_set_returns(ms: &message_schema, returns: &field_schema) -
     message_schema_set_returns(ms, returns);
 }
 
+// The schema of an ask's answer: ms names the ask, answer is answer_ok,
+// answer_error or answer_unhandled.
+#[export = "message_schema_set_answer"]
+fn abi_message_schema_set_answer(ms: &message_schema, answer: i32) -> &message_schema {
+    message_schema_set_answer(ms, answer);
+}
+
 #[export = "interface_schema_set_notifies"]
 fn abi_interface_schema_set_notifies(iface: &interface_schema, notifies: &message_schema_array) {
     interface_schema_set_notifies(iface, notifies);
@@ -1203,11 +1161,6 @@ fn abi_fs(name: js_string, vt: &vtype) -> &field_schema {
 #[export = "fs1"]
 fn abi_fs1(name: js_string, vt: &vtype, c: &constraint) -> &field_schema {
     fs1(name, vt, c);
-}
-
-#[export = "fs2"]
-fn abi_fs2(name: js_string, vt: &vtype, c1: &constraint, c2: &constraint) -> &field_schema {
-    fs2(name, vt, c1, c2);
 }
 
 #[export = "fields0"]
@@ -1300,76 +1253,6 @@ fn abi_init_fail(issues: &value, field: js_string, problem: js_string) -> &init_
 #[export = "message_result_of"]
 fn abi_message_result_of(prev: &eq, next: &eq) -> &message_result {
     message_result_of(prev, next);
-}
-
-#[export = "cond_eq"]
-fn abi_cond_eq(a: &value, b: &value) -> i32 {
-    cond_eq(a, b);
-}
-
-#[export = "cond_lt"]
-fn abi_cond_lt(a: &value, b: &value) -> i32 {
-    cond_lt(a, b);
-}
-
-#[export = "cond_le"]
-fn abi_cond_le(a: &value, b: &value) -> i32 {
-    cond_le(a, b);
-}
-
-#[export = "cond_gt"]
-fn abi_cond_gt(a: &value, b: &value) -> i32 {
-    cond_gt(a, b);
-}
-
-#[export = "cond_ge"]
-fn abi_cond_ge(a: &value, b: &value) -> i32 {
-    cond_ge(a, b);
-}
-
-#[export = "cond_add"]
-fn abi_cond_add(a: &value, b: &value) -> &value {
-    cond_add(a, b);
-}
-
-#[export = "cond_sub"]
-fn abi_cond_sub(a: &value, b: &value) -> &value {
-    cond_sub(a, b);
-}
-
-#[export = "cond_len"]
-fn abi_cond_len(v: &value) -> &value {
-    cond_len(v);
-}
-
-#[export = "cond_count"]
-fn abi_cond_count(v: &value) -> i32 {
-    cond_count(v);
-}
-
-#[export = "cond_item"]
-fn abi_cond_item(v: &value, i: i32) -> &value {
-    cond_item(v, i);
-}
-
-#[export = "cond_keys"]
-fn abi_cond_keys(v: &value) -> &value {
-    cond_keys(v);
-}
-
-#[export = "cond_values"]
-fn abi_cond_values(v: &value) -> &value {
-    cond_values(v);
-}
-
-#[export = "cond_in"]
-fn abi_cond_in(x: &value, xs: &value) -> i32 {
-    cond_in(x, xs);
-}
-
-#[export = "cond_matches"]
-fn abi_cond_matches(s: &value, pattern: js_string) -> i32 {
-    cond_matches(s, pattern);
 }
 
 #[export = "value_member"]

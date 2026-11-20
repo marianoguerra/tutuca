@@ -1,0 +1,352 @@
+// Generated using `moon info`, DON'T EDIT IT
+package "tutuca/pure-tutuca/check"
+
+import {
+  "moonbitlang/core/debug",
+  "moonbitlang/core/json",
+  "tutuca/pure-tutuca/diag",
+}
+
+// Values
+pub fn check_views(Package, ComponentM, Array[@diag.Diagnostic]) -> Unit
+
+pub let classes_meta : String
+
+pub fn closest(String, Array[String]) -> String?
+
+pub fn contradiction(Norm) -> String?
+
+pub fn did_you_mean(String, Array[String]) -> String
+
+pub let event_modifiers : Array[String]
+
+pub fn field_default(Ty, Norm) -> Val?
+
+pub fn has_length(Ty) -> Bool
+
+pub fn is_numeric(Ty) -> Bool
+
+pub fn needs_value(Ty, Norm) -> Bool
+
+pub fn norm_of_json(@json.Json?) -> Norm
+
+pub fn norm_text(Norm) -> String
+
+pub fn ty_text(Ty) -> String
+
+pub fn type_default(Ty) -> Val?
+
+pub fn unoption(Ty) -> Ty
+
+pub fn val_fits(Val, Ty) -> Bool
+
+pub fn val_meets(Val, Norm) -> Bool
+
+pub fn val_of_json(@json.Json) -> Val
+
+pub fn val_text(Val) -> String
+
+pub fn validate(Package) -> Array[@diag.Diagnostic]
+
+pub fn wax(String) -> String
+
+// Errors
+
+// Types and methods
+#derive(Eq, @debug.Debug, @json.ToJson)
+pub(all) struct AttrM {
+  name : String
+  value : ViewNode
+  span : @diag.Span
+}
+
+#derive(Eq, @debug.Debug, @json.ToJson)
+pub(all) struct Bound {
+  value : Double
+  exclusive : Bool
+}
+
+#derive(@debug.Debug, @json.ToJson)
+pub(all) struct ComponentM {
+  name : String
+  implements : Array[String]
+  fields : Array[FieldM]
+  gets : Array[FieldM]
+  messages : Array[MessageM]
+  notifies : Array[SignalM]
+  asks : Array[SignalM]
+  queries : Array[SignalM]
+  invariants : Array[InvariantM]
+  init_hook : Bool
+  loops : Array[LoopM]
+  scopes : Array[ScopeM]
+  provides : Array[ProvideM]
+  publics : Array[String]
+  metas : Array[MetaM]
+  views : Array[ViewM]
+  doc : String?
+  span : @diag.Span
+}
+pub fn ComponentM::field(Self, String) -> FieldM?
+pub fn ComponentM::message(Self, String) -> MessageM?
+pub fn ComponentM::property(Self, String) -> FieldM?
+
+#derive(Eq, @debug.Debug, @json.ToJson)
+pub(all) enum EmitKindM {
+  Notify
+  Ask
+  SendAt
+  Make
+  Reply
+}
+
+#derive(@debug.Debug, @json.ToJson)
+pub(all) struct EmitM {
+  kind : EmitKindM
+  name : String
+  target : String?
+  span : @diag.Span
+}
+
+#derive(@debug.Debug, @json.ToJson)
+pub(all) struct ExampleM {
+  name : String
+  component : String
+  start : Array[(String, Val)]
+  steps : Array[StepM]
+  span : @diag.Span
+}
+
+#derive(@debug.Debug, @json.ToJson)
+pub(all) struct FieldM {
+  name : String
+  ty : Ty
+  norm : Norm
+  default : Val?
+  required : Bool
+  make : String?
+  sync : SyncLevel
+  doc : String?
+  span : @diag.Span
+}
+
+#derive(@debug.Debug, @json.ToJson)
+pub(all) struct InterfaceM {
+  name : String
+  fields : Array[FieldM]
+  gets : Array[FieldM]
+  messages : Array[MessageM]
+  notifies : Array[SignalM]
+  queries : Array[SignalM]
+  declared_here : Bool
+  doc : String?
+  span : @diag.Span
+}
+
+#derive(@debug.Debug, @json.ToJson)
+pub(all) struct InvariantM {
+  name : String
+  doc : String?
+  span : @diag.Span
+}
+
+#derive(@debug.Debug, @json.ToJson)
+pub(all) struct LoopM {
+  name : String
+  prepare : Ty?
+  iter : Bool
+  key : Ty?
+  filter : Bool
+  enrich : Array[FieldM]?
+  view : String?
+  span : @diag.Span
+}
+
+#derive(@debug.Debug, @json.ToJson)
+pub(all) struct MessageM {
+  name : String
+  params : Array[FieldM]
+  pure_ : Bool
+  swap : Bool
+  source_key : FieldM?
+  why : String?
+  changes : Array[String]?
+  pre_entry : Bool
+  post_entry : Bool
+  emits : Array[EmitM]?
+  doc : String?
+  span : @diag.Span
+}
+
+#derive(@debug.Debug, @json.ToJson)
+pub(all) struct MetaM {
+  uri : String
+  value : Val
+  span : @diag.Span
+}
+pub fn MetaM::json(Self) -> @json.Json
+
+#derive(@debug.Debug, @json.ToJson)
+pub(all) struct MetaSchemaM {
+  name : String
+  uri : String
+  fields : Array[FieldM]
+  declared_here : Bool
+  doc : String?
+  span : @diag.Span
+}
+
+#derive(Eq, @debug.Debug, @json.ToJson)
+pub(all) struct Norm {
+  mut lo : Bound?
+  mut hi : Bound?
+  mut len_lo : Int32?
+  mut int : Bool
+  mut len_hi : Int32?
+  patterns : Array[String]
+  key_of : Array[String]
+}
+pub fn Norm::is_empty(Self) -> Bool
+pub fn Norm::new() -> Self
+
+#derive(Eq, @debug.Debug, @json.ToJson)
+pub(all) struct OnM {
+  event : String
+  mods : Array[String]
+  message : String
+  args : Array[SendArg]
+  span : @diag.Span
+}
+
+#derive(@debug.Debug, @json.ToJson)
+pub(all) struct Package {
+  full_name : String
+  name : String
+  components : Array[ComponentM]
+  interfaces : Array[InterfaceM]
+  meta_schemas : Array[MetaSchemaM]
+  registers : Array[RegisterM]
+  ask_handlers : Array[SignalM]
+  host_asks : Array[String]
+  examples : Array[ExampleM]
+}
+pub fn Package::component(Self, String) -> ComponentM?
+pub fn Package::interface_named(Self, String) -> InterfaceM?
+pub fn Package::members_of(Self, String) -> Array[FieldM]?
+pub fn Package::meta_schema_for(Self, String) -> MetaSchemaM?
+
+#derive(@debug.Debug, @json.ToJson)
+pub(all) struct ProvideM {
+  name : String
+  field : String
+  key : String?
+  span : @diag.Span
+}
+
+#derive(@debug.Debug, @json.ToJson)
+pub(all) struct RegisterM {
+  component : String
+  as_ : String
+}
+
+#derive(@debug.Debug, @json.ToJson)
+pub(all) struct ScopeM {
+  name : String
+  binds : Array[FieldM]
+  span : @diag.Span
+}
+
+#derive(Eq, @debug.Debug, @json.ToJson)
+pub(all) enum SendArg {
+  TargetValue(span~ : @diag.Span)
+  SourceKey(span~ : @diag.Span)
+  DragKey(span~ : @diag.Span)
+  Event(String, span~ : @diag.Span)
+  Value(Val, span~ : @diag.Span)
+  Cond(SendArg, SendArg, SendArg?, span~ : @diag.Span)
+}
+pub fn SendArg::span(Self) -> @diag.Span
+
+#derive(@debug.Debug, @json.ToJson)
+pub(all) struct SignalM {
+  name : String
+  params : Array[FieldM]
+  result : Ty?
+  emits : Array[EmitM]?
+  doc : String?
+  span : @diag.Span
+}
+
+#derive(@debug.Debug, @json.ToJson)
+pub(all) enum StepM {
+  Send(String, Array[Val], span~ : @diag.Span)
+  Expect(Array[(String, Val)], span~ : @diag.Span)
+}
+
+#derive(Eq, @debug.Debug, @json.ToJson)
+pub(all) enum SyncLevel {
+  Shared
+  Local
+  NoSync
+}
+
+#derive(Eq, @debug.Debug, @json.ToJson)
+pub(all) enum Ty {
+  Bool
+  F64
+  Str
+  Any
+  Null
+  Enum(Array[String])
+  Option(Ty)
+  List(Ty)
+  Map(Ty)
+  Record(Array[(String, Ty)])
+  OneOf(Array[Ty])
+  Comp(Array[String])
+}
+
+#derive(Eq, @debug.Debug, @json.ToJson)
+pub(all) enum Val {
+  VNull
+  VBool(Bool)
+  VNum(Double)
+  VStr(String)
+  VList(Array[Val])
+  VMap(Array[(String, Val)])
+  Unknown
+}
+pub fn Val::json(Self) -> @json.Json
+
+#derive(@debug.Debug, @json.ToJson)
+pub(all) struct ViewM {
+  name : String
+  target : String?
+  body : ViewNode
+  doc : String?
+  span : @diag.Span
+}
+
+#derive(Eq, @debug.Debug, @json.ToJson)
+pub(all) enum ViewNode {
+  Const(Val, span~ : @diag.Span)
+  Field(String, span~ : @diag.Span)
+  SeqItem(String, String, span~ : @diag.Span)
+  Provided(String, span~ : @diag.Span)
+  Query(String, Array[ViewNode], span~ : @diag.Span)
+  Bind(String, span~ : @diag.Span)
+  If(ViewNode, ViewNode, ViewNode?, span~ : @diag.Span)
+  Frag(Array[ViewNode], span~ : @diag.Span)
+  Render(ViewNode, String?, span~ : @diag.Span)
+  RenderEach(ViewNode, String?, span~ : @diag.Span)
+  Each(ViewNode, ViewNode, String?, span~ : @diag.Span)
+  RenderIt(String?, span~ : @diag.Span)
+  Scope(String, ViewNode, span~ : @diag.Span)
+  PushView(ViewNode, ViewNode, span~ : @diag.Span)
+  Element(tag~ : String, ns~ : String?, attrs~ : Array[AttrM], key~ : ViewNode?, children~ : Array[ViewNode], ons~ : Array[OnM], span~ : @diag.Span)
+}
+pub fn ViewNode::span(Self) -> @diag.Span
+
+// Type aliases
+
+// Traits

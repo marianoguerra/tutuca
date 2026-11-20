@@ -6,7 +6,6 @@ import { readFileSync } from "node:fs";
 import test, { after, before } from "node:test";
 import { createModels, fauxAssistantMessage, fauxProvider, fauxText, fauxToolCall } from "@earendil-works/pi-ai";
 import { chromium } from "playwright";
-import { EXAMPLES } from "../playground/examples.js";
 import { createStaticServer } from "../scripts/serve.mjs";
 import { createStudioServer } from "../scripts/studio-server.mjs";
 import { cases } from "./suite.mjs";
@@ -238,7 +237,7 @@ test("the studio makes screens in scopes, writes components from a hole, registe
 	// Saved and registered in a: back on the screen, the hole's list has it.
 	await page.locator("button", { hasText: "Save & register" }).click();
 	await stage.locator(".choices button", { hasText: /^Tasks$/ }).click();
-	// Being edited, it shows its layout_edit view; used, its main.
+	// Being edited, it shows its layoutEdit view; used, its main.
 	await stage.locator("[aria-label=Title]").waitFor();
 	await page.locator(".st-bar .screen-toggle").click();
 	await stage.locator("[aria-label='New task']").fill("first");
@@ -260,10 +259,10 @@ test("the studio makes screens in scopes, writes components from a hole, registe
 	await page.locator(".st-bar .screen-toggle").click();
 	await clickSlotButton(stage.locator(".slot-edit").first());
 	await page.locator(".st-editor-bar").waitFor();
-	const tcd = await page.evaluate(async () => (await fetch("/studio/assistant/examples/tasks.tcd")).text());
+	const starter = await page.evaluate(async () => (await fetch("/studio/assistant/examples/tasks.tutuca.ts")).text());
 	await page.locator(".st-editor .cm-content").click();
 	await page.keyboard.press("ControlOrMeta+a");
-	await page.keyboard.insertText(tcd.replace('placeholder: "Something to do"', 'placeholder: "What next?"'));
+	await page.keyboard.insertText(starter.replace('placeholder: "Something to do"', 'placeholder: "What next?"'));
 	await page.locator(".st-editor-bar button", { hasText: "Save" }).click();
 	// Made again, it's used, not edited, and the ✎'s ask reached its slot.
 	await stage.locator("[placeholder='What next?']").waitFor();
@@ -348,10 +347,10 @@ test("a copy of the layout in a screen's scope hides root's there, and the other
 	await clickSlotButton(stage.locator(".slot-edit").first());
 	await page.locator(".st-editor-bar").waitFor();
 	if ((await page.locator("[aria-label='Component name']").inputValue()) !== "layout") throw new Error("the Hbox's ✎ didn't open a's layout");
-	const tcd = await page.evaluate(async () => (await fetch("/components/layout/layout.tcd")).text());
+	const source = await page.evaluate(async () => (await fetch("/components/layout/layout.tutuca.ts")).text());
 	await page.locator(".st-editor .cm-content").click();
 	await page.keyboard.press("ControlOrMeta+a");
-	await page.keyboard.insertText(tcd.replace('view main = div(class: "hbox flex', 'view main = div(class: "hbox hbox-mine flex'));
+	await page.keyboard.insertText(source.replace('{ class: "hbox flex', '{ class: "hbox hbox-mine flex'));
 	await page.locator(".st-editor-bar button", { hasText: "Save" }).click();
 	await stage.locator(".hbox-mine").waitFor();
 	// The ✎'s ask, answered by the save, reaches the Hbox though the screen
@@ -412,7 +411,7 @@ test("the editor starts a component from an example, a prebuilt module's sources
 	await newStudioScreen(page, { scope: "a", name: "home" });
 	await page.locator(".st-bar .screen-toggle[aria-pressed=true]").waitFor();
 	await newStudioComponent(page);
-	// todo_item uses ../todo_list/todo_list.tcd: the prebuilt's, found by the path.
+	// todo_item imports ../todo_list/todo_list.tutuca: the prebuilt's, found by the path.
 	await examples.selectOption("todo_item");
 	await page.waitForFunction(() => /registers TodoItem/.test(document.querySelector(".st-status")?.textContent ?? ""));
 	if ((await page.locator("[aria-label='Component name']").inputValue()) !== "todo_item") throw new Error("a new component doesn't take the example's name");
@@ -479,8 +478,9 @@ test("a component exported as its .wasm carries its sources, and dropped on anot
 	await page.locator(".st-toast-error").click();
 	await page.locator(".st-toast-error").waitFor({ state: "detached" });
 	const [todoList] = await studioRecords(page, "components");
-	const tcd = await page.evaluate(async () => (await fetch("/components/todo_list/todo_list.tcd")).text());
-	if (todoList?.name !== "todo_list" || todoList.tcd !== tcd || !todoList.wax.includes("todo_list_on_add_todo")) throw new Error("todo_list wasn't kept with its sources");
+	// Its module is all of it.
+	const source = await page.evaluate(async () => (await fetch("/components/todo_list/todo_list.tutuca.ts")).text());
+	if (todoList?.name !== "todo_list" || todoList.source !== source) throw new Error("todo_list wasn't kept with its source");
 	const scopeB = (await studioRecords(page, "scopes")).find((s) => s.name === "b");
 	if (scopeB.registrations.map((r) => r.component).join() !== todoList.id) throw new Error("todo_list wasn't registered in b");
 	// Made again with it, used: edited, a hole there makes it. A prebuilt
@@ -538,16 +538,16 @@ test("kanban.wasm, dropped on a screen, is a board whose cards drag between lane
 		if (JSON.stringify(got) !== JSON.stringify(want)) throw new Error(`${what}: ${JSON.stringify(got)}`);
 	};
 	const card = (text) => stage.locator(".kanban-card", { hasText: text });
-	await card("Write the .tcd").waitFor();
+	await card("Write the module").waitFor();
 	// Onto a lane: at its end. Onto a card: before it, from another lane.
 	await card("Drop a .wasm").dragTo(stage.locator(".kanban-lane[data-lane=doing] h3"));
-	await card("Export the board").dragTo(card("Write the .tcd"));
-	await expectLanes(["Cards forget their lane", "Drag cards between lanes|Drop a .wasm on a screen", "Export the board|Write the .tcd"], "after the drags");
+	await card("Export the board").dragTo(card("Write the module"));
+	await expectLanes(["Cards forget their lane", "Drag cards between lanes|Drop a .wasm on a screen", "Export the board|Write the module"], "after the drags");
 	// Added to the first lane, then over Doing's limit of 2.
 	await stage.locator(".kanban-draft").fill("A new idea");
 	await stage.locator(".kanban-draft").press("Enter");
 	await card("A new idea").dragTo(card("Drag cards between"));
-	await expectLanes(["Cards forget their lane", "A new idea|Drag cards between lanes|Drop a .wasm on a screen", "Export the board|Write the .tcd"], "after adding");
+	await expectLanes(["Cards forget their lane", "A new idea|Drag cards between lanes|Drop a .wasm on a screen", "Export the board|Write the module"], "after adding");
 	if ((await stage.locator(".kanban-lane.over .kanban-count").textContent()) !== "3/2") throw new Error("Doing doesn't say it's over its limit");
 	// Tagged, removed, and the progress counts the last lane's.
 	await card("A new idea").locator(".kanban-tag").click();
@@ -570,32 +570,26 @@ test("served with an API, the studio's assistant edits a component, and is told 
 	const models = createModels();
 	const faux = fauxProvider({ provider: "faux", models: [{ id: "faux-coder", name: "Faux coder" }] });
 	models.setProvider(faux.provider);
-	const clicker = EXAMPLES.find((e) => e.id === "clicker");
-	const tcd = clicker.sources[clicker.main]
-		.replace("    pure message reset()", "    pure message double() changes count, best;\n    pure message reset()")
-		.replace('button(class: "btn btn-sm btn-ghost", on_click: send(reset), "reset")', 'button(class: "btn btn-sm", on_click: send(double), "×2"),\n        button(class: "btn btn-sm btn-ghost", on_click: send(reset), "reset")');
-	const wax = `${clicker.sources[clicker.impl]}
-fn clicker_on_double(state: &clicker_state) -> &clicker_state {
-    let count = state.count * 2;
-    let best = state.best;
-    if count >s best {
-        best = count;
-    }
-    {clicker_state| count, best };
-}
-`;
+	const tasks = readFileSync(new URL("../studio/assistant/examples/tasks.tutuca.ts", import.meta.url), "utf8");
+	const idea = 'button({ class: "btn btn-sm join-item", title: "Suggest one", "on:click": send("suggestOne") }, "idea"),';
+	// Its first try sends a message there's none of; its second adds it.
+	const withButton = tasks.replace(idea, `${idea}\n\t\t\tbutton({ class: "btn btn-sm join-item", "on:click": send("clearAll") }, "×all"),`);
+	const withMessage = withButton.replace(
+		"\t\tsuggestOne: {",
+		'\t\tclearAll: {\n\t\t\tpure: true,\n\t\t\tchanges: ["items"],\n\t\t\trun(next, []: []) {\n\t\t\t\tnext.items = [];\n\t\t\t},\n\t\t},\n\t\tsuggestOne: {',
+	);
 	const told = [];
 	const system = (context) => context.messages.find((m) => m.role === "system");
 	const textOf = (m) => (typeof m.content === "string" ? m.content : m.content.map((b) => b.text ?? "").join(""));
 	faux.setResponses([
 		(context) => {
 			told.push({ prompt: textOf(system(context)), tools: (system(context).toolsAdded ?? []).map((t) => t.name) });
-			return fauxAssistantMessage([fauxText("Adding a ×2 button."), fauxToolCall("write_component", { tcd })], { stopReason: "toolUse" });
+			return fauxAssistantMessage([fauxText("Adding a button that clears the list."), fauxToolCall("write_component", { source: withButton })], { stopReason: "toolUse" });
 		},
 		(context) => {
 			const last = context.messages.at(-1);
 			told.push({ result: last.role === "toolResult" && last.isError ? textOf(last) : null });
-			return fauxAssistantMessage([fauxText("And its handler."), fauxToolCall("write_component", { wax })], { stopReason: "toolUse" });
+			return fauxAssistantMessage([fauxText("And its message."), fauxToolCall("write_component", { source: withMessage })], { stopReason: "toolUse" });
 		},
 	]);
 	// The faux model isn't one studio-models.mjs offers: offer it anyway.
@@ -611,28 +605,28 @@ fn clicker_on_double(state: &clicker_state) -> &clicker_state {
 		await newStudioComponent(page);
 		await page.locator("button", { hasText: "Assistant" }).click();
 		if ((await page.locator(".st-model").inputValue()) !== "faux/faux-coder") throw new Error("the model offered isn't the faux one");
-		await page.locator(".st-chat-input").fill("Add a button that doubles the count");
+		await page.locator(".st-chat-input").fill("Add a button that clears the list");
 		await page.locator(".st-chat button", { hasText: "Send" }).click();
-		await page.locator(".st-chat-ok", { hasText: "It built: tasks registers Clicker" }).waitFor();
+		await page.locator(".st-chat-ok", { hasText: "It built: tasks registers Tasks" }).waitFor();
 		// Done: no bubble saying it's still thinking.
 		await page.locator(".st-chat-thinking").waitFor({ state: "detached" });
 		// What the model was told: the reference, the examples, the module as
 		// it was, the tool; then why its first try didn't build.
 		const [first, second] = told;
-		for (const part of ["# The .tcd language", "## Example: checklist", "## Example: tasks", "fn list_push(", "# The module you're editing: tasks", "message bump(at: index<items>)"]) {
+		for (const part of ["# A component module", "## Example: checklist", "## Example: tasks", "# The module you're editing: tasks", "clearDone: {"]) {
 			if (!first.prompt.includes(part)) throw new Error(`the system prompt lacks ${part}`);
 		}
 		if (first.tools.join() !== "write_component") throw new Error(`tools: ${first.tools}`);
-		if (!/clicker_on_double/.test(second.result ?? "")) throw new Error(`the failed build's result: ${second.result}`);
+		if (!/clearAll/.test(second.result ?? "")) throw new Error(`the failed build's result: ${second.result}`);
 		// The transcript shows both tries, and the preview has the button.
 		if ((await page.locator(".st-chat-error", { hasText: "it didn't build" }).count()) !== 1) throw new Error("the failed try isn't shown");
-		await page.locator(".st-preview button", { hasText: "×2" }).waitFor();
+		await page.locator(".st-preview button", { hasText: "×all" }).waitFor();
 		// Kept, chat and all, once it's saved.
 		if ((await studioRecords(page, "components")).length !== 0) throw new Error("a new component was kept before it was saved");
 		await page.locator("button", { hasText: "Save & register" }).click();
 		await status(/tasks registered in a/);
 		const [kept] = await studioRecords(page, "components");
-		if (!kept.tcd.includes("message double()") || !kept.wax.includes("fn clicker_on_double") || !kept.build.ok) throw new Error("the component wasn't kept as the model left it");
+		if (!kept.source.includes("clearAll: {") || !kept.build.ok) throw new Error("the component wasn't kept as the model left it");
 		if (kept.chat.map((m) => m.role).join() !== "user,assistant,toolResult,assistant,toolResult") throw new Error(`the transcript: ${kept.chat.map((m) => m.role)}`);
 		if (errors.length > 0) throw new Error(errors.join("; "));
 	} finally {
@@ -642,26 +636,19 @@ fn clicker_on_double(state: &clicker_state) -> &clicker_state {
 });
 
 test("the studio's assistant is shown the line each error points at, told when an error survived its change, and stopped when two tries leave the same errors", async () => {
-	// A scripted model that writes the same mistake three times: an i32
-	// compared with >=.
+	// A scripted model that writes the same mistake three times: an empty
+	// list nothing says the type of.
 	const models = createModels();
 	const faux = fauxProvider({ provider: "faux", models: [{ id: "faux-coder", name: "Faux coder" }] });
 	models.setProvider(faux.provider);
-	const clicker = EXAMPLES.find((e) => e.id === "clicker");
-	const wax = `${clicker.sources[clicker.impl]}
-fn clicker_capped(state: &clicker_state) -> i32 {
-    if state.count >= 10 {
-        return 10;
-    }
-    state.count;
-}
-`;
+	const tasks = readFileSync(new URL("../studio/assistant/examples/tasks.tutuca.ts", import.meta.url), "utf8");
+	const broken = tasks.replace('\t\t\t\tctx.ask("suggest", [this.items.length]);', '\t\t\t\tconst ideas = [];\n\t\t\t\tctx.ask("suggest", [this.items.length]);');
 	const results = [];
 	const textOf = (m) => (typeof m.content === "string" ? m.content : m.content.map((b) => b.text ?? "").join(""));
 	const write = (context) => {
 		const last = context.messages.at(-1);
 		if (last.role === "toolResult") results.push(textOf(last));
-		return fauxAssistantMessage([fauxText("Capping the count."), fauxToolCall("write_component", { tcd: clicker.sources[clicker.main], wax })], { stopReason: "toolUse" });
+		return fauxAssistantMessage([fauxText("Keeping ideas."), fauxToolCall("write_component", { source: broken })], { stopReason: "toolUse" });
 	};
 	faux.setResponses([write, write, write, write]);
 	const studio = createStudioServer({ models, offer: () => true });
@@ -674,7 +661,7 @@ fn clicker_capped(state: &clicker_state) -> i32 {
 		await newStudioScreen(page, { scope: "a", name: "home" });
 		await newStudioComponent(page);
 		await page.locator("button", { hasText: "Assistant" }).click();
-		await page.locator(".st-chat-input").fill("Cap the count at 10");
+		await page.locator(".st-chat-input").fill("Keep the ideas");
 		await page.locator(".st-chat button", { hasText: "Send" }).click();
 		await page.locator(".st-chat", { hasText: "Stopped: the last two tries left the same errors" }).waitFor();
 		await page.locator(".st-chat-thinking").waitFor({ state: "detached" });
@@ -682,8 +669,8 @@ fn clicker_capped(state: &clicker_state) -> i32 {
 		if (results.length !== 2) throw new Error(`the model was told ${results.length} times`);
 		const [first, second] = results;
 		// The line the error points at, with carets under the operator, and the hint.
-		if (!first.includes("|     if state.count >= 10 {") || !/\|\s+\^\^/.test(first)) throw new Error(`no excerpt: ${first}`);
-		if (!first.includes("compare with <s <=s >s >=s")) throw new Error(`no hint: ${first}`);
+		if (!first.includes("const ideas = [];") || !/\|\s+\^\^/.test(first)) throw new Error(`no excerpt: ${first}`);
+		if (!first.includes("annotate it")) throw new Error(`no hint: ${first}`);
 		if (first.includes("there after your last change too")) throw new Error("the first try's error is marked as a repeat");
 		if (!second.includes("there after your last change too")) throw new Error(`the repeat isn't marked: ${second}`);
 		if (errors.length > 0) throw new Error(errors.join("; "));
@@ -693,7 +680,7 @@ fn clicker_capped(state: &clicker_state) -> i32 {
 	}
 });
 
-test("the playground compiles components in the browser, reports errors, adds missing functions, and composes with prebuilt modules", async () => {
+test("the playground compiles components in the browser, reports errors, and composes with prebuilt modules", async () => {
 	const page = await browser.newPage();
 	const errors = [];
 	page.on("pageerror", (error) => errors.push(error.message));
@@ -719,33 +706,21 @@ test("the playground compiles components in the browser, reports errors, adds mi
 	await page.locator(".pg-stage button", { hasText: "click" }).click();
 	if (JSON.stringify(await state()) !== JSON.stringify({ $: "Clicker", count: 2, best: 2 })) throw new Error(`unexpected state: ${JSON.stringify(await state())}`);
 	// The generated files are tabs too.
-	for (const name of ["mine.contract.wax", "mine.glue.wax", "mine.abi.wax", "clicker.model.json"]) await tab(name).waitFor();
+	for (const name of ["clicker.impl.wax", "clicker.contract.wax", "clicker.glue.wax", "clicker.abi.wax", "clicker.model.json"]) await tab(name).waitFor();
 	// Test runs the model's example and random walks.
 	await page.locator(".pg-toolbar button", { hasText: "Test" }).click();
-	await page.locator(".pg-events div", { hasText: "example best_stays: passed" }).waitFor();
+	await page.locator(".pg-events div", { hasText: "example bestStays: passed" }).waitFor();
 	await page.locator(".pg-events div", { hasText: "Clicker: 25 random walks found nothing" }).waitFor();
-	// A type error in the .wax: a diagnostic at its line, and no module.
-	await tab("clicker.wax").click();
+	// An error in the module: a diagnostic at its line, and no module.
+	await tab("clicker.tutuca.ts").click();
 	await page.locator(".cm-content").click();
 	await page.keyboard.press("Control+End");
-	await page.keyboard.type("\nfn clicker_oops() -> i32 { nope; }\n");
-	const line = await page.locator(".cm-line").count();
-	if (!(await compile()).startsWith("didn't build")) throw new Error("a broken .wax built");
+	await page.keyboard.type("export const oops = [];\n");
+	if (!(await compile()).startsWith("didn't build")) throw new Error("a broken module built");
 	const diag = await page.locator(".pg-diagnostic").first().textContent();
-	if (!diag.includes(`clicker.wax:${line - 1}:`) || !diag.includes("nope")) throw new Error(`unexpected diagnostic: ${diag}`);
+	if (!/clicker\.tutuca\.ts:\d+:21 /.test(diag) || !diag.includes("empty list")) throw new Error(`unexpected diagnostic: ${diag}`);
 	await page.locator(".cm-lintRange-error").first().waitFor();
 	if (!(await press("Reset")).startsWith("built in")) throw new Error("Reset didn't build");
-	// A new message in the .tcd lacks its function; Add missing functions writes it.
-	await tab("clicker.tcd").click();
-	await page.locator(".cm-line", { hasText: "message reset()" }).click();
-	await page.keyboard.press("End");
-	await page.keyboard.type("\nmessage halve() changes count;");
-	if (!(await compile()).startsWith("didn't build")) throw new Error("a message without its function built");
-	if (!(await page.locator(".pg-diagnostics").textContent()).includes("clicker_on_halve")) throw new Error("the missing function isn't reported");
-	if (!(await press("Add missing functions")).startsWith("built in")) throw new Error(`didn't build after adding: ${await page.locator(".pg-diagnostics").textContent()}`);
-	if (!(await page.locator(".cm-content").textContent()).includes("fn clicker_on_halve(state: &clicker_state, ctx: &context) -> &clicker_state")) {
-		throw new Error("the stub wasn't added to the .wax");
-	}
 	// Composition: the compiled TodoCard in the prebuilt TodoList.
 	await page.locator("select").first().selectOption("todo_card");
 	await page.waitForFunction(() => document.querySelector(".pg-stage li.todo-card"));

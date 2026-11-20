@@ -1,5 +1,5 @@
 // The page's functions agents call now (host_call), by module. An agent's
-// manifest names the modules it needs ("hostFns": ["jq"]), and the shell
+// manifest names the modules it needs ("hostModules": ["jq"]), and the shell
 // defines their functions (runtime.defineHostFn) before loading it. A
 // module is { bundle, make }: bundle names the engine it needs in
 // dist/engines/ (or null), loaded once; make(engine) gives its functions,
@@ -17,7 +17,7 @@ import * as jsonpath from "./jsonpath.js";
 import * as regex from "./regex.js";
 import * as vega from "./vega.js";
 
-export const HOST_FN_MODULES = { cron, datefmt, echarts, glob, jq, json_schema, jsonpath, regex, vega };
+export const HOST_MODULES = { cron, datefmt, echarts, glob, jq, json_schema, jsonpath, regex, vega };
 
 // An engine bundle of dist/engines/, imported once.
 const bundles = new Map();
@@ -31,15 +31,17 @@ const defined = new WeakMap();
 
 // Defines the functions of the modules names in runtime (js/tutuca-rt.js's
 // runtime), loading the engines they need.
-export async function defineHostFns(runtime, names) {
+export async function defineHostModules(runtime, names) {
 	if (!defined.has(runtime)) defined.set(runtime, new Set());
 	const done = defined.get(runtime);
 	for (const name of names) {
 		if (done.has(name)) continue;
-		const module = HOST_FN_MODULES[name];
-		if (!module) throw new Error(`there are no host functions ${name}`);
+		const module = HOST_MODULES[name];
+		if (!module) throw new Error(`there is no host module ${name}`);
 		const engine = module.bundle ? await loadBundle(module.bundle) : null;
-		for (const [fn, impl] of Object.entries(await module.make(engine))) runtime.defineHostFn(fn, impl);
+		// A typed host module's members are Module.member, as its agents' calls name them.
+		const prefix = module.declaration ? `${module.declaration.module}.` : "";
+		for (const [fn, impl] of Object.entries(await module.make(engine))) runtime.defineHostFn(`${prefix}${fn}`, impl);
 		done.add(name);
 	}
 }

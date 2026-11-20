@@ -1,11 +1,11 @@
-// A micro-agent is one component module (a .wasm tcd built) with a custom
+// A micro-agent is one component module (a .wasm pure-tutuca built) with a custom
 // section named "microagent" holding its metadata as JSON:
 //
 //   { format: 1, id, title, description, needs, icon, version, root,
-//     hostFns?: [engines/ modules], prompt, skills: { path: text }, tools: [{ name, kind, description?,
+//     hostModules?: [engines/ modules], prompt, skills: { path: text }, tools: [{ name, kind, description?,
 //     result? }], toolViews?: { tool: type }, samples: { name: json } }
 //
-// Its root type implements kit.tcd's MicroAgent (summary, domain, data). A
+// Its root type implements kit.tutuca.ts's MicroAgent (summary, domain, data). A
 // JSON document opens with an agent when the root makes from it with no
 // issue but missing fields that have defaults: the root's fields are the
 // document's keys, so its types and where clauses say what it opens. A
@@ -13,7 +13,7 @@
 // arguments' names and types come from the root's schema.
 
 import { customSection, withCustomSection } from "../js/tutuca-rt.js";
-import { defineHostFns, HOST_FN_MODULES } from "./engines/index.js";
+import { defineHostModules, HOST_MODULES } from "./engines/index.js";
 
 export const AGENT_SECTION = "microagent";
 export const AGENT_FORMAT = 1;
@@ -41,8 +41,8 @@ export function metaProblems(meta) {
 		if (!TOOL_KINDS.has(tool.kind)) out.push(`tool ${tool.name} has kind ${tool.kind}, not message or view`);
 	}
 	if (meta?.samples?.empty === undefined) out.push('there is no "empty" sample');
-	for (const name of meta?.hostFns ?? []) {
-		if (!(name in HOST_FN_MODULES)) out.push(`there are no host functions ${name}`);
+	for (const name of meta?.hostModules ?? []) {
+		if (!(name in HOST_MODULES)) out.push(`there is no host module ${name}`);
 	}
 	return out;
 }
@@ -120,7 +120,7 @@ export async function loadAgent(tw, bytes, parent) {
 	const scope = tw.runtime.enter(parent, `agent:${meta.id}`);
 	const agent = { meta, scope, problems, classes: [] };
 	try {
-		await defineHostFns(tw.runtime, meta.hostFns ?? []);
+		await defineHostModules(tw.runtime, meta.hostModules ?? []);
 	} catch (error) {
 		problems.push(`its host functions don't load: ${error.message}`);
 		return agent;

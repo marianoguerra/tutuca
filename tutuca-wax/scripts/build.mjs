@@ -84,44 +84,56 @@ export const componentPrelude = (name) => ["prelude/js_string.wax", COLLECTION_T
 // The component modules: each a .wasm of its own, exporting tutuca_register and
 // tutuca_abi_version (README.md has the convention).
 export const COMPONENTS = [
-	// Defined in TCD (tcd/): tcd generates the boilerplate, the .wax has the rest.
-	{ name: "counter", tcd: "components/counter/counter.tcd", impl: ["components/counter/counter.wax"] },
-	{ name: "todo_item", tcd: "components/todo_item/todo_item.tcd", impl: ["components/todo_item/todo_item.wax"] },
-	{ name: "todo_list", tcd: "components/todo_list/todo_list.tcd", impl: ["components/todo_list/todo_list.wax"] },
+	// pure-tutuca modules (pure-tutuca/ compiles them); probe is hand-written Wax, the runtime's test code.
+	{ name: "counter", module: "components/counter/counter.tutuca.ts" },
+	{ name: "todo_item", module: "components/todo_item/todo_item.tutuca.ts" },
+	{ name: "todo_list", module: "components/todo_list/todo_list.tutuca.ts" },
 	// Another TodoItem, as a card: the same interface, another implementation.
-	{ name: "todo_card", tcd: "components/todo_card/todo_card.tcd", impl: ["components/todo_card/todo_card.wax"] },
+	{ name: "todo_card", module: "components/todo_card/todo_card.tutuca.ts" },
 	// Shelf and Note: scopes, loop hooks, provided values, pushView, renderIt.
-	{ name: "showcase", tcd: "components/showcase/showcase.tcd", impl: ["components/showcase/showcase.wax"] },
+	{ name: "showcase", module: "components/showcase/showcase.tutuca.ts" },
 	{ name: "probe", sources: ["components/probe/probe.wax"] },
 	// For js/pbt.js's tests: a seeded bug, a message that can't be enabled.
-	{ name: "pbt", tcd: "components/pbt/pbt.tcd", impl: ["components/pbt/pbt.wax"] },
-	{ name: "json", tcd: "components/json/json.tcd", impl: ["components/json/json.wax"] },
+	{ name: "pbt", module: "components/pbt/pbt.tutuca.ts" },
+	{ name: "json", module: "components/json/json.tutuca.ts" },
 	// Dot, Sum and Rating: views in SVG, MathML and a custom element.
-	{ name: "media", tcd: "components/media/media.tcd", impl: ["components/media/media.wax"] },
-	// The well-known meta schemas: display and canvas.
-	{ name: "meta", tcd: "components/meta/meta.tcd", impl: ["components/meta/meta.wax"] },
+	{ name: "media", module: "components/media/media.tutuca.ts" },
+	// The well-known meta schemas: display, classes and canvas (pure-tutuca).
+	{ name: "meta", module: "components/meta/meta.tutuca.ts" },
 	// Hbox, Vbox, Tabs and Grid, and the Hole that turns into a type its scope lists.
-	{ name: "layout", tcd: "components/layout/layout.tcd", impl: ["components/layout/layout.wax"] },
+	{ name: "layout", module: "components/layout/layout.tutuca.ts" },
 	// Kanban: lanes of cards dragged between them, a module needing nothing of its scope.
-	{ name: "kanban", tcd: "components/kanban/kanban.tcd", impl: ["components/kanban/kanban.wax"] },
+	{ name: "kanban", module: "components/kanban/kanban.tutuca.ts" },
 	// The studio's own tabs, scope picker and menu (studio/studio.js hosts them).
-	{ name: "studio", tcd: "studio/studio.tcd", impl: ["studio/studio.wax"] },
+	{ name: "studio", module: "studio/studio.tutuca.ts" },
 	// The micro-agents' kit: the MicroAgent interface their roots implement.
-	{ name: "microagent_kit", tcd: "microagents/kit/kit.tcd", impl: ["microagents/kit/kit.wax"] },
+	{ name: "microagent_kit", module: "microagents/kit/kit.tutuca.ts" },
 	// The micro-agents' shell: the agents, the sessions, the chat (microagents/main.js hosts it).
-	{ name: "microagents", tcd: "microagents/microagents.tcd", impl: ["microagents/microagents.wax"] },
+	{ name: "microagents", module: "microagents/microagents.tutuca.ts" },
 ];
 
-// The micro-agents (microagents/agents/<id>/): each built from its agent.tcd
-// and agent.wax, then packed with its folder's metadata
+// The micro-agents (microagents/agents/<id>/): each built from its
+// agent.tutuca.ts, then packed with its folder's metadata
 // (scripts/pack-agent.mjs) into dist/agents/<id>.wasm.
 const AGENTS_DIR = "microagents/agents";
 export const agentIds = () =>
 	existsSync(join(root, AGENTS_DIR))
 		? readdirSync(join(root, AGENTS_DIR))
-				.filter((id) => existsSync(join(root, AGENTS_DIR, id, "agent.tcd")))
+				.filter((id) => existsSync(join(root, AGENTS_DIR, id, "agent.tutuca.ts")))
 				.sort()
 		: [];
+
+// The engines' host modules (microagents/engines/), each declaration where
+// pure-tutuca reads it: dist/engines/<name>.host.json, for the agents that import it.
+const { HOST_MODULES } = await import("../microagents/engines/index.js");
+const hostDeclaration = (name) => `dist/engines/${name}.host.json`;
+function writeHostDeclarations() {
+	mkdirSync(join(root, "dist/engines"), { recursive: true });
+	for (const [name, module] of Object.entries(HOST_MODULES)) {
+		if (module.declaration) writeFileSync(join(root, hostDeclaration(name)), `${JSON.stringify(module.declaration, null, "\t")}\n`);
+	}
+	return "dist/engines/*.host.json";
+}
 
 // The engines the micro-agents' host functions use (microagents/engines/):
 // the bundles tutuca's scripts/vendor.js makes in ../demos/deps/, copied to
@@ -156,17 +168,35 @@ function writeAgentIndex() {
 
 function buildAgent(id) {
 	const dir = `${AGENTS_DIR}/${id}`;
-	const out = buildTcd({ name: `agents/${id}`, tcd: `${dir}/agent.tcd`, impl: [`${dir}/agent.wax`] });
+	const manifest = JSON.parse(readFileSync(join(root, dir, "manifest.json"), "utf8"));
+	const out = buildModule({
+		name: `agents/${id}`,
+		module: `${dir}/agent.tutuca.ts`,
+		hosts: (manifest.hostModules ?? []).filter((h) => HOST_MODULES[h]?.declaration).map(hostDeclaration),
+	});
 	const model = JSON.parse(readFileSync(join(root, `dist/agents/${id}.model.json`), "utf8"));
 	writeFileSync(join(root, `dist/agents/${id}.wasm`), packAgentDir(join(root, dir), readFileSync(join(root, `dist/agents/${id}.wasm`)), model));
 	return out;
 }
 
 
+// The pure-tutuca corpus's accepted modules (../spec/pure-tutuca), compiled
+// as pure-tutuca compiles a .tutuca.ts: its functions lowered to Wax, its model read
+// from the module. test/pure-tutuca.test.mjs runs them.
+export const PURE_CORPUS = "../spec/pure-tutuca/conformance/accept";
+export const PURE_MODULES = ["counter", "todo-list", "todo-item", "todo-items", "gauge", "bag", "words", "meta-schemas", "scope-make"];
+// The page's host modules a corpus module imports (../spec/pure-tutuca/host/<name>.json).
+export const PURE_HOSTS = { words: ["words"] };
+
 const TARGETS = [
 	{ name: "tutuca-rt", sources: SOURCES },
-	...COMPONENTS.map(({ name, sources, tcd, impl }) =>
-		tcd ? { name: `components/${name}`, tcd, impl } : { name: `components/${name}`, sources: [...componentPrelude(name), ...sources] },
+	...PURE_MODULES.map((name) => ({
+		name: `pure-tutuca/${name}`,
+		module: `${PURE_CORPUS}/${name}.tutuca.ts`,
+		hosts: (PURE_HOSTS[name] ?? []).map((h) => `${PURE_CORPUS}/../../host/${h}.json`),
+	})),
+	...COMPONENTS.map(({ name, sources, module }) =>
+		module ? { name: `components/${name}`, module } : { name: `components/${name}`, sources: [...componentPrelude(name), ...sources] },
 	),
 ];
 
@@ -244,7 +274,7 @@ const generatePrelude = () => {
 	const decls = abiImports(readFileSync(join(root, "src/abi.wax"), "utf8"));
 	mkdirSync(join(root, "dist/components"), { recursive: true });
 	for (const { name, sources } of COMPONENTS) {
-		if (!sources) continue; // tcd writes a TCD module's imports itself
+		if (!sources) continue; // the compiler writes a module's imports itself
 		const code = sources.map((f) => readFileSync(join(root, f), "utf8").replace(/\/\/.*$/gm, "")).join("\n");
 		const used = decls.filter((d) => new RegExp(`\\b${d.name}\\b`).test(code));
 		writeFileSync(
@@ -332,47 +362,44 @@ const mapLocations = (output, ranges, outWax) => {
 	});
 };
 
-// The tcd command (tcd/), built with moon when it isn't, or TCD.
-export const findTcd = () => {
-	if (process.env.TCD) return process.env.TCD;
-	const result = spawnSync("moon", ["-C", "tcd", "build", "--target", "native"], { cwd: root, encoding: "utf8" });
+// The pure-tutuca compiler (pure-tutuca/), built with moon when it isn't, or PURE_TUTUCA.
+export const findCompiler = () => {
+	if (process.env.PURE_TUTUCA) return process.env.PURE_TUTUCA;
+	const result = spawnSync("moon", ["-C", "pure-tutuca", "build", "--target", "native"], { cwd: root, encoding: "utf8" });
 	if (result.error || result.status !== 0) {
 		process.stderr.write(`${result.stdout ?? ""}${result.stderr ?? ""}`);
-		throw new Error(`could not build tcd with moon${result.error ? ` (${result.error.message})` : ""}`);
+		throw new Error(`could not build pure-tutuca with moon${result.error ? ` (${result.error.message})` : ""}`);
 	}
-	return join(root, "tcd/_build/native/debug/build/tutuca/tcd/cmd/tcd/tcd.exe");
+	return join(root, "pure-tutuca/_build/native/debug/build/tutuca/pure-tutuca/cmd/pure-tutuca/pure-tutuca.exe");
 };
 
-// tcd and wax-mb's library compiled to wasm-gc (tcd/web), for the
-// playground to compile components in the browser: dist/tcd/tcd.wasm.
-export function buildTcdWeb() {
-	const result = spawnSync("moon", ["-C", "tcd", "build", "--target", "wasm-gc", "--release"], { cwd: root, encoding: "utf8" });
+// pure-tutuca and wax-mb's library compiled to wasm-gc (pure-tutuca/web), for the
+// playground to compile components in the browser: dist/pure-tutuca/pure-tutuca.wasm.
+export function buildCompilerWeb() {
+	const result = spawnSync("moon", ["-C", "pure-tutuca", "build", "--target", "wasm-gc", "--release"], { cwd: root, encoding: "utf8" });
 	if (result.error || result.status !== 0) {
 		process.stderr.write(`${result.stdout ?? ""}${result.stderr ?? ""}`);
-		throw new Error(`could not build tcd for wasm-gc${result.error ? ` (${result.error.message})` : ""}`);
+		throw new Error(`could not build pure-tutuca for wasm-gc${result.error ? ` (${result.error.message})` : ""}`);
 	}
-	const out = "dist/tcd/tcd.wasm";
-	mkdirSync(join(root, "dist/tcd"), { recursive: true });
-	// Closed world: tcd shares no types with another module (it takes and
+	const out = "dist/pure-tutuca/pure-tutuca.wasm";
+	mkdirSync(join(root, "dist/pure-tutuca"), { recursive: true });
+	// Closed world: pure-tutuca shares no types with another module (it takes and
 	// gives strings and JSON), so wasm-opt may refine and merge them all,
 	// a fifth smaller and faster than -O2 alone.
-	optimize("tcd/_build/wasm-gc/release/build/tutuca/tcd/web/web.wasm", out, ["--closed-world", "-O2", "--type-ssa", "--gufa", "-O2"]);
+	optimize("pure-tutuca/_build/wasm-gc/release/build/tutuca/pure-tutuca/web/web.wasm", out, ["--closed-world", "-O2", "--type-ssa", "--gufa", "-O2"]);
 	return out;
 }
 
-// What the studio's editor can start from (dist/examples.json): each .tcd in
-// studio/assistant/examples/ with its .wax, then each module of COMPONENTS
-// defined in a .tcd under components/, as { name, tcd, wax }, paths from the
-// root.
+// What the studio's editor can start from (dist/examples.json): each module
+// in studio/assistant/examples/, then each module of COMPONENTS under
+// components/, as { name, source }, paths from the root.
 export function writeExamples() {
 	const dir = "studio/assistant/examples";
 	const assistant = readdirSync(join(root, dir))
-		.filter((f) => f.endsWith(".tcd"))
+		.filter((f) => f.endsWith(".tutuca.ts"))
 		.sort()
-		.map((f) => f.slice(0, -".tcd".length))
-		.filter((name) => existsSync(join(root, dir, `${name}.wax`)))
-		.map((name) => ({ name, tcd: `${dir}/${name}.tcd`, wax: `${dir}/${name}.wax` }));
-	const modules = COMPONENTS.filter(({ tcd, impl }) => tcd?.startsWith("components/") && impl?.length === 1).map(({ name, tcd, impl }) => ({ name, tcd, wax: impl[0] }));
+		.map((f) => ({ name: f.slice(0, -".tutuca.ts".length), source: `${dir}/${f}` }));
+	const modules = COMPONENTS.filter(({ module }) => module?.startsWith("components/")).map(({ name, module }) => ({ name, source: module }));
 	const out = "dist/examples.json";
 	writeFileSync(join(root, out), `${JSON.stringify([...assistant, ...modules], null, "\t")}\n`);
 	return out;
@@ -380,39 +407,46 @@ export function writeExamples() {
 
 export function build() {
 	generatePrelude();
-	return [...TARGETS.map(buildTarget), ...agentIds().map(buildAgent), writeAgentIndex(), copyEngines(), buildTcdWeb(), writeExamples()];
+	return [...TARGETS.map(buildTarget), writeHostDeclarations(), ...agentIds().map(buildAgent), writeAgentIndex(), copyEngines(), buildCompilerWeb(), writeExamples()];
 }
 
-// A component module defined in TCD: tcd generates its contract and glue
-// (kept in dist/ next to it), checks the implementation against them, and
-// compiles it with the runtime's prelude.
-function buildTcd({ name, tcd, impl }) {
+// A pure-tutuca component module: the compiler lowers its functions to Wax,
+// generates its contract and glue (kept in dist/ next to it), and compiles
+// it with the runtime's prelude.
+function buildModule({ name, module, hosts = [] }) {
 	const OUT_DEBUG = `dist/${name}.debug.wasm`;
 	const OUT_WASM = `dist/${name}.wasm`;
 	mkdirSync(dirname(join(root, OUT_DEBUG)), { recursive: true });
-	const bin = findTcd();
-	const result = spawnSync(bin, ["build", tcd, ...impl, "--runtime", ".", "-o", OUT_DEBUG, "--gen", dirname(OUT_DEBUG)], {
+	const bin = findCompiler();
+	const host = hosts.length > 0 ? ["--host", hosts.join(",")] : [];
+	const result = spawnSync(bin, ["build", module, ...host, "--runtime", ".", "-o", OUT_DEBUG, "--gen", dirname(OUT_DEBUG)], {
 		cwd: root,
 		encoding: "utf8",
 	});
 	const output = `${result.stdout}${result.stderr}`;
 	if (result.error || result.status !== 0) {
 		process.stderr.write(output);
-		throw new Error(`tcd build ${tcd} failed${result.error ? ` (${result.error.message})` : ""}`);
+		throw new Error(`pure-tutuca build ${module} failed${result.error ? ` (${result.error.message})` : ""}`);
 	}
 	if (output.trim()) process.stderr.write(output);
 	// The model test runners generate states and messages from (js/pbt.js).
-	const model = spawnSync(bin, ["model", tcd, "-o", `dist/${name}.model.json`], { cwd: root, encoding: "utf8" });
+	const model = spawnSync(bin, ["model", module, ...host, "-o", `dist/${name}.model.json`], { cwd: root, encoding: "utf8" });
 	if (model.status !== 0) {
 		process.stderr.write(`${model.stdout}${model.stderr}`);
-		throw new Error(`tcd model ${tcd} failed`);
+		throw new Error(`pure-tutuca model ${module} failed`);
+	}
+	// The model is format 2 (tutuca's); js/pbt.js reads pure-tutuca's.
+	const pbtModel = spawnSync(bin, ["model", module, ...host, "--pbt-model", "-o", `dist/${name}.pbt-model.json`], { cwd: root, encoding: "utf8" });
+	if (pbtModel.status !== 0) {
+		process.stderr.write(`${pbtModel.stdout}${pbtModel.stderr}`);
+		throw new Error(`pure-tutuca model --pbt-model ${module} failed`);
 	}
 	optimize(OUT_DEBUG, OUT_WASM);
 	return relative(process.cwd(), join(root, OUT_WASM));
 }
 
 function buildTarget(target) {
-	if (target.tcd) return buildTcd(target);
+	if (target.module) return buildModule(target);
 	const { name, sources } = target;
 	const OUT_WAX = `dist/${name}.wax`;
 	const OUT_DEBUG = `dist/${name}.debug.wasm`;
@@ -443,6 +477,7 @@ if (process.argv[1] === fileURLToPath(import.meta.url)) {
 		// `node scripts/build.mjs agent <id>...`: only those agents (the rest of
 		// dist/ must be built already), then the agents' index.
 		if (process.argv[2] === "agent") {
+			writeHostDeclarations();
 			for (const id of process.argv.slice(3)) console.log(`built ${buildAgent(id)}`);
 			console.log(`built ${writeAgentIndex()}`);
 			process.exit(0);

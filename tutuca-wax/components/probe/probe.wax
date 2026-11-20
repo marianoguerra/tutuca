@@ -103,16 +103,16 @@ import "'" {
 //   <button class="ghost" on:click="ghost">ghost</button>  (no such message)
 // </div>
 //
-// What a TCD file would declare, and what the handlers break:
-//   field count: s32 where 0 <= count <= 10;   // bump can push it past 10
-//   field label: string where len(label) <= 5;
-//   invariant even: count % 2 == 0;            // bump(1) makes it odd
-//   message bump(n: s32 where n >= 1) when count < 10 changes count
-//       ensures next.count == count + n;       // bump(3) adds 4
-//   message rename(text: string) changes label;  // and resets count
-//   message shout() emits nothing;             // and notifies shouted
-//   message fail();                            // rejects itself
-//   message press(x: f64, y: f64, shift: bool) changes nothing;
+// What it declares, and what the handlers break:
+//   field count: a whole number, 0 <= count <= 10;  // bump can push it past 10
+//   field label: a string, at most 5 characters;
+//   invariant even: count % 2 == 0;                 // bump(1) makes it odd
+//   message bump(n: a whole number >= 1), when count < 10, changes count,
+//       ensures next.count == count + n;            // bump(3) adds 4
+//   message rename(text: string) changes label;     // and resets count
+//   message shout() emits nothing;                  // and notifies shouted
+//   message fail();                                 // rejects itself
+//   message press(x: number, y: number, shift: bool) changes nothing;
 //   message ctrl_click() changes nothing;  message inner() changes nothing;
 
 type probe_state = { count: i32, label: js_string };
@@ -156,6 +156,30 @@ fn probe_spec() -> &component_spec {
     spec;
 }
 
+// A whole number, with constraints of its own: a field (or argument) name.
+fn probe_whole(name: js_string, cs: &constraint_array) -> &field_schema {
+    let all = [constraint_array|null; cs.length() + 1];
+    all[0] = constraint_int();
+    all.copy(1, cs, 0, cs.length());
+    field_schema_new(name, vtype_number(), all, sync_shared);
+}
+
+fn probe_min(bound: f64) -> &constraint_array {
+    let cs = [constraint_array|null; 1];
+    cs[0] = constraint_min(bound, 0);
+    cs;
+}
+
+// What a number value holds, as an i32 (0 for what isn't a whole number in
+// range).
+fn probe_i32(v: &value) -> i32 {
+    let n = value_to_f64(v);
+    if (n >= -2147483648.0) & (n <= 2147483647.0) {
+        return n as i32_s;
+    }
+    0;
+}
+
 fn probe_schema() -> &component_schema {
     let count = strs1(s_count);
     let nothing = strs0();
@@ -163,7 +187,7 @@ fn probe_schema() -> &component_schema {
     ms[0] =
         message_schema_new(
             s_bump,
-            fields1(fs1(s_n, vtype_int(), constraint_min(1.0, 0))),
+            fields1(probe_whole(s_n, probe_min(1.0))),
             null,
             probe_bump_pre,
             probe_bump_post,
@@ -185,7 +209,7 @@ fn probe_schema() -> &component_schema {
     ms[4] =
         message_schema_new(
             s_press,
-            fields3(fs(s_x, vtype_float()), fs(s_y, vtype_float()), fs(s_shift, vtype_bool())),
+            fields3(fs(s_x, vtype_number()), fs(s_y, vtype_number()), fs(s_shift, vtype_bool())),
             null,
             null,
             null,
@@ -194,9 +218,13 @@ fn probe_schema() -> &component_schema {
         );
     ms[5] = message_schema_new(s_ctrl_click, fields0(), null, null, null, nothing, emits0());
     ms[6] = message_schema_new(s_inner, fields0(), null, null, null, nothing, emits0());
+    let bounds = probe_min(0.0);
+    let count_bounds = [constraint_array|null; 2];
+    count_bounds[0] = bounds[0]!;
+    count_bounds[1] = constraint_max(10.0, 0);
     let fields =
         fields2(
-            fs2(s_count, vtype_int(), constraint_min(0.0, 0), constraint_max(10.0, 0)),
+            probe_whole(s_count, count_bounds),
             fs1(s_label, vtype_string(), constraint_max_len(5)),
         );
     let invariants = [invariant_array|null; 1];
@@ -209,8 +237,7 @@ fn probe_bump_pre: pre_fn (instance: &eq, args: &value_array, ctx: &context) -> 
 }
 
 fn probe_bump_post: post_fn (prev: &eq, next: &eq, args: &value_array, ctx: &context) -> i32 {
-    let (ok, n) = arg_int(args, 0);
-    (next as &probe_state).count == (prev as &probe_state).count + n;
+    (next as &probe_state).count == (prev as &probe_state).count + probe_i32(args[0]!);
 }
 
 fn probe_even: invariant_fn (instance: &eq) -> i32 {
@@ -222,8 +249,13 @@ fn probe_vtable() -> &vtable {
 }
 
 fn probe_init: init_fn (fields: &value, ctx: &init_context) -> &init_result {
-    let (count, i1) = init_int(fields, s_count, 0, list_empty());
-    let (label, i2) = init_string(fields, s_label, s_empty, i1);
+    // count is a whole number, 0 when it's missing or isn't one.
+    let count = 0;
+    let found = field_value(fields, s_count);
+    if !!found {
+        count = probe_i32(found!);
+    }
+    let (label, i2) = init_string(fields, s_label, s_empty, list_empty());
     init_ok({probe_state| count, label }, i2);
 }
 
@@ -231,7 +263,7 @@ fn probe_handle: handle_fn (instance: &eq, m: &message, ctx: &context) -> &messa
     let s = instance as &probe_state;
     let name = m.name;
     if str_eq(name, s_bump) {
-        let (ok, n) = arg_int(m.args, 0);
+        let n = probe_i32(m.args[0]!);
         let by = n;
         if n == 3 {
             by = 4;
@@ -269,7 +301,7 @@ fn probe_handle: handle_fn (instance: &eq, m: &message, ctx: &context) -> &messa
 fn probe_get: get_fn (instance: &eq, name: js_string) -> (i32, &?value) {
     let s = instance as &probe_state;
     if str_eq(name, s_count) {
-        return (property_ok, value_int(s.count));
+        return (property_ok, value_number(s.count as f64_s));
     }
     if str_eq(name, s_label) {
         return (property_ok, value_string(s.label));
@@ -284,7 +316,7 @@ fn probe_set: set_fn (instance: &eq, name: js_string, v: &value) -> (i32, &?eq) 
 // ---- Pretender and Impostor --------------------------------------------------------
 //
 // <span>{text}</span>, with TodoItem's fields. Pretender doesn't say it
-// implements TodoItem; Impostor does, with done an s32.
+// implements TodoItem; Impostor does, with done a number.
 
 type pretender_state = { id: i32, text: js_string, done: i32 };
 
@@ -292,7 +324,12 @@ let pretender_spec_made: &?component_spec = null;
 let impostor_spec_made: &?component_spec = null;
 
 fn pretender_schema(done: &vtype, interfaces: &str_array) -> &component_schema {
-    let fields = fields3(fs(s_id, vtype_int()), fs(s_text, vtype_string()), fs(s_done, done));
+    let fields =
+        fields3(
+            probe_whole(s_id, [constraint_array|null; 0]),
+            fs(s_text, vtype_string()),
+            fs(s_done, done),
+        );
     component_schema_new(
         fields,
         fields0(),
@@ -317,7 +354,7 @@ fn impostor_spec() -> &component_spec {
         return impostor_spec_made!;
     }
     let spec = spec_main(s_impostor_type, el(s_span, views1(view_field(s_text))), no_loops());
-    spec_set_schema(spec, pretender_schema(vtype_int(), strs1(s_todo_item_type)));
+    spec_set_schema(spec, pretender_schema(vtype_number(), strs1(s_todo_item_type)));
     impostor_spec_made = spec;
     spec;
 }
@@ -343,7 +380,7 @@ fn pretender_handle: handle_fn (instance: &eq, m: &message, ctx: &context) -> &m
 fn pretender_get: get_fn (instance: &eq, name: js_string) -> (i32, &?value) {
     let s = instance as &pretender_state;
     if str_eq(name, s_id) {
-        return (property_ok, value_int(s.id));
+        return (property_ok, value_number(s.id as f64_s));
     }
     if str_eq(name, s_text) {
         return (property_ok, value_string(s.text));

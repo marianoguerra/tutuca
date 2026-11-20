@@ -1,6 +1,6 @@
 // What the page does for the studio's assistant, when the studio is served
 // with an API (scripts/studio-server.mjs): ask the server what it offers and
-// for the model's turns. The conversation is studio.tcd's Editor's: its
+// for the model's turns. The conversation is studio.tutuca.ts's Editor's: its
 // transcript is pi's (@earendil-works/pi-ai), the user's messages, the
 // model's as the server returns them, and the results of its
 // write_component calls; each request sends the transcript and the
@@ -30,8 +30,8 @@ const post = async (path, body, signal) => {
 	return out;
 };
 
-// The model's next message: model is "provider/id", component { name, tcd,
-// wax }.
+// The model's next message: model is "provider/id", component { name,
+// source }.
 export async function askChat(model, messages, component, signal) {
 	const [provider, ...rest] = model.split("/");
 	return (await post("chat", { model: { provider, id: rest.join("/") }, messages, component }, signal)).message;

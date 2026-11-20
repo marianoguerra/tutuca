@@ -10,6 +10,14 @@
 import "'" {
     #[import = "value"]
     const s_value: js_string;
+    #[import = "undefined"]
+    const s_undefined: js_string;
+    #[import = "number"]
+    const s_t_number: js_string;
+    #[import = "integer"]
+    const s_c_integer: js_string;
+    #[import = "must be a whole number"]
+    const s_p_integer: js_string;
     #[import = "checked"]
     const s_checked: js_string;
     #[import = "is"]
@@ -118,14 +126,11 @@ import "'" {
     const s_component: js_string;
     #[import = "frame"]
     const s_frame: js_string;
-    // Answer name suffixes (host.wax): an ask's answer is name.ok,
-    // name.error or name.unhandled, a name no message can have.
-    #[import = ".ok"]
-    const s_answer_ok: js_string;
-    #[import = ".error"]
-    const s_answer_error: js_string;
-    #[import = ".unhandled"]
-    const s_answer_unhandled: js_string;
+    // An outcome's keys (collections.wax): { ok: value } or { err: error }.
+    #[import = "ok"]
+    const s_ok: js_string;
+    #[import = "err"]
+    const s_err: js_string;
     // Drag and drop (collect.wax, host.wax).
     #[import = "drop"]
     const s_drop: js_string;
@@ -158,32 +163,24 @@ import "'" {
     const s_colon_space: js_string;
     #[import = " | "]
     const s_or_space: js_string;
-    #[import = "any"]
+    #[import = "unknown"]
     const s_t_any: js_string;
-    #[import = "bool"]
+    #[import = "boolean"]
     const s_t_bool: js_string;
-    #[import = "s32"]
-    const s_t_s32: js_string;
-    #[import = "f64"]
-    const s_t_f64: js_string;
     #[import = "string"]
     const s_t_string: js_string;
-    #[import = "enum { "]
-    const s_t_enum_open: js_string;
     #[import = " }"]
     const s_t_brace_close: js_string;
-    #[import = "option"]
-    const s_t_option: js_string;
-    #[import = "list"]
+    #[import = "[]"]
     const s_t_list: js_string;
-    #[import = "map"]
+    #[import = "{ [key: string]: "]
     const s_t_map: js_string;
-    #[import = "record { "]
+    #[import = "{ "]
     const s_t_record_open: js_string;
-    #[import = "one_of"]
-    const s_t_one_of: js_string;
-    #[import = "result"]
-    const s_t_result: js_string;
+    #[import = "; "]
+    const s_t_semicolon_space: js_string;
+    #[import = "Component"]
+    const s_t_component: js_string;
     #[import = "a list of "]
     const s_v_list_of: js_string;
     #[import = " items"]
@@ -192,8 +189,6 @@ import "'" {
     const s_v_map_of: js_string;
     #[import = " keys"]
     const s_v_keys: js_string;
-    #[import = "a result"]
-    const s_v_result: js_string;
     #[import = "a "]
     const s_v_a: js_string;
     #[import = "item "]
@@ -596,6 +591,8 @@ import "'" {
     const s_r_argument: js_string;
     #[import = " ("]
     const s_r_paren_open: js_string;
+    #[import = "answer "]
+    const s_r_answer: js_string;
     #[import = "has the wrong type"]
     const s_r_wrong_type: js_string;
     #[import = "emits:"]
@@ -761,7 +758,7 @@ import "dom" {
     fn dom_set_number_property(node: dom_node, name: js_string, value: f64) -> i32;
     #[import = "set_bool_property"]
     fn dom_set_bool_property(node: dom_node, name: js_string, value: i32) -> i32;
-    // A list, map, result or component, as the opaque object it is.
+    // A list, map or component, as the opaque object it is.
     #[import = "set_ref_property"]
     fn dom_set_ref_property(node: dom_node, name: js_string, value: value_extern) -> i32;
     #[import = "get_inner_html"]
@@ -836,28 +833,31 @@ import "host" {
     #[import = "observe_log"]
     fn observe_log(v: value_extern);
     // A message the component has no handler for: it stays as it was.
+    // answer is which answer to the ask name it is (answer_*), answer_none
+    // for a message, here and below.
     #[import = "observe_unhandled"]
-    fn observe_unhandled(name: js_string);
+    fn observe_unhandled(name: js_string, answer: i32);
 
     // A message for a component another took the place of since it was
     // sent (stale), or for a place no component is at (orphaned): dropped.
     #[import = "observe_stale"]
-    fn observe_stale(name: js_string);
+    fn observe_stale(name: js_string, answer: i32);
     #[import = "observe_orphaned"]
-    fn observe_orphaned(name: js_string);
+    fn observe_orphaned(name: js_string, answer: i32);
     // The ask answered later with this id (the one ask returned) is no
     // longer waited for: its watch was cancelled. Its signal aborts.
     #[import = "abort_ask"]
     fn host_abort_ask(id: i32);
     // An ask the host answers (see scope_register_host_ask): its name and its
-    // arguments as a list Value. Returns its answer: a result value when it
-    // answers now, an int, the id host_settle gets back, when it answers
-    // later, or null when the host has no answer for it.
+    // arguments as a list Value. Returns its answer: an outcome ({ ok:
+    // value } or { err: error }) when it answers now, a number, the id
+    // host_settle gets back, when it answers later, or null when the host has
+    // no answer for it.
     #[import = "ask"]
     fn host_ask(name: js_string, args: value_extern) -> &value;
     // A function the page defines (runtime.defineHostFn), called now with
-    // its arguments as a list Value: its value in an ok result, or an error
-    // result saying why it failed (an error result too when there's none).
+    // its arguments as a list Value: { ok: its value }, or { err: why it
+    // failed } (an err too when there's no such function).
     #[import = "call"]
     fn host_call(name: js_string, args: value_extern) -> &value;
     // A value as JSON text, as JSON.stringify writes it with indent spaces.

@@ -1,18 +1,39 @@
-// Host functions for vega-lite-lab: Vega-Lite specs checked against tables.
-// A table is { id, rows } (an array of row objects) or { id, csv,
-// delimiter? } (CSV text); the spec reads one with {"data": {"name": id}}.
+// vega-lite-lab's host module: Vega-Lite specs checked against tables, as a
+// module a pure-tutuca agent imports (import { check } from "microagents/vega").
+// A table is { id, rows } (an array of row objects) or { id, csv, delimiter? }
+// (CSV text); the spec reads one with {"data": {"name": id}}. declaration is
+// what pure-tutuca checks the agent against; make() gives the members, which answer
+// rather than throw: an edit that can't be made is { value: null, error }.
 //
-//   vega_tables(tables)                 [{ id, kind, count, columns: [{ name, type }], rows }]
-//   vega_describe(tables)               per table: rows, each column's type, min, max, distinct and nulls, 3 sample rows
-//   vega_check(spec, tables)            { ok, errors, warnings, marks }: the spec compiled by Vega-Lite
-//   vega_chart_spec(spec, tables)       the spec as JSON text with each named table's rows inlined as data.values
-//   vega_patch(doc, pointer, value)     doc with value at pointer; throws why it can't
-//   vega_remove(doc, pointer)           doc without what pointer names; throws why it can't
-//   vega_format_csv(rows, delimiter)    rows as CSV text
+//   readTables(tables)             [{ id, kind, count, columns: [{ name, type }], rows }]
+//   describe(tables)               per table: rows, each column's type, min, max, distinct and nulls, 3 sample rows
+//   check(spec, tables)            { ok, errors, warnings, marks }: the spec compiled by Vega-Lite
+//   chartOf(spec, tables)          the spec as JSON text with each named table's rows inlined as data.values
+//   patch(doc, pointer, value)     { value: doc with value at pointer, error: "" }, or { value: null, error: why it can't }
+//   remove(doc, pointer)           { value: doc without what pointer names, error: "" }, or { value: null, error }
+//   formatCsv(rows, delimiter)     rows as CSV text; "" when they can't be
+//   parse(text)                    { value, error: "" }, or { value: null, error: why it isn't JSON }
+//   objectOf(value)                value when it's an object, {} otherwise
 //
 // Compiling is synchronous; drawing isn't, so the page's <ma-vega> element
-// draws chart_spec (microagents/elements.js). The helpers below are shared
-// with echarts.js.
+// draws what chartOf gives (microagents/elements.js). The helpers below are
+// shared with echarts.js.
+export const declaration = {
+	specifier: "microagents/vega",
+	module: "Vega",
+	members: {
+		readTables: "(tables: unknown) => { id: string; kind: string; count: number; columns: { name: string; type: string }[]; rows: { [key: string]: unknown }[] }[]",
+		describe: "(tables: unknown) => unknown",
+		check: "(spec: unknown, tables: unknown) => { ok: boolean; errors: string[]; warnings: string[]; marks: string[] }",
+		chartOf: "(spec: unknown, tables: unknown) => string",
+		patch: "(doc: unknown, pointer: string, value: unknown) => { value: unknown; error: string }",
+		remove: "(doc: unknown, pointer: string) => { value: unknown; error: string }",
+		formatCsv: "(rows: unknown, delimiter: string) => string",
+		parse: "(text: string) => { value: unknown; error: string }",
+		objectOf: "(value: unknown) => { [key: string]: unknown }",
+	},
+	fresh: ["Vega.describe", "Vega.patch", "Vega.remove", "Vega.parse"],
+};
 export const bundle = "vega";
 
 // ---- JSON --------------------------------------------------------------------------
@@ -323,6 +344,21 @@ const loggerFor = (errors, warnings) => ({
 	},
 });
 
+// What run() gives, or what failed(why) does with why it threw.
+export const answering = (run, failed) => {
+	try {
+		return run();
+	} catch (e) {
+		return failed(e?.message ?? String(e));
+	}
+};
+
+// value when it's an object, {} otherwise.
+export const objectOf = (value) => (isObject(value) ? value : {});
+
+// { value: what run() gives, error: "" }, or { value: null, error: why it threw }.
+export const edit = (run) => answering(() => ({ value: run(), error: "" }), (error) => ({ value: null, error }));
+
 export const make = ({ vega, compile }) => {
 	const check = cached((spec, raw) => {
 		const errors = [];
@@ -345,12 +381,14 @@ export const make = ({ vega, compile }) => {
 		}
 	});
 	return {
-		vega_tables: cached((tables) => readTables(tables), 16),
-		vega_describe: (tables) => readTables(tables).map(describe),
-		vega_check: check,
-		vega_chart_spec: cached((spec, tables) => (check(spec, tables).ok ? JSON.stringify(inlined(spec, readTables(tables))) : ""), 16),
-		vega_patch: patchAt,
-		vega_remove: removeAt,
-		vega_format_csv: (rows, delimiter) => formatCsv(Array.isArray(rows) ? rows.filter(isObject) : [], delimiter || ","),
+		readTables: cached((tables) => readTables(tables), 16),
+		describe: (raw) => answering(() => readTables(raw).map(describe), (error) => ({ error })),
+		check: (spec, raw) => answering(() => check(spec, raw), (why) => ({ ok: false, errors: [`the page can't check specs: ${why}`], warnings: [], marks: [] })),
+		chartOf: cached((spec, raw) => answering(() => (check(spec, raw).ok ? JSON.stringify(inlined(spec, readTables(raw))) : ""), () => ""), 16),
+		patch: (doc, pointer, value) => edit(() => patchAt(doc, pointer, value)),
+		remove: (doc, pointer) => edit(() => removeAt(doc, pointer)),
+		formatCsv: (rows, delimiter) => answering(() => formatCsv(Array.isArray(rows) ? rows.filter(isObject) : [], delimiter || ","), () => ""),
+		parse: (text) => edit(() => JSON.parse(text)),
+		objectOf,
 	};
 };

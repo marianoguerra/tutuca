@@ -1,0 +1,5 @@
+import {
+  "marianoguerra/pure-js/tables",
+}
+
+warnings = "-implicit_impl_as_method"

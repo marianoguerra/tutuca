@@ -19,4 +19,4 @@ Each pointer resolves to a value or fails at a segment (counted from 1):
 Workflow:
 1. Read each pointer's resolution in the summary (or `resolutions`).
 2. `find(text)` to locate a key or value and get its pointer.
-3. `resolve(pointer)` to try a fix, then `set_pointer`.
+3. `resolve(pointer)` to try a fix, then `setPointer`.

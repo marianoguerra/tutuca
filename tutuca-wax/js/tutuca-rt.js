@@ -27,8 +27,8 @@ const jsStringPolyfill = (instance) => ({
 });
 
 // One module instance's DOM imports. owned is the WeakSet of nodes render
-// made: morphing matches vnodes only to these. late.fromValue turns a list,
-// map or result into the JS value it stands for, so the DOM gets what tutuca's
+// made: morphing matches vnodes only to these. late.fromValue turns a list
+// or map into the JS value it stands for, so the DOM gets what tutuca's
 // JS gives it (an array prop is the array, an array attribute "1,2"); it's
 // set once the instance exists.
 function domImports(late) {
@@ -181,7 +181,7 @@ export function customSection(source, name) {
 }
 
 // The module's bytes with a custom section named name holding text (UTF-8)
-// at the end, as tcd/api/meta.mbt's with_custom_section writes one.
+// at the end, as pure-tutuca/api/meta.mbt's with_custom_section writes one.
 export function withCustomSection(source, name, text) {
 	const bytes = ArrayBuffer.isView(source) ? new Uint8Array(source.buffer, source.byteOffset, source.byteLength) : new Uint8Array(source);
 	const leb = (n) => {
@@ -207,7 +207,7 @@ export function withCustomSection(source, name, text) {
 	return out;
 }
 
-// The well-known meta URIs (components/meta/meta.tcd, tutuca's src/display.js
+// The well-known meta URIs (components/meta/meta.tutuca.ts, tutuca's src/display.js
 // and the canvas's): how to show a component to people, and what it says to
 // a canvas holding it.
 export const DISPLAY_META = "https://tutuca.dev/meta/display";
@@ -224,8 +224,8 @@ export function displayLabel(display) {
 	return typeof icon === "string" && icon !== "" ? `${icon} ${title}` : title;
 }
 
-// What a component module tcd built says about itself: the JSON of its
-// "tutuca" custom section (tcd/api/meta.mbt: its sources, the types it
+// What a component module pure-tutuca built says about itself: the JSON of its
+// "tutuca" custom section (pure-tutuca/api/meta.mbt: its sources, the types it
 // registers, the interfaces it declares, what it needs from a scope, its
 // host asks, and its components' meta: registered name -> URI -> record), or
 // null when it has none.
@@ -289,6 +289,11 @@ export const eventFields = (e) => {
 	return out;
 };
 
+// The answers to an ask, by answer_* number (prelude/component.wax): a
+// message reported for one is named as the ask, with which answer it is.
+const ANSWERS = [null, "ok", "error", "unhandled"];
+const messageInfo = (name, answer) => (answer === 0 ? { message: name } : { message: name, answer: ANSWERS[answer] });
+
 // What a component module may import: the runtime's ABI, the js-string
 // builtins and its string constants.
 const COMPONENT_IMPORTS = new Set(["tutuca", "wasm:js-string", "'"]);
@@ -312,19 +317,18 @@ export async function instantiate(bytes, { builtins = true } = {}) {
 		},
 		host: {
 			observe_log: (v) => late.host?.report("log", { value: late.fromValue(v) }),
-			observe_unhandled: (name) => late.host?.report("unhandled", { message: name }),
-			observe_stale: (name) => late.host?.report("stale", { message: name }),
-			observe_orphaned: (name) => late.host?.report("orphaned", { message: name }),
+			observe_unhandled: (name, answer) => late.host?.report("unhandled", messageInfo(name, answer)),
+			observe_stale: (name, answer) => late.host?.report("stale", messageInfo(name, answer)),
+			observe_orphaned: (name, answer) => late.host?.report("orphaned", messageInfo(name, answer)),
 			abort_ask: (id) => late.host?.abortAsk(id),
 			ask: (name, args) => late.host.ask(name, late.fromValue(args)),
 			call: (name, args) => {
-				const w = late.exports;
 				const fn = late.fns.get(name);
-				if (!fn) return w.value_err(w.value_string(`no host function ${name}`));
+				if (!fn) return late.toValue({ err: `no host function ${name}` });
 				try {
-					return w.value_ok(late.toValue(fn(...late.fromValue(args))));
+					return late.toValue({ ok: fn(...late.fromValue(args)) });
 				} catch (error) {
-					return w.value_err(w.value_string(String(error?.message ?? error)));
+					return late.toValue({ err: String(error?.message ?? error) });
 				}
 			},
 			value_json: (v, indent) => JSON.stringify(late.fromValue(v), null, indent || undefined) ?? "null",
@@ -353,8 +357,8 @@ export async function instantiate(bytes, { builtins = true } = {}) {
 	late.toValue = api.values.from;
 	api.runtime = makeRuntime(instance.exports, api, late);
 	// The page's functions components call now, by name (host_call): fn
-	// gets the arguments as JS values and returns one; what it throws is
-	// the error result's message.
+	// gets the arguments as JS values and returns one, which the component
+	// gets as { ok: it }; what it throws, as { err: its message }.
 	api.runtime.defineHostFn = (name, fn) => {
 		late.fns.set(name, fn);
 	};
@@ -451,22 +455,19 @@ function makeApi(w) {
 	};
 	// Wasm-gc objects reach JS as objects with a null prototype.
 	const isWasm = (v) => v !== null && typeof v === "object" && Object.getPrototypeOf(v) === null;
-	const INT_MIN = -(2 ** 31);
-	const INT_MAX = 2 ** 31 - 1;
-	// A JS value as a Value: null and undefined are Null, an integer in i32's
-	// range an Int and any other number a Float, an array a List, a plain
-	// object a Map (so { __html } is dangerouslySetInnerHTML's markup, as in
-	// JS). A Value made here passes through, results (ok, err) and components
-	// included.
+	// A JS value as a Value: null is Null and undefined Undefined, a number a Number
+	// (any: -0, NaN and the infinities as they are), an array a List, a
+	// plain object a Map (so { __html } is dangerouslySetInnerHTML's markup,
+	// as in JS, and an outcome is { ok: value } or { err: error }). A Value
+	// made here passes through, components included.
 	const toValue = (v) => {
-		if (v == null) return w.value_null();
+		if (v === null) return w.value_null();
+		if (v === undefined) return w.value_undefined();
 		switch (typeof v) {
 			case "string":
 				return w.value_string(v);
 			case "number":
-				return Number.isInteger(v) && v >= INT_MIN && v <= INT_MAX && !Object.is(v, -0)
-					? w.value_int(v)
-					: w.value_float(v);
+				return w.value_number(v);
 			case "boolean":
 				return w.value_bool(v ? 1 : 0);
 			case "object": {
@@ -482,19 +483,20 @@ function makeApi(w) {
 		}
 		throw new TypeError(`no Value for ${String(v)}`);
 	};
-	const KIND = ["null", "bool", "int", "float", "string", "list", "map", "result", "component"];
-	// A Value as a JS value, the inverse of toValue: a result is { ok: value }
-	// or { err: value }, and a component stays the opaque object it is.
+	// The kinds' names, by value_kind_* number.
+	const KIND = ["null", "bool", "number", "string", "list", "map", "component", "undefined"];
+	// A Value as a JS value, the inverse of toValue: a component stays the
+	// opaque object it is.
 	const fromValue = (v) => {
 		switch (KIND[w.value_kind(v)]) {
 			case "null":
 				return null;
+			case "undefined":
+				return undefined;
 			case "bool":
 				return w.value_bool_get(v) !== 0;
-			case "int":
-				return w.value_int_get(v);
-			case "float":
-				return w.value_float_get(v);
+			case "number":
+				return w.value_number_get(v);
 			case "string":
 				return w.value_string_get(v);
 			case "list":
@@ -509,8 +511,6 @@ function makeApi(w) {
 				}
 				return out;
 			}
-			case "result":
-				return w.value_result_ok(v) ? { ok: fromValue(w.value_result_value(v)) } : { err: fromValue(w.value_result_value(v)) };
 			default:
 				return v;
 		}
@@ -519,8 +519,6 @@ function makeApi(w) {
 		from: toValue,
 		to: fromValue,
 		kind: (v) => KIND[w.value_kind(v)],
-		ok: (v) => w.value_ok(toValue(v)),
-		err: (v) => w.value_err(toValue(v)),
 		// JS ===, as a render compares props.
 		same: (a, b) => w.value_same(toValue(a), toValue(b)) !== 0,
 		truthy: (v) => w.value_truthy(toValue(v)) !== 0,
@@ -816,13 +814,24 @@ function makeApi(w) {
 // The component runtime, from JS: scopes, components, and hosts.
 function makeRuntime(w, api, late) {
 	const { values } = api;
+	// run's outcome (a query's, an apply's) as JS, or, when what it ran threw (a
+	// host call that failed, a trap), { err } with code failed and the error's
+	// message, as a handler that rejects gives.
+	const guarded = (component, name, run) => {
+		let out;
+		try {
+			out = run();
+		} catch (error) {
+			return values.to(w.component_failure(component, name, String(error?.message ?? error)));
+		}
+		return values.to(out);
+	};
 	// A component by type name, made in scope from fields (a JS object):
 	// throws with init's error when it can't be made.
 	const make = (scope, name, fields = {}) => {
-		const made = w.scope_make(scope, name, values.from(fields));
-		const result = values.to(made);
+		const result = values.to(w.scope_make(scope, name, values.from(fields)));
 		if ("err" in result) throw new Error(String(result.err));
-		return w.value_result_value(made);
+		return result.ok;
 	};
 	// A host for root, rendering into container, in document; a headless
 	// one, with both null, only runs tasks. env gives now, random and uuid;
@@ -878,6 +887,8 @@ function makeRuntime(w, api, late) {
 			// (one for a component another took the place of), orphaned
 			// { message } (one for a place no component is at), render, and in dev
 			// mode stateInvalid and messageInvalid { message, component, ... }.
+			// A message that is an ask's answer is named as the ask and says
+			// which answer it is: { message: "fetch", answer: "error" }.
 			// Each but render and eventFailed says where it came from: path,
 			// the keys from the root to the component the task was for
 			// (["items", 2]).
@@ -895,7 +906,8 @@ function makeRuntime(w, api, late) {
 			// fn(record) hears what the host reports, each after what caused it,
 			// in order (tutuca's host.listen): a Transition ({ kind:
 			// "transition", seq, cause, origin, mode, name, args, from, to,
-			// outcome, error, emitted, unhandled, watch, issues }) for what
+			// outcome, error, emitted, unhandled, watch, issues }, and for
+			// an answer, mode answer, its ask's name and answer) for what
 			// became of each task, outcome one of handled, passed, unhandled,
 			// failed, stale, orphaned and asked; a HostEvent ({ kind:
 			// "hostEvent", type, issues, ... }) for the rest: started,
@@ -1103,12 +1115,13 @@ function makeRuntime(w, api, late) {
 					throw Object.assign(new Error(text), { name: "ContractError", ...e });
 				}
 				host.run();
-				return w.value_result_value(result);
+				return out.ok;
 			},
 			// What component to reaches, now, runs its query name(...args)
 			// with: what runtime.query gives.
 			query(name, args = [], { to = [] } = {}) {
-				return values.to(w.component_query(w.host_value_at(h, selectorOf(to)), name, values.from(args)));
+				const component = w.host_value_at(h, selectorOf(to));
+				return guarded(component, name, () => w.component_query(component, name, values.from(args)));
 			},
 			// Where to reaches from the root, now: { path, id } (tutuca's
 			// addressOf).
@@ -1148,9 +1161,10 @@ function makeRuntime(w, api, late) {
 				}
 			},
 			// The ask import: answers through asks[name], as tutuca's JS does:
-			// a value replies now, a promise later (with the id host_settle
-			// gets back), a throw or a rejection with .error, and a name
-			// asks lacks with .unhandled.
+			// a value replies now (the ok answer, as { ok: value }), a promise
+			// later (with the id host_settle gets back), a throw or a
+			// rejection with the error answer ({ err: its message }), and a
+			// name asks lacks with the unhandled answer.
 			// The handler reads this.signal, aborted when the watch the ask is in
 			// is cancelled (tutuca's read ctx signal).
 			ask(name, args) {
@@ -1160,15 +1174,15 @@ function makeRuntime(w, api, late) {
 				try {
 					answer = asks[name].call({ signal: controller.signal }, ...args);
 				} catch (error) {
-					return w.value_err(values.from(errorText(error)));
+					return values.from({ err: errorText(error) });
 				}
-				if (typeof answer?.then !== "function") return w.value_ok(values.from(answer));
+				if (typeof answer?.then !== "function") return values.from({ ok: answer });
 				const id = nextAsk++;
 				controllers.set(id, controller);
 				const done = Promise.resolve(answer)
 					.then(
-						(v) => w.value_ok(values.from(v)),
-						(error) => w.value_err(values.from(errorText(error))),
+						(v) => values.from({ ok: v }),
+						(error) => values.from({ err: errorText(error) }),
 					)
 					.then((result) => {
 						controllers.delete(id);
@@ -1204,7 +1218,7 @@ function makeRuntime(w, api, late) {
 		// loadComponent may make other than its typeName; null when none is.
 		nameIn: (scope, component) => values.to(w.scope_name_of(scope, component)),
 		// A component's type's schema: { name, fields, gets, messages,
-		// invariants, interfaces }, types written as TCD writes them; null
+		// invariants, interfaces }, types as a module writes them (TodoItem[], number | null, ...); null
 		// for a type without one.
 		schema: (component) => values.to(w.component_schema(component)),
 		// Why component can't take the message name with args now (they don't
@@ -1213,14 +1227,15 @@ function makeRuntime(w, api, late) {
 		// Runs component's query name with args (tutuca's query): { ok: value },
 		// or { err: { code, issues, detail, component, message } } as apply
 		// gives, code one of unknown, args, arg:<i>, failed, returns.
-		query: (component, name, args = []) => values.to(w.component_query(component, name, values.from(args))),
+		// What it runs may throw (a host call that fails): that's failed too.
+		query: (component, name, args = []) => guarded(component, name, () => w.component_query(component, name, values.from(args))),
 		// Applies component's pure message name with args outside any task
 		// (tutuca's apply): { ok: the component after it } (the same one
 		// when nothing changed), its invariants checked, or { err: { code,
 		// issues, detail, component, message } }, code one of unknown,
 		// not-pure, args, arg:<i>, pre (detail: its why), failed, post,
 		// invariant:<name>.
-		apply: (component, name, args = []) => values.to(w.component_apply_js(component, name, values.from(args))),
+		apply: (component, name, args = []) => guarded(component, name, () => w.component_apply_js(component, name, values.from(args))),
 		// What component offers (tutuca's contractOf): { name, implements:
 		// [{ name, resolved, interface }], messages: [{ name, pure, args }],
 		// queries: [{ name, args, returns }], notifies }, or null for a type

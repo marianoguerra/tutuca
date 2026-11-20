@@ -1,4 +1,4 @@
-// What the shell (microagents.tcd's MicroAgents) asks its host for, with no
+// What the shell (microagents.tutuca.ts's MicroAgents) asks its host for, with no
 // DOM: the agents (built in, and installed ones kept by store), opening a
 // sample or a dropped JSON document with one, each session's conversation
 // with the model and its tool calls, exporting, installing. main.js is the
@@ -142,7 +142,7 @@ export async function createApp({ tw, base, shellScope, client, store = null, bu
 		if (model === "") throw new Error("pick a model first");
 		s.transcript.push(userMessage(text));
 		s.abort = new AbortController();
-		const update = (busy, stopped = "") => tellSession(id, "set_chat", chatRows(s.transcript), busy, stopped);
+		const update = (busy, stopped = "") => tellSession(id, "setChat", chatRows(s.transcript), busy, stopped);
 		update(true);
 		try {
 			while (true) {
@@ -181,12 +181,12 @@ export async function createApp({ tw, base, shellScope, client, store = null, bu
 	};
 
 	const asks = {
-		open_sample: (agentId, sample) => {
+		openSample: (agentId, sample) => {
 			const json = agents.get(agentId)?.meta.samples?.[sample];
 			if (json === undefined) throw new Error(`${agentId} has no sample ${sample}`);
 			return open(agentId, structuredClone(json));
 		},
-		open_dropped: (agentId) => {
+		openDropped: (agentId) => {
 			if (dropped === null) throw new Error("nothing was dropped");
 			return open(agentId, dropped);
 		},
@@ -197,17 +197,17 @@ export async function createApp({ tw, base, shellScope, client, store = null, bu
 			infer(id, text);
 			return true;
 		},
-		stop_infer: (id) => {
+		stopInfer: (id) => {
 			sessions.get(id)?.abort?.abort();
 			return true;
 		},
-		export_data: (id) => {
+		exportData: (id) => {
 			const s = sessions.get(id);
 			if (!s) return false;
 			download(`${s.agent.meta.id}.json`, `${JSON.stringify(runtime.get(envOf(id).root(), "data"), null, "\t")}\n`);
 			return true;
 		},
-		remember_model: (m) => {
+		rememberModel: (m) => {
 			model = m;
 			rememberModel(m);
 			return true;
@@ -222,7 +222,7 @@ export async function createApp({ tw, base, shellScope, client, store = null, bu
 			await store?.delete(agentId);
 			agents.delete(agentId);
 			runtime.leave(base, `agent:${agentId}`);
-			tell("set_agents", agentRows());
+			tell("setAgents", agentRows());
 			say(`removed ${agent.meta.title}`);
 			return true;
 		},
@@ -251,10 +251,10 @@ export async function createApp({ tw, base, shellScope, client, store = null, bu
 				return [];
 			}
 			if (fitting.length === 1) {
-				const session = asks.open_dropped(fitting[0].meta.id);
+				const session = asks.openDropped(fitting[0].meta.id);
 				queueMicrotask(() => {
 					host.send("say", [""], { now: true });
-					host.send("add_session", [session], { now: true });
+					host.send("addSession", [session], { now: true });
 				});
 				return fitting;
 			}
@@ -273,7 +273,7 @@ export async function createApp({ tw, base, shellScope, client, store = null, bu
 			}
 			const agent = await add(bytes, false);
 			if (agent.problems.length === 0) await store?.put({ id: meta.id, wasm: bytes });
-			tell("set_agents", agentRows());
+			tell("setAgents", agentRows());
 			say(agent.problems.length === 0 ? `installed ${meta.title}` : `${meta.title} has problems: ${agent.problems.join("; ")}`);
 			return agent;
 		},

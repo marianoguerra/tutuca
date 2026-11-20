@@ -1,4 +1,4 @@
-// The micro-agents' page: the host of microagents.tcd's MicroAgents (app.js
+// The micro-agents' page: the host of microagents.tutuca.ts's MicroAgents (app.js
 // answers its asks), with the kit in the base scope, the shell in a child of
 // its own and each agent in another, the built-in agents from
 // dist/agents/, the installed ones from IndexedDB (store.js), files dropped
@@ -109,7 +109,7 @@ const host = runtime.createHost(
 		dev: true,
 		asks: {
 			...app.asks,
-			set_theme: (theme) => {
+			setTheme: (theme) => {
 				applyTheme(theme);
 				try {
 					localStorage.setItem(THEME_KEY, theme);

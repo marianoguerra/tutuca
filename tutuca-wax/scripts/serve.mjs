@@ -13,7 +13,6 @@ const TYPES = {
 	".css": "text/css",
 	".wasm": "application/wasm",
 	".wax": "text/plain; charset=utf-8",
-	".tcd": "text/plain; charset=utf-8",
 	".json": "application/json",
 	".wat": "text/plain; charset=utf-8",
 	".svg": "image/svg+xml",

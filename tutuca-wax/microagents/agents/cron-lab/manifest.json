@@ -2,22 +2,67 @@
 	"id": "cron-lab",
 	"title": "Cron lab",
 	"description": "Build cron expressions visually, read them in plain English and check when they run next.",
-	"needs": "an object with crons ([{ id, expression, timezone, from, expect_next }]), at least one: from is the ISO time the runs count from (\"\" for 2025-01-01T00:00:00Z) and expect_next the ISO time the first run should be (\"\" for none)",
+	"needs": "an object with crons ([{ id, expression, timezone, from, expectNext }]), at least one: from is the ISO time the runs count from (\"\" for 2025-01-01T00:00:00Z) and expectNext the ISO time the first run should be (\"\" for none)",
 	"icon": "⏰",
 	"version": "1",
 	"root": "CronLab",
-	"hostFns": ["cron"],
-	"skills": ["SKILL.md", "reference/syntax.md"],
+	"hostModules": [
+		"cron"
+	],
+	"skills": [
+		"SKILL.md",
+		"reference/syntax.md"
+	],
 	"tools": [
-		{ "name": "set_expression", "kind": "message" },
-		{ "name": "set_field", "kind": "message" },
-		{ "name": "add_cron", "kind": "message" },
-		{ "name": "remove_cron", "kind": "message" },
-		{ "name": "reorder_crons", "kind": "message" },
-		{ "name": "set_timezone", "kind": "message" },
-		{ "name": "set_from", "kind": "message" },
-		{ "name": "set_expected_next", "kind": "message" },
-		{ "name": "explain", "kind": "view" },
-		{ "name": "next_runs", "kind": "view" }
+		{
+			"name": "setExpression",
+			"kind": "message",
+			"description": "Replace an expression (5 fields or a macro such as @daily)."
+		},
+		{
+			"name": "setField",
+			"kind": "message",
+			"description": "Replace one field of an expression: minute, hour, day, month or weekday."
+		},
+		{
+			"name": "addCron",
+			"kind": "message",
+			"description": "Add an expression (timezone UTC); it gets the next free id (c1, c2, …)."
+		},
+		{
+			"name": "removeCron",
+			"kind": "message",
+			"description": "Remove an expression."
+		},
+		{
+			"name": "reorderCrons",
+			"kind": "message",
+			"description": "Move an expression to a position (0 is first)."
+		},
+		{
+			"name": "setTimezone",
+			"kind": "message",
+			"description": "Change the timezone of an expression (an IANA name such as Europe/Berlin): its runs stay computed in UTC, and also read in that zone."
+		},
+		{
+			"name": "setFrom",
+			"kind": "message",
+			"description": "Set the ISO time an expression's runs count from, or \"\" for the default (2025-01-01T00:00:00Z)."
+		},
+		{
+			"name": "setExpectedNext",
+			"kind": "message",
+			"description": "Set the ISO time an expression's first run should be, or \"\" to clear it."
+		},
+		{
+			"name": "explain",
+			"kind": "view",
+			"description": "An expression's English description, each field's text and values, and its next 5 runs."
+		},
+		{
+			"name": "nextRuns",
+			"kind": "view",
+			"description": "The next count runs of an expression (count from 1 to 100), as UTC ISO times."
+		}
 	]
 }

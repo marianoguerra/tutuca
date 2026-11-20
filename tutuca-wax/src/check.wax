@@ -17,34 +17,47 @@ fn reason_text(v: &value) -> js_string {
     value_short(v);
 }
 
-// Aborts the task: the component c rejected the message name, for reason (a
-// code: wrongArity, wrongArgType, invalidArg, failed), at the argument
-// index (-1 for none); problem says why in words; detail is the handler's own
-// reason, when it gave one. JS gets them all as the error's rejection.
+// Aborts the task: the component c rejected the message name (with answer,
+// an ask's answer: answer_* names which), for reason (a code: wrongArity,
+// wrongArgType, invalidArg, failed), at the argument index (-1 for none);
+// problem says why in words; detail is the handler's own reason, when it
+// gave one. JS gets them all as the error's rejection: { message, answer,
+// component, reason, problem, index, detail }, answer only for an answer.
 fn reject_with(
     c: &component,
     name: js_string,
+    answer: i32,
     reason: js_string,
     index: i32,
     problem: js_string,
     detail: &?value,
 ) {
     let info = map_assoc(map_empty(), s_message, value_string(name));
+    if answer != answer_none {
+        info = map_assoc(info, s_t_answer, value_string(answer_name(answer)));
+    }
     info = map_assoc(info, s_component, value_string(c.spec.name));
     info = map_assoc(info, s_reason, value_string(reason));
     info = map_assoc(info, s_problem, value_string(problem));
     if index >=s 0 {
-        info = map_assoc(info, s_index, value_int(index));
+        info = map_assoc(info, s_index, value_number(index as f64_s));
     }
     if !!detail {
         info = map_assoc(info, s_detail, detail!);
     }
-    let text =
-        js_string_concat(
-            js_string_concat(js_string_concat(s_err_rejected, name), s_colon_space),
-            problem,
-        );
-    host_reject(text, info as &extern);
+    // "The component rejected the message count (answer ok): ...".
+    let b = text_builder_new();
+    text_push(b, s_err_rejected);
+    text_push(b, name);
+    if answer != answer_none {
+        text_push(b, s_r_paren_open);
+        text_push(b, s_r_answer);
+        text_push(b, answer_name(answer));
+        text_push_unit(b, ')');
+    }
+    text_push(b, s_colon_space);
+    text_push(b, problem);
+    host_reject(text_finish(b), info as &extern);
 }
 
 fn arity_problem(expected: i32, got: i32) -> js_string {
@@ -72,11 +85,11 @@ fn arg_problem(index: i32, name: js_string_opt, problem: js_string) -> js_string
 }
 
 // A handler's rejection, as a structured one.
-fn reject_message(c: &component, name: js_string, e: &message_error) {
+fn reject_message(c: &component, name: js_string, answer: i32, e: &message_error) {
     let kind = e.kind;
     if kind == message_error_kind_wrong_arity {
         let a = e as &message_error_wrong_arity;
-        reject_with(c, name, s_r_wrong_arity, -1, arity_problem(a.expected, a.got), null);
+        reject_with(c, name, answer, s_r_wrong_arity, -1, arity_problem(a.expected, a.got), null);
         return;
     }
     if kind == message_error_kind_wrong_arg_type {
@@ -84,6 +97,7 @@ fn reject_message(c: &component, name: js_string, e: &message_error) {
         reject_with(
             c,
             name,
+            answer,
             s_r_wrong_arg_type,
             index,
             arg_problem(index, null, s_r_wrong_type),
@@ -96,6 +110,7 @@ fn reject_message(c: &component, name: js_string, e: &message_error) {
         reject_with(
             c,
             name,
+            answer,
             s_r_invalid_arg,
             a.index,
             arg_problem(a.index, null, reason_text(a.reason)),
@@ -104,18 +119,18 @@ fn reject_message(c: &component, name: js_string, e: &message_error) {
         return;
     }
     let reason = (e as &message_error_failed).reason;
-    reject_with(c, name, s_r_failed, -1, reason_text(reason), reason);
+    reject_with(c, name, answer, s_r_failed, -1, reason_text(reason), reason);
 }
 
 // Rejects args that don't fit the message's schema: their number, then each
 // one's type, then its constraints, against c's state for the ones that read
-// it (a key of one of its fields). The ones that fit are coerced to their
-// types (vtype_coerce), in place.
+// it (a key of one of its fields).
 fn check_message_args(c: &component, ms: &message_schema, args: &value_array) {
     if args.length() != ms.args.length() {
         reject_with(
             c,
             ms.name,
+            ms.answer,
             s_r_wrong_arity,
             -1,
             arity_problem(ms.args.length(), args.length()),
@@ -129,7 +144,15 @@ fn check_message_args(c: &component, ms: &message_schema, args: &value_array) {
         let arg = args[i]!;
         let problem = vtype_problem(f.vtype, arg);
         if !!problem {
-            reject_with(c, ms.name, s_r_wrong_arg_type, i, arg_problem(i, f.name, problem!), null);
+            reject_with(
+                c,
+                ms.name,
+                ms.answer,
+                s_r_wrong_arg_type,
+                i,
+                arg_problem(i, f.name, problem!),
+                null,
+            );
             return;
         }
         // A null its type takes (an option's) meets the constraints, which
@@ -138,10 +161,17 @@ fn check_message_args(c: &component, ms: &message_schema, args: &value_array) {
             problem = constraints_problem(f.constraints, arg, c);
         }
         if !!problem {
-            reject_with(c, ms.name, s_r_invalid_arg, i, arg_problem(i, f.name, problem!), null);
+            reject_with(
+                c,
+                ms.name,
+                ms.answer,
+                s_r_invalid_arg,
+                i,
+                arg_problem(i, f.name, problem!),
+                null,
+            );
             return;
         }
-        args[i] = vtype_coerce(f.vtype, arg);
         i += 1;
     }
 }
@@ -301,7 +331,7 @@ fn find_invalid(acc: &invalid_acc, v: &value, prev: &?value, path: &value) {
                     }
                 }
             }
-            find_invalid(acc, list_get(v, i)!, before, list_push(path, value_int(i)));
+            find_invalid(acc, list_get(v, i)!, before, list_push(path, value_number(i as f64_s)));
             i += 1;
         }
         return;
@@ -428,9 +458,9 @@ fn host_check(h: &host) {
 // when it can: the arguments don't fit its schema, or its guard (when)
 // doesn't hold on c's state. A runner generating messages only sends the
 // ones c can take. No schema, or no such message: null (the vtable decides).
-// Runs c's query name with args (tutuca's query): an ok result with its
-// value, or an error result as applying gives one ({ code, issues, detail,
-// component, message }): "unknown" (no such query), "args", "arg:<i>",
+// Runs c's query name with args (tutuca's query): { ok: its value }, or an
+// err outcome as applying gives one ({ err: { code, issues, detail,
+// component, message } }): "unknown" (no such query), "args", "arg:<i>",
 // "failed" (the vtable couldn't answer) or "returns" (what it gave doesn't
 // meet the query's returns).
 fn component_query(c: &component, name: js_string, args: &value_array) -> &value {
@@ -467,7 +497,7 @@ fn component_query(c: &component, name: js_string, args: &value_array) -> &value
             return apply_fail(c, name, s_a_returns, problem!);
         }
     }
-    value_ok(got!);
+    outcome_ok(got!);
 }
 
 // ---- Contracts: applying pure messages ------------------------------------------------
@@ -487,23 +517,23 @@ fn detached_ctx(c: &component) -> &context {
     };
 }
 
-// An error result of applying name to c (tutuca's ContractError): { code,
-// issues, detail, component, message }, code the first of issues.
+// The err outcome of applying name to c (tutuca's ContractError): { err: {
+// code, issues, detail, component, message } }, code the first of issues.
 fn apply_error(c: &component, name: js_string, issues: &value, detail: js_string) -> &value {
     let m = map_assoc(map_empty(), s_code, list_get(issues, 0)!);
     m = map_assoc(m, s_issues, issues);
     m = map_assoc(m, s_detail, value_string(detail));
     m = map_assoc(m, s_component, value_string(c.spec.name));
-    value_err(map_assoc(m, s_message, value_string(name)));
+    outcome_err(map_assoc(m, s_message, value_string(name)));
 }
 
 fn apply_fail(c: &component, name: js_string, code: js_string, detail: js_string) -> &value {
     apply_error(c, name, list_push(list_empty(), value_string(code)), detail);
 }
 
-// c after its pure message name(args) (tutuca's apply): an ok result with the
-// component it is now (c itself when nothing changed, another one when the
-// handler swapped it), or an error result saying what broke: "unknown" (no
+// c after its pure message name(args) (tutuca's apply): { ok: the component
+// it is now } (c itself when nothing changed, another one when the handler
+// swapped it), or { err } saying what broke: "unknown" (no
 // such message, or c has no schema to say it's pure), "not-pure", "args",
 // "arg:<i>", "pre" (detail: its why), "failed" (the handler rejected it),
 // "post", and with invariants, "invariant:<name>". In a handler, applying to
@@ -514,7 +544,7 @@ fn component_try_apply(
     args: &value_array,
     invariants: i32,
 ) -> &value {
-    let found = spec_message_schema(c.spec, name);
+    let found = spec_message_schema(c.spec, name, answer_none);
     if !found {
         return apply_fail(c, name, s_a_unknown, s_empty);
     }
@@ -525,11 +555,10 @@ fn component_try_apply(
     if args.length() != ms.args.length() {
         return apply_fail(c, name, s_args, arity_problem(ms.args.length(), args.length()));
     }
-    let coerced = [value_array|null; args.length()];
     let i = 0;
     while i <s args.length() {
         let f = ms.args[i]!;
-        let problem = field_problem(f, vtype_coerce(f.vtype, args[i]!), c);
+        let problem = field_problem(f, args[i]!, c);
         if !!problem {
             return
                 apply_fail(
@@ -539,12 +568,11 @@ fn component_try_apply(
                     arg_problem(i, f.name, problem!),
                 );
         }
-        coerced[i] = vtype_coerce(f.vtype, args[i]!);
         i += 1;
     }
     let ctx = detached_ctx(c);
     if !!ms.pre {
-        if !(ms.pre!)(c.instance, coerced, ctx) {
+        if !(ms.pre!)(c.instance, args, ctx) {
             let why = s_empty;
             if !!ms.why {
                 why = ms.why!;
@@ -552,7 +580,7 @@ fn component_try_apply(
             return apply_fail(c, name, s_pre, why);
         }
     }
-    let result = c.vtable.handle(c.instance, {message| name, args: coerced }, ctx);
+    let result = c.vtable.handle(c.instance, {message| name, args, answer: answer_none }, ctx);
     let next = c;
     if result.kind == message_result_kind_updated {
         next = component_updated(c, (result as &message_result_updated).instance);
@@ -572,7 +600,7 @@ fn component_try_apply(
         return apply_fail(c, name, s_a_failed, detail);
     }
     if !!ms.post & (next.spec == c.spec) {
-        if !(ms.post!)(c.instance, next.instance, coerced, ctx) {
+        if !(ms.post!)(c.instance, next.instance, args, ctx) {
             return apply_fail(c, name, s_post, s_empty);
         }
     }
@@ -594,7 +622,7 @@ fn component_try_apply(
             return apply_error(c, name, issues, s_empty);
         }
     }
-    value_ok(value_component(next));
+    outcome_ok(value_component(next));
 }
 
 // What a handler's component_apply gives: the component v holds after its
@@ -606,17 +634,18 @@ fn component_apply(v: &value, name: js_string, args: &value_array) -> &value {
         host_fail(js_string_concat(s_err_apply_not_component, name));
         unreachable;
     }
-    let result = component_try_apply(c!, name, args, 0) as &value_result;
-    if result.ok {
-        return result.value;
+    let result = component_try_apply(c!, name, args, 0);
+    let got = outcome_value(result);
+    if outcome_is_ok(result) {
+        return got;
     }
     let b = text_builder_new();
     text_push(b, (c!).spec.name);
     text_push(b, s_a_cant_apply);
     text_push(b, name);
     text_push(b, s_colon_space);
-    text_push(b, value_string_of(map_get(result.value, s_code)!)!);
-    let detail = value_string_of(map_get(result.value, s_detail)!)!;
+    text_push(b, value_string_of(map_get(got, s_code)!)!);
+    let detail = value_string_of(map_get(got, s_detail)!)!;
     if !str_eq(detail, s_empty) {
         text_push(b, s_r_paren_open);
         text_push(b, detail);
@@ -626,17 +655,17 @@ fn component_apply(v: &value, name: js_string, args: &value_array) -> &value {
     unreachable;
 }
 
-// The error result of applying or querying name on what isn't a component:
+// The err outcome of applying or querying name on what isn't a component:
 // code not-component.
 fn not_component_error(name: js_string) -> &value {
     let m = map_assoc(map_empty(), s_code, value_string(s_a_not_component));
     m = map_assoc(m, s_issues, list_push(list_empty(), value_string(s_a_not_component)));
     m = map_assoc(m, s_detail, value_string(s_empty));
     m = map_assoc(m, s_component, VALUE_NULL);
-    value_err(map_assoc(m, s_message, value_string(name)));
+    outcome_err(map_assoc(m, s_message, value_string(name)));
 }
 
-// component_try_apply for a value: an error result for one that isn't a
+// component_try_apply for a value: an err outcome for one that isn't a
 // component.
 fn value_try_apply(v: &value, name: js_string, args: &value_array, invariants: i32) -> &value {
     let c = value_as_component(v);
@@ -669,7 +698,8 @@ fn spec_contract(spec: &component_spec, s: &?scope) -> &value {
     let i = 0;
     while i <s schema.messages.length() {
         let ms = schema.messages[i]!;
-        if !has_dot(ms.name) {
+        // An ask's answer is no message to offer.
+        if ms.answer == answer_none {
             let m = map_assoc(map_empty(), s_name, value_string(ms.name));
             m = map_assoc(m, s_pure, value_bool(ms.pure));
             messages = list_push(messages, map_assoc(m, s_args, field_schemas_value(ms.args)));
@@ -732,7 +762,7 @@ fn component_supports(c: &component, name: js_string) -> &value {
 }
 
 fn message_problem(c: &component, name: js_string, args: &value_array) -> js_string_opt {
-    let ms = spec_message_schema(c.spec, name);
+    let ms = spec_message_schema(c.spec, name, answer_none);
     if !ms {
         return null;
     }

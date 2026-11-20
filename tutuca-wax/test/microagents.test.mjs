@@ -41,17 +41,19 @@ let nextCall = 0;
 const call = (agent, env, name, args = {}) => runToolCall(tw.runtime, env, agent, { id: `c${nextCall++}`, name, arguments: args });
 const textOf = (result) => result.content[0].text;
 
-test("TCD types read as JSON Schemas", () => {
-	assert.deepEqual(typeSchema(parseType("list<record { id: string, n: s32 }>")), {
+test("type text reads as JSON Schemas", () => {
+	assert.deepEqual(typeSchema(parseType("{ id: string; n: number }[]")), {
 		type: "array",
 		items: {
 			type: "object",
-			properties: { id: { type: "string" }, n: { type: "integer", minimum: -(2 ** 31), maximum: 2 ** 31 - 1 } },
+			properties: { id: { type: "string" }, n: { type: "number" } },
 			required: ["id", "n"],
 			additionalProperties: false,
 		},
 	});
-	assert.deepEqual(typeSchema(parseType("option<enum { a, b }>")), { anyOf: [{ type: "string", enum: ["a", "b"] }, { type: "null" }] });
+	assert.deepEqual(typeSchema(parseType('"a" | "b" | null')), { anyOf: [{ type: "string", enum: ["a", "b"] }, { type: "null" }] });
+	assert.deepEqual(typeSchema(parseType("(number | null)[]")), { type: "array", items: { anyOf: [{ type: "number" }, { type: "null" }] } });
+	assert.deepEqual(typeSchema(parseType("{ [key: string]: boolean }")), { type: "object", additionalProperties: { type: "boolean" } });
 });
 
 for (const id of IDS) {
@@ -136,14 +138,14 @@ describe("the shell", () => {
 
 	test("the model's tool calls edit the workspace, and the chat shows them", async () => {
 		const { t, host, container, client } = await shellWith([
-			[{ name: "set_pointer", arguments: { id: "q3", pointer: "/servers/1/port" } }],
-			[{ name: "set_pointer", arguments: { id: "zz", pointer: "/x" } }, { name: "resolve", arguments: { pointer: "/name" } }],
+			[{ name: "setPointer", arguments: { id: "q3", pointer: "/servers/1/port" } }],
+			[{ name: "setPointer", arguments: { id: "zz", pointer: "/x" } }, { name: "resolve", arguments: { pointer: "/name" } }],
 			["Fixed q3: the array has two servers."],
 		]);
-		host.send("open_sample", ["jsonpointer-lab", "config"], { now: true });
+		host.send("openSample", ["jsonpointer-lab", "config"], { now: true });
 		await host.settled();
-		host.send("set_draft", ["fix q3"], { to: [["sessions", 0]], now: true });
-		host.send("send_chat", [], { to: [["sessions", 0]], now: true });
+		host.send("setDraft", ["fix q3"], { to: [["sessions", 0]], now: true });
+		host.send("sendChat", [], { to: [["sessions", 0]], now: true });
 		await host.settled();
 		for (let i = 0; i < 20 && t.runtime.get(t.runtime.get(host.root(), "sessions")[0], "busy"); i++) {
 			await tick();
@@ -186,7 +188,7 @@ describe("the shell", () => {
 
 	test("export downloads the workspace's data", async () => {
 		const { host, downloads } = await shellWith([]);
-		host.send("open_sample", ["jsonpointer-lab", "empty"], { now: true });
+		host.send("openSample", ["jsonpointer-lab", "empty"], { now: true });
 		await host.settled();
 		host.send("export", [], { to: [["sessions", 0]], now: true });
 		await host.settled();

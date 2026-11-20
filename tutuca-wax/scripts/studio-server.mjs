@@ -4,7 +4,7 @@
 //
 //   GET  /api/check   { server: true, assistant, models: [{ provider, id, name }] }:
 //                     the models of the providers with credentials
-//   POST /api/chat    { model: { provider, id }, messages, component: { name, tcd, wax } }
+//   POST /api/chat    { model: { provider, id }, messages, component: { name, source } }
 //                     -> { message }: the model's next message
 //   POST /api/prompt  { component } -> { prompt }: the system prompt it would get
 //   POST /api/infer   { model: { provider, id }, systemPrompt, tools, transcript }
@@ -15,16 +15,17 @@
 // The transcript is pi's (@earendil-works/pi-ai): user messages, the model's
 // assistant messages as it returned them, and the studio's tool results; pi
 // lowers it to each provider's format, so a conversation can change models.
-// The model edits the component through one tool, write_component; the studio
-// builds what it wrote with tcd and answers with the diagnostics.
+// The model edits the component through one tool, write_component, writing
+// the whole module; the studio builds it with pure-tutuca and answers with the
+// diagnostics.
 //
 // The models offered are the ones scripts/studio-models.mjs's rules pick.
 // API keys come from the environment, and from .env next to this directory's
 // package.json (or the file --env names) when there is one: OPENAI_API_KEY,
 // ANTHROPIC_API_KEY, GEMINI_API_KEY, OPENROUTER_API_KEY, ... (pi-ai's README
 // lists them all). The system prompt is read on every request from
-// studio/assistant/: its *.md files in order, the examples, and the runtime's
-// functions from src/abi.wax, so editing them needs no restart.
+// studio/assistant/: its *.md files in order and the examples, so editing
+// them needs no restart.
 import { readdir, readFile } from "node:fs/promises";
 import { fileURLToPath } from "node:url";
 import { builtinModels } from "@earendil-works/pi-ai/providers/all";
@@ -36,74 +37,40 @@ export { availableModels } from "./inference-api.mjs";
 const root = new URL("../", import.meta.url);
 const ASSISTANT = new URL("studio/assistant/", root);
 
-// The one tool: the whole new text of the files it changes.
+// The one tool: the whole new text of the module.
 export const TOOLS = [
 	{
 		name: "write_component",
 		description:
-			"Replace the component module's files with new versions. Give the whole text of each file you change; leave out a file you don't change. The studio builds the module and answers with tcd's diagnostics, or with the types it registers when it built.",
+			"Replace the component module with a new version: its whole text, never a diff or a fragment. The studio builds the module and answers with pure-tutuca's diagnostics, or with the types it registers when it built.",
 		parameters: {
 			type: "object",
 			properties: {
-				tcd: { type: "string", description: "The whole new .tcd file: the component definition." },
-				wax: { type: "string", description: "The whole new .wax file: the functions the .tcd needs." },
+				source: { type: "string", description: "The whole new module, name.tutuca.ts." },
 			},
+			required: ["source"],
 		},
 	},
 ];
 
 // ---- The system prompt ------------------------------------------------------------------
 
-// The runtime functions a component module can call, from src/abi.wax: the
-// sections a component's own code uses, and the few functions of other
-// sections it uses too (listed after them), as `fn name(params) -> result`.
-const ABI_SECTIONS = ["Values", "List and Map", "Path keys", "What a handler does", "Helpers for writing component types"];
-const ABI_ALSO = ["value_to_f64", "value_member"];
-export function runtimeFunctions(abi) {
-	const out = [];
-	const also = [];
-	let section = null;
-	let keep = false;
-	const lines = abi.split("\n");
-	for (let i = 0; i < lines.length; i++) {
-		const line = lines[i];
-		if (line.startsWith("// ") && lines[i - 1] === "") {
-			section = line.slice(3);
-			keep = ABI_SECTIONS.some((s) => section.startsWith(s));
-			if (keep) out.push("", `// ${section.replace(/\s*\(.*$/, "")}`);
-			continue;
-		}
-		if (!line.startsWith("fn abi_")) continue;
-		const extra = ABI_ALSO.includes(line.match(/^fn abi_(\w+)/)[1]);
-		if (!keep && !extra) continue;
-		let signature = line;
-		while (!signature.trimEnd().endsWith("{") && i + 1 < lines.length) signature += ` ${lines[++i].trim()}`;
-		(keep ? out : also).push(`${signature.replace(/^fn abi_/, "fn ").replace(/\s*\{\s*$/, "").replace(/\(\s+/, "(").replace(/,\s*\)/, ")")};`);
-	}
-	if (also.length) out.push("", "// Reading values", ...also);
-	return out.join("\n").trim();
-}
-
 const fence = (lang, text) => `\`\`\`${lang}\n${text.replace(/\n*$/, "\n")}\`\`\``;
 
-// The reference (studio/assistant/*.md, in order), the examples, the runtime's
-// functions, and the component as it is now.
+// The reference (studio/assistant/*.md, in order), the examples, and the component as it is
+// now.
 export async function systemPrompt(component) {
 	const names = (await readdir(ASSISTANT)).filter((f) => f.endsWith(".md")).sort();
 	const parts = await Promise.all(names.map((f) => readFile(new URL(f, ASSISTANT), "utf8")));
 	const examples = new URL("examples/", ASSISTANT);
-	const files = (await readdir(examples)).filter((f) => f.endsWith(".tcd")).sort();
+	const files = (await readdir(examples)).filter((f) => f.endsWith(".tutuca.ts")).sort();
 	for (const file of files) {
-		const name = file.replace(/\.tcd$/, "");
-		const tcd = await readFile(new URL(file, examples), "utf8");
-		const wax = await readFile(new URL(`${name}.wax`, examples), "utf8");
-		parts.push(`## Example: ${name}\n\n${name}.tcd:\n\n${fence("wit", tcd)}\n\n${name}.wax:\n\n${fence("wax", wax)}`);
+		const name = file.replace(/\.tutuca\.ts$/, "");
+		parts.push(`## Example: ${name}\n\n${file}:\n\n${fence("ts", await readFile(new URL(file, examples), "utf8"))}`);
 	}
-	const abi = await readFile(new URL("src/abi.wax", root), "utf8");
-	parts.push(`# The runtime functions a .wax can call\n\n${fence("wax", runtimeFunctions(abi))}`);
 	if (component) {
 		parts.push(
-			`# The module you're editing: ${component.name}\n\nIts files are ${component.name}.tcd and ${component.name}.wax, as they are now (the user may have edited them since your last change).\n\n${component.name}.tcd:\n\n${fence("wit", component.tcd ?? "")}\n\n${component.name}.wax:\n\n${fence("wax", component.wax ?? "")}`,
+			`# The module you're editing: ${component.name}\n\nIt's ${component.name}.tutuca.ts, as it is now (the user may have edited it since your last change):\n\n${fence("ts", component.source ?? "")}`,
 		);
 	}
 	return parts.map((p) => p.trim()).join("\n\n");

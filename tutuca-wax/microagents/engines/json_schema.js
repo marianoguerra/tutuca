@@ -1,13 +1,29 @@
-// Host functions for json-schema-lab: JSON Schema 2020-12 validation with Ajv
+// json-schema-lab's host module: JSON Schema 2020-12 validation with Ajv
 // (Ajv2020, allErrors, not strict, ajv-formats' formats), and RFC 6901
-// pointers set or removed in a JSON value (to patch a schema).
+// pointers set or removed in a JSON value (to patch a schema), as a module a
+// pure-tutuca agent imports (import { validate } from "microagents/json_schema").
+// declaration is what pure-tutuca checks the agent against; make() gives the members,
+// which answer rather than throw: what can't be done says why in error.
 //
-//   json_schema_error(schema)                   "" or why the schema doesn't compile
-//   json_schema_validate(schema, value)         { valid, errors: [{ instancePath, keyword, message }] };
-//                                               throws when the schema doesn't compile
-//   json_schema_pointer_set(doc, pointer, value)
-//                                               doc with value at pointer; throws why it can't be
-//   json_schema_pointer_remove(doc, pointer)    doc without what pointer names; throws why it can't be
+//   compileError(schema)                  "" or why the schema doesn't compile
+//   validate(schema, value)               { valid, errors: [{ instancePath, keyword, message }], error: "" };
+//                                         { valid: false, errors: [], error: why } when the schema doesn't compile
+//   pointerSet(doc, pointer, value)       { value: doc with value at pointer, error: "" }, or { value: null, error: why it can't be }
+//   pointerRemove(doc, pointer)           { value: doc without what pointer names, error: "" }, or { value: null, error }
+//   parse(text)                           { value, error: "" }, or { value: null, error: why it isn't JSON }
+export const declaration = {
+	specifier: "microagents/json_schema",
+	module: "JsonSchema",
+	members: {
+		compileError: "(schema: unknown) => string",
+		validate:
+			"(schema: unknown, value: unknown) => { valid: boolean; errors: { instancePath: string; keyword: string; message: string }[]; error: string }",
+		pointerSet: "(doc: unknown, pointer: string, value: unknown) => { value: unknown; error: string }",
+		pointerRemove: "(doc: unknown, pointer: string) => { value: unknown; error: string }",
+		parse: "(text: string) => { value: unknown; error: string }",
+	},
+	fresh: ["JsonSchema.validate", "JsonSchema.pointerSet", "JsonSchema.pointerRemove", "JsonSchema.parse"],
+};
 export const bundle = "ajv";
 
 // --- pointers (RFC 6901) ---------------------------------------------------------------
@@ -94,6 +110,15 @@ const pointerRemove = (doc, pointer) => {
 	);
 };
 
+// { value: what run() gives, error: "" }, or { value: null, error: why it threw }.
+const edit = (run) => {
+	try {
+		return { value: run(), error: "" };
+	} catch (e) {
+		return { value: null, error: e?.message ?? String(e) };
+	}
+};
+
 // --- validation ------------------------------------------------------------------------
 
 export const make = ({ Ajv2020, addFormats }) => {
@@ -115,15 +140,20 @@ export const make = ({ Ajv2020, addFormats }) => {
 		return cache.get(key);
 	};
 	return {
-		json_schema_error: (schema) => compile(schema).error,
-		json_schema_validate: (schema, value) => {
+		compileError: (schema) => compile(schema).error,
+		validate: (schema, value) => {
 			const { validate, error } = compile(schema);
-			if (validate === null) throw new Error(error);
-			const valid = validate(value);
-			const errors = (validate.errors ?? []).map(({ instancePath, keyword, message }) => ({ instancePath, keyword, message: message ?? "" }));
-			return { valid, errors };
+			if (validate === null) return { valid: false, errors: [], error };
+			try {
+				const valid = validate(value);
+				const errors = (validate.errors ?? []).map(({ instancePath, keyword, message }) => ({ instancePath, keyword, message: message ?? "" }));
+				return { valid, errors, error: "" };
+			} catch (e) {
+				return { valid: false, errors: [], error: e?.message ?? String(e) };
+			}
 		},
-		json_schema_pointer_set: (doc, pointer, value) => pointerSet(doc, pointer, value),
-		json_schema_pointer_remove: (doc, pointer) => pointerRemove(doc, pointer),
+		pointerSet: (doc, pointer, value) => edit(() => pointerSet(doc, pointer, value)),
+		pointerRemove: (doc, pointer) => edit(() => pointerRemove(doc, pointer)),
+		parse: (text) => edit(() => JSON.parse(text)),
 	};
 };

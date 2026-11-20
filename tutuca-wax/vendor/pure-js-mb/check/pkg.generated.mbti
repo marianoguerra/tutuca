@@ -1,0 +1,103 @@
+// Generated using `moon info`, DON'T EDIT IT
+package "marianoguerra/pure-js/check"
+
+import {
+  "marianoguerra/pure-js/ast",
+  "marianoguerra/pure-js/diag",
+  "marianoguerra/pure-js/host",
+  "marianoguerra/pure-js/types",
+  "moonbitlang/core/debug",
+}
+
+// Values
+pub fn check(@ast.Program, @host.Host, signature? : Signature, deterministic? : Bool) -> CheckResult
+
+pub fn check_module(@ast.Module, @host.Host, resolve? : (String) -> String?, signature_of? : (Array[String]) -> Signature?, data_type_of? : (Array[String]) -> String?, deterministic? : Bool) -> ModuleChecked
+
+pub fn draft(String) -> Entry
+
+pub fn entries_of(@ast.Expr, Array[String]) -> Array[(Array[String], Bool, @ast.Func)]
+
+pub fn is_namespace_literal(@ast.Expr) -> Bool
+
+pub fn is_readonly_node(@ast.TypeNode) -> Bool
+
+pub fn plain(String) -> Entry
+
+pub fn read(String) -> Entry
+
+// Errors
+
+// Types and methods
+pub(all) struct Binding {
+  kind : String
+  ty : @types.Ty
+  mode : String
+  place : String?
+  qualified : String?
+  fresh : Bool
+  mut_params : Array[String]?
+}
+
+pub struct CheckResult {
+  diagnostics : Array[@diag.Diagnostic]
+  return_type : String
+  return_ty : @types.Ty
+}
+
+#derive(Eq, @debug.Debug)
+pub(all) struct Entry {
+  mode : Mode
+  ty : String
+}
+
+#derive(Eq, @debug.Debug)
+pub(all) enum Mode {
+  Read
+  Draft
+  Plain
+}
+
+pub struct ModuleChecked {
+  diagnostics : Array[@diag.Diagnostic]
+  entries : Array[ModuleEntry]
+  exported_types : Array[String]
+  exported_values : Map[String, Binding]
+  type_nodes : Array[(String, @ast.TypeNode)]
+  types : Map[String, TypeEntry]
+  call_graph : Array[(String, Array[String])]
+  summaries : Array[(String, Summary)]
+  host : @host.Host
+}
+
+pub(all) struct ModuleEntry {
+  path : Array[String]
+  getter : Bool
+  func : @ast.Func
+  return_type : String
+}
+
+#derive(Eq, @debug.Debug)
+pub(all) struct Signature {
+  this_ : Entry?
+  params : Array[Entry]?
+  result : Entry?
+}
+
+pub(all) struct Summary {
+  params : Array[(String, String, Bool)]
+  result : String
+  fresh : Bool
+}
+
+pub(all) struct TypeEntry {
+  start : Int32
+  end : Int32
+  ty : @types.Ty
+  mode : String
+  place : String?
+}
+
+// Type aliases
+
+// Traits

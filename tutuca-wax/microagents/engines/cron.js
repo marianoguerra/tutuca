@@ -1,20 +1,39 @@
-// Host functions for cron-lab: standard 5-field cron expressions (minute
-// hour day month weekday, or a macro), parsed, described in English and run
-// forward. Runs are computed in UTC, so the same data always gives the same
-// runs; a timezone only says how a run reads there (through Intl).
+// cron-lab's host module: standard 5-field cron expressions (minute hour
+// day month weekday, or a macro), parsed, described in English and run
+// forward, as a module a pure-tutuca agent imports (import { explain } from
+// "microagents/cron"). Runs are computed in UTC, so the same data always
+// gives the same runs; a timezone only says how a run reads there (through
+// Intl). declaration is what pure-tutuca checks the agent against; make() gives the
+// members, which answer rather than throw: null when they can't.
 //
-//   cron_explain(expression)            { error, field, description, fields: { minute: { text, values }, … } }
-//                                       (error "" when it parses; field names the field at fault)
-//   cron_next(expression, timezone, from_iso, n)
-//                                       the next n runs strictly after from_iso: [{ iso, local }]
-//                                       (local: the run in timezone, "" for UTC); throws when invalid
-//   cron_iso(text)                      text as a normalized ISO time (UTC, "…:00Z" trimmed to "…Z"); throws when it isn't one
-//   cron_with_field(expression, field, value)
-//                                       expression with one field replaced (a macro spelled out first)
-//   cron_toggle(expression, field, value)
-//                                       expression with value of field turned on or off
-//   cron_chips(expression)              the builder: per field a label, then a chip per value it can take,
-//                                       [{ label, status: "label" | "on" | "off", title }]
+//   explain(expression)              { error, field, description, fields: { minute: { text, values }, … } }
+//                                    (error "" when it parses; field names the field at fault)
+//   runs(expression, timezone, from, n)
+//                                    the next n runs strictly after from: [{ iso, local }]
+//                                    (local: the run in timezone, "" for UTC); null when the expression
+//                                    doesn't parse or from isn't an ISO time
+//   isoOf(text)                      text as a normalized ISO time (UTC, "…:00Z" trimmed to "…Z"); null
+//                                    when it isn't one
+//   withField(expression, field, value)
+//                                    expression with one field replaced (a macro spelled out first); null
+//                                    when field isn't one
+//   toggle(expression, field, value) expression with value of field turned on or off; null when field isn't one
+//   chips(expression)                the builder: per field a label, then a chip per value it can take,
+//                                    [{ label, status: "label" | "on" | "off", title }]
+export const declaration = {
+	specifier: "microagents/cron",
+	module: "Cron",
+	members: {
+		explain:
+			"(expression: string) => { error: string; field: string; description: string; fields: { [key: string]: { text: string; values: number[] } } }",
+		runs: "(expression: string, timezone: string, from: string, n: number) => { iso: string; local: string }[] | null",
+		isoOf: "(text: string) => string | null",
+		withField: "(expression: string, name: string, value: string) => string | null",
+		toggle: "(expression: string, name: string, value: number) => string | null",
+		chips: "(expression: string) => { label: string; status: string; title: string }[]",
+	},
+	fresh: ["Cron.explain", "Cron.runs", "Cron.chips"],
+};
 export const bundle = null;
 
 const MONTHS = ["January", "February", "March", "April", "May", "June", "July", "August", "September", "October", "November", "December"];
@@ -34,6 +53,8 @@ const parseIso = (text) => {
 	const digits = zone.slice(1).replace(":", "");
 	return ms - sign * (+digits.slice(0, 2) * 60 + +digits.slice(2)) * 60000;
 };
+// Whether ms is a time a Date can hold.
+const inRange = (ms) => !Number.isNaN(ms) && Math.abs(ms) <= 8.64e15;
 const isoOf = (ms) => new Date(ms).toISOString().replace(":00.000Z", "Z");
 
 const abbrev = (names) => names.map((n) => n.slice(0, 3).toUpperCase());
@@ -128,11 +149,6 @@ const memo = (fn) => {
 	};
 };
 const parseCron = memo(parseUncached);
-const valid = (expression) => {
-	const parsed = parseCron(expression);
-	if (parsed.error !== undefined) throw new Error(parsed.error);
-	return parsed;
-};
 
 // Whether the day of d matches: with both day and weekday restricted, either one does.
 const dayMatches = ({ day, weekday }, d) => {
@@ -241,7 +257,7 @@ const localOf = (ms, timezone) => {
 };
 
 export const make = () => ({
-	cron_explain: (expression) => {
+	explain: (expression) => {
 		const parsed = parseCron(expression);
 		if (parsed.error !== undefined) return { error: parsed.error, field: parsed.field, description: "", fields: {} };
 		const fields = {};
@@ -249,23 +265,20 @@ export const make = () => ({
 			fields[n] = { text: parsed.texts[i], values: [...parsed.fields[n].values].sort((a, b) => a - b) };
 		return { error: "", field: "", description: describe(parsed.fields), fields };
 	},
-	cron_next: (expression, timezone, fromIso, n) => {
-		const { fields } = valid(expression);
+	runs: (expression, timezone, fromIso, n) => {
+		const parsed = parseCron(expression);
 		const from = parseIso(fromIso);
-		if (Number.isNaN(from)) throw new Error(`"${fromIso}" isn't an ISO time`);
+		if (parsed.error !== undefined || !inRange(from)) return null;
 		const count = Math.max(1, Math.min(100, Math.floor(Number(n) || 1)));
-		return nextRuns(fields, from, count).map((ms) => ({ iso: isoOf(ms), local: localOf(ms, String(timezone)) }));
+		return nextRuns(parsed.fields, from, count).map((ms) => ({ iso: isoOf(ms), local: localOf(ms, String(timezone)) }));
 	},
-	cron_iso: (text) => {
+	isoOf: (text) => {
 		const ms = parseIso(text);
-		if (Number.isNaN(ms)) throw new Error(`"${text}" isn't an ISO time`);
-		return isoOf(ms);
+		return inRange(ms) ? isoOf(ms) : null;
 	},
-	cron_with_field: (expression, name, value) => {
-		fieldOf(name);
-		return withField(expression, name, value);
-	},
-	cron_toggle: (expression, name, value) => {
+	withField: (expression, name, value) => (FIELD_NAMES.includes(name) ? withField(expression, name, value) : null),
+	toggle: (expression, name, value) => {
+		if (!FIELD_NAMES.includes(name)) return null;
 		const f = fieldOf(name);
 		const parsed = parseCron(expression);
 		const values = new Set(parsed.fields?.[name].values ?? []);
@@ -273,7 +286,7 @@ export const make = () => ({
 		else values.add(value);
 		return withField(expression, name, serialize(values, f));
 	},
-	cron_chips: (expression) => {
+	chips: (expression) => {
 		const parsed = parseCron(expression);
 		const out = [];
 		for (const f of FIELDS) {

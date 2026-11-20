@@ -1,0 +1,51 @@
+// Generated using `moon info`, DON'T EDIT IT
+package "marianoguerra/pure-js/lexer"
+
+import {
+  "marianoguerra/pure-js/diag",
+  "moonbitlang/core/debug",
+}
+
+// Values
+
+// Errors
+
+// Types and methods
+#derive(Eq, @debug.Debug)
+pub(all) enum Kind {
+  Name
+  Num
+  Str
+  Template
+  Punct
+  Eof
+}
+
+pub(all) struct Lexer {
+  src : String
+  mut pos : Int32
+  mut braces : Array[String]
+}
+pub fn Lexer::new(String) -> Self
+pub fn Lexer::next(Self) -> Token raise @diag.Stop
+pub fn Lexer::restore(Self, (Int32, Array[String])) -> Unit
+pub fn Lexer::save(Self) -> (Int32, Array[String])
+
+#derive(@debug.Debug)
+pub(all) struct Token {
+  kind : Kind
+  text : String
+  number : Double
+  start : Int32
+  end : Int32
+  newline_before : Bool
+  raw : String
+  head : Bool
+  tail : Bool
+  value_start : Int32
+  value_end : Int32
+}
+
+// Type aliases
+
+// Traits

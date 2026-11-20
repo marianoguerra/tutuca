@@ -7,16 +7,16 @@ import { agent, session } from "./helpers.mjs";
 
 // [agent, the message, the lists it removes from (together, at least one stays)]
 const CASES = [
-	["cron-lab", "remove_cron", ["crons"]],
-	["datefmt-lab", "remove_instant", ["instants"]],
-	["datefmt-lab", "remove_format", ["strftimes", "intls"]],
-	["jq-lab", "remove_filter", ["filters"]],
-	["jq-lab", "remove_input", ["inputs"]],
-	["json-schema-lab", "remove_example", ["examples"]],
-	["jsonpath-lab", "remove_path", ["paths"]],
-	["jsonpointer-lab", "remove_pointer", ["pointers"]],
-	["regex-lab", "remove_regex", ["regexes"]],
-	["regex-lab", "remove_text", ["texts"]],
+	["cron-lab", "removeCron", ["crons"]],
+	["datefmt-lab", "removeInstant", ["instants"]],
+	["datefmt-lab", "removeFormat", ["strftimes", "intls"]],
+	["jq-lab", "removeFilter", ["filters"]],
+	["jq-lab", "removeInput", ["inputs"]],
+	["json-schema-lab", "removeExample", ["examples"]],
+	["jsonpath-lab", "removePath", ["paths"]],
+	["jsonpointer-lab", "removePointer", ["pointers"]],
+	["regex-lab", "removeRegex", ["regexes"]],
+	["regex-lab", "removeText", ["texts"]],
 ];
 
 for (const [id, message, lists] of CASES) {

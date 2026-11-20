@@ -82,8 +82,8 @@ fmt-check:
 
 # --- Test ------------------------------------------------------------------------------------
 
-# Everything `npm test` runs: format check, build, then jsdom, tcd in wasm-gc, parity and the browser.
-test: fmt-check build test-jsdom test-tcd-web test-studio-server test-microagents test-parity test-browser
+# Everything `npm test` runs: format check, build, then jsdom, pure-tutuca in wasm-gc, parity and the browser.
+test: fmt-check build test-jsdom test-pt-web test-pure-tutuca test-studio-server test-microagents test-parity test-browser
 
 # The fast gate: format check, build, and the suite in jsdom.
 check: fmt-check build test-jsdom
@@ -92,9 +92,13 @@ check: fmt-check build test-jsdom
 test-jsdom:
     node --test test/jsdom.test.mjs
 
-# tcd compiled to wasm-gc (dist/tcd/tcd.wasm, what the playground compiles with), in Node.
-test-tcd-web:
-    node --test test/tcd-web.test.mjs
+# pure-tutuca's corpus, compiled, against tutuca's componentModule: same messages, same states.
+test-pure-tutuca:
+    node --test test/pure-tutuca.test.mjs
+
+# The pure-tutuca compiler compiled to wasm-gc (dist/pure-tutuca/pure-tutuca.wasm, what the playground compiles with), in Node.
+test-pt-web:
+    node --test test/pt-web.test.mjs
 
 # The micro-agents: each agent's contract, samples and tools, and the shell with a scripted model.
 test-microagents:
@@ -124,6 +128,14 @@ vendor:
     .tools/wax-mb/tools/vendor-collections.sh vendor/wax-mb vector
     cp .tools/wax-mb/LICENSE .tools/wax-mb/NOTICE vendor/wax-mb/
     @echo "vendored from $(git -C .tools/wax-mb rev-parse HEAD): record it in vendor/wax-mb/README.md"
+
+# Copy pure-js's MoonBit port (the library the pure-tutuca compiler checks modules with) into
+# vendor/pure-js-mb, from its checkout (default ~/src/mb/pure-js).
+vendor-pure-js from=(env_var("HOME") / "src/mb/pure-js"):
+    find vendor/pure-js-mb -mindepth 1 -maxdepth 1 ! -name VENDORED.md -exec rm -rf {} + 2>/dev/null || mkdir -p vendor/pure-js-mb
+    cp -r {{from}}/lib/. vendor/pure-js-mb/
+    rm -rf vendor/pure-js-mb/_build vendor/pure-js-mb/.mooncakes
+    @echo "vendored pure-js-mb at $(git -C {{from}} rev-parse --short HEAD 2>/dev/null || echo 'an uncommitted checkout'): record it in vendor/pure-js-mb/VENDORED.md"
 
 # Download margaui-css.wasm and margaui's light and dark themes again (see vendor/margaui/README.md).
 vendor-margaui release="v0.5.0" commit="142b397":

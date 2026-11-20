@@ -1,0 +1,16 @@
+import {
+  "tutuca/pure-tutuca/diag",
+  "tutuca/pure-tutuca/check",
+  "tutuca/pure-tutuca/gen",
+  "marianoguerra/wax",
+  "marianoguerra/wax/ast",
+  "marianoguerra/wax/basic",
+  "marianoguerra/wax/diagnostic",
+  "marianoguerra/wax/message",
+  "marianoguerra/wax/warning",
+}
+
+import {
+  "tutuca/pure-tutuca/compose",
+  "tutuca/pure-tutuca/pure",
+} for "test"

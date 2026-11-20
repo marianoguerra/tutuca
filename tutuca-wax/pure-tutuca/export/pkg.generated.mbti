@@ -1,0 +1,18 @@
+// Generated using `moon info`, DON'T EDIT IT
+package "tutuca/pure-tutuca/export"
+
+import {
+  "moonbitlang/core/json",
+  "tutuca/pure-tutuca/check",
+}
+
+// Values
+pub fn model(@check.Package) -> @json.Json
+
+// Errors
+
+// Types and methods
+
+// Type aliases
+
+// Traits

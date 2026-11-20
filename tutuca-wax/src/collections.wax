@@ -85,80 +85,88 @@ fn list_insert(list: &value, i: i32, item: &value) -> &value {
     out;
 }
 
-// The list with the item at from moved to index to (clamped to the list).
-fn list_move(list: &value, from: i32, to: i32) -> &value {
-    let item = list_get(list, from);
-    if !item {
-        return list;
-    }
-    list_insert(list_remove_at(list, from), int_clamp(to, 0, list_count(list) - 1), item!);
-}
-
-// The index of the first item (a map) whose member key is the string
-// value, or -1.
-fn list_find(list: &value, key: js_string, value: js_string) -> i32 {
-    let n = list_count(list);
-    let j = 0;
-    while j <s n {
-        let item = list_get(list, j)!;
-        if item.kind == value_kind_map {
-            let got = map_get(item, key);
-            if !!got {
-                let s = value_string_of(got!);
-                if !!s {
-                    if js_string_equals(s!, value) {
-                        return j;
-                    }
-                }
-            }
-        }
-        j += 1;
-    }
-    -1;
-}
-
-// The first of prefix1, prefix2, … that no item's member key is: the id
-// the next item of a list gets.
-fn list_next_id(list: &value, key: js_string, prefix: js_string) -> js_string {
-    let n = list_count(list) + 1;
-    let id = js_string_concat(prefix, int_text(n));
-    while list_find(list, key, id) >=s 0 {
-        n += 1;
-        id = js_string_concat(prefix, int_text(n));
-    }
-    id;
-}
-
 // ---- Map -----------------------------------------------------------------
 
+// A map keeps its keys in the order they were first set, as a JS object does
+// (pure-tutuca's values are JavaScript's): the HAMT holds each key's entry
+// (where it is in the order, and its value), and the order the keys, a removed
+// one's slot null until more than half are, when it's compacted.
+
 fn map_empty() -> &value {
-    value_map(phm_empty(value_key_hash, value_key_equal));
+    value_map(phm_empty(value_key_hash, value_key_equal), pv_empty());
 }
 
 fn map_count(map: &value) -> i32 {
     phm_count((map as &value_map).value);
 }
 
-// The value under key, or null when there's none.
-fn map_get(map: &value, key: js_string) -> &?value {
-    let (found, item) = phm_get((map as &value_map).value, value_string(key));
+fn map_entry_of(map: &value, key: js_string) -> &?map_entry {
+    let (found, entry) = phm_get((map as &value_map).value, value_string(key));
     if found == 0 {
         return null;
     }
-    item! as &value;
+    entry! as &map_entry;
 }
 
+// Whether the map has key (with any value, undefined included).
+fn map_has(map: &value, key: js_string) -> i32 {
+    !!map_entry_of(map, key);
+}
+
+// The value under key, or null when there's none.
+fn map_get(map: &value, key: js_string) -> &?value {
+    let entry = map_entry_of(map, key);
+    if !entry {
+        return null;
+    }
+    (entry!).item;
+}
+
+// The map with key set to item: in its place when the map has it, last when
+// it doesn't.
 fn map_assoc(map: &value, key: js_string, item: &value) -> &value {
-    value_map(phm_assoc((map as &value_map).value, value_string(key), item));
+    let m = map as &value_map;
+    let k = value_string(key);
+    let entry = map_entry_of(map, key);
+    if !!entry {
+        let e = {map_entry| seq: (entry!).seq, item };
+        return value_map(phm_assoc(m.value, k, e), m.order);
+    }
+    let e = {map_entry| seq: pv_count(m.order), item };
+    value_map(phm_assoc(m.value, k, e), pv_push(m.order, k));
 }
 
 fn map_dissoc(map: &value, key: js_string) -> &value {
-    value_map(phm_dissoc((map as &value_map).value, value_string(key)));
+    let m = map as &value_map;
+    let entry = map_entry_of(map, key);
+    if !entry {
+        return map;
+    }
+    let entries = phm_dissoc(m.value, value_string(key));
+    let order = pv_assoc(m.order, (entry!).seq, null);
+    // More than half the order removed keys: make it again without them.
+    if phm_count(entries) * 2 <s pv_count(order) {
+        let out = map_empty();
+        let i = 0;
+        while i <s pv_count(order) {
+            let (_, k) = pv_get(order, i);
+            if !!k {
+                let ks = (k! as &value_string).value;
+                let (_, e) = phm_get(entries, k);
+                out = map_assoc(out, ks, (e! as &map_entry).item);
+            }
+            i += 1;
+        }
+        return out;
+    }
+    value_map(entries, order);
 }
 
-// The keys and values of a map as two lists in the same order, the HAMT's.
+// The keys and values of a map as two lists in the same order, the order the
+// keys were set in.
 type map_entries_acc = { keys: mut &pv_vector, values: mut &pv_vector };
 
+// For the runtime's own tables (smap): a HAMT's entries in its order.
 fn map_entries_visit(context: &?eq, key: &?eq, item: &?eq) {
     let acc = context! as &map_entries_acc;
     acc.keys = pv_push(acc.keys, key);
@@ -166,8 +174,18 @@ fn map_entries_visit(context: &?eq, key: &?eq, item: &?eq) {
 }
 
 fn map_entries(map: &value) -> &map_entries_acc {
+    let m = map as &value_map;
     let acc = {map_entries_acc| keys: pv_empty(), values: pv_empty() };
-    phm_each((map as &value_map).value, acc, map_entries_visit);
+    let i = 0;
+    while i <s pv_count(m.order) {
+        let (_, k) = pv_get(m.order, i);
+        if !!k {
+            let (_, e) = phm_get(m.value, k);
+            acc.keys = pv_push(acc.keys, k);
+            acc.values = pv_push(acc.values, (e! as &map_entry).item);
+        }
+        i += 1;
+    }
     acc;
 }
 
@@ -177,6 +195,84 @@ fn map_keys(map: &value) -> &value {
 
 fn map_values(map: &value) -> &value {
     value_list(map_entries(map).values);
+}
+
+// ---- Outcomes -------------------------------------------------------------------
+
+// The outcome of something that can fail, as JS sees it: a map with one key,
+// { ok: value } or { err: error }.
+fn outcome_ok(v: &value) -> &value {
+    map_assoc(map_empty(), s_ok, v);
+}
+
+fn outcome_err(e: &value) -> &value {
+    map_assoc(map_empty(), s_err, e);
+}
+
+// Whether o is an { ok } outcome.
+fn outcome_is_ok(o: &value) -> i32 {
+    if o.kind != value_kind_map {
+        return 0;
+    }
+    map_has(o, s_ok);
+}
+
+// What an outcome holds: the ok's value or the err's error; null for what
+// isn't one.
+fn outcome_value(o: &value) -> &value {
+    if o.kind != value_kind_map {
+        return VALUE_NULL;
+    }
+    let found = map_get(o, s_ok);
+    if !found {
+        found = map_get(o, s_err);
+    }
+    if !found {
+        return VALUE_NULL;
+    }
+    found!;
+}
+
+// a == b, as a view's equality compares: numbers by value, strings by
+// content, lists and maps item by item, the rest by reference.
+fn value_equal(a: &value, b: &value) -> i32 {
+    if value_same(a, b) {
+        return 1;
+    }
+    if (a.kind == value_kind_list) & (b.kind == value_kind_list) {
+        let n = list_count(a);
+        if n != list_count(b) {
+            return 0;
+        }
+        let i = 0;
+        while i <s n {
+            if !value_equal(list_get(a, i)!, list_get(b, i)!) {
+                return 0;
+            }
+            i += 1;
+        }
+        return 1;
+    }
+    if (a.kind == value_kind_map) & (b.kind == value_kind_map) {
+        if map_count(a) != map_count(b) {
+            return 0;
+        }
+        let keys = map_keys(a);
+        let i = 0;
+        while i <s list_count(keys) {
+            let key = (list_get(keys, i)! as &value_string).value;
+            let other = map_get(b, key);
+            if !other {
+                return 0;
+            }
+            if !value_equal(map_get(a, key)!, other!) {
+                return 0;
+            }
+            i += 1;
+        }
+        return 1;
+    }
+    0;
 }
 
 // ---- String-keyed maps of runtime structs --------------------------------

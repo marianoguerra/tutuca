@@ -2,9 +2,9 @@
 
 tutuca's runtime in [Wax](https://github.com/ocsigen/wax), compiled to
 wasm-gc with [wax-mb](https://github.com/marianoguerra/wax-mb). NOTES.md
-has the design. Implemented so far:
+has the design. It has:
 
-- the `Value` type (null, bool, int, float, string, list, map, result,
+- the `Value` type (null, undefined, bool, number, string, list, map,
   component), with `List` and `Map` over wax-mb's persistent vector and hash
   map, vendored in `vendor/wax-mb`;
 - the vdom: shapes, vnodes whose props are values, and building and morphing
@@ -22,25 +22,107 @@ has the design. Implemented so far:
   time, that imports the runtime's functions and shares its types through a
   prelude both are built with. `components/` has the examples, which the
   tests and demos load;
-- components defined in TCD (`tcd/`, its README has the language): a
-  WIT-style `.tcd` file says a component's state, protocol (messages with
-  their guards, frames, relations and effects) and views; tcd checks it,
-  generates the boilerplate (spec, schema, vtable, routing each message to
-  its handler), holds the hand-written `.wax` (only what each handler does)
-  to a naming convention, and compiles the module. Every example but `probe`
-  is written this way, and `js/pbt.js` tests components from the model tcd
-  exports: random walks with shrinking, exhaustive exploration, examples.
+- components written as pure-tutuca modules (`name.tutuca.ts`, the spec is
+  `../spec/pure-tutuca/`): TypeScript in pure-js's checked subset, in the
+  shape of tutuca's `component({...})`, which tutuca JS loads too. The
+  pure-tutuca compiler (`pure-tutuca/`) checks a module with pure-js, generates the boilerplate (spec,
+  schema, vtable, routing each message to its handler), lowers its
+  functions to Wax and compiles the module. Every example but `probe` is
+  written this way, and `js/pbt.js` tests components from the model the
+  compiler exports: random walks with shrinking, exhaustive exploration, examples;
+- three pages built with them: the playground, the studio and the
+  micro-agents (`microagents/README.md`).
 
 ## Use
 
 ```sh
 just setup      # npm install (jsdom, Playwright, binaryen's wasm-opt), and builds wax-mb into .tools/, pinned (or set WAX_MB to a wax-mb binary)
-just test       # format check, build, then the tests in jsdom, tcd in wasm-gc, against JS, and in Chromium
+just test       # format check, build, then the tests: jsdom, the compiler in wasm-gc, the pure-tutuca corpus, the studio's server, the micro-agents, against JS, and in Chromium
 just            # lists the rest: build, check, fmt, test-one, wat, size, vendor, ...
 ```
 
-The npm scripts (`npm run setup`, `npm test`, ...) run the same steps, for
-when `just` isn't installed.
+The build needs [MoonBit](https://www.moonbitlang.com)'s `moon` for the
+pure-tutuca compiler (or `PURE_TUTUCA` set to its binary). `package.json` has npm scripts for some of the
+steps (`npm run build`, `npm test`, ...), for when `just` isn't installed.
+
+## Writing a component
+
+A component module is one file, `name.tutuca.ts`: TypeScript in the subset
+pure-js checks. A component is a type and a constant of the same name. The
+type is its state: its fields, and its queries as `readonly` members. The
+constant says the rest: defaults, constraints, messages (`on`), views.
+Message, field and view names are camelCase and reach the runtime as
+written. This is the clicker, the module the playground starts from
+(`playground/examples.js`):
+
+```ts
+import { button, div, field, send, span } from "tutuca/view";
+
+/** A counter that remembers its best. */
+export type Clicker = { count: number; best: number };
+
+export const Clicker = {
+	defaults: { count: 0, best: 0 },
+	constraints: { count: { int: true, min: 0 }, best: { int: true, min: 0 } },
+	invariants: {
+		bestSoFar(): boolean {
+			return this.best >= this.count;
+		},
+	},
+	on: {
+		click: {
+			pure: true,
+			changes: ["count", "best"],
+			post(prev, next, []: []) {
+				return next.count === prev.count + 1;
+			},
+			run(next, []: []) {
+				next.count = this.count + 1;
+				if (next.count > this.best) next.best = next.count;
+			},
+		},
+		reset: {
+			pure: true,
+			changes: ["count"],
+			post(prev, next, []: []) {
+				return next.count === 0;
+			},
+			run(next, []: []) {
+				next.count = 0;
+			},
+		},
+	},
+	view: div(
+		{ class: "flex items-center gap-2" },
+		button({ class: "btn btn-sm btn-primary", "on:click": send("click") }, "click"),
+		span({ class: "tabular-nums" }, field("count"), " (best ", field("best"), ")"),
+		button({ class: "btn btn-sm btn-ghost", "on:click": send("reset") }, "reset"),
+	),
+	// Test runs these, and random walks of the messages checking the contracts.
+	examples: {
+		bestStays: {
+			start: { count: 0, best: 0 },
+			steps: [{ send: "click" }, { send: "click" }, { send: "reset" }, { send: "click" }, { expect: { count: 1, best: 2 } }],
+		},
+	},
+};
+
+export const register = { Clicker: "Clicker" };
+```
+
+`../spec/pure-tutuca/README.md` is the format's spec: a component's
+members, the handler's `ctx`, interfaces, meta schemas, views, modules
+importing each other. `studio/assistant/2-module.md` is a shorter
+reference, the one the studio's assistant reads. `pure-tutuca/` compiles a module:
+
+```sh
+pure-tutuca check name.tutuca.ts               # what's wrong, with the lines it's about
+pure-tutuca build name.tutuca.ts --runtime . -o name.debug.wasm --gen dist/
+pure-tutuca model name.tutuca.ts -o name.model.json
+```
+
+`scripts/build.mjs` runs it for the modules it lists in `COMPONENTS`, and
+the playground and the studio run it in the browser.
 
 `just demos` builds and serves `demos/` at http://127.0.0.1:8002/demos/ (`just
 demos 9000` for another port): component modules loaded when asked, the
@@ -54,22 +136,21 @@ names), compiled in the page as modules load (the next section).
 
 `just playground` builds and serves `playground/` at
 http://127.0.0.1:8002/playground/: write a component in the browser. Pick an
-example (or the clicker, a starting point), edit its `.tcd` and `.wax` in a
-CodeMirror editor, and Compile (Ctrl/Cmd-Enter): tcd and wax-mb's library,
-compiled to wasm-gc (`tcd/web`, `dist/tcd/tcd.wasm`, about 2.5 MB), run in a
-worker and build the same module the native tcd does. Diagnostics show inline
+example (or the clicker, a starting point), edit its module in a
+CodeMirror editor, and Compile (Ctrl/Cmd-Enter): the pure-tutuca compiler, pure-js and wax-mb's library,
+compiled to wasm-gc (`pure-tutuca/web`, `dist/pure-tutuca/pure-tutuca.wasm`), run in a
+worker and build the same module the native compiler does. Diagnostics show inline
 and in a list; the generated contract, glue, ABI imports and model open as
-read-only tabs. The module is loaded into a fresh scope, next to the prebuilt
+read-only tabs, with the Wax its functions lower to. The module is loaded into a fresh scope, next to the prebuilt
 modules the example composes with (todo_card's TodoItem inside the prebuilt
 TodoList), and its root mounted on a dev host, with its state, logs and the
-issues the dev checks report. Add missing functions appends `tcd stub
---missing`'s stubs to the `.wax`; Test runs the model's examples and random
+issues the dev checks report. Test runs the model's examples and random
 walks (`js/pbt.js`). Edits are kept per example in localStorage. It needs the
 js-string builtins (Chrome 131, Firefox 134 and later).
 
 `just studio` serves `studio/`, which keeps what you write. The studio is
 built with itself where it can: its tabs, scope picker, menu, editor and assistant are a
-tutuca-wax module (`studio/studio.tcd`, `dist/components/studio.wasm`) that
+tutuca-wax module (`studio/studio.tutuca.ts`, `dist/components/studio.wasm`) that
 `studio.js` hosts, answering its asks for what only the page can do. It's a
 set of screens, one tab each, and the tab bar's + makes another: pick the scope it's
 made in from the tree of scopes, or add one there. Scopes are a tree, from a
@@ -79,31 +160,31 @@ each scope's registrations and mounts the layout, a `Screen` whose toggle
 switches between using it and editing it. The studio makes it with `studio`
 set, which the `Screen` provides to what's below: a hole's list then offers
 a new component, and each slot a ✎, asks the studio answers
-(`create_component`, `edit_component`) and other hosts leave out. Either
-turns the page into the editor: the `.tcd` and `.wax`, a preview of what
-they build (made in the screen's scope chain, on the studio's own host),
+(`createComponent`, `editComponent`) and other hosts leave out. Either
+turns the page into the editor: the module, a preview of what
+it builds (made in the screen's scope chain, on the studio's own host),
 the diagnostics, what it registers, the preview's state and events, and the
 assistant when there is one. A new component starts from the assistant's
-tasks example; "Start from…" replaces its sources with another example's
-(asking first when they changed): the ones the build lists in
+tasks example; "Start from…" replaces its source with another example's
+(asking first when it changed): the ones the build lists in
 `dist/examples.json`, the assistant's and the component modules', so a
 prebuilt module can be made a component of the library. Save & register keeps it in IndexedDB with its last build
-(built again only when its sources or tcd change) and registers it in the
+(built again only when its source or the compiler change) and registers it in the
 screen's scope, where the hole's list, still open, now has it; saving an
 edited one makes the screen again with it. A name a registration of the
 same scope gives can't be given again, but one a parent scope gives can:
 the inner one hides it there, and the screen is made again with it. So a
 copy of `layout` saved in a screen's scope gives that scope's screens a
 Screen, Hbox, ... of their own, edited with ✎, while the others keep
-root's. A `use "x.tcd"` (or a path ending
-in it, `"../x/x.tcd"`) reads another component of the library or a
-prebuilt module's `.tcd`. The layout keeps
+root's. An `import type { ... } from "x.tutuca"` (or a path ending
+in it, `"../x/x.tutuca"`) reads another component of the library or a
+prebuilt module's source. The layout keeps
 itself as it changes, as `js/hydrate.js`'s `capture` writes it: each
 component by the name it's made by in that scope and its fields, those that
 sync at no level left out. The ⋯ menu shows the layout as JSON, and Export
 and Import move the library as a JSON bundle, without the builds. Export
 components downloads each of the library's components the shown screen's
-scopes register as its `.wasm`, which carries its sources (tcd's `tutuca`
+scopes register as its `.wasm`, which carries its sources (the `tutuca`
 section, below); a `.wasm` dropped on a screen, or given to Import, is kept
 as a component of the library with those sources, its `.wasm` as its build,
 and registered in that screen's scope like one made there, as a prebuilt
@@ -125,29 +206,26 @@ shows an Assistant toggle in the editor (served as files only, as on GitHub
 Pages, there's no API and no button). A message is sent with the
 transcript, kept in pi's format with the component, and the component as it
 is now; the server adds the system prompt and asks the model chosen. The
-model edits through one tool, `write_component`, with the whole new `.tcd`
-or `.wax`; the studio builds what it wrote and answers with the tool's
-result, which says what it registers or gives tcd's diagnostics (each
-with tcd's hint, the line it points at and carets under the place, and
-marked when it was there after the model's last change too) and the
-signatures of the functions still missing, and asks again, up to four
+model edits through one tool, `write_component`, with the whole new module
+as `source`; the studio builds what it wrote and answers with the tool's
+result, which says what it registers or gives the compiler's diagnostics (each
+with its hint when it has one, the line it points at and carets under the place, and
+marked when it was there after the model's last change too), and asks again, up to four
 tries, stopping sooner when two tries in a row leave the same errors.
 The system prompt is read from `studio/assistant/` on every request: the
-`*.md` files in order (the role, the `.tcd` language, Wax and the naming
-convention, the examples), the example modules in `examples/` (which
-`test/tcd-web.test.mjs` builds and runs), and the runtime functions a `.wax`
-can call, from `src/abi.wax`. "What the model is told" in the panel shows
-it.
+`*.md` files in order (the role, the module reference, the examples) and
+the example modules in `examples/` (which `test/pt-web.test.mjs` builds
+and runs). "What the model is told" in the panel shows it.
 
 ```js
-import { loadRuntimeFiles, loadTcd } from "./js/tcd-web.js";
+import { loadPureTutuca, loadRuntimeFiles } from "./js/pt-web.js";
 
-// tcd in the browser (or Node 24): JSON-shaped requests, what the CLI's commands do.
-const tcd = await loadTcd(new URL("./dist/tcd/tcd.wasm", import.meta.url));
+// The compiler in the browser (or Node 24): JSON-shaped requests, what the CLI's commands do.
+const compiler = await loadPureTutuca(new URL("./dist/pure-tutuca/pure-tutuca.wasm", import.meta.url));
 const runtime = await loadRuntimeFiles(new URL("./", import.meta.url)); // prelude, collections, src/abi.wax
-const files = { "c.tcd": tcdText }; // the main .tcd and the ones it uses, by path
-const res = tcd.build({ main: "c.tcd", files, impls: [{ path: "c.wax", text: waxText }], runtime });
-// { ok, diags, contract, glue, abi, model, types, wasm: Uint8Array }; also check, stub, model
+const files = { "c.tutuca.ts": source }; // the module and the ones it imports, by path
+const res = compiler.build({ main: "c.tutuca.ts", files, runtime });
+// { ok, diags, contract, glue, abi, impl, model, pbtModel, types, wasm: Uint8Array }; also check, model
 if (res.ok) await tw.loadComponent(res.wasm, scope);
 ```
 
@@ -161,7 +239,7 @@ await tw.loadComponent(new URL("./dist/components/counter.wasm", import.meta.url
 const root = tw.runtime.make(scope, "Board", { counters: [], total: 0 });
 const host = tw.runtime.createHost(document, container, root).mount();
 // Clicks in container now reach the components' handlers.
-host.send("add_counter", [], { now: true }); // a message to the root, from outside, run now
+host.send("addCounter", [], { now: true }); // a message to the root, from outside, run now
 host.send("reset", [], { to: [["counters", 0]] }); // to the component steps reach, on the next tick
 
 // The vdom alone.
@@ -194,7 +272,7 @@ classes as constants, or `if`s of constants, or list the ones a type's views
 can compute under the classes meta, as tutuca's JS does (`meta
 "https://tutuca.dev/meta/classes" = { classes: "dark light" };`,
 `CLASSES_META`, the `Classes` schema of `components/meta`), which
-`classes` then includes, and tcd doesn't warn about (`tcd.view.class`).
+`classes` then includes, and the compiler doesn't warn about (`pure-tutuca.view.class`).
 
 ## Layout
 
@@ -203,14 +281,14 @@ can compute under the classes meta, as tutuca's JS does (`meta
 | `prelude/*.wax` | what the runtime and component modules share: types and i32 consts, no code |
 | `src/*.wax` | the runtime, one concern per file; `src/abi.wax` is what component modules import |
 | `lib/*.wax` | helpers for writing component types, compiled into the runtime and imported |
-| `components/<module>/` | the example component modules, each a `.tcd` and the `.wax` implementing what it can't say: `counter` (Board, Counter, Label), `todo_list` (and the TodoItem interface), two implementations of TodoItem, `todo_item` (a checkbox) and `todo_card` (a card with buttons), all three dragged to reorder, `showcase` (Shelf and Note: scopes, loop hooks, provided values, `push_view`, `render_it`, drag and drop), `json` (tutuca's JSON viewer and editor: a type per kind of value, JsonEditor above them), `media` (views outside HTML: Dot in SVG, Sum in MathML, Rating holding `tw-rating`, a custom element defined in its `rating.js`, through the CustomEvent's detail), `layout` (Hbox, Vbox, Tabs and Grid holding Holes, which ask what their scope can make and swap themselves for the one picked, and a Screen toggling between using a layout, each component's main view, and editing it, by pushing the `layout_edit` view that any component can declare to opt in); `kanban` (Kanban and KanbanLane: cards dragged between lanes, a lane's notify the board answers with `send`s, a limit per lane; it needs nothing from its scope, and the studio doesn't list it, to drop its `.wasm` on a screen); and for the tests `probe`, written by hand (Probe breaks its own schema; Pretender and Impostor fail TodoList's TodoItem interface), and `pbt` (a seeded bug and a dead end for `js/pbt.js` to find) |
-| `tcd/` | the TCD tool, in MoonBit (its README has the language and the naming convention) |
+| `components/<module>/` | the example component modules, each a pure-tutuca `.tutuca.ts`: `counter` (Board, Counter, Label), `todo_list` (and the TodoItem interface), two implementations of TodoItem, `todo_item` (a checkbox) and `todo_card` (a card with buttons), all three dragged to reorder, `showcase` (Shelf and Note: scopes, loop hooks, provided values, `push_view`, `render_it`, drag and drop), `json` (tutuca's JSON viewer and editor: a type per kind of value, JsonEditor above them), `media` (views outside HTML: Dot in SVG, Sum in MathML, Rating holding `tw-rating`, a custom element defined in its `rating.js`, through the CustomEvent's detail), `layout` (Hbox, Vbox, Tabs and Grid holding Holes, which ask what their scope can make and swap themselves for the one picked, and a Screen toggling between using a layout, each component's main view, and editing it, by pushing the `layoutEdit` view that any component can declare to opt in); `kanban` (Kanban and KanbanLane: cards dragged between lanes, a lane's notify the board answers with `send`s, a limit per lane; it needs nothing from its scope, and the studio doesn't list it, to drop its `.wasm` on a screen); and for the tests `probe`, written by hand (Probe breaks its own schema; Pretender and Impostor fail TodoList's TodoItem interface), and `pbt` (a seeded bug and a dead end for `js/pbt.js` to find) |
+| `pure-tutuca/` | the pure-tutuca compiler, in MoonBit (its README has how a module becomes the model and what's generated) |
 | `scripts/build.mjs` | assembles and compiles `dist/tutuca-rt.wasm` and `dist/components/<module>.wasm`, generating the prelude files components need, and optimizes them with wasm-opt |
 | `scripts/format.mjs` | `wax-mb format` over the sources (`npm run format`, `--check` in `npm test`) |
 | `scripts/setup-wax-mb.sh` | clones and builds the pinned wax-mb into `.tools/` |
 | `js/tutuca-rt.js` | the host side: the imports (DOM, env, host), loading the runtime and component modules, building values, vnodes and semantic trees from JS values, driving a host |
-| `js/pbt.js` | testing components from their TCD model (`dist/components/*.model.json`): random walks of enabled messages on a headless dev host, shrunk to a 1-minimal failing trace; exhaustive exploration of small state spaces; example blocks |
-| `js/tcd-web.js` | loads `dist/tcd/tcd.wasm` (tcd compiled to wasm-gc) and the runtime sources it builds components with |
+| `js/pbt.js` | testing components from the compiler's model of their module (`dist/components/*.pbt-model.json`): random walks of enabled messages on a headless dev host, shrunk to a 1-minimal failing trace; exhaustive exploration of small state spaces; example blocks |
+| `js/pt-web.js` | loads `dist/pure-tutuca/pure-tutuca.wasm` (the compiler compiled to wasm-gc) and the runtime sources it builds components with |
 | `js/json-example.js` | components/json's tree for a JSON value, shared by the demos and the playground |
 | `js/hydrate.js` | `hydrate` makes components from `{ $make, fields }` / `{ $json }` JSON in a scope, `capture` writes a component tree that way |
 | `js/page.js` | what the playground and the studio share: elements, margaui's themes and CSS, the compiler worker |
@@ -219,11 +297,11 @@ can compute under the classes meta, as tutuca's JS does (`meta
 | `test/suite.mjs` | the vdom, lowering, value, path and component cases, written once for both test environments |
 | `test/jsdom.test.mjs` | the suite in Node against jsdom, with the js-string builtins and with the polyfills |
 | `test/parity.test.mjs` | random vnode trees, frames and semantic trees, against tutuca's own runtime, compared step by step |
-| `test/tcd-web.test.mjs` | tcd in wasm-gc, in Node: builds the module the native tcd does, diagnostics, stubs, uses |
+| `test/pt-web.test.mjs` | the compiler in wasm-gc, in Node: builds the module the native one does, diagnostics, imports, and the runtime running what it built |
 | `test/browser.test.mjs` | the suite in Chromium, through Playwright, and smoke tests of the demos page, the playground and the studio |
 | `demos/` | the demos page (`just demos`) |
-| `playground/` | the playground (`just playground`): `playground.js` the page, `compiler.worker.js` tcd in a worker, `examples.js` the examples, `editor.src.js` the editor, bundled with CodeMirror into `deps/editor.js` (committed; `just vendor-editor`) |
-| `studio/` | the studio (`just studio`): `studio.tcd`/`studio.wax` its tabs, scope picker, menu, editor and assistant, `studio.js` the page that hosts them, `code-editor.js` the editor's custom element (`tw-code-editor`, around CodeMirror), `store.js` the library in IndexedDB and its bundles, `assistant.js` what the page asks the server for the assistant, `assistant/` what its model is told (the reference and example modules) |
+| `playground/` | the playground (`just playground`): `playground.js` the page, `compiler.worker.js` the compiler in a worker, `examples.js` the examples, `editor.src.js` the editor, bundled with CodeMirror into `deps/editor.js` (committed; `just vendor-editor`) |
+| `studio/` | the studio (`just studio`): `studio.tutuca.ts` its tabs, scope picker, menu, editor and assistant, `studio.js` the page that hosts them, `code-editor.js` the editor's custom element (`tw-code-editor`, around CodeMirror), `store.js` the library in IndexedDB and its bundles, `assistant.js` what the page asks the server for the assistant, `assistant/` what its model is told (the reference and example modules) |
 | `scripts/studio-server.mjs` | the studio with its assistant's API (`just studio-server`): `/api/check`, `/api/chat`, `/api/prompt`, keys from `.env` |
 | `scripts/serve.mjs` | the static server for the demos, the playground, the studio and the browser tests |
 | `wax-mb-usage-feedback.md` | what writing this taught about wax-mb: bugs, diagnostics, friction |
@@ -330,7 +408,7 @@ four places, each with a rule:
   module whether it's called or not. JS calls these exports too. Changing
   them or the prelude's types means a new `tutuca_abi_version_current`.
 - **`lib/`, utilities for components.** Helpers for writing component types
-  (`el_on`, `views2`, `spec_main`, `init_int`, ...), compiled into the runtime
+  (`el_on`, `views2`, `spec_main`, ...), compiled into the runtime
   and exported through the ABI like the rest.
 
 Some shared types are shared only because the types around them hold them:
@@ -354,8 +432,9 @@ and `rec` items into `dist/prelude/collections_types.wax` for components.
 - exports `tutuca_abi_version() -> i32`, returning
   `tutuca_abi_version_current`, and `tutuca_register(s: &scope)`, which
   registers its component types (and ask handlers) in `s`;
-- carries, when tcd built it, a custom section named `tutuca`: JSON with
-  its sources (`tcd`, the `uses` it reads by the paths written, `impls`),
+- carries, when the compiler built it, a custom section named `tutuca`
+  (format 2): JSON with its sources (`source`, and the `uses` it imports by
+  the paths written),
   the `types` it registers, the `interfaces` it declares, what it `needs`
   from a scope (`types` it makes or holds, `interfaces` it implements or
   holds), its `host_asks`, the `meta_schemas` it registers (by URI), and its
@@ -372,8 +451,8 @@ modules compose through the scope: `todo_list`'s TodoList makes a `TodoItem`
 by name, which works once some module registered one there, and fails the
 task (committing nothing) until then. Which module that is doesn't matter
 to TodoList as long as it implements TodoItem's interface (init's `id`,
-`text` and `done`; the `id` and `done` properties; `set_done(bool)`; a
-`remove_me` notify): `todo_item` and `todo_card` both do, with different
+`text` and `done`; the `id` and `done` properties; `setDone(boolean)`; a
+`removeMe` notify): `todo_item` and `todo_card` both do, with different
 layouts and state. Registering a name again takes it over for the components
 made after; the ones made before keep their own vtable, so one list can hold
 both.
@@ -537,8 +616,9 @@ them).
 ## Values
 
 `value.wax` is NOTES.md's `Value`: an enum (the convention above) with the
-cases `null`, `bool`, `int` (i32), `float` (f64), `string` (a JS string),
-`list`, `map`, `result` (ok or err, holding a value) and `component`. The
+cases `null`, `undefined`, `bool`, `number` (an f64, -0 and NaN as they
+are), `string` (a JS string), `list`, `map` and `component`. An outcome (a
+host call's, `tryMake`'s, an ask's) is a map: `{ ok: value }` or `{ err: error }`. The
 component case holds a `component`, which for now is an empty open struct:
 the component runtime will be its subtype. `value_same` is JS's `===`, what a
 render compares props with (numbers by value whatever case holds them,
@@ -552,14 +632,19 @@ vendored code stores `&?eq`; the adapter stores only `&value` and casts back.
 A map's keys are strings: since a JS string is an externref, outside the eq
 hierarchy the HAMT needs, a key is stored as the `value_string` holding it,
 and the map's hash (`str_hash`, FNV-1a) and equality read the string through
-it. Both are persistent: an update returns a new list or map and the old one
-stays usable, sharing what didn't change.
+it. A map keeps its keys in the order they were first set, as a JS object
+does: the HAMT holds each key's entry (where it is in that order, and its
+value), a vector holds the keys in order, and a removed key's slot is empty
+until more than half are, when the map is made again without them. Both are
+persistent: an update returns a new list or map and the old one stays usable,
+sharing what didn't change.
 
 `js/tutuca-rt.js` converts between JS values and values (`vdom.values.from` and
 `.to`): null and undefined are null, an integer in i32's range an int and any
 other number a float, an array a list, a plain object a map; a result is
-`{ ok }` or `{ err }` in JS. A map has no key order, so a round trip can
-reorder an object's keys. When a list or map prop reaches the DOM, the host
+`{ ok }` or `{ err }` in JS; the `undefined` value (pure-tutuca's) is
+`undefined` in JS, while JS's `undefined` reads as null until every module is
+pure-tutuca's (ABI 19). A round trip keeps an object's keys in their order. When a list or map prop reaches the DOM, the host
 converts it to its JS value first, so the DOM gets what tutuca's JS gives it
 (`title: ["a", "b"]` is `"a,b"`).
 
@@ -574,13 +659,14 @@ opaque to the runtime: a new reference is a new state), its type's `vtable`
 (`init`, `handle`, `get`, `set`) and the `scope` it was made in. A component
 type is written in Wax as a spec made once (a global set on first use) with
 `spec_new` or `spec_main`, a vtable, and functions declared with the
-vtable's function types: `components/counter/counter.wax` has the shortest one.
+vtable's function types: `components/probe/probe.wax` has hand-written ones.
 
 **Scopes** (`scope.wax`) are a tree: `scope_register` puts a type's spec and
 vtable under a name, `scope_make` finds it here or in a parent, runs `init`
 and gives the component the scope that was asked. `init` gets an
 `init_context` holding that scope, so it can make the components it holds
-with `init_ctx_make` (tcd's `make(c)` field defaults do). Ask handlers are
+with `init_ctx_make` (a component field a module gives no default is made
+this way). Ask handlers are
 registered the same way and found the same way, from the asker's scope up;
 a handler gets the asker's context (not its instance), so `ctx.scope` is the
 scope the asker was made in, wherever the handler was registered. It only
@@ -589,9 +675,9 @@ the spec's do: it can read the context and log, and sending from it fails
 the ask.
 `scope_register_host_ask` answers through the host's `ask` import, with
 only the ask's name and arguments: `createHost`'s `asks[name]` replies now
-with a value, later with a promise, with `name.error` when it throws or
+with a value, later with a promise, with an error answer when it throws or
 rejects (the error's message: a value can't hold a JS object), and with
-`name.unhandled` when `asks` has no such name, as tutuca's JS does.
+an unhandled one when `asks` has no such name, as tutuca's JS does.
 From JS, `loadComponent(bytes, scope, { names })` registers a module's types
 under other names (`{ Counter: "Tally", Label: null }` renames one and leaves
 one out), checked as any registration, and `runtime.nameIn(scope, c)` is the
@@ -609,12 +695,12 @@ selectors freeze against the state; targets are a base path and a selector.
 **Handlers** get a `context` (`context.wax`): the scope, their component's
 path, the source key, the event, and an effects buffer that `ctx_notify`,
 `ctx_ask`, `ctx_send_at`, `ctx_forward_at`, `ctx_reply` (to the sender of
-the message being handled, tcd's `emits reply x`), `ctx_stop_next` and
+the message being handled, a module's `ctx.reply`), `ctx_stop_next` and
 `ctx_log` add to; `ctx_now`, `ctx_random` and `ctx_uuid` read the world through the
 host's `env` import; `ctx_make` makes components in the handling component's
 scope (for a Swapped result), failing the task when it can't, and
-`ctx_try_make` makes them as a result instead: Ok(the component), or
-Err({ error, issues }), error saying why in words and issues being init's.
+`ctx_try_make` makes them as an outcome instead: `{ ok: component }`, or
+`{ err: { error, issues } }`, error saying why in words and issues being init's.
 `ctx_component_names(ctx, walk)` lists the type names registered there,
 sorted (with `walk`, the parents' too, each name once, as `ctx_make` resolves
 them): `components/layout`'s Hole asks for them and swaps itself for the one
@@ -664,9 +750,10 @@ started event the state's, a transition its task's, settled the
 invariants. An unmounted host runs nothing more, and drops what's queued
 and the answers on their way. An ask runs no handler on the asker: once what asked has
 committed it starts the scope's handler, and the answer comes back as a reply
-task of its own, routed to the asker's path and identity: `name.ok` /
-`name.error`, or `name.unhandled` with no handler. Answers aren't messages:
-a dotted name only reaches a component as an ask's answer, never from a send.
+task of its own, routed to the asker's path and identity: a message named
+as the ask with its `answer` (`ok`, `error`, or `unhandled` with no
+handler). Answers aren't messages: only an answer task has an `answer`, so a
+send of the ask's name never reaches an answer's handler.
 `ctx_ask` returns the request's id, which the answer's handler reads as
 `ctx.request`; its ids, and the watches', are counted per host, so runs
 repeat. One answered
@@ -720,9 +807,9 @@ says how many components were reused (`hits`) and rendered (`misses`).
 
 **Render targets** (tutuca's `RenderTarget`, `renders` and `viewsFor`): a
 type's views for a target other than the page (`spec_set_render(spec,
-target, names, views)`; tcd's `view main @target(md) = ...`) are picked by
+target, names, views)`; a module's `renders: { md: ... }`) are picked by
 a render for that target, for every component it reaches (`render`,
-`render_each`, `render_it` and `push_view` included), and a component
+`renderEach`, `renderIt` and `pushView` included), and a component
 without them fails ("Component Plain has no md render"), unless the target
 falls back to the page's views, as a terminal does.
 `runtime.renderTarget(component, target, { view, fallsBackToViews })` gives
@@ -809,23 +896,21 @@ with `event(name)`: `on:mousedown` → `press(event(clientX), event(clientY))`.
 **Schemas** (`prelude/schema.wax`, `schema.wax`; tutuca's `t.*` and
 `MessageSpec`): a component type can carry its schema as data
 (`spec_set_schema`): its fields' and computed properties' types
-(`vtype_int()`, `vtype_list(...)`, `vtype_component(names)`, ...) with
-constraints in normal form (`constraint_min`, `_max`, `_min_len`,
-`_max_len`, `_one_of`, `_none_of`, `_key_of` a field, `_pattern`, `_check`
-a named predicate), its messages (arguments, source key, `pre` and `post`
+(`vtype_number()`, `vtype_list(...)`, `vtype_component(names)`, ...) with
+constraints in normal form (`constraint_int`, `_min`, `_max`, `_min_len`,
+`_max_len`, `_key_of` a field, `_pattern`), its messages (arguments, source key, `pre` and `post`
 predicates, the fields it `changes`, what it `emits`), its invariants, and
 the interfaces it implements. With one, the host rejects a message whose
 arguments don't fit before the handler sees them (a reply to an ask too,
-whether it arrives in the ask's own task or later: tcd gives `name.ok`,
-and `name.error` and `name.unhandled` when they're handled, schemas
-of their own), and every rejection
+whether it arrives in the ask's own task or later: the compiler gives each
+answer it handles a schema of its own, `message_schema_set_answer`), and every rejection
 (those and a handler's own, `message_error_failed(reason)` or
 `message_error_invalid_arg(i, reason)`) aborts the task with a structured
 reason JS reads as `error.rejection`: `{ message, component, reason:
 wrongArity | wrongArgType | invalidArg | failed, index, problem, detail }`,
 `problem` saying why in words ("argument 0 (n): must be at least 1, got 0").
-`runtime.schema(component)` reads a type's schema, types written as TCD
-writes them (`list<TodoItem>`, `option<s32>`, constraints as `>= 1`,
+`runtime.schema(component)` reads a type's schema, types as type text
+(`list<TodoItem>`, `option<number>`, constraints as `>= 1`, `integer`,
 `in keys(items)`), each field with the `default` init gives it
 (`field_schema_set_default`; null for none known, or a made component). A
 made default that can't be made fails init saying each field on the way,
@@ -849,7 +934,7 @@ checked) registered in a scope by name (`scope_register_interface`) means a
 type registered or made under that name, whether or not it declares it, or
 one that declares it implements it, must have all of it, of the same types;
 registering or making one that doesn't fails, saying everything that's
-missing ("Impostor can't be a TodoItem: its field done is s32, TodoItem's
+missing ("Impostor can't be a TodoItem: its field done is number, TodoItem's
 is bool"), as tutuca's scope check does. TodoList registers TodoItem's;
 todo_item and todo_card implement it. `vtype_component` accepts a component
 of a named type or of a type implementing a named interface, the name
@@ -862,9 +947,9 @@ component's own name and scope.
 **Meta** (tutuca's `component({ meta })`, `registerMetaSchemas` and
 `metaOf`): what a type says about itself to hosts, a map of URIs (each a
 namespace, so conventions don't clash) to what it says there, set on its
-spec (`spec_set_meta`; tcd's `meta "uri" = {...};`). A `meta_schema` (a
+spec (`spec_set_meta`; a module's `meta: { "uri": {...} }`). A `meta_schema` (a
 field per key, and the keys' defaults) registered in a scope by URI
-(`scope_register_meta_schema`; tcd's `meta_schema`) means a type registered
+(`scope_register_meta_schema`; a module's const with `metaSchema`) means a type registered
 or made there whose meta says something under that URI must fit it:
 registering or making one that doesn't fails, saying why ("Bad's meta
 urn:example:sizes: it has no key color"). URIs without a schema aren't
@@ -885,12 +970,12 @@ it can become by their display meta, and the studio and the demos register
 
 **Pure messages** (tutuca's `pure: true`, `apply`, `contractOf` and
 `supports`): a message whose schema is marked pure
-(`message_schema_set_pure`; tcd's `pure message`) has a handler that takes
+(`message_schema_set_pure`; a module's `pure: true`) has a handler that takes
 no context, so it can only change its own state, and a handler holding the
 component can apply it there and then: `component_apply(c, name, args)` (or
-tcd's typed `<type>_apply_<m>`) checks the arguments, the guard (failing
+the contract's typed `<type>_apply_<m>`) checks the arguments, the guard (failing
 with its `why`, `message_schema_set_why`), runs the handler and checks
-`ensures`, and gives the component it becomes, which the holder keeps in its
+its `post`, and gives the component it becomes, which the holder keeps in its
 next state, all in its task; a broken contract fails the task ("Card can't
 apply set_done: pre (it's archived)"), and `component_try_apply` gives an
 error result instead: `{ code, issues, detail }`, the codes tutuca's
@@ -900,24 +985,23 @@ other too. From JS, `runtime.apply(component, name, args)` applies one
 outside any task, checking invariants too; `runtime.query(component, name,
 args)` runs a query, failing as apply does (`unknown`, `args`, `arg:<i>`,
 `failed`, and `returns` when what it gives doesn't meet its returns,
-`message_schema_set_returns`, tcd's `-> T`); and `runtime.contractOf`
+`message_schema_set_returns`, what a module's query returns); and `runtime.contractOf`
 (`{ name, implements: [{ name, resolved, interface }], messages, queries,
 notifies }`, as tutuca's), `runtime.typeContractOf(scope, name)`,
 `runtime.supports` (every gap, as `interfaceGaps`), `runtime.canApply` and
 `runtime.canQuery` say what a component offers. Interfaces declare pure messages and queries as well:
 an implementing type's must be pure, and take the same types. TodoList's
-complete_all and Kanban's moves apply their items' and lanes' pure messages.
+completeAll and Kanban's moves apply their items' and lanes' pure messages.
 
 **Components without views** only handle messages: a spec with no views
-renders nothing (an empty main), as in tutuca's JS, and tcd takes a
-component with no `view`s.
+renders nothing (an empty main), as in tutuca's JS, and a module's
+component may have no `view`.
 
 **Headless hosts**: `host_new` with a null document and container, or
 `createHost(null, null, root)`, runs tasks and renders nothing, for tests
 and tools.
 
-Not implemented yet: sync engines, and a view language (the examples spell
-their views and schemas with `lib/author.wax`'s helpers).
+Not implemented yet: sync engines.
 
 ## The DOM imports
 
@@ -953,8 +1037,6 @@ and namespaces. Where they differ, on purpose:
   mounts the vnode anew, as tutuca-mb does.
 - A prop is a value, so it can't be a function: JS skips function props;
   here they're an error when the vnode is built.
-- An int and a float holding the same number are the same prop, as in JS,
-  where there's only one kind of number.
 - A prop can't hold vnodes (the spec's `prop-value` can be a node or an
   iterable of them, and tutuca's JS passes an element through as is).
 
@@ -963,16 +1045,11 @@ and namespaces. Where they differ, on purpose:
 Beyond the vdom, where this and tutuca's JS (and the spec in `../spec/`)
 mean different things, on purpose or for now:
 
-- Numbers are an i32 `int` or an f64 `float`: an integer past i32's range
-  arrives as a float, which an `s32` field rejects (`t.number().int()` takes
-  it).
-- A map is a HAMT, so its keys come in hash order: a loop over a map, and
-  a map turned back into JSON, don't keep the order the keys were added in.
 - A message's arguments are checked always, not only in dev mode, before the
   handler sees them, and arguments that don't fit abort the task instead of
   being reported after it commits.
-- A predicate (`when`, `ensures`, a `where` check, an invariant) that traps
-  aborts the task, or the check, instead of counting as broken: wasm can't
+- A `pre`, `post` or invariant that traps (lowered code fails where
+  pure-js defines no result) aborts the task, or the check, instead of counting as broken: wasm can't
   catch a trap.
 - Dev mode can't report undeclared fields (an instance is opaque to the
   runtime), and doesn't check inside a component without a schema.
@@ -982,8 +1059,8 @@ mean different things, on purpose or for now:
   identity only through the runtime (its own handlers, and applying its pure
   messages), so there's nothing for tutuca's dev-mode foreign-write check to
   report.
-- A render whose source is null renders nothing (an empty
-  `option<component>`), where tutuca's JS fails finding its spec.
+- A render whose source is null renders nothing (an optional
+  component, `Child | null`), where tutuca's JS fails finding its spec.
 - A component in a text position fails the render; JS writes
   `[object Object]`.
 - A loop runs over a list or a map; JS takes the entries of any object, and
@@ -994,14 +1071,9 @@ mean different things, on purpose or for now:
   hop whose component was replaced meanwhile goes to the replacement.
 - A field that isn't public can still be read from outside (a view's
   `field(x)` in an `each` body reads the item's, and `runtime.get` any):
-  `public field` puts one in the contract as a query, as tutuca's
-  `.public()` does, but doesn't hide the others.
-- An interface is a name, not an object a module imports: a type that says
-  it implements one its scope doesn't have (yet) registers, where tutuca's
-  JS fails, and is checked when it's made once another module registers
-  it.
-- What only this has: a message's `changes`, an init hook with an
-  init context, typed computed properties, results as values, `ctx_make`,
-  `ctx_try_make` and `ctx_component_names`, event modifiers
-  (`on_keydown+enter`), `event(name)` send arguments, and `ctx.event` as a
-  map of the event's fields.
+  `public: ["x"]` puts one in the contract as a query, as tutuca's
+  `public: true` does, but doesn't hide the others.
+- A type that says it implements an interface its scope doesn't have (yet)
+  registers, where tutuca's JS fails, and is checked when it's made once
+  another module registers it.
+- `ctx.event` is a map of the event's fields, not the DOM event.

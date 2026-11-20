@@ -1,0 +1,5 @@
+members = [
+  ".",
+  "../.tools/wax-mb/lib",
+  "../vendor/pure-js-mb",
+]

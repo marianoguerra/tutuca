@@ -28,8 +28,8 @@ export async function pageStyles(classes) {
 	return classStyles(await loadCssCompiler(vendor("margaui-css.wasm")), document.querySelector("#classes"), classes);
 }
 
-// compiler(action, request) resolves with what the worker's tcd answers
-// (check, stub, model, build, or version: its tcd.wasm's hash).
+// compiler(action, request) resolves with what the worker's pure-tutuca answers
+// (check, model, build, or version: its pure-tutuca.wasm's hash).
 export function compilerClient() {
 	const worker = new Worker(new URL("../playground/compiler.worker.js", import.meta.url), { type: "module" });
 	let nextId = 0;

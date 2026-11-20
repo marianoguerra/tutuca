@@ -1,8 +1,8 @@
 {
 	"paths": [
-		{ "id": "p1", "path": "$.store.book[*].author", "expected_count": 4 },
-		{ "id": "p2", "path": "$.store.book[?(@.price < 10)].title", "expected_count": 3 },
-		{ "id": "p3", "path": "$..price", "expected_count": -1 }
+		{ "id": "p1", "path": "$.store.book[*].author", "expectedCount": 4 },
+		{ "id": "p2", "path": "$.store.book[?(@.price < 10)].title", "expectedCount": 3 },
+		{ "id": "p3", "path": "$..price", "expectedCount": -1 }
 	],
 	"document": {
 		"store": {

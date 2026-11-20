@@ -1,0 +1,130 @@
+// Generated using `moon info`, DON'T EDIT IT
+package "marianoguerra/pure-js"
+
+import {
+  "marianoguerra/pure-js/ast",
+  "marianoguerra/pure-js/check",
+  "marianoguerra/pure-js/diag",
+  "marianoguerra/pure-js/eval",
+  "marianoguerra/pure-js/host",
+  "marianoguerra/pure-js/types",
+  "marianoguerra/pure-js/value",
+  "moonbitlang/core/json",
+}
+
+// Values
+pub fn deep_freeze(@value.Value) -> @value.Value
+
+pub fn draft(String) -> @check.Entry
+
+pub fn entries_of(@ast.Expr, Array[String]) -> Array[(Array[String], Bool, @ast.Func)]
+
+pub fn erase(@ast.Program) -> @ast.Program
+
+pub fn exit_code_of(ArrayView[@diag.Diagnostic]) -> Int32
+
+pub fn format(@diag.Diagnostic, String, file? : String) -> String
+
+pub fn format_all(ArrayView[@diag.Diagnostic], String, file? : String) -> String
+
+pub fn from_json(@json.Json) -> @value.Value
+
+pub fn instantiate(@ast.Module, @host.Host, @eval.Runtime, resolve? : (String) -> String?, max_steps? : Int32, max_depth? : Int32) -> Result[@eval.Instance, (@eval.Outcome, Int32)]
+
+pub fn is_namespace_literal(@ast.Expr) -> Bool
+
+pub fn module_tree_json(@ast.Module) -> @json.Json
+
+pub fn parse(String) -> Result[@ast.Program, @diag.Diagnostic]
+
+pub fn parse_module(String) -> Result[@ast.Module, @diag.Diagnostic]
+
+pub fn plain(String) -> @check.Entry
+
+pub fn print(@ast.Program, types? : Bool) -> String
+
+pub fn print_module(@ast.Module, types? : Bool) -> String
+
+pub fn print_type(@ast.TypeNode) -> String
+
+pub fn read(String) -> @check.Entry
+
+pub fn run(@ast.Program, @host.Host, @eval.Runtime, this_? : @value.Value, args? : Array[@value.Value], max_steps? : Int32, max_depth? : Int32) -> (@eval.Outcome, Int32)
+
+pub fn run_entry(@eval.Instance, String, this_? : @value.Value, args? : Array[@value.Value]) -> (@eval.Outcome, Int32)
+
+pub fn sieve(@ast.Program, profile? : String) -> Array[@diag.Diagnostic] raise Failure
+
+pub fn sieve_module(@ast.Module, profile? : String) -> Array[@diag.Diagnostic] raise Failure
+
+pub fn std_declaration() -> @host.Declaration
+
+pub fn std_host() -> @host.Host
+
+pub fn stringify(@value.Value, space? : Int32) -> String?
+
+pub fn to_json(@value.Value) -> @json.Json?
+
+pub fn tree_json(@ast.Program) -> @json.Json
+
+pub fn type_text(@types.Ty) -> String
+
+pub fn verify(String, @host.Host, signature? : @check.Signature, profile? : String, deterministic? : Bool) -> Verified raise Failure
+
+pub fn verify_module(String, @host.Host, resolve? : (String) -> String?, signature_of? : (Array[String]) -> @check.Signature?, data_type_of? : (Array[String]) -> String?, deterministic? : Bool) -> ModuleVerified raise Failure
+
+// Errors
+
+// Types and methods
+pub struct ModuleVerified {
+  module_ : @ast.Module?
+  diagnostics : Array[@diag.Diagnostic]
+  checked : @check.ModuleChecked?
+}
+
+pub struct Verified {
+  program : @ast.Program?
+  diagnostics : Array[@diag.Diagnostic]
+  return_type : String?
+}
+
+// Type aliases
+pub using @check {type Binding}
+
+pub using @host {type Declaration}
+
+pub using @diag {type Diagnostic}
+
+pub using @check {type Entry}
+
+pub using @value {type HandleRef}
+
+pub using @host {type Host}
+
+pub using @eval {type Instance}
+
+pub using @value {type ListRef}
+
+pub using @check {type Mode}
+
+pub using @check {type ModuleChecked}
+
+pub using @check {type ModuleEntry}
+
+pub using @value {type ObjRef}
+
+pub using @eval {type Outcome}
+
+pub using @value {type RunError}
+
+pub using @eval {type Runtime}
+
+pub using @check {type Signature}
+
+pub using @check {type Summary}
+
+pub using @check {type TypeEntry}
+
+pub using @value {type Value}
+
+// Traits

@@ -17,6 +17,6 @@ directive shows as `[%x?]` and makes the cell an error.
 
 Workflow:
 1. `formatted` to see each instant × format output and which expectations fail.
-2. Fix a strftime with `set_strftime(id, format)`, an Intl format with `set_locale(id, locale)`
-   and `set_intl_option(id, option, value)` (value "" removes the option).
-3. Pin outputs the user confirms with `set_expectation(format, instant, expected)`.
+2. Fix a strftime with `setStrftime(id, format)`, an Intl format with `setLocale(id, locale)`
+   and `setIntlOption(id, option, value)` (value "" removes the option).
+3. Pin outputs the user confirms with `setExpectation(format, instant, expected)`.

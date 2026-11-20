@@ -1,0 +1,47 @@
+// Generated using `moon info`, DON'T EDIT IT
+package "tutuca/pure-tutuca/compose"
+
+import {
+  "marianoguerra/wax/ast",
+  "marianoguerra/wax/basic",
+  "tutuca/pure-tutuca/check",
+  "tutuca/pure-tutuca/diag",
+  "tutuca/pure-tutuca/gen",
+}
+
+// Values
+pub fn abi_decls(String) -> Array[(String, String)]
+
+pub fn abi_imports(String, Array[String]) -> String
+
+pub fn build(Runtime, @check.Package, @gen.Output, String, String, Array[Source], String) -> Built
+
+pub fn check_convention(@check.Package, Array[@gen.Required], Array[Array[@basic.Annotated[@ast.ModuleField[@basic.Location], @basic.Location]]], Array[Array[@basic.Annotated[@ast.ModuleField[@basic.Location], @basic.Location]]], prelude? : Array[Array[@basic.Annotated[@ast.ModuleField[@basic.Location], @basic.Location]]]) -> Array[@diag.Diagnostic]
+
+pub let collection_files : Array[String]
+
+pub let prelude_files : Array[String]
+
+// Errors
+
+// Types and methods
+pub(all) struct Built {
+  wasm : Bytes?
+  abi_imports : String
+  diags : Array[@diag.Diagnostic]
+}
+
+pub(all) struct Runtime {
+  prelude : Array[Source]
+  collections : Array[Source]
+  abi : Source
+}
+
+pub(all) struct Source {
+  path : String
+  text : String
+}
+
+// Type aliases
+
+// Traits

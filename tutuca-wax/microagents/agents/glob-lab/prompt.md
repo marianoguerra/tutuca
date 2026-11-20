@@ -8,10 +8,10 @@ every expectation pass, or to write the glob the user describes.
 How to work:
 - Read the summary below first. Call `matches(glob)` to see the matched and unmatched paths and
   each expectation, and `explain(glob)` for the regex picomatch compiles the glob to.
-- Change one glob at a time with `set_glob` (and `set_glob_options` for dot / nocase); its
+- Change one glob at a time with `setGlob` (and `setGlobOptions` for dot / nocase); its
   answer is the summary, with each glob's counts.
 - `*` stops at `/`; `**` crosses directories only as a whole segment; dotfiles need `dot`.
   Prefer braces `{a,b}` and extglobs `!(…)` over several globs only when it stays readable.
 - Explain each change in one or two sentences.
 
-The skills folder has a glob syntax reference (`skills_read("reference/glob-syntax.md")`).
+The skills folder has a glob syntax reference (`skillsRead("reference/glob-syntax.md")`).

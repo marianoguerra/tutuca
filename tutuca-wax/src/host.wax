@@ -14,7 +14,7 @@ const task_kind_plain = 0; // a send, a sendAt, a forwardAt
 const task_kind_notify = 1; // handled, then sent on to the parent
 const task_kind_ask = 2; // starts the scope's ask handler; its answer is a task of its own
 const task_kind_event = 3; // an event on a rendered element
-const task_kind_answer = 4; // an ask's answer, name.ok/.error/.unhandled, to the asker
+const task_kind_answer = 4; // an ask's answer (its name the ask's, answer which one), to the asker
 
 // The element being dragged: where it was rendered, its data-dragtype and
 // the value there when the drag started.
@@ -23,6 +23,9 @@ type drag = { path: &dispatch_path, drag_type: js_string_opt, node: dom_node, va
 type task = {
     kind: i32,
     name: js_string,
+    // For an answer task, which answer to the ask name it is (answer_ok,
+    // answer_error, answer_unhandled); answer_none for every other task.
+    answer: i32,
     // A progress message's are set as it runs (watch_progress_args).
     args: mut &value_array,
     // The sender (tutuca's from): the route of the component that sent it,
@@ -277,6 +280,7 @@ fn task_new(
     {task|
         kind,
         name,
+        answer: answer_none,
         args,
         from,
         from_host: 0,
@@ -302,6 +306,7 @@ fn host_task(kind: i32, name: js_string, args: &value_array, target: &target) ->
     {task|
         kind,
         name,
+        answer: answer_none,
         args,
         from: host_route(),
         from_host: 1,
@@ -328,6 +333,7 @@ fn task_notify_hop(t: &task, parent: &target, any_hop_handled: i32) -> &task {
     {task|
         kind: task_kind_notify,
         name: t.name,
+        answer: answer_none,
         args: t.args,
         from: t.from,
         from_host: t.from_host,
@@ -463,7 +469,7 @@ fn host_step(h: &host) -> i32 {
     // it ran in; and it's done, but an ask whose answer is on its way.
     i = 0;
     while i <s list_count(tx.cancels) {
-        watch_cancel_id(h, (list_get(tx.cancels, i)! as &value_int).value, watch_cancelled);
+        watch_cancel_id(h, value_to_f64(list_get(tx.cancels, i)!) as i32_s, watch_cancelled);
         i += 1;
     }
     let ran =
@@ -507,19 +513,6 @@ fn transaction_push(tx: &transaction, t: &task) {
     tx.count = tx.count + 1;
 }
 
-// Whether s has a dot: only an answer's name does.
-fn has_dot(s: js_string) -> i32 {
-    let i = 0;
-    let n = js_string_length(s);
-    while i <s n {
-        if js_string_char_code_at(s, i) == 46 {
-            return 1;
-        }
-        i += 1;
-    }
-    0;
-}
-
 // The component at r in h's root, or null when r reaches none (orphaned,
 // reported) or another took its place since r was fixed (stale: it was
 // replaced, or a list shifted, so the message, for the one before, is
@@ -532,12 +525,12 @@ fn host_receiver(h: &host, t: &task, r: &route) -> &?component {
     }
     if !c {
         h.outcome = transition_orphaned;
-        observe_orphaned(t.name);
+        observe_orphaned(t.name, t.answer);
         return null;
     }
     if (c!).id != r.id {
         h.outcome = transition_stale;
-        observe_stale(t.name);
+        observe_stale(t.name, t.answer);
         return null;
     }
     c;
@@ -558,13 +551,6 @@ fn host_transaction(h: &host, t: &task, tx: &transaction) -> &value {
     }
     let comp = c!;
     let path = dispatch_path_to_component(r.path);
-    // Only an ask's answer has a dotted name (name.ok): a message named so,
-    // from a send or from outside, can't forge one.
-    if (t.kind != task_kind_answer) & has_dot(t.name) {
-        note_unhandled(h, t.name);
-        h.outcome = transition_unhandled;
-        return h.root;
-    }
     // The child the message came through; for one from the host, such as
     // an event, the loop item it reached, below the component.
     let through = t.from.path;
@@ -587,7 +573,9 @@ fn host_transaction(h: &host, t: &task, tx: &transaction) -> &value {
     let me = {route| path, key_path: r.key_path, id: comp.id };
     // The message the component handles: the task's, or for an ask the reply
     // the ask's handler gives (none while it's pending).
-    let msg: &?message = {message| name: t.name, args };
+    // Only an answer task's message is an answer: a send or what comes from
+    // outside can't forge one.
+    let msg: &?message = {message| name: t.name, args, answer: t.answer };
     if t.kind == task_kind_ask {
         msg = ask_reply(comp, t, args, ctx, tx);
     }
@@ -598,7 +586,7 @@ fn host_transaction(h: &host, t: &task, tx: &transaction) -> &value {
     let result = MESSAGE_RESULT_UNCHANGED;
     if !!msg {
         let m = msg!;
-        ms = spec_message_schema(comp.spec, m.name);
+        ms = spec_message_schema(comp.spec, m.name, m.answer);
         if !!ms {
             check_message_args(comp, ms!, m.args);
             if h.dev & !!(ms!).pre {
@@ -629,10 +617,10 @@ fn host_transaction(h: &host, t: &task, tx: &transaction) -> &value {
             // any other message is reported here.
             handled = 0;
             if t.kind != task_kind_notify {
-                note_unhandled(h, (msg!).name);
+                note_unhandled(h, (msg!).name, (msg!).answer);
             }
         } else {
-            reject_message(comp, (msg!).name, error);
+            reject_message(comp, (msg!).name, (msg!).answer, error);
             unreachable;
         }
     }
@@ -647,7 +635,7 @@ fn host_transaction(h: &host, t: &task, tx: &transaction) -> &value {
         let any_handled = t.any_hop_handled | handled;
         if dispatch_path_is_root(path) {
             if !any_handled {
-                note_unhandled(h, t.name);
+                note_unhandled(h, t.name, t.answer);
             }
         } else {
             let parent = {target| base: dispatch_path_to_parent(path), selector: empty_selector() };
@@ -683,10 +671,12 @@ fn host_transaction(h: &host, t: &task, tx: &transaction) -> &value {
     root;
 }
 
-// An ask's answer: a message from the host to the asker, routed to its
-// path and its identity, so it reaches the asker or is dropped stale.
+// An ask's answer: a message from the host to the asker, named as the ask
+// with answer saying which answer it is, routed to its path and its
+// identity, so it reaches the asker or is dropped stale.
 fn reply_task(
     name: js_string,
+    answer: i32,
     args: &value_array,
     asker: &route,
     request: i32,
@@ -697,6 +687,7 @@ fn reply_task(
     {task|
         kind: task_kind_answer,
         name,
+        answer,
         args,
         from: host_route(),
         from_host: 1,
@@ -719,7 +710,7 @@ fn reply_task(
 
 // An ask runs no handler on the asker: what asked has committed, so it starts
 // the scope's ask handler, and the answer comes back as a reply task of its
-// own (name_reply_ok, name_reply_error or name_handler_not_found), which runs
+// own (the ask's name with answer_ok, answer_error or answer_unhandled), which runs
 // next, ahead of the queue; a pending answer's comes when it settles. Either
 // way a reply that fails fails only itself. It gives no message to handle.
 fn ask_reply(
@@ -761,7 +752,8 @@ fn ask_reply(
     if answer.kind == ask_result_kind_not_found {
         tx.next_hop =
             reply_task(
-                js_string_concat(t.name, s_answer_unhandled),
+                t.name,
+                answer_unhandled,
                 empty_args(),
                 asker,
                 t.request,
@@ -789,11 +781,20 @@ fn ask_reply(
         tx.ask_pending = 1;
         return null;
     }
-    let result = (answer as &ask_result_reply).result as &value_result;
+    let result = (answer as &ask_result_reply).result;
     let reply = [value_array|null; 1];
-    reply[0] = result.value;
-    let name = js_string_concat(t.name, result.ok?s_answer_ok:s_answer_error);
-    tx.next_hop = reply_task(name, reply, asker, t.request, t.seq, t.origin, t.watch);
+    reply[0] = outcome_value(result);
+    tx.next_hop =
+        reply_task(
+            t.name,
+            outcome_is_ok(result)?answer_ok:answer_error,
+            reply,
+            asker,
+            t.request,
+            t.seq,
+            t.origin,
+            t.watch,
+        );
     null;
 }
 
@@ -818,7 +819,7 @@ fn effect_tasks(
             note_emitted(h, s_e_notify, n.name, n.args);
             if dispatch_path_is_root(here) {
                 // The root has no ancestors: nobody can handle it.
-                note_unhandled(h, n.name);
+                note_unhandled(h, n.name, answer_none);
             } else {
                 let parent =
                     {target| base: dispatch_path_to_parent(here), selector: empty_selector() };
@@ -904,7 +905,7 @@ fn effect_tasks(
             let rp = e as &effect_reply;
             note_emitted(h, s_e_reply, rp.name, rp.args);
             if t.from_host {
-                note_unhandled(h, rp.name);
+                note_unhandled(h, rp.name, answer_none);
             } else {
                 let reply =
                     task_new(
@@ -920,7 +921,7 @@ fn effect_tasks(
             }
         }
         if kind == effect_kind_cancel {
-            tx.cancels = list_push(tx.cancels, value_int((e as &effect_cancel).id));
+            tx.cancels = list_push(tx.cancels, value_number((e as &effect_cancel).id as f64_s));
         }
         if kind == effect_kind_stop_next {
             stop = 1;
@@ -935,9 +936,9 @@ fn effect_tasks(
 
 // A message nobody handles, made by the task running: observed, and kept
 // for its transition.
-fn note_unhandled(h: &host, name: js_string) {
+fn note_unhandled(h: &host, name: js_string, answer: i32) {
     h.unhandled = list_push(h.unhandled, value_string(name));
-    observe_unhandled(name);
+    observe_unhandled(name, answer);
 }
 
 // What the task running's handler sent, for its transition.
@@ -968,7 +969,7 @@ fn route_value(r: &route, from_host: i32) -> &value {
         return VALUE_NULL;
     }
     let m = map_assoc(map_empty(), s_path, key_path_value(r.key_path));
-    map_assoc(m, s_id, value_int(r.id));
+    map_assoc(m, s_id, value_number(r.id as f64_s));
 }
 
 fn transition_outcome_name(o: i32) -> js_string {
@@ -1023,15 +1024,19 @@ fn task_transition_value(
     unhandled: &value,
 ) -> &value {
     let m = map_assoc(map_empty(), s_kind, value_string(s_transition));
-    m = map_assoc(m, s_seq, value_int(t.seq));
+    m = map_assoc(m, s_seq, value_number(t.seq as f64_s));
     let cause = VALUE_NULL;
     if t.cause != 0 {
-        cause = value_int(t.cause);
+        cause = value_number(t.cause as f64_s);
     }
     m = map_assoc(m, s_cause, cause);
-    m = map_assoc(m, s_origin, value_int(t.origin));
+    m = map_assoc(m, s_origin, value_number(t.origin as f64_s));
     m = map_assoc(m, s_mode, value_string(task_mode_name(t)));
     m = map_assoc(m, s_name, value_string(t.name));
+    // An answer says which: its name is the ask's.
+    if t.answer != answer_none {
+        m = map_assoc(m, s_t_answer, value_string(answer_name(t.answer)));
+    }
     m = map_assoc(m, s_args, values_to_list(t.args));
     m = map_assoc(m, s_from, route_value(t.from, t.from_host));
     let to = VALUE_NULL;
@@ -1044,7 +1049,7 @@ fn task_transition_value(
     m = map_assoc(m, s_unhandled_key, unhandled);
     let watch = VALUE_NULL;
     if !!t.watch {
-        watch = value_int((t.watch!).id);
+        watch = value_number((t.watch!).id as f64_s);
     }
     map_assoc(m, s_w_watch, watch);
 }
@@ -1189,6 +1194,7 @@ fn host_dispatch_event(
             {task|
                 kind: task_kind_event,
                 name: i.handler.action.name,
+                answer: answer_none,
                 args,
                 from: host_route(),
                 from_host: 1,
@@ -1369,7 +1375,8 @@ fn event_names_visit(context: &?eq, key: &?eq, item: &?eq) {
 }
 
 // An ask answered later settled: its reply joins the queue, routed to the
-// asker. result is a result value. 0 when the id isn't pending.
+// asker. result is an outcome, { ok: value } or { err: error }. 0 when the
+// id isn't pending.
 fn host_settle(h: &host, id: i32, result: &value) -> i32 {
     let n = pv_count(h.pending);
     let i = 0;
@@ -1385,13 +1392,20 @@ fn host_settle(h: &host, id: i32, result: &value) -> i32 {
                 j += 1;
             }
             h.pending = rest;
-            let r = result as &value_result;
             let reply = [value_array|null; 1];
-            reply[0] = r.value;
-            let name = js_string_concat(p.name, r.ok?s_answer_ok:s_answer_error);
+            reply[0] = outcome_value(result);
             host_push(
                 h,
-                reply_task(name, reply, p.asker, p.request, p.cause, p.origin, p.ask.watch),
+                reply_task(
+                    p.name,
+                    outcome_is_ok(result)?answer_ok:answer_error,
+                    reply,
+                    p.asker,
+                    p.request,
+                    p.cause,
+                    p.origin,
+                    p.ask.watch,
+                ),
             );
             // The ask is done once its answer is queued.
             watch_leave(h, p.ask);
@@ -1452,8 +1466,8 @@ fn host_route_at(h: &host, sel: &selector) -> &route {
 // Applies the pure message name(args) to the component sel reaches, at
 // once, as a change from outside: no task, no queue (tutuca's host.apply).
 // Its invariants are checked: a change that breaks them, or a broken
-// contract, changes nothing. What component_try_apply gives: an ok result
-// with the component it is now, or an error one ({ code, ... }; code
+// contract, changes nothing. What component_try_apply gives: { ok: the
+// component it is now }, or { err: { code, ... } } (code
 // not-component when nothing is there). Reported as a transition of mode
 // apply, handled or failed.
 fn host_apply(h: &host, name: js_string, args: &value_array, sel: &selector) -> &value {
@@ -1470,20 +1484,20 @@ fn host_apply(h: &host, name: js_string, args: &value_array, sel: &selector) -> 
     t.route = r;
     t.seq = seq;
     t.origin = seq;
-    let result =
-        value_try_apply(key_path_get_or_null(r.key_path, h.root), name, args, 1) as &value_result;
+    let result = value_try_apply(key_path_get_or_null(r.key_path, h.root), name, args, 1);
+    let ok = outcome_is_ok(result);
     let outcome = s_t_failed;
-    if result.ok {
+    if ok {
         outcome = s_t_handled;
-        let next = result.value;
+        let next = outcome_value(result);
         if next != key_path_get_or_null(r.key_path, h.root) {
             h.root = key_path_set_in(r.key_path, h.root, next);
         }
     }
     let record = task_transition_value(t, outcome, list_empty(), list_empty());
     record = map_assoc(record, s_mode, value_string(s_t_apply));
-    if !result.ok {
-        record = map_assoc(record, s_error, result.value);
+    if !ok {
+        record = map_assoc(record, s_error, outcome_value(result));
     }
     h.events = list_push(h.events, record);
     result;

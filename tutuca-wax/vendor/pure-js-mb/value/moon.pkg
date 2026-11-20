@@ -1,0 +1,8 @@
+import {
+  "marianoguerra/pure-js/tables",
+  "moonbitlang/core/double",
+  "moonbitlang/core/json",
+  "moonbitlang/core/string",
+}
+
+warnings = "-implicit_impl_as_method"

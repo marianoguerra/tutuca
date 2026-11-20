@@ -9,10 +9,10 @@ import { agent, bytes, runtime, session } from "./helpers.mjs";
 
 const ID = "jsonpointer-lab";
 
-test("its section says what it is, and its tools take their docs from the .tcd", () => {
+test("its section says what it is, and its tools take their docs from the module", () => {
 	const meta = agentMeta(bytes(`dist/agents/${ID}.wasm`));
 	assert.equal(meta.root, "JsonPointerLab");
-	assert.equal(meta.tools.find((t) => t.name === "set_pointer").description, "Change a pointer.");
+	assert.equal(meta.tools.find((t) => t.name === "setPointer").description, "Change a pointer.");
 	assert.ok(meta.skills["SKILL.md"]);
 });
 
@@ -20,7 +20,7 @@ test("the tools' parameters come from the messages' and queries' arguments", asy
 	const { tw } = await runtime();
 	const a = await agent(ID);
 	const tools = toolsFor(tw.runtime, a, openWith(tw, a, a.meta.samples.config));
-	const reorder = tools.find((t) => t.name === "reorder_pointers");
+	const reorder = tools.find((t) => t.name === "reorderPointers");
 	assert.deepEqual(reorder.parameters.required, ["id", "index"]);
 	assert.equal(reorder.parameters.properties.index.minimum, 0);
 	assert.deepEqual(tools.find((t) => t.name === "resolve").parameters.required, ["pointer"]);
@@ -29,22 +29,22 @@ test("the tools' parameters come from the messages' and queries' arguments", asy
 
 test("a message tool changes the root and answers with the summary", async () => {
 	const s = await session(await agent(ID), "config");
-	const out = await s.call("set_pointer", { id: "q3", pointer: "/servers/1/port" });
+	const out = await s.call("setPointer", { id: "q3", pointer: "/servers/1/port" });
 	assert.equal(out.isError, false, out.content[0].text);
 	assert.equal(out.details.changed, true);
 	assert.match(out.content[0].text, /q3: "\/servers\/1\/port" → 8081/);
-	assert.match(await s.text("add_pointer", { pointer: "/name" }), /q5: "\/name" → "billing"/);
+	assert.match(await s.text("addPointer", { pointer: "/name" }), /q5: "\/name" → "billing"/);
 	assert.deepEqual(s.host.issues, []);
 });
 
 test("a call with a bad id fails, says why, and changes nothing", async () => {
 	const s = await session(await agent(ID), "config");
 	const before = s.root();
-	const out = await s.call("set_pointer", { id: "nope", pointer: "/x" });
+	const out = await s.call("setPointer", { id: "nope", pointer: "/x" });
 	assert.equal(out.isError, true);
 	assert.match(out.content[0].text, /can't run with these arguments now/);
 	assert.equal(s.root(), before);
-	const typed = await s.call("reorder_pointers", { id: "q1", index: -1 });
+	const typed = await s.call("reorderPointers", { id: "q1", index: -1 });
 	assert.equal(typed.isError, true);
 	assert.match(typed.content[0].text, /index/);
 });
@@ -66,20 +66,20 @@ test("view tools read: a query with its arguments, a get without", async () => {
 test("the shared tools read the skills, the state and the export", async () => {
 	const a = await agent(ID);
 	const s = await session(a, "config");
-	assert.match(await s.text("skills_list", { dir: "" }), /SKILL\.md/);
-	assert.match(await s.text("skills_read", { path: "reference/rfc6901.md" }), /~1/);
-	assert.deepEqual(await s.json("export_preview"), a.meta.samples.config);
-	assert.equal((await s.call("skills_read", { path: "nope" })).isError, true);
+	assert.match(await s.text("skillsList", { dir: "" }), /SKILL\.md/);
+	assert.match(await s.text("skillsRead", { path: "reference/rfc6901.md" }), /~1/);
+	assert.deepEqual(await s.json("exportPreview"), a.meta.samples.config);
+	assert.equal((await s.call("skillsRead", { path: "nope" })).isError, true);
 });
 
 test("editing the document as text keeps it while it isn't JSON", async () => {
 	const s = await session(await agent(ID), "config");
-	s.send("set_document_text", "{ nope");
-	assert.match(s.get("doc_error"), /JSON/);
+	s.send("setDocumentText", "{ nope");
+	assert.match(s.get("docError"), /JSON/);
 	assert.match(s.get("summary"), /document: not JSON/);
-	s.send("set_document_text", '{"a": [1, 2]}');
-	assert.equal(s.get("doc_error"), "");
-	s.send("pick_node", 2);
+	s.send("setDocumentText", '{"a": [1, 2]}');
+	assert.equal(s.get("docError"), "");
+	s.send("pickNode", 2);
 	assert.equal(s.get("pointers")[0].pointer, "/a/0");
 	assert.deepEqual(s.host.issues, []);
 });

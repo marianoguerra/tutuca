@@ -1406,8 +1406,14 @@ types above:
   template's shape already has `data-eid` when it has handlers, so lowering
   an element is building its vnode. Props and literal send arguments are
   `Value`s.
-- `Value` is implemented in `src/value.wax` with the cases above; Int is i32
-  and Float f64. `List` and `Map` are `src/collections.wax`, over wax-mb's
+- `Value` is implemented in `src/value.wax` with the cases above, but for
+  numbers and results: Int and Float are one Number (an f64, -0 and NaN as
+  they are, a whole number being a constraint, `constraint_int`, as the
+  schema's one Number type is), there's an Undefined case (pure-tutuca's
+  `undefined`, JS's `undefined` at the boundary), and Result isn't a case:
+  an outcome (a host call's, `tryMake`'s, an ask's, a `Reply`) is a map,
+  `{ ok: value }` or `{ err: error }`. An ask's answer is a message named as
+  the ask with an `answer` field (ok, error, unhandled), not a dotted name. `List` and `Map` are `src/collections.wax`, over wax-mb's
   persistent vector and hash map vendored unmodified in `vendor/wax-mb`
   rather than adapted in place: the adapter types them over `&value`, and the
   map's key policy is fixed to string keys, stored as the `value_string`

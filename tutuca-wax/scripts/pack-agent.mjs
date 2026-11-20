@@ -10,13 +10,13 @@
 //   samples/*.json  JSON documents it opens; empty.json is the one "New" opens
 //
 // A tool without a description takes its message's or query's /// doc from
-// the package's model (tcd model), so the .tcd says it once.
+// the package's model (pure-tutuca model), so the module says it once.
 
 import { readdirSync, readFileSync } from "node:fs";
 import { join } from "node:path";
 import { metaProblems, packAgent } from "../microagents/agent.js";
 
-// The doc of root's message, query or get name, from model (tcd model's JSON).
+// The doc of root's message, query or get name, from model (pure-tutuca model's JSON).
 const docOf = (model, root, name) => {
 	const c = model?.components?.find((x) => x.name === root);
 	const member = [...(c?.messages ?? []), ...(c?.queries ?? []), ...(c?.gets ?? []), ...(c?.fields ?? [])].find((m) => m.name === name);

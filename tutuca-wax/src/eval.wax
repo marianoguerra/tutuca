@@ -240,7 +240,7 @@ fn view_value(v: &view, e: &eval_ctx) -> &value {
             return view_value(value_truthy(view_value(c.test, e))?c.then:c.otherwise, e);
         }
         q: &view_eq => {
-            let same = cond_eq(view_value(q.left, e), q.value);
+            let same = value_equal(view_value(q.left, e), q.value);
             return value_bool(q.negate?!same:same);
         }
         q: &view_query => {
@@ -288,20 +288,28 @@ fn view_frame(v: &view, e: &eval_ctx) -> &frame {
 }
 
 // String(v), as JS writes a value: a list its items joined by commas (null
-// ones empty), a map, result or component "[object Object]".
+// ones empty), a map or a component "[object Object]".
 fn value_js_text(v: &value) -> js_string {
     let kind = v.kind;
     if kind == value_kind_null {
         return s_null;
     }
+    if kind == value_kind_undefined {
+        return s_undefined;
+    }
     if kind == value_kind_string {
         return (v as &value_string).value;
     }
-    if kind == value_kind_int {
-        return int_text((v as &value_int).value);
-    }
-    if kind == value_kind_float {
-        return host_number_text((v as &value_float).value);
+    if kind == value_kind_number {
+        let n = (v as &value_number).value;
+        // A whole number in i32's range is written here, as String writes
+        // it (-0 as 0); the rest as JS writes it.
+        if (n >= -2147483648.0) & (n <= 2147483647.0) {
+            if n == n.trunc() {
+                return int_text(n as i32_s);
+            }
+        }
+        return host_number_text(n);
     }
     if kind == value_kind_bool {
         if (v as &value_bool).value {
@@ -317,7 +325,7 @@ fn value_js_text(v: &value) -> js_string {
                 text_push(b, s_comma);
             }
             let item = list_get(v, i)!;
-            if item.kind != value_kind_null {
+            if (item.kind != value_kind_null) & (item.kind != value_kind_undefined) {
                 text_push(b, value_js_text(item));
             }
             i += 1;
@@ -329,7 +337,7 @@ fn value_js_text(v: &value) -> js_string {
 
 // The text a key renders as, String(key) as in tutuca's JS; null none.
 fn key_text(v: &value) -> js_string_opt {
-    if v.kind == value_kind_null {
+    if (v.kind == value_kind_null) | (v.kind == value_kind_undefined) {
         return null;
     }
     value_js_text(v);
@@ -348,7 +356,7 @@ fn view_name_of(v: &value) -> js_string {
 // Object]", as in tutuca's JS).
 fn value_eval_into(out: &snode_buf, v: &value) {
     let kind = v.kind;
-    if kind == value_kind_null {
+    if (kind == value_kind_null) | (kind == value_kind_undefined) {
         return;
     }
     if kind == value_kind_list {
@@ -390,7 +398,7 @@ fn view_eval_into(out: &snode_buf, v: &view, e: &eval_ctx) {
         r: &view_render => {
             let child = view_value(r.source, e);
             // An empty option<component> renders nothing.
-            if child.kind == value_kind_null {
+            if (child.kind == value_kind_null) | (child.kind == value_kind_undefined) {
                 return;
             }
             snode_buf_push(out, render_child(view_frame(r.source, e), child, r.view_name, e.rc));
@@ -542,7 +550,7 @@ fn view_eval_loop(
         let count = list_count(keys);
         let i = 0;
         while i <s count {
-            let key = value_int(i);
+            let key = value_number(i as f64_s);
             let item = VALUE_NULL;
             if is_list {
                 item = list_get(items, i)!;
@@ -629,15 +637,15 @@ fn view_query_value(it: &value, name: js_string, args: &value_array) -> &value {
         host_fail(js_string_concat(s_err_query_not_component, name));
         unreachable;
     }
-    let result = component_query(c!, name, args) as &value_result;
-    if !result.ok {
+    let result = component_query(c!, name, args);
+    if !outcome_is_ok(result) {
         let b = text_builder_new();
         text_push(b, s_err_query_failed);
         text_push(b, name);
         text_push(b, s_colon_space);
-        text_push(b, value_string_of(map_get(result.value, s_code)!)!);
+        text_push(b, value_string_of(map_get(outcome_value(result), s_code)!)!);
         host_fail(text_finish(b));
         unreachable;
     }
-    result.value;
+    outcome_value(result);
 }

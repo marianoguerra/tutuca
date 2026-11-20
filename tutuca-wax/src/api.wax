@@ -45,37 +45,21 @@ fn api_value_kind(v: &value) -> i32 {
     v.kind;
 }
 
-// The payload of a bool (0 or 1), int, float or string; each traps on
-// another case.
+// The payload of a bool (0 or 1), number or string; each traps on another
+// case.
 #[export = "value_bool_get"]
 fn api_value_bool_get(v: &value) -> i32 {
     (v as &value_bool).value;
 }
 
-#[export = "value_int_get"]
-fn api_value_int_get(v: &value) -> i32 {
-    (v as &value_int).value;
-}
-
-#[export = "value_float_get"]
-fn api_value_float_get(v: &value) -> f64 {
-    (v as &value_float).value;
+#[export = "value_number_get"]
+fn api_value_number_get(v: &value) -> f64 {
+    (v as &value_number).value;
 }
 
 #[export = "value_string_get"]
 fn api_value_string_get(v: &value) -> js_string {
     (v as &value_string).value;
-}
-
-// A result's: 1 for Ok, 0 for Err, and what it holds.
-#[export = "value_result_ok"]
-fn api_value_result_ok(v: &value) -> i32 {
-    (v as &value_result).ok;
-}
-
-#[export = "value_result_value"]
-fn api_value_result_value(v: &value) -> &value {
-    (v as &value_result).value;
 }
 
 #[export = "shape_new"]
@@ -231,15 +215,15 @@ fn api_scope_leave(s: &scope, name: js_string) {
     scope_leave(s, name);
 }
 
-// Makes a component by name: an ok result holding it, or an err result
-// holding why. fields is a map value.
+// Makes a component by name: { ok: it }, or { err: why }. fields is a map
+// value.
 #[export = "scope_make"]
 fn api_scope_make(s: &scope, name: js_string, fields: &value) -> &value {
     let made = scope_make(s, name, fields);
     if !made.component {
-        return value_err(made.error!);
+        return outcome_err(made.error!);
     }
-    value_ok(value_component(made.component!));
+    outcome_ok(value_component(made.component!));
 }
 
 // The issues init reported making a component by name: a list value.
@@ -273,11 +257,11 @@ fn values_to_list(args: &value_array) -> &value {
 // host calls host_settle with the id it returned) or not at all.
 fn host_ask_handler: ask_fn (name: js_string, args: &value_array, ctx: &context) -> &ask_result {
     let answer = host_ask(name, values_to_list(args) as &extern);
-    if answer.kind == value_kind_result {
+    if answer.kind == value_kind_map {
         return ask_result_reply(answer);
     }
-    if answer.kind == value_kind_int {
-        return ask_result_pending((answer as &value_int).value);
+    if answer.kind == value_kind_number {
+        return ask_result_pending((answer as &value_number).value as i32_s);
     }
     ask_result_not_found();
 }
@@ -328,8 +312,8 @@ fn api_host_set_render_cache(h: &host, enabled: i32) {
 // { hits, misses }.
 #[export = "host_cache_stats"]
 fn api_host_cache_stats(h: &host) -> &value {
-    let m = map_assoc(map_empty(), s_hits, value_int(h.cache_stats.hits));
-    map_assoc(m, s_misses, value_int(h.cache_stats.misses));
+    let m = map_assoc(map_empty(), s_hits, value_number(h.cache_stats.hits as f64_s));
+    map_assoc(m, s_misses, value_number(h.cache_stats.misses as f64_s));
 }
 
 #[export = "host_set_dev"]
@@ -365,8 +349,20 @@ fn api_component_message_problem(v: &value, name: js_string, args: &value) -> &v
     value_string(problem!);
 }
 
-// Runs the component v's query name with args (a list value): an ok result
-// with its value, or an error result saying why it couldn't.
+// Runs the component v's query name with args (a list value): { ok: its
+// value }, or { err } saying why it couldn't.
+// What component_query or component_apply_js give when what they ran
+// threw (a host call that failed, or a trap): { err } with code failed and
+// the error's message as its detail, as a handler that rejects gives.
+#[export = "component_failure"]
+fn api_component_failure(v: &value, name: js_string, detail: js_string) -> &value {
+    let c = value_as_component(v);
+    if !c {
+        return not_component_error(name);
+    }
+    apply_fail(c!, name, s_a_failed, detail);
+}
+
 #[export = "component_query"]
 fn api_component_query(v: &value, name: js_string, args: &value) -> &value {
     let c = value_as_component(v);
@@ -377,8 +373,9 @@ fn api_component_query(v: &value, name: js_string, args: &value) -> &value {
 }
 
 // The component v after its pure message name with args (a list value),
-// outside any task: Ok(the new component, v's when nothing changed) with its
-// invariants checked, or Err({ code, issues, detail, component, message }).
+// outside any task: { ok: the new component } (v when nothing changed) with
+// its invariants checked, or { err: { code, issues, detail, component,
+// message } }.
 #[export = "component_apply_js"]
 fn api_component_apply(v: &value, name: js_string, args: &value) -> &value {
     value_try_apply(v, name, list_to_values(args), 1);
@@ -754,12 +751,12 @@ fn api_spec_classes(spec: &component_spec) -> &value {
     spec_class_names(spec);
 }
 
-// A walker that records the kinds it visits, as a list of ints.
+// A walker that records the kinds it visits, as a list of numbers.
 type kinds_state = { kinds: mut &value };
 
 fn kinds_record(w: &walker, n: &view) {
     let s = w.state as &kinds_state;
-    s.kinds = list_push(s.kinds, value_int(n.kind));
+    s.kinds = list_push(s.kinds, value_number(n.kind as f64_s));
 }
 
 fn kinds_node: visit_fn (w: &walker, n: &view) {

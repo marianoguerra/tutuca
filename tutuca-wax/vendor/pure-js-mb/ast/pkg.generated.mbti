@@ -1,0 +1,249 @@
+// Generated using `moon info`, DON'T EDIT IT
+package "marianoguerra/pure-js/ast"
+
+import {
+  "moonbitlang/core/debug",
+  "moonbitlang/core/json",
+}
+
+// Values
+pub fn expr_json(Expr) -> @json.Json
+
+pub fn func_json(Func) -> @json.Json
+
+pub fn item_json(Item) -> @json.Json
+
+pub fn lit_json(Lit) -> @json.Json
+
+pub fn module_json(Module) -> @json.Json
+
+pub fn pattern_json(Pattern) -> @json.Json
+
+pub fn stmt_json(Stmt) -> @json.Json
+
+pub fn to_json(Program) -> @json.Json
+
+pub fn type_json(TypeNode) -> @json.Json
+
+// Errors
+
+// Types and methods
+#derive(Eq, @debug.Debug)
+pub(all) struct Block {
+  body : Array[Stmt]
+  span : Span
+}
+
+#derive(Eq, @debug.Debug)
+pub(all) enum Body {
+  BlockBody(Block)
+  ExprBody(Expr)
+}
+
+#derive(Eq, @debug.Debug)
+pub(all) struct CatchClause {
+  param : Pattern?
+  body : Block
+  span : Span
+}
+
+#derive(Eq, @debug.Debug)
+pub(all) struct Declarator {
+  id : Pattern
+  init : Expr?
+  span : Span
+}
+
+#derive(Eq, @debug.Debug)
+pub(all) enum Expr {
+  Ident(Ident)
+  This(Span)
+  Lit(Lit, raw~ : String, span~ : Span)
+  Template(quasis~ : Array[Quasi], exprs~ : Array[Expr], span~ : Span)
+  ArrayLit(Array[Expr?], span~ : Span)
+  ObjectLit(Array[ObjMember], span~ : Span)
+  Member(object~ : Expr, property~ : Expr, computed~ : Bool, optional~ : Bool, span~ : Span)
+  Call(callee~ : Expr, args~ : Array[Expr], optional~ : Bool, span~ : Span)
+  Spread(Expr, span~ : Span)
+  Chain(Expr, span~ : Span)
+  Unary(op~ : String, arg~ : Expr, span~ : Span)
+  Update(op~ : String, prefix~ : Bool, arg~ : Expr, span~ : Span)
+  Binary(op~ : String, left~ : Expr, right~ : Expr, span~ : Span)
+  Logical(op~ : String, left~ : Expr, right~ : Expr, span~ : Span)
+  Assign(op~ : String, left~ : Expr, right~ : Expr, span~ : Span)
+  Cond(cond~ : Expr, cons~ : Expr, alt~ : Expr, span~ : Span)
+  Arrow(Func)
+}
+pub fn Expr::span(Self) -> Span
+
+#derive(Eq, @debug.Debug)
+pub(all) enum Form {
+  FunctionForm
+  MethodForm
+  GetterForm
+  ArrowForm
+}
+pub fn Form::name(Self) -> String
+
+#derive(Eq, @debug.Debug)
+pub(all) struct Func {
+  id : Ident?
+  this_type : TypeNode?
+  params : Array[Pattern]
+  body : Body
+  return_type : TypeNode?
+  arrow : Bool
+  decl : Bool
+  span : Span
+}
+
+#derive(Eq, @debug.Debug)
+pub(all) struct Ident {
+  name : String
+  span : Span
+  ann : TypeNode?
+}
+pub fn Ident::to_json(Self) -> @json.Json
+
+#derive(Eq, @debug.Debug)
+pub(all) struct ImportSpec {
+  imported : Ident
+  local_ : Ident
+  span : Span
+}
+
+#derive(Eq, @debug.Debug)
+pub(all) enum Item {
+  Import(type_only~ : Bool, specs~ : Array[ImportSpec], source~ : String, raw~ : String, source_span~ : Span, span~ : Span)
+  Export(Item, span~ : Span)
+  Const(Stmt)
+  FunctionDecl(Func)
+  TypeAlias(id~ : Ident, value~ : TypeNode, span~ : Span)
+  Interface(id~ : Ident, body~ : TypeNode, span~ : Span)
+}
+pub fn Item::declaration(Self) -> Self
+pub fn Item::is_type_item(Self) -> Bool
+pub fn Item::span(Self) -> Span
+
+#derive(Eq, @debug.Debug)
+pub(all) enum Lit {
+  LNull
+  LBool(Bool)
+  LNum(Double)
+  LStr(String)
+}
+
+#derive(Eq, @debug.Debug)
+pub(all) struct Module {
+  items : Array[Item]
+  span : Span
+  source : String
+}
+pub fn Module::erase(Self) -> Self
+
+#derive(Eq, @debug.Debug)
+pub(all) enum ObjMember {
+  Prop(key~ : PropKey, value~ : Expr, shorthand~ : Bool, span~ : Span)
+  SpreadMember(Expr, span~ : Span)
+  Method(key~ : PropKey, func~ : Func, getter~ : Bool, span~ : Span)
+}
+
+#derive(Eq, @debug.Debug)
+pub(all) enum PatProp {
+  PPProp(key~ : PropKey, value~ : Pattern, shorthand~ : Bool, span~ : Span)
+  PPRest(arg~ : Ident, span~ : Span)
+}
+
+#derive(Eq, @debug.Debug)
+pub(all) enum Pattern {
+  PIdent(Ident)
+  PArray(elements~ : Array[Pattern?], ann~ : TypeNode?, span~ : Span)
+  PObject(props~ : Array[PatProp], ann~ : TypeNode?, span~ : Span)
+  PRest(arg~ : Pattern, ann~ : TypeNode?, span~ : Span)
+  PAssign(left~ : Pattern, right~ : Expr, span~ : Span)
+}
+pub fn Pattern::ann(Self) -> TypeNode?
+pub fn Pattern::bound_names(Self) -> Array[String]
+pub fn Pattern::span(Self) -> Span
+
+#derive(Eq, @debug.Debug)
+pub(all) struct Program {
+  form : Form
+  name : String?
+  func : Func
+  span : Span
+  source : String
+}
+pub fn Program::erase(Self) -> Self
+pub fn Program::typed(Self) -> Bool
+
+#derive(Eq, @debug.Debug)
+pub(all) enum PropKey {
+  KIdent(Ident)
+  KLit(Lit, raw~ : String, span~ : Span)
+  KComputed(Expr)
+}
+pub fn PropKey::span(Self) -> Span
+
+#derive(Eq, @debug.Debug)
+pub(all) struct Quasi {
+  raw : String
+  cooked : String
+  tail : Bool
+  span : Span
+}
+
+#derive(Eq, @debug.Debug)
+pub(all) struct Span {
+  start : Int32
+  end : Int32
+}
+
+#derive(Eq, @debug.Debug)
+pub(all) enum Stmt {
+  VarDecl(kind~ : String, decls~ : Array[Declarator], span~ : Span)
+  ExprStmt(Expr, directive~ : String?, span~ : Span)
+  If(cond~ : Expr, cons~ : Stmt, alt~ : Stmt?, span~ : Span)
+  BlockStmt(Block)
+  Return(Expr?, span~ : Span)
+  ForOf(left~ : Stmt, right~ : Expr, body~ : Stmt, span~ : Span)
+  Try(block~ : Block, handler~ : CatchClause?, finalizer~ : Block?, span~ : Span)
+  Throw(Expr, span~ : Span)
+  Break(Span)
+  Continue(Span)
+}
+pub fn Stmt::span(Self) -> Span
+
+#derive(Eq, @debug.Debug)
+pub(all) enum TypeMember {
+  TMProperty(name~ : String, optional~ : Bool, read_only~ : Bool, value~ : TypeNode, span~ : Span)
+  TMMethod(name~ : String, optional~ : Bool, type_params~ : Array[String], params~ : Array[TypeParam], result~ : TypeNode, span~ : Span)
+  TMIndex(key_name~ : String, key~ : TypeNode, value~ : TypeNode, span~ : Span)
+}
+
+#derive(Eq, @debug.Debug)
+pub(all) enum TypeNode {
+  TKeyword(String, Span)
+  TLiteral(Lit, Span)
+  TArray(TypeNode, Span)
+  TTuple(Array[TypeNode], Span)
+  TObject(Array[TypeMember], Span)
+  TUnion(Array[TypeNode], Span)
+  TRef(String, Array[TypeNode], Span)
+  TFunction(type_params~ : Array[String], params~ : Array[TypeParam], result~ : TypeNode, span~ : Span)
+  TReadonly(TypeNode, Span)
+}
+pub fn TypeNode::span(Self) -> Span
+
+#derive(Eq, @debug.Debug)
+pub(all) struct TypeParam {
+  name : String
+  optional : Bool
+  rest : Bool
+  value : TypeNode
+  span : Span
+}
+
+// Type aliases
+
+// Traits

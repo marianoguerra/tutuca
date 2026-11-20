@@ -68,7 +68,7 @@ export const agentPrompt = (prompt, skillsIndexText) =>
 
 // The system prompt for a step: the standing prompt and the summary of the data now.
 export const systemPrompt = (prompt, summary) =>
-	`${prompt}\n\nThe data now:\n${typeof summary === "string" ? summary : "(the agent gives no summary; call get_state)"}`;
+	`${prompt}\n\nThe data now:\n${typeof summary === "string" ? summary : "(the agent gives no summary; call getState)"}`;
 
 // One inference step, with everything the server needs and nothing it has to remember: the
 // model ("provider/id"), the system prompt, the tools and the whole transcript.

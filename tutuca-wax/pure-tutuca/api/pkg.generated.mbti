@@ -1,0 +1,55 @@
+// Generated using `moon info`, DON'T EDIT IT
+package "tutuca/pure-tutuca/api"
+
+import {
+  "moonbitlang/core/json",
+  "tutuca/pure-tutuca/check",
+  "tutuca/pure-tutuca/compose",
+  "tutuca/pure-tutuca/diag",
+  "tutuca/pure-tutuca/gen",
+  "tutuca/pure-tutuca/pure",
+}
+
+// Values
+pub fn build(@check.Package, String, @compose.Runtime, Array[@compose.Source], String, read~ : (String) -> String?) -> Built
+
+pub fn defined_functions(Array[@compose.Source]) -> Array[String]
+
+pub fn dir_of(String) -> String
+
+pub fn is_pure_path(String) -> Bool
+
+pub fn join_path(String, String) -> String
+
+pub fn load((String) -> String?, String, pages? : Array[@pure.HostModule]) -> (@check.Package, Array[@diag.Diagnostic], @pure.Checked?)?
+
+pub fn lowered_impl((String) -> String?, String, @pure.Checked?, @check.Package, String) -> (@compose.Source?, Array[@diag.Diagnostic])
+
+pub fn meta(@check.Package, String, (String) -> String?) -> @json.Json
+
+pub let meta_section : String
+
+pub fn model(@check.Package, @pure.Checked?) -> @json.Json
+
+pub fn normalize_path(String) -> String
+
+pub fn read_runtime((String) -> String?) -> Result[@compose.Runtime, String]
+
+pub fn with_custom_section(Bytes, String, String) -> Bytes
+
+// Errors
+
+// Types and methods
+pub(all) struct Built {
+  generated : @gen.Output
+  contract_path : String
+  glue_path : String
+  abi_path : String
+  abi_imports : String
+  wasm : Bytes?
+  diags : Array[@diag.Diagnostic]
+}
+
+// Type aliases
+
+// Traits

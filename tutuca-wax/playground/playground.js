@@ -1,5 +1,5 @@
-// The playground: a component's .tcd and .wax in an editor, compiled in the
-// browser by tcd and wax-mb compiled to wasm-gc (compiler.worker.js), and
+// The playground: a component's pure-tutuca module in an editor, compiled in the
+// browser by pure-tutuca and wax-mb compiled to wasm-gc (compiler.worker.js), and
 // the module loaded into a fresh scope next to the prebuilt modules it
 // composes with, its root mounted on a dev host in the side panel, with its
 // state, what the host reported, and test runs from its model (js/pbt.js).
@@ -72,7 +72,6 @@ app.textContent = "";
 const select = el("select", { class: UI.select, "aria-label": "Example" });
 for (const ex of EXAMPLES) select.append(el("option", { value: ex.id }, ex.title));
 const compileButton = el("button", { class: UI.primary, title: "Ctrl/Cmd-Enter" }, "Compile");
-const stubButton = el("button", { class: UI.button, title: "Append the functions the .wax lacks, as tcd stub --missing writes them" }, "Add missing functions");
 const testButton = el("button", { class: UI.button, title: "Run the model's examples and random walks (js/pbt.js)" }, "Test");
 const resetButton = el("button", { class: UI.button, title: "Back to the example as shipped" }, "Reset");
 const status = el("span", { class: UI.status });
@@ -84,14 +83,14 @@ app.append(
 		el("h1", { class: UI.title }, "tutuca-wax playground"),
 		el("a", { class: UI.link, href: "../demos/" }, "demos"),
 		el("a", { class: UI.link, href: "../studio/" }, "studio"),
-		el("a", { class: UI.link, href: "https://github.com/marianoguerra/tutuca/tree/main/tutuca-wax/tcd" }, "the TCD language"),
+		el("a", { class: UI.link, href: "https://github.com/marianoguerra/tutuca/tree/main/spec/pure-tutuca" }, "pure-tutuca"),
 	),
 	el(
 		"p",
 		{ class: UI.lead },
-		"A component is a .tcd (its state, its messages with their guards and contracts, its views) and a .wax (what each message does). The compiler is tcd and wax-mb compiled to wasm-gc, running in your browser; the module it builds is loaded and mounted on the right, on a dev host that checks the contracts as you click.",
+		"A component is a pure-tutuca module (.tutuca.ts): its state, its messages with their guards and contracts and what each does, its views. The compiler is pure-tutuca, pure-js and wax-mb compiled to wasm-gc, running in your browser; the module it builds is loaded and mounted on the right, on a dev host that checks the contracts as you click.",
 	),
-	el("div", { class: UI.toolbar }, select, compileButton, stubButton, testButton, resetButton, status),
+	el("div", { class: UI.toolbar }, select, compileButton, testButton, resetButton, status),
 	description,
 );
 const tabs = el("div", { class: UI.tabs });
@@ -148,12 +147,12 @@ const saveEdits = () => {
 	try {
 		localStorage.setItem(
 			storageKey(example.id),
-			JSON.stringify({ tcd: editor.text(example.main), wax: editor.text(example.impl), fields: fieldsBox.value }),
+			JSON.stringify({ source: editor.text(example.main), fields: fieldsBox.value }),
 		);
 	} catch {}
 };
 const sourceOf = async (ex, path) => ex.sources?.[path] ?? new TextDecoder().decode(await readBytes(new URL(`../${path}`, import.meta.url)));
-const langOf = (name) => (name.endsWith(".tcd") ? "tcd" : name.endsWith(".wax") ? "wax" : "json");
+const langOf = (name) => (name.endsWith(".wax") ? "wax" : name.endsWith(".ts") ? "ts" : "json");
 const shortName = (path) => path.split("/").pop();
 
 const renderTabs = () => {
@@ -186,9 +185,8 @@ async function openExample(id, { reset = false } = {}) {
 	generated = [];
 	lastBuild = null;
 	const saved = reset ? null : loadEdits(example.id);
-	editor.open(example.main, saved?.tcd ?? (await sourceOf(example, example.main)), { lang: "tcd" });
-	editor.open(example.impl, saved?.wax ?? (await sourceOf(example, example.impl)), { lang: "wax" });
-	for (const used of example.uses ?? []) editor.open(used, await sourceOf(example, used), { lang: "tcd", readOnly: true });
+	editor.open(example.main, saved?.source ?? (await sourceOf(example, example.main)), { lang: langOf(example.main) });
+	for (const used of example.uses ?? []) editor.open(used, await sourceOf(example, used), { lang: langOf(used), readOnly: true });
 	editor.show(example.main);
 	fieldsBox.value = saved?.fields ?? JSON.stringify(example.fields, null, 2);
 	rootSelect.textContent = "";
@@ -198,11 +196,11 @@ async function openExample(id, { reset = false } = {}) {
 	await compile();
 }
 
-// The request tcd builds from: the .tcd, the files it uses, the .wax.
+// The request pure-tutuca builds from: the module and the files it imports.
 const request = () => {
 	const files = { [example.main]: editor.text(example.main) };
 	for (const used of example.uses ?? []) files[used] = editor.text(used);
-	return { main: example.main, files, impls: [{ path: example.impl, text: editor.text(example.impl) }] };
+	return { main: example.main, files };
 };
 
 // ---- Diagnostics -------------------------------------------------------------------------
@@ -255,11 +253,12 @@ async function compile() {
 		return;
 	}
 	lastBuild = res;
-	// The generated files, read only, as tcd wrote them.
+	// The generated files, read only, as pure-tutuca wrote them.
 	const current = editor.current();
 	for (const name of generated) if (name !== current) editor.remove(name);
 	generated = [];
 	for (const [path, text] of [
+		[res.implPath, res.impl],
 		[res.contractPath, res.contract],
 		[res.gluePath, res.glue],
 		[res.abiPath, res.abi],
@@ -270,7 +269,7 @@ async function compile() {
 		}
 	}
 	if (res.model) {
-		const path = example.main.replace(/\.tcd$/, ".model.json");
+		const path = example.main.replace(/\.tutuca\.ts$/, ".model.json");
 		editor.open(path, JSON.stringify(res.model, null, 2), { lang: "json", readOnly: true });
 		generated.push(path);
 	}
@@ -334,7 +333,8 @@ async function test() {
 		status.textContent = "compile first";
 		return;
 	}
-	const model = lastBuild.model;
+	// pure-tutuca's model of the module: what js/pbt.js runs examples and walks from.
+	const model = lastBuild.pbtModel;
 	const { scope } = mounted;
 	for (const r of runExamples({ runtime, scope, model })) {
 		note(r.ok ? "info" : "failed", `example ${r.name}: ${r.ok ? "passed" : r.failures.join("; ")}`);
@@ -359,23 +359,5 @@ rootSelect.addEventListener("change", () => mount());
 fieldsBox.addEventListener("change", () => saveEdits());
 testButton.addEventListener("click", () => test());
 resetButton.addEventListener("click", () => openExample(example.id, { reset: true }));
-stubButton.addEventListener("click", async () => {
-	const res = await compiler("stub", request());
-	if (!res.ok) {
-		renderDiagnostics(res.diags);
-		return;
-	}
-	if (!res.stub.trim()) {
-		status.textContent = "nothing missing";
-		return;
-	}
-	const text = editor.text(example.impl).replace(/\n*$/, "\n\n") + res.stub;
-	editor.open(example.impl, text, { lang: "wax" });
-	editor.show(example.impl);
-	renderTabs();
-	saveEdits();
-	await compile();
-});
-
 const initial = new URLSearchParams(location.search).get("example") ?? EXAMPLES[0].id;
 await openExample(initial);

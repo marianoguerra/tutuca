@@ -1,7 +1,7 @@
 // Schemas (prelude/schema.wax and the schema types of prelude/component.wax;
 // tutuca's src/core/schema.js): their constructors; checking a value against a
 // type and its constraints, with a sentence saying why it doesn't fit;
-// writing types as TCD writes them; interfaces and what implementing one
+// writing types as a module writes them (string[], T | null, ...); interfaces and what implementing one
 // takes; and a schema as a value, for tools to read a component's protocol.
 
 // ---- Constructors ---------------------------------------------------------------
@@ -9,9 +9,22 @@
 const VTYPE_ANY: &vtype = {vtype_simple| kind: vtype_kind_any };
 const VTYPE_NULL: &vtype = {vtype_simple| kind: vtype_kind_null };
 const VTYPE_BOOL: &vtype = {vtype_simple| kind: vtype_kind_bool };
-const VTYPE_INT: &vtype = {vtype_simple| kind: vtype_kind_int };
-const VTYPE_FLOAT: &vtype = {vtype_simple| kind: vtype_kind_float };
 const VTYPE_STRING: &vtype = {vtype_simple| kind: vtype_kind_string };
+const VTYPE_NUMBER: &vtype = {vtype_simple| kind: vtype_kind_number };
+const VTYPE_UNDEFINED: &vtype = {vtype_simple| kind: vtype_kind_undefined };
+const CONSTRAINT_INT: &constraint = {constraint| kind: constraint_kind_int };
+
+fn vtype_number() -> &vtype {
+    VTYPE_NUMBER;
+}
+
+fn vtype_undefined() -> &vtype {
+    VTYPE_UNDEFINED;
+}
+
+fn constraint_int() -> &constraint {
+    CONSTRAINT_INT;
+}
 
 fn vtype_any() -> &vtype {
     VTYPE_ANY;
@@ -23,14 +36,6 @@ fn vtype_null() -> &vtype {
 
 fn vtype_bool() -> &vtype {
     VTYPE_BOOL;
-}
-
-fn vtype_int() -> &vtype {
-    VTYPE_INT;
-}
-
-fn vtype_float() -> &vtype {
-    VTYPE_FLOAT;
 }
 
 fn vtype_string() -> &vtype {
@@ -61,7 +66,16 @@ fn vtype_record(names: &str_array, types: &vtype_array) -> &vtype {
     if names.length() != types.length() {
         host_fail(s_err_record_shape);
     }
-    let out: &vtype_record = { kind: vtype_kind_record, names, types };
+    let out: &vtype_record = { kind: vtype_kind_record, names, types, optional: [str_array|] };
+    out;
+}
+
+// A record some of whose names may be absent (pure-tutuca's x?: T).
+fn vtype_record_optional(names: &str_array, types: &vtype_array, optional: &str_array) -> &vtype {
+    if names.length() != types.length() {
+        host_fail(s_err_record_shape);
+    }
+    let out: &vtype_record = { kind: vtype_kind_record, names, types, optional };
     out;
 }
 
@@ -72,11 +86,6 @@ fn vtype_one_of(types: &vtype_array) -> &vtype {
 
 fn vtype_component(names: &str_array) -> &vtype {
     let out: &vtype_component = { kind: vtype_kind_component, names };
-    out;
-}
-
-fn vtype_result(ok: &vtype, err: &vtype) -> &vtype {
-    let out: &vtype_result = { kind: vtype_kind_result, ok, err };
     out;
 }
 
@@ -180,6 +189,7 @@ fn message_schema_new(
         pure: 0,
         why: null,
         returns: null,
+        answer: answer_none,
     };
 }
 
@@ -200,6 +210,12 @@ fn message_schema_set_why(ms: &message_schema, why: js_string) -> &message_schem
 // result must meet.
 fn message_schema_set_returns(ms: &message_schema, returns: &field_schema) -> &message_schema {
     ms.returns = returns;
+    ms;
+}
+
+// Makes ms the schema of the answer answer (answer_*) to the ask ms names.
+fn message_schema_set_answer(ms: &message_schema, answer: i32) -> &message_schema {
+    ms.answer = answer;
     ms;
 }
 
@@ -294,11 +310,22 @@ fn field_schema_named(fields: &field_schema_array, name: js_string) -> &?field_s
     null;
 }
 
+// The schema of the message name, not an answer's.
 fn message_schema_named(messages: &message_schema_array, name: js_string) -> &?message_schema {
+    message_schema_answer(messages, name, answer_none);
+}
+
+// The schema of the message name with answer (answer_*): a message's for
+// answer_none, else the answer's to the ask name.
+fn message_schema_answer(
+    messages: &message_schema_array,
+    name: js_string,
+    answer: i32,
+) -> &?message_schema {
     let i = 0;
     while i <s messages.length() {
         let m = messages[i]!;
-        if str_eq(m.name, name) {
+        if (m.answer == answer) & str_eq(m.name, name) {
             return m;
         }
         i += 1;
@@ -306,11 +333,22 @@ fn message_schema_named(messages: &message_schema_array, name: js_string) -> &?m
     null;
 }
 
-fn spec_message_schema(spec: &component_spec, name: js_string) -> &?message_schema {
+fn spec_message_schema(spec: &component_spec, name: js_string, answer: i32) -> &?message_schema {
     if !spec.schema {
         return null;
     }
-    message_schema_named((spec.schema!).messages, name);
+    message_schema_answer((spec.schema!).messages, name, answer);
+}
+
+// An answer's name, as reports write it: ok, error or unhandled.
+fn answer_name(answer: i32) -> js_string {
+    if answer == answer_error {
+        return s_error;
+    }
+    if answer == answer_unhandled {
+        return s_t_unhandled;
+    }
+    s_w_ok;
 }
 
 fn str_array_has(names: &str_array, name: js_string) -> i32 {
@@ -384,18 +422,49 @@ fn component_is(c: &component, name: js_string) -> i32 {
 
 // ---- Describing types and values -----------------------------------------------------
 
+// A union's members, " | " between them, each in parentheses when it's a
+// union itself.
 fn text_push_vtypes(b: &text_builder, types: &vtype_array) {
     let i = 0;
     while i <s types.length() {
         if i >s 0 {
-            text_push(b, s_comma_space);
+            text_push(b, s_or_space);
         }
-        text_push_vtype(b, types[i]!);
+        text_push_vtype_member(b, types[i]!);
         i += 1;
     }
 }
 
-// A type as TCD writes it: s32, list<string>, record { a: bool }, ...
+// Whether t is written as a union: an option, a one_of, an enum or a
+// component of more than one name.
+fn vtype_is_union(t: &vtype) -> i32 {
+    let kind = t.kind;
+    if (kind == vtype_kind_option) | (kind == vtype_kind_one_of) {
+        return 1;
+    }
+    if kind == vtype_kind_enum {
+        return (t as &vtype_enum).members.length() >s 1;
+    }
+    if kind == vtype_kind_component {
+        return (t as &vtype_component).names.length() >s 1;
+    }
+    0;
+}
+
+// t where it's part of a union or a list's item: in parentheses when it's
+// a union.
+fn text_push_vtype_member(b: &text_builder, t: &vtype) {
+    if vtype_is_union(t) {
+        text_push_unit(b, '(');
+        text_push_vtype(b, t);
+        text_push_unit(b, ')');
+        return;
+    }
+    text_push_vtype(b, t);
+}
+
+// A type as a module writes it, in TypeScript: number, string[],
+// { a: boolean }, "x" | "y", T | null, ...
 fn text_push_vtype(b: &text_builder, t: &vtype) {
     let kind = t.kind;
     if kind == vtype_kind_any {
@@ -410,12 +479,12 @@ fn text_push_vtype(b: &text_builder, t: &vtype) {
         text_push(b, s_t_bool);
         return;
     }
-    if kind == vtype_kind_int {
-        text_push(b, s_t_s32);
+    if kind == vtype_kind_number {
+        text_push(b, s_t_number);
         return;
     }
-    if kind == vtype_kind_float {
-        text_push(b, s_t_f64);
+    if kind == vtype_kind_undefined {
+        text_push(b, s_undefined);
         return;
     }
     if kind == vtype_kind_string {
@@ -424,39 +493,45 @@ fn text_push_vtype(b: &text_builder, t: &vtype) {
     }
     if kind == vtype_kind_enum {
         let members = (t as &vtype_enum).members;
-        text_push(b, s_t_enum_open);
         let i = 0;
         while i <s members.length() {
             if i >s 0 {
-                text_push(b, s_comma_space);
+                text_push(b, s_or_space);
             }
-            text_push(b, members[i]!);
+            text_push_json_string(b, members[i]!);
             i += 1;
         }
-        text_push(b, s_t_brace_close);
         return;
     }
-    if (kind == vtype_kind_option) | (kind == vtype_kind_list) | (kind == vtype_kind_map) {
-        let name = s_t_option;
-        if kind == vtype_kind_list {
-            name = s_t_list;
-        }
-        if kind == vtype_kind_map {
-            name = s_t_map;
-        }
-        text_push(b, name);
-        text_push_unit(b, '<');
+    if kind == vtype_kind_option {
+        text_push_vtype_member(b, (t as &vtype_of).item);
+        text_push(b, s_or_space);
+        text_push(b, s_null);
+        return;
+    }
+    if kind == vtype_kind_list {
+        text_push_vtype_member(b, (t as &vtype_of).item);
+        text_push(b, s_t_list);
+        return;
+    }
+    if kind == vtype_kind_map {
+        text_push(b, s_t_map);
         text_push_vtype(b, (t as &vtype_of).item);
-        text_push_unit(b, '>');
+        text_push(b, s_t_brace_close);
         return;
     }
     if kind == vtype_kind_record {
         let r = t as &vtype_record;
+        if r.names.length() == 0 {
+            text_push_unit(b, '{');
+            text_push_unit(b, '}');
+            return;
+        }
         text_push(b, s_t_record_open);
         let i = 0;
         while i <s r.names.length() {
             if i >s 0 {
-                text_push(b, s_comma_space);
+                text_push(b, s_t_semicolon_space);
             }
             text_push(b, r.names[i]!);
             text_push(b, s_colon_space);
@@ -467,35 +542,23 @@ fn text_push_vtype(b: &text_builder, t: &vtype) {
         return;
     }
     if kind == vtype_kind_one_of {
-        text_push(b, s_t_one_of);
-        text_push_unit(b, '<');
         text_push_vtypes(b, (t as &vtype_one_of).types);
-        text_push_unit(b, '>');
         return;
     }
-    if kind == vtype_kind_component {
-        let names = (t as &vtype_component).names;
-        if names.length() == 0 {
-            text_push(b, s_component);
-            return;
-        }
-        let i = 0;
-        while i <s names.length() {
-            if i >s 0 {
-                text_push(b, s_or_space);
-            }
-            text_push(b, names[i]!);
-            i += 1;
-        }
+    // A component of one of its names, or any.
+    let names = (t as &vtype_component).names;
+    if names.length() == 0 {
+        text_push(b, s_t_component);
         return;
     }
-    let r = t as &vtype_result;
-    text_push(b, s_t_result);
-    text_push_unit(b, '<');
-    text_push_vtype(b, r.ok);
-    text_push(b, s_comma_space);
-    text_push_vtype(b, r.err);
-    text_push_unit(b, '>');
+    let i = 0;
+    while i <s names.length() {
+        if i >s 0 {
+            text_push(b, s_or_space);
+        }
+        text_push(b, names[i]!);
+        i += 1;
+    }
 }
 
 fn vtype_text(t: &vtype) -> js_string {
@@ -512,16 +575,16 @@ fn text_push_value_short(b: &text_builder, v: &value) {
         text_push(b, s_null);
         return;
     }
+    if kind == value_kind_undefined {
+        text_push(b, s_undefined);
+        return;
+    }
     if kind == value_kind_bool {
         text_push(b, (v as &value_bool).value?s_true:s_false);
         return;
     }
-    if kind == value_kind_int {
-        text_push_int(b, (v as &value_int).value);
-        return;
-    }
-    if kind == value_kind_float {
-        text_push(b, host_number_text((v as &value_float).value));
+    if kind == value_kind_number {
+        text_push(b, host_number_text((v as &value_number).value));
         return;
     }
     if kind == value_kind_string {
@@ -540,10 +603,6 @@ fn text_push_value_short(b: &text_builder, v: &value) {
         text_push(b, s_v_keys);
         return;
     }
-    if kind == value_kind_result {
-        text_push(b, s_v_result);
-        return;
-    }
     text_push(b, s_v_a);
     text_push(b, (value_as_component(v)!).spec.name);
 }
@@ -560,7 +619,7 @@ fn is_finite(n: f64) -> i32 {
     (n == n) & (n - n == 0.0);
 }
 
-// Why v isn't of type t, or null when it is: "expected s32, got "a"", "item
+// Why v isn't of type t, or null when it is: "expected number, got "a"", "item
 // 2: expected string, got 1", "key "b": expected bool, got null".
 fn vtype_problem(t: &vtype, v: &value) -> js_string_opt {
     vtype_problem_in(t, v, null);
@@ -579,19 +638,14 @@ fn vtype_problem_in(t: &vtype, v: &value, s: &?scope) -> js_string_opt {
     if kind == vtype_kind_null {
         fits = vk == value_kind_null;
     }
+    if kind == vtype_kind_undefined {
+        fits = vk == value_kind_undefined;
+    }
+    if kind == vtype_kind_number {
+        fits = value_is_number(v);
+    }
     if kind == vtype_kind_bool {
         fits = vk == value_kind_bool;
-    }
-    if kind == vtype_kind_int {
-        fits = vk == value_kind_int;
-    }
-    if kind == vtype_kind_float {
-        if vk == value_kind_int {
-            fits = 1;
-        }
-        if vk == value_kind_float {
-            fits = is_finite((v as &value_float).value);
-        }
     }
     if kind == vtype_kind_string {
         fits = vk == value_kind_string;
@@ -643,11 +697,15 @@ fn vtype_problem_in(t: &vtype, v: &value, s: &?scope) -> js_string_opt {
         while i <s r.names.length() {
             let found = map_get(v, r.names[i]!);
             if !found {
-                return key_problem(r.names[i]!, s_p_missing);
-            }
-            let problem = vtype_problem_in(r.types[i]!, found!, s);
-            if !!problem {
-                return key_problem(r.names[i]!, problem!);
+                // An optional member may be absent.
+                if !str_array_has(r.optional, r.names[i]!) {
+                    return key_problem(r.names[i]!, s_p_missing);
+                }
+            } else {
+                let problem = vtype_problem_in(r.types[i]!, found!, s);
+                if !!problem {
+                    return key_problem(r.names[i]!, problem!);
+                }
             }
             i += 1;
         }
@@ -685,11 +743,6 @@ fn vtype_problem_in(t: &vtype, v: &value, s: &?scope) -> js_string_opt {
             }
             i += 1;
         }
-    }
-    if (kind == vtype_kind_result) & (vk == value_kind_result) {
-        let r = v as &value_result;
-        let rt = t as &vtype_result;
-        return vtype_problem_in(r.ok?rt.ok:rt.err, r.value, s);
     }
     if fits {
         return null;
@@ -782,6 +835,14 @@ fn constraints_problem(cs: &constraint_array, v: &value, owner: &?component) -> 
 fn constraint_problem(c: &constraint, v: &value, owner: &?component) -> js_string_opt {
     let kind = c.kind;
     let b = text_builder_new();
+    if kind == constraint_kind_int {
+        let n = value_to_f64(v);
+        if value_is_number(v) & is_finite(n) & (n == n.trunc()) {
+            return null;
+        }
+        text_push(b, s_p_integer);
+        return problem_got(b, v);
+    }
     // A constraint on a value of a kind it isn't about breaks it, as in the
     // spec: a bound holds of numbers only, a length of strings, lists and
     // maps, a pattern of strings.
@@ -859,9 +920,9 @@ fn constraint_problem(c: &constraint, v: &value, owner: &?component) -> js_strin
         }
         let ok = 0;
         let list = items!;
-        if (list.kind == value_kind_list) & (v.kind == value_kind_int) {
-            let i = (v as &value_int).value;
-            ok = (i >=s 0) & (i <s list_count(list));
+        if (list.kind == value_kind_list) & (v.kind == value_kind_number) {
+            let n = (v as &value_number).value;
+            ok = (n >= 0.0) & (n < list_count(list) as f64_s) & (n == n.trunc());
         }
         if (list.kind == value_kind_map) & (v.kind == value_kind_string) {
             ok = !!map_get(list, (v as &value_string).value);
@@ -895,108 +956,6 @@ fn constraint_problem(c: &constraint, v: &value, owner: &?component) -> js_strin
     text_push(b, s_p_satisfying);
     text_push(b, check.name);
     problem_got(b, v);
-}
-
-// v with an int made a float wherever t (or what it holds: an option's
-// value, a list's or a map's items, a record's fields, a one_of without an
-// int) is f64, so code reading a float field reads a float: JS gives an
-// integral number as an int. v itself when nothing changes; a value that
-// doesn't fit t is left as it is, for vtype_problem to say why.
-fn vtype_coerce(t: &vtype, v: &value) -> &value {
-    let kind = t.kind;
-    let vk = v.kind;
-    if (kind == vtype_kind_float) & (vk == value_kind_int) {
-        return value_float((v as &value_int).value as f64_s);
-    }
-    if (kind == vtype_kind_option) & (vk != value_kind_null) {
-        return vtype_coerce((t as &vtype_of).item, v);
-    }
-    if (kind == vtype_kind_one_of) & (vk == value_kind_int) {
-        let types = (t as &vtype_one_of).types;
-        let float = 0;
-        let i = 0;
-        while i <s types.length() {
-            if (types[i]!).kind == vtype_kind_int {
-                return v;
-            }
-            float = float | ((types[i]!).kind == vtype_kind_float);
-            i += 1;
-        }
-        if float {
-            return value_float((v as &value_int).value as f64_s);
-        }
-        return v;
-    }
-    if (kind == vtype_kind_list) & (vk == value_kind_list) {
-        let item = (t as &vtype_of).item;
-        let out = v;
-        let i = 0;
-        while i <s list_count(v) {
-            let was = list_get(v, i)!;
-            let now = vtype_coerce(item, was);
-            if now != was {
-                out = list_assoc(out, i, now);
-            }
-            i += 1;
-        }
-        return out;
-    }
-    if (kind == vtype_kind_map) & (vk == value_kind_map) {
-        let item = (t as &vtype_of).item;
-        let out = v;
-        let keys = map_keys(v);
-        let i = 0;
-        while i <s list_count(keys) {
-            let key = (list_get(keys, i)! as &value_string).value;
-            let was = map_get(v, key)!;
-            let now = vtype_coerce(item, was);
-            if now != was {
-                out = map_assoc(out, key, now);
-            }
-            i += 1;
-        }
-        return out;
-    }
-    if (kind == vtype_kind_record) & (vk == value_kind_map) {
-        let r = t as &vtype_record;
-        let out = v;
-        let i = 0;
-        while i <s r.names.length() {
-            let found = map_get(v, r.names[i]!);
-            if !!found {
-                let now = vtype_coerce(r.types[i]!, found!);
-                if now != found! {
-                    out = map_assoc(out, r.names[i]!, now);
-                }
-            }
-            i += 1;
-        }
-        return out;
-    }
-    v;
-}
-
-// fields (a map, as make gets them) with each one schema has coerced to its
-// field's type (vtype_coerce).
-fn fields_coerce(schema: &?component_schema, fields: &value) -> &value {
-    if !schema | (fields.kind != value_kind_map) {
-        return fields;
-    }
-    let fs = (schema!).fields;
-    let out = fields;
-    let i = 0;
-    while i <s fs.length() {
-        let f = fs[i]!;
-        let found = map_get(fields, f.name);
-        if !!found {
-            let now = vtype_coerce(f.vtype, found!);
-            if now != found! {
-                out = map_assoc(out, f.name, now);
-            }
-        }
-        i += 1;
-    }
-    out;
 }
 
 // Why v doesn't fit field (its type, then its constraints), or null. A null
@@ -1070,15 +1029,10 @@ fn vtype_equal(a: &vtype, b: &vtype) -> i32 {
     if kind == vtype_kind_component {
         return str_arrays_equal((a as &vtype_component).names, (b as &vtype_component).names);
     }
-    if kind == vtype_kind_result {
-        let ra = a as &vtype_result;
-        let rb = b as &vtype_result;
-        return vtype_equal(ra.ok, rb.ok) & vtype_equal(ra.err, rb.err);
-    }
     1;
 }
 
-// "its field done is s32, TodoItem's is bool".
+// "its field done is number, TodoItem's is bool".
 fn mismatch_problem(
     what: js_string,
     name: js_string,
@@ -1241,7 +1195,7 @@ fn signature_problem(
     }
     let j = 0;
     while j <s args.length() {
-        if !vtype_equal((args[j]!).vtype, (want.args[j]!).vtype) {
+        if !vtype_equal((want.args[j]!).vtype, (args[j]!).vtype) {
             let arg = js_string_concat(js_string_concat(want.name, s_i_argument), int_text(j));
             return mismatch_problem(what, arg, (args[j]!).vtype, iface, (want.args[j]!).vtype);
         }
@@ -1301,7 +1255,7 @@ fn scope_entry_problem(s: &scope, name: js_string, spec: &component_spec) -> js_
     scope_meta_problem(s, spec);
 }
 
-// "TodoCard can't be a TodoItem: its field done is s32, TodoItem's is bool;
+// "TodoCard can't be a TodoItem: its field done is number, TodoItem's is bool;
 // it has no message toggle", after what b has, when spec lacks anything to
 // implement iface.
 fn text_push_interface_problems(b: &text_builder, spec: &component_spec, iface: &interface_schema) {
@@ -1450,7 +1404,7 @@ fn meta_schema_problem(schema: &meta_schema, given: &value) -> js_string_opt {
         let f = schema.fields[i]!;
         let v = map_get(given, f.name);
         if !!v {
-            let problem = field_problem(f, vtype_coerce(f.vtype, v!), null);
+            let problem = field_problem(f, v!, null);
             if !!problem {
                 return key_problem(f.name, problem!);
             }
@@ -1511,12 +1465,7 @@ fn spec_meta_in(s: &scope, spec: &component_spec, uri: js_string) -> &value {
     let i = 0;
     while i <s list_count(keys) {
         let key = value_string_of(list_get(keys, i)!)!;
-        let v = map_get(given!, key)!;
-        let f = field_schema_named((schema!).fields, key);
-        if !!f {
-            v = vtype_coerce((f!).vtype, v);
-        }
-        out = map_assoc(out, key, v);
+        out = map_assoc(out, key, map_get(given!, key)!);
         i += 1;
     }
     out;
@@ -1543,6 +1492,9 @@ fn ctx_meta_of(ctx: &context, name: js_string, uri: js_string) -> &value {
 fn constraint_text(c: &constraint) -> js_string {
     let kind = c.kind;
     let b = text_builder_new();
+    if kind == constraint_kind_int {
+        return s_c_integer;
+    }
     if (kind == constraint_kind_min) | (kind == constraint_kind_max) {
         let bound = c as &constraint_bound;
         if kind == constraint_kind_min {
@@ -1647,9 +1599,14 @@ fn emit_kind_name(kind: i32) -> js_string {
     s_e_notify;
 }
 
-// { name, args, sourceKey, pre, post, changes, emits, returns }
+// { name, args, sourceKey, pre, post, changes, emits, returns }, and an
+// answer's answer (ok, error or unhandled), its name the ask's.
 fn message_schema_value(ms: &message_schema) -> &value {
     let m = map_assoc(map_empty(), s_name, value_string(ms.name));
+    // An ask's answer says which it is: { name: the ask, answer: ok, ... }.
+    if ms.answer != answer_none {
+        m = map_assoc(m, s_t_answer, value_string(answer_name(ms.answer)));
+    }
     m = map_assoc(m, s_args, field_schemas_value(ms.args));
     let key = VALUE_NULL;
     if !!ms.source_key {

@@ -1,13 +1,30 @@
-// Host functions for jq-lab: jq filters (jq-wasm, jq 1.8), run synchronously
-// once loadJq has resolved.
+// jq-lab's host module: jq filters (jq-wasm, jq 1.8), as a module a pure-tutuca agent imports
+// (import { compileError, runFilter } from "microagents/jq"), run synchronously once loadJq has
+// resolved. declaration is what pure-tutuca checks the agent against; make() gives the members, which
+// answer rather than throw.
 //
-//   jq_error(filter)                  "" or the filter's compile error
-//   jq_run(filter, input, max)        { outputs (a list, or null on an error), error, more }:
+//   compileError(filter)              "" or the filter's compile error
+//   runFilter(filter, input, max)     { outputs (a list, or null on an error), error, more }:
 //                                     at most max outputs (the filter runs in limit(max + 1; …))
-//   jq_same(a, b)                     whether two JSON values are equal, object keys in any order
-//   jq_shape(value)                   a compact type sketch: {a: number, items: [{id: string}]}
-//   jq_pointer(value, pointer)        { value } at an RFC 6901 pointer, or { error }
-//   jq_parse(text)                    { value } of JSON text, or { error }
+//   sameJson(a, b)                    whether two JSON values are equal, object keys in any order
+//   shapeOf(value)                    a compact type sketch: {a: number, items: [{id: string}]}
+//   valueAt(value, pointer)           { found, value, error }: the value at an RFC 6901 pointer
+//                                     (null and why when there's none)
+//   parseText(text)                   { ok, value, error }: the value of JSON text (null and why
+//                                     when it isn't JSON)
+export const declaration = {
+	specifier: "microagents/jq",
+	module: "Jq",
+	members: {
+		compileError: "(filter: string) => string",
+		runFilter: "(filter: string, input: unknown, max: number) => { outputs: unknown[] | null; error: string; more: boolean }",
+		sameJson: "(a: unknown, b: unknown) => boolean",
+		shapeOf: "(value: unknown) => string",
+		valueAt: "(value: unknown, pointer: string) => { found: boolean; value: unknown; error: string }",
+		parseText: "(text: string) => { ok: boolean; value: unknown; error: string }",
+	},
+	fresh: ["Jq.runFilter", "Jq.valueAt", "Jq.parseText"],
+};
 export const bundle = "jq";
 
 const MAX = 100;
@@ -95,17 +112,22 @@ export const make = async (engine) => {
 		}
 	});
 	return {
-		jq_error: (filter) => compileError(filter),
-		jq_run: (filter, input, max) =>
-			run(`${Math.max(0, Math.min(max || MAX, MAX))}\u0000${filter}\u0000${JSON.stringify(input ?? null)}`),
-		jq_same: (a, b) => canon(a) === canon(b),
-		jq_shape: (value) => shapeOf(value),
-		jq_pointer: (value, pointer) => resolvePointer(value, pointer),
-		jq_parse: (text) => {
+		compileError: (filter) => compileError(filter),
+		runFilter: (filter, input, max) => {
+			const r = run(`${Math.max(0, Math.min(max || MAX, MAX))}\u0000${filter}\u0000${JSON.stringify(input ?? null)}`);
+			return { outputs: r.outputs === null ? null : [...r.outputs], error: r.error, more: r.more };
+		},
+		sameJson: (a, b) => canon(a) === canon(b),
+		shapeOf: (value) => shapeOf(value),
+		valueAt: (value, pointer) => {
+			const r = resolvePointer(value, pointer);
+			return r.error === undefined ? { found: true, value: r.value ?? null, error: "" } : { found: false, value: null, error: r.error };
+		},
+		parseText: (text) => {
 			try {
-				return { value: JSON.parse(text) };
+				return { ok: true, value: JSON.parse(text), error: "" };
 			} catch (e) {
-				return { error: e.message };
+				return { ok: false, value: null, error: e.message };
 			}
 		},
 	};

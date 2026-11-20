@@ -17,7 +17,7 @@
 
 // The version of the interface between the runtime and component modules: a
 // component's tutuca_abi_version must return the runtime's.
-const tutuca_abi_version_current = 17;
+const tutuca_abi_version_current = 19;
 
 // What a handler asks for besides its next state: src/component.wax has the
 // cases, which only the runtime makes and reads.
@@ -27,7 +27,17 @@ type effect_buf = { items: mut &effect_array, len: mut i32 };
 
 // ---- Messages ---------------------------------------------------------------
 
-type message = { name: js_string, args: &value_array };
+// A message: its name and arguments, and for an ask's answer, which answer it
+// is (answer_*): the name is then the ask's. Every other message's is
+// answer_none, so a message can't pass for an answer.
+type message = { name: js_string, args: &value_array, answer: i32 };
+
+// Which answer to an ask a message is: none (a message), ok (its value),
+// error (why it failed) or unhandled (nobody answers it).
+const answer_none = 0;
+const answer_ok = 1;
+const answer_error = 2;
+const answer_unhandled = 3;
 
 // Why a message can't be handled.
 const message_error_kind_unknown_message = 0;
@@ -167,7 +177,10 @@ rec {
         // For a query, what it returns (tutuca's QuerySpec returns): its
         // type and constraints, checked against what it gives; null when it
         // doesn't say.
-        returns: mut &?field_schema
+        returns: mut &?field_schema,
+        // For the schema of an ask's answer, which one it is (answer_*,
+        // the name the ask's); answer_none for a message's.
+        answer: mut i32
     };
     type message_schema_array = [mut &?message_schema];
     type pre_fn = fn(&eq, &value_array, &context) -> i32;
@@ -288,7 +301,8 @@ rec {
     type message_result_swapped: message_result = { .., component: &component };
     type message_result_rejected: message_result = { .., error: &message_error };
 
-    // What an ask handler answers with: a reply now (a result value). The
+    // What an ask handler answers with: a reply now (an outcome, { ok: value }
+    // or { err: error }). The
     // runtime's handler for the asks the host answers can also answer with
     // one the host settles later (host_settle with this id), or with none,
     // when the host has no answer for it.

@@ -1,0 +1,11 @@
+import {
+  "marianoguerra/pure-js/ast",
+  "marianoguerra/pure-js/host",
+  "marianoguerra/pure-js/parser",
+  "marianoguerra/pure-js/tables",
+  "marianoguerra/pure-js/value",
+  "moonbitlang/core/bigint",
+  "moonbitlang/core/double",
+}
+
+warnings = "-implicit_impl_as_method"

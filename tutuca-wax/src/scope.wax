@@ -188,7 +188,7 @@ fn scope_make(s: &scope, name: js_string, fields: &value) -> &make_result {
     if !!problem {
         return {make_result| component: null, issues: list_empty(), error: value_string(problem!) };
     }
-    let made = e.vtable.init(fields_coerce(e.spec.schema, fields), {init_context| scope: s });
+    let made = e.vtable.init(fields, {init_context| scope: s });
     if !made.instance {
         return {make_result| component: null, issues: made.issues, error: made.error };
     }
@@ -215,16 +215,16 @@ fn scope_make_or_fail(s: &scope, name: js_string, fields: &value) -> &component 
     made.component!;
 }
 
-// Makes a component by name, as a result: Ok(the component), or Err({ error,
-// issues }) when it can't: error says why in words, issues are init's
-// ({ field, problem } each).
+// Makes a component by name, as an outcome: { ok: the component }, or
+// { err: { error, issues } } when it can't: error says why in words, issues
+// are init's ({ field, problem } each).
 fn scope_try_make(s: &scope, name: js_string, fields: &value) -> &value {
     let made = scope_make(s, name, fields);
     if !!made.component {
-        return value_ok(value_component(made.component!));
+        return outcome_ok(value_component(made.component!));
     }
     let why = map_assoc(map_empty(), s_error, value_string(make_failure_text(name, made)));
-    value_err(map_assoc(why, s_issues, made.issues));
+    outcome_err(map_assoc(why, s_issues, made.issues));
 }
 
 // Answers asks of this name through the host's ask import, later

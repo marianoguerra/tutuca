@@ -1,11 +1,11 @@
 // The studio's library, kept in IndexedDB (tutuca-wax-studio): components
-// (a .tcd and a .wax, and what was last built from them), scopes (a tree,
+// (a pure-tutuca module, and what was last built from it), scopes (a tree,
 // each with the components registered in it) and screens (a scope, the
 // layout made in it, as hydrate reads it, and when it was made, which orders
 // the tabs). A bundle is the library as JSON, without the builds, to export
 // and import.
 //
-//   component: { id, name, tcd, wax, build?: { key, wasm, types, ok } }
+//   component: { id, name, source, build?: { key, wasm, types, ok } }
 //   scope:     { id, name, parent, registrations: [{ component }] }
 //   screen:    { id, name, scope, layout, created }
 //
@@ -15,7 +15,7 @@
 const DB = "tutuca-wax-studio";
 const KINDS = ["components", "scopes", "screens"];
 export const BUNDLE_FORMAT = "tutuca-wax-studio";
-export const BUNDLE_VERSION = 2;
+export const BUNDLE_VERSION = 3;
 
 const request = (r) =>
 	new Promise((resolve, reject) => {
@@ -44,7 +44,7 @@ export async function openStore() {
 export const toBundle = (lib) => ({
 	format: BUNDLE_FORMAT,
 	version: BUNDLE_VERSION,
-	components: [...lib.components.values()].map(({ id, name, tcd, wax }) => ({ id, name, tcd, wax })),
+	components: [...lib.components.values()].map(({ id, name, source }) => ({ id, name, source })),
 	scopes: [...lib.scopes.values()],
 	screens: [...lib.screens.values()],
 });

@@ -1,7 +1,7 @@
-// Testing components from their TCD model (tcd model, dist/components/*.model.json):
+// Testing components from pure-tutuca's model of their module (pure-tutuca model --pbt-model):
 // what a component's state may be (fields, types, constraints in normal form)
-// and how each message moves it from one state to the next (when, changes,
-// ensures, emits), which a dev host checks as messages run.
+// and how each message moves it from one state to the next (its pre, changes,
+// post and emits), which a dev host checks as messages run.
 //
 // - walk: random walks. A generated start state, then messages whose guard
 //   holds, with generated arguments, through a headless dev host; a walk
@@ -14,8 +14,8 @@
 // - examples: the model's example blocks, run as regression tests.
 //
 // Generated values meet the constraints the model states (bounds, lengths,
-// one_of, none_of, keys of a field); patterns and check(p) predicates are
-// left to the runtime, which rejects what doesn't fit them. Invariants
+// keys of a field); patterns are left to the runtime, which rejects what
+// doesn't fit them. Invariants
 // aren't aimed at: walk skips start states that break them.
 
 // ---- Randomness -------------------------------------------------------------------
@@ -55,89 +55,18 @@ export const snapshot = (runtime, v) => {
 	return v;
 };
 
-// ---- Conditions (expect), as the runtime's cond_* evaluate them -------------------------
+// ---- Expectations ----------------------------------------------------------------------
 
-const deepEqual = (a, b) => JSON.stringify(a) === JSON.stringify(b);
-const lengthOf = (v) => (typeof v === "string" || Array.isArray(v) ? v.length : v && typeof v === "object" ? Object.keys(v).length : null);
-const itemsOf = (v) => (Array.isArray(v) ? v : v && typeof v === "object" ? Object.values(v) : []);
-const order = (a, b) => {
-	if (typeof a === "number" && typeof b === "number") return a < b ? -1 : a > b ? 1 : 0;
-	if (typeof a === "string" && typeof b === "string") return a < b ? -1 : a > b ? 1 : 0;
-	return null;
-};
 
-// cond's value with env's names (a state snapshot) and it.
-export const evalCond = (cond, env, it = null) => {
-	if ("lit" in cond) return cond.lit;
-	if ("path" in cond) {
-		let v = cond.path[0] === "it" ? it : env[cond.path[0]];
-		for (const m of cond.path.slice(1)) v = v?.[m] ?? null;
-		return v ?? null;
+// Whether got has what want says: the same scalar, a list of as many items
+// each matching, or an object whose every key want names matches (others,
+// and a component's $, aren't looked at).
+export const matches = (want, got) => {
+	if (Array.isArray(want)) return Array.isArray(got) && got.length === want.length && want.every((w, i) => matches(w, got[i]));
+	if (want !== null && typeof want === "object") {
+		return got !== null && typeof got === "object" && Object.entries(want).every(([k, w]) => matches(w, got[k]));
 	}
-	if ("list" in cond) return cond.list.map((c) => evalCond(c, env, it));
-	if ("record" in cond) return Object.fromEntries(Object.entries(cond.record).map(([k, c]) => [k, evalCond(c, env, it)]));
-	if ("not" in cond) return !evalCond(cond.not, env, it);
-	if ("matches" in cond) return new RegExp(cond.pattern).test(evalCond(cond.matches, env, it));
-	if ("call" in cond) {
-		const args = cond.args;
-		switch (cond.call) {
-			case "len":
-				return lengthOf(evalCond(args[0], env, it));
-			case "keys": {
-				const v = evalCond(args[0], env, it);
-				return Array.isArray(v) ? v.map((_, i) => i) : Object.keys(v ?? {});
-			}
-			case "values":
-				return itemsOf(evalCond(args[0], env, it));
-			case "all":
-				return itemsOf(evalCond(args[0], env, it)).every((x) => evalCond(args[1], env, x));
-			case "any":
-				return itemsOf(evalCond(args[0], env, it)).some((x) => evalCond(args[1], env, x));
-			default:
-				return true; // check(p): the implementation's, which the runtime runs
-		}
-	}
-	const l = evalCond(cond.l, env, it);
-	const r = () => evalCond(cond.r, env, it);
-	switch (cond.op) {
-		case "and":
-			return Boolean(l) && Boolean(r());
-		case "or":
-			return Boolean(l) || Boolean(r());
-		case "+":
-			return l + r();
-		case "-":
-			return l - r();
-		case "==":
-			return deepEqual(l, r());
-		case "!=":
-			return !deepEqual(l, r());
-		case "<":
-			return order(l, r()) === -1;
-		case "<=":
-			return [-1, 0].includes(order(l, r()));
-		case ">":
-			return order(l, r()) === 1;
-		case ">=":
-			return [1, 0].includes(order(l, r()));
-		case "in":
-			return itemsOf(r()).some((x) => deepEqual(x, l));
-		case "not in":
-			return !itemsOf(r()).some((x) => deepEqual(x, l));
-	}
-	throw new Error(`unknown condition ${JSON.stringify(cond)}`);
-};
-
-// A condition as TCD writes it, for reports.
-export const condText = (c) => {
-	if ("lit" in c) return JSON.stringify(c.lit);
-	if ("path" in c) return c.path.join(".");
-	if ("list" in c) return `[${c.list.map(condText).join(", ")}]`;
-	if ("record" in c) return `{ ${Object.entries(c.record).map(([k, v]) => `${k}: ${condText(v)}`).join(", ")} }`;
-	if ("not" in c) return `not ${condText(c.not)}`;
-	if ("matches" in c) return `${condText(c.matches)} matches ${JSON.stringify(c.pattern)}`;
-	if ("call" in c) return `${c.call}(${c.args.map((a) => ("name" in a ? a.name : condText(a))).join(", ")})`;
-	return `${condText(c.l)} ${c.op} ${condText(c.r)}`;
+	return Object.is(want, got) || want === got;
 };
 
 // ---- Generating values ---------------------------------------------------------------
@@ -158,21 +87,7 @@ const gen = (type, norm, ctx) => {
 		if (type.kind === "option" && rand() < 0.2) return null;
 		return pick(rand, keys);
 	}
-	if (norm?.memberOf?.length) {
-		const values = itemsOf(ctx.state[norm.memberOf[0]]);
-		if (values.length === 0) return type.kind === "option" ? null : NO_VALUE;
-		return pick(rand, values);
-	}
-	if (norm?.oneOf) {
-		const allowed = norm.oneOf.filter((x) => !norm.noneOf.some((y) => deepEqual(x, y)));
-		return allowed.length === 0 ? NO_VALUE : pick(rand, allowed);
-	}
-	for (let attempt = 0; attempt < 20; attempt++) {
-		const v = genType(type, norm, ctx);
-		if (v === NO_VALUE) return v;
-		if (!norm?.noneOf?.some((x) => deepEqual(x, v))) return v;
-	}
-	return NO_VALUE;
+	return genType(type, norm, ctx);
 };
 
 // The interval to draw a number from: the constraints', or [lo, hi] around
@@ -192,12 +107,15 @@ const lengths = (norm, max) => {
 	return [lo, hi];
 };
 
+// A number constrained to whole numbers (f64 with the int constraint) is drawn as a whole one.
+const kindOf = (type, norm) => (type.kind === "f64" && norm?.int ? "int" : type.kind);
+
 const genType = (type, norm, ctx) => {
 	const { rand } = ctx;
-	switch (type.kind) {
+	switch (kindOf(type, norm)) {
 		case "bool":
 			return rand() < 0.5;
-		case "s32": {
+		case "int": {
 			const [lo, hi] = bounds(norm, -10, 10);
 			return intIn(rand, Math.ceil(lo), Math.floor(hi));
 		}
@@ -248,8 +166,6 @@ const genType = (type, norm, ctx) => {
 		}
 		case "one_of":
 			return gen(pick(rand, type.types), null, ctx);
-		case "result":
-			return rand() < 0.5 ? { ok: gen(type.ok, null, ctx) } : { err: gen(type.err, null, ctx) };
 		case "component":
 			if (ctx.depth > 2 || type.names.length === 0) return NO_VALUE;
 			return ctx.make(pick(rand, type.names), ctx) ?? NO_VALUE;
@@ -415,14 +331,13 @@ const domain = (type, norm, state) => {
 		const keys = keysOf(state[norm.keyOf[0]]);
 		return type.kind === "option" ? [null, ...keys] : keys;
 	}
-	if (norm?.oneOf) return norm.oneOf.filter((x) => !norm.noneOf.some((y) => deepEqual(x, y)));
 	const values = (() => {
-		switch (type.kind) {
+		switch (kindOf(type, norm)) {
 			case "bool":
 				return [false, true];
 			case "enum":
 				return type.members;
-			case "s32": {
+			case "int": {
 				const lo = norm?.lo?.value ?? -2;
 				const hi = norm?.hi?.value ?? 2;
 				if (hi - lo <= 8) return Array.from({ length: hi - lo + 1 }, (_, i) => lo + i);
@@ -440,7 +355,7 @@ const domain = (type, norm, state) => {
 				return null;
 		}
 	})();
-	return values?.filter((v) => !norm?.noneOf?.some((x) => deepEqual(x, v))) ?? null;
+	return values ?? null;
 };
 
 const product = (lists) => lists.reduce((acc, xs) => acc.flatMap((a) => xs.map((x) => [...a, x])), [[]]);
@@ -520,8 +435,11 @@ export const examples = ({ runtime, scope, model }) => {
 					if (r.type === "taskFailed") failures.push(`${step.send}: ${r.error.message}`);
 					if (r.type === "stateInvalid" || r.type === "messageInvalid") failures.push(`${step.send}: ${JSON.stringify(r)}`);
 				}
-			} else if (!evalCond(step.expect, snapshot(runtime, host.root()))) {
-				failures.push(`expected ${condText(step.expect)}`);
+			} else {
+				const now = snapshot(runtime, host.root());
+				for (const [k, want] of Object.entries(step.expect)) {
+					if (!matches(want, now[k])) failures.push(`expected ${k} to be ${JSON.stringify(want)}, not ${JSON.stringify(now[k])}`);
+				}
 			}
 		}
 		return { name: ex.name, ok: failures.length === 0, failures };

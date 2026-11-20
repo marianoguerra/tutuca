@@ -1,0 +1,8 @@
+import {
+  "marianoguerra/pure-js/ast",
+  "marianoguerra/pure-js/diag",
+  "marianoguerra/pure-js/lexer",
+  "marianoguerra/pure-js/tables",
+}
+
+warnings = "-implicit_impl_as_method"

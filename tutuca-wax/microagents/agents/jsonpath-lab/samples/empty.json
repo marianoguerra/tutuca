@@ -1,1 +1,1 @@
-{ "paths": [{ "id": "p1", "path": "$", "expected_count": -1 }], "document": {} }
+{ "paths": [{ "id": "p1", "path": "$", "expectedCount": -1 }], "document": {} }

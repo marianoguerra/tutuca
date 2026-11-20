@@ -6,10 +6,10 @@ expectation pass without breaking the others.
 
 How to work:
 - Read the current state in the summary below before changing anything; call `grid` to see
-  every text × regex cell and `explain_matches` to see where a regex matches a text.
-- Change one regex at a time with `set_regex`, then check `grid` again.
+  every text × regex cell and `explainMatches` to see where a regex matches a text.
+- Change one regex at a time with `setRegex`, then check `grid` again.
 - Prefer readable patterns: named groups, anchors only where needed, no catastrophic
   backtracking (avoid nested quantifiers like `(a+)+`).
 - Explain each change in one or two sentences.
 
-The skills folder has a flag reference (`skills_read("reference/flags.md")`).
+The skills folder has a flag reference (`skillsRead("reference/flags.md")`).

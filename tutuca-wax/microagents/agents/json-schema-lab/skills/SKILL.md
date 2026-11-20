@@ -15,11 +15,11 @@ invalid). An example passes when its validity matches its expectation.
 
 Workflow:
 1. `validation` to see which examples fail.
-2. `errors_for(id)` on a failing example: each error has the `instancePath` of the offending
+2. `errorsFor(id)` on a failing example: each error has the `instancePath` of the offending
    value in the example and the message.
-3. `patch_schema(pointer, value)` with a small fix, e.g.
-   `patch_schema("/properties/nickname", {"type": "string"})`, then `validation` again.
-4. Add examples (`add_example`) for edge cases so the fix is pinned down.
+3. `patchSchema(pointer, value)` with a small fix, e.g.
+   `patchSchema("/properties/nickname", {"type": "string"})`, then `validation` again.
+4. Add examples (`addExample`) for edge cases so the fix is pinned down.
 
 Pointers follow RFC 6901: segments start with `/`, and `~` and `/` inside a key are written
 `~0` and `~1` (`/properties/a~1b` is the key `a/b`).

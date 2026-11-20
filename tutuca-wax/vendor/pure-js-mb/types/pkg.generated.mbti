@@ -1,0 +1,144 @@
+// Generated using `moon info`, DON'T EDIT IT
+package "marianoguerra/pure-js/types"
+
+import {
+  "marianoguerra/pure-js/ast",
+  "moonbitlang/core/debug",
+}
+
+// Values
+pub fn dict_value_of(Ty) -> Ty
+
+pub fn elem_of(Ty) -> Ty
+
+pub fn field_type_of(Ty, Field) -> Ty
+
+pub fn filter_union(Ty, (Ty) -> Bool) -> Ty
+
+pub fn fresh(Ty) -> Ty
+
+pub fn ground(Ty) -> Ty
+
+pub fn has_nullish(Ty) -> Bool
+
+pub fn has_vars(Ty) -> Bool
+
+pub fn is_booleanish(Ty) -> Bool
+
+pub fn is_nullish(Ty) -> Bool
+
+pub fn is_numberish(Ty) -> Bool
+
+pub fn is_primitive(Ty) -> Bool
+
+pub fn is_stringish(Ty) -> Bool
+
+pub fn is_testable(Ty) -> Bool
+
+pub fn json_string(String) -> String
+
+pub fn list(Ty, mutable? : Bool, deep? : Bool) -> Ty
+
+pub fn lit_text(@ast.Lit) -> String
+
+pub fn members(Ty) -> Array[Ty]
+
+pub fn narrow_equals(Ty, Ty, Bool) -> Ty
+
+pub fn narrow_truthy(Ty, Bool) -> Ty
+
+pub fn narrow_typeof(Ty, String, Bool) -> Ty
+
+pub fn number_text(Double) -> String
+
+pub fn primitive(String) -> Ty?
+
+pub fn remove_nullish(Ty) -> Ty
+
+pub fn sig_to_string(Sig, arrow? : Bool) -> String
+
+pub fn subst(Ty, Map[String, Ty]) -> Ty
+
+pub fn subst_sig(Sig, Map[String, Ty]) -> Sig
+
+pub fn tuple_elem_of(Ty, Int32) -> Ty
+
+pub fn type_key(Ty) -> String
+
+pub fn type_to_string(Ty) -> String
+
+pub fn union(ArrayView[Ty]) -> Ty
+
+pub fn widen(Ty) -> Ty
+
+pub fn with_mut(Ty, Bool) -> Ty
+
+// Errors
+
+// Types and methods
+#derive(Eq, @debug.Debug)
+pub(all) struct Field {
+  ty : Ty
+  optional : Bool
+  read_only : Bool
+}
+
+#derive(Eq, @debug.Debug)
+pub(all) struct Namespace {
+  path : String
+  entries : Array[String]
+}
+
+#derive(Eq, @debug.Debug)
+pub(all) struct Param {
+  name : String
+  ty : Ty
+  optional : Bool
+  rest : Bool
+}
+
+pub(all) struct Relation {
+  resolve_ref : (Ty) -> Ty
+  bindings : Map[String, Ty]?
+  assuming : Array[String]
+}
+pub fn Relation::assignable(Self, Ty, Ty) -> Bool
+pub fn Relation::comparable(Self, Ty, Ty) -> Bool
+pub fn Relation::new((Ty) -> Ty, bindings? : Map[String, Ty]) -> Self
+pub fn Relation::resolve(Self, Ty) -> Ty
+
+#derive(Eq, @debug.Debug)
+pub(all) struct Sig {
+  type_params : Array[String]
+  params : Array[Param]
+  result : Ty
+}
+
+#derive(Eq, @debug.Debug)
+pub(all) enum Ty {
+  NumberT
+  StringT
+  BooleanT
+  NullT
+  UndefinedT
+  UnknownT
+  VoidT
+  NeverT
+  LitT(@ast.Lit)
+  ListT(elem~ : Ty, mutable~ : Bool, deep~ : Bool)
+  TupleT(elems~ : Array[Ty], mutable~ : Bool, deep~ : Bool)
+  DictT(value~ : Ty, mutable~ : Bool, deep~ : Bool)
+  RecordT(name~ : String?, fields~ : Map[String, Field], methods~ : Map[String, Array[Sig]], mutable~ : Bool, deep~ : Bool, ns~ : Namespace?)
+  UnionT(Array[Ty])
+  RefT(name~ : String, mutable~ : Bool)
+  HandleT(name~ : String, fields~ : Map[String, Field], methods~ : Map[String, Array[Sig]])
+  FnT(Array[Sig])
+  ModuleT(String)
+  VarT(String)
+}
+pub fn Ty::is_container(Self) -> Bool
+pub fn Ty::top_mut(Self) -> Bool
+
+// Type aliases
+
+// Traits

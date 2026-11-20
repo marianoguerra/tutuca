@@ -6,17 +6,58 @@
 	"icon": "🗂️",
 	"version": "1",
 	"root": "GlobLab",
-	"hostFns": ["glob"],
-	"skills": ["SKILL.md", "reference/glob-syntax.md"],
+	"hostModules": [
+		"glob"
+	],
+	"skills": [
+		"SKILL.md",
+		"reference/glob-syntax.md"
+	],
 	"tools": [
-		{ "name": "set_glob", "kind": "message" },
-		{ "name": "set_glob_options", "kind": "message" },
-		{ "name": "add_glob", "kind": "message" },
-		{ "name": "remove_glob", "kind": "message" },
-		{ "name": "reorder_globs", "kind": "message" },
-		{ "name": "set_paths", "kind": "message" },
-		{ "name": "set_expectation", "kind": "message" },
-		{ "name": "matches", "kind": "view" },
-		{ "name": "explain", "kind": "view" }
+		{
+			"name": "setGlob",
+			"kind": "message",
+			"description": "Change a glob's pattern."
+		},
+		{
+			"name": "setGlobOptions",
+			"kind": "message",
+			"description": "Set a glob's options: dot (wildcards match dotfiles) and nocase."
+		},
+		{
+			"name": "addGlob",
+			"kind": "message",
+			"description": "Add a glob; it gets the next free id (g1, g2, …)."
+		},
+		{
+			"name": "removeGlob",
+			"kind": "message",
+			"description": "Remove a glob."
+		},
+		{
+			"name": "reorderGlobs",
+			"kind": "message",
+			"description": "Move a glob to a position (0 is first)."
+		},
+		{
+			"name": "setPaths",
+			"kind": "message",
+			"description": "Replace the paths: one string, one path per line."
+		},
+		{
+			"name": "setExpectation",
+			"kind": "message",
+			"description": "Say whether a glob should match a path: match, no-match, or none to clear it."
+		},
+		{
+			"name": "matches",
+			"kind": "view",
+			"description": "The paths a glob matches and doesn't, and each of its expectations with pass or fail."
+		},
+		{
+			"name": "explain",
+			"kind": "view",
+			"description": "The regex picomatch compiles a glob to, with its base directory and whether it is a glob at all."
+		}
 	]
 }

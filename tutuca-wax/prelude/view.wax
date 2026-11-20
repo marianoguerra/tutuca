@@ -64,7 +64,7 @@ rec {
     // pushView(view_name, body).
     type view_push_view: view = { .., view_name: &view, body: &view };
     // left == value (left != value with negate): a bool, as a condition
-    // compares (cond_eq).
+    // compares (value_equal).
     type view_eq: view = { .., left: &view, value: &value, negate: i32 };
     // $query(name, ...args): the rendered component's query name with the
     // args' values.

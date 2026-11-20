@@ -1,7 +1,7 @@
 // An agent's tools, as the model sees and calls them. Message tools are the
 // root's messages, view tools its queries or gets; their parameters are the
 // message's or query's arguments, named and typed as the root's schema says
-// (TCD's types, made JSON Schemas here). The shell adds the shared tools:
+// (runtime.schema's type text, made JSON Schemas here). The shell adds the shared tools:
 // the skills, the state and the export. A call runs against env, the live
 // root wherever the shell keeps it:
 //
@@ -13,21 +13,18 @@
 // against their types, and its when); one that fails a dev mode check once
 // it ran (ensures, changes, invariants) is undone.
 
-// ---- TCD types as JSON Schemas ------------------------------------------------------
+// ---- Type text as JSON Schemas ------------------------------------------------------
 
-// The TCD type text (runtime.schema's "type") as a tree:
-// { kind, of?, members?, fields?, name? }.
+// The type text (runtime.schema's "type", a type as a module writes it in
+// TypeScript: number, string[], { a: boolean }, "x" | "y", T | null,
+// { [key: string]: T }) as a tree: { kind, of?, members?, fields?, name? }.
 export function parseType(text) {
 	let at = 0;
+	const fail = () => {
+		throw new Error(`can't read the type ${text}`);
+	};
 	const skip = () => {
 		while (/\s/.test(text[at] ?? "")) at++;
-	};
-	const word = () => {
-		skip();
-		const m = /^[A-Za-z_][A-Za-z0-9_]*|^\.\./.exec(text.slice(at));
-		if (!m) throw new Error(`can't read the type ${text}`);
-		at += m[0].length;
-		return m[0];
 	};
 	const punct = (p) => {
 		skip();
@@ -40,64 +37,85 @@ export function parseType(text) {
 	const expect = (p) => {
 		if (!punct(p)) throw new Error(`can't read the type ${text}: expected ${p} at ${at}`);
 	};
-	const type = () => {
-		const w = word();
-		if (["bool", "s32", "f64", "string", "any", "component", "null"].includes(w)) return { kind: w };
-		if (w === "option" || w === "list" || w === "map") {
-			expect("<");
-			const of = type();
-			expect(">");
-			return { kind: w, of };
+	const word = () => {
+		skip();
+		const m = /^[A-Za-z_$][A-Za-z0-9_$]*/.exec(text.slice(at));
+		if (!m) fail();
+		at += m[0].length;
+		return m[0];
+	};
+	const WORDS = { boolean: "bool", number: "number", string: "string", unknown: "any", Component: "component", null: "null", undefined: "undefined" };
+	// A union's members as the tree's kinds: strings an enum, one with null an option.
+	const union = (members) => {
+		if (members.length === 1) return members[0];
+		if (members.every((m) => m.kind === "literal")) return { kind: "enum", members: members.map((m) => m.value) };
+		const rest = members.filter((m) => m.kind !== "null");
+		if (rest.length < members.length) return { kind: "option", of: union(rest) };
+		return { kind: "one_of", members };
+	};
+	const primary = () => {
+		skip();
+		if (punct("(")) {
+			const t = type();
+			expect(")");
+			return t;
 		}
-		if (w === "one_of" || w === "result") {
-			expect("<");
-			const members = [type()];
-			while (punct(",")) members.push(type());
-			expect(">");
-			return { kind: w, members };
+		if (text[at] === '"') {
+			const m = /^"(?:[^"\\]|\\.)*"/.exec(text.slice(at));
+			if (!m) fail();
+			at += m[0].length;
+			return { kind: "literal", value: JSON.parse(m[0]) };
 		}
-		if (w === "enum") {
-			expect("{");
-			const members = [];
-			while (!punct("}")) {
-				members.push(word());
-				punct(",");
+		if (punct("{")) {
+			if (punct("[")) {
+				word();
+				expect(":");
+				word();
+				expect("]");
+				expect(":");
+				const of = type();
+				expect("}");
+				return { kind: "map", of };
 			}
-			return { kind: "enum", members };
-		}
-		if (w === "record") {
-			expect("{");
 			const fields = [];
-			let open = false;
 			while (!punct("}")) {
 				const name = word();
-				if (name === "..") open = true;
-				else {
-					expect(":");
-					fields.push({ name, type: type() });
-				}
-				punct(",");
+				expect(":");
+				fields.push({ name, type: type() });
+				punct(";");
 			}
-			return { kind: "record", fields, open };
+			return { kind: "record", fields, open: false };
 		}
-		return { kind: "named", name: w };
+		const w = word();
+		return w in WORDS ? { kind: WORDS[w] } : { kind: "named", name: w };
+	};
+	const postfix = () => {
+		let t = primary();
+		while (punct("[")) {
+			expect("]");
+			t = { kind: "list", of: t };
+		}
+		return t;
+	};
+	const type = () => {
+		const members = [postfix()];
+		while (punct("|")) members.push(postfix());
+		return union(members);
 	};
 	const out = type();
 	skip();
-	if (at !== text.length) throw new Error(`can't read the type ${text}`);
+	if (at !== text.length) fail();
 	return out;
 }
 
 const ANY_JSON = { type: ["object", "array", "string", "number", "integer", "boolean", "null"] };
 
-// A parsed TCD type as a JSON Schema.
+// A parsed type as a JSON Schema.
 export function typeSchema(t) {
 	switch (t.kind) {
 		case "bool":
 			return { type: "boolean" };
-		case "s32":
-			return { type: "integer", minimum: -(2 ** 31), maximum: 2 ** 31 - 1 };
-		case "f64":
+		case "number":
 			return { type: "number" };
 		case "string":
 			return { type: "string" };
@@ -132,6 +150,11 @@ export function constrain(schema, constraints) {
 	const notes = [];
 	const isArray = out.type === "array";
 	for (const c of constraints) {
+		// A whole number (pure-tutuca's int).
+		if (c === "integer" && out.type === "number") {
+			out.type = "integer";
+			continue;
+		}
 		let m = /^(>=|<=|>|<) (-?\d+(?:\.\d+)?)$/.exec(c);
 		if (m) {
 			const n = Number(m[2]);
@@ -178,22 +201,22 @@ const objectSchema = (args) => ({
 
 export const SHARED_TOOLS = [
 	{
-		name: "skills_list",
+		name: "skillsList",
 		description: "List the files in the agent's skills folder, or under a directory of it.",
 		parameters: { type: "object", properties: { dir: { type: "string", description: 'A directory, "" for all of them.' } }, required: ["dir"] },
 	},
 	{
-		name: "skills_read",
+		name: "skillsRead",
 		description: "Read a file of the agent's skills folder.",
 		parameters: { type: "object", properties: { path: { type: "string" } }, required: ["path"] },
 	},
 	{
-		name: "get_state",
+		name: "getState",
 		description: "The data being worked on, as JSON (long values are cut short).",
 		parameters: { type: "object", properties: {}, required: [] },
 	},
 	{
-		name: "export_preview",
+		name: "exportPreview",
 		description: "The JSON an export would write now.",
 		parameters: { type: "object", properties: {}, required: [] },
 	},
@@ -205,7 +228,7 @@ export const skillsList = (skills, dir = "") => {
 	const paths = Object.keys(skills).filter((p) => p.startsWith(prefix));
 	return paths.length > 0 ? paths : { error: `no files under "${dir}"` };
 };
-export const skillsRead = (skills, path) => skills[path] ?? { error: `no file "${path}"; skills_list shows the files` };
+export const skillsRead = (skills, path) => skills[path] ?? { error: `no file "${path}"; skillsList shows the files` };
 
 // The skills as the system prompt lists them: each file's description, when
 // its frontmatter has one, then every path.
@@ -216,7 +239,7 @@ export const skillsIndex = (skills) => {
 		const description = /^description:\s*(.+)$/m.exec(skills[p])?.[1];
 		return description ? `- ${p}: ${description}` : `- ${p}`;
 	});
-	return `The skills folder (read files with skills_read):\n${lines.join("\n")}`;
+	return `The skills folder (read files with skillsRead):\n${lines.join("\n")}`;
 };
 
 // Text cut to about max characters.
@@ -288,13 +311,13 @@ const runMessage = async (runtime, env, tool, call) => {
 const runShared = (runtime, env, agent, call) => {
 	const args = call.arguments ?? {};
 	switch (call.name) {
-		case "skills_list":
+		case "skillsList":
 			return { value: skillsList(agent.meta.skills ?? {}, args.dir ?? "") };
-		case "skills_read":
+		case "skillsRead":
 			return { value: skillsRead(agent.meta.skills ?? {}, args.path ?? "") };
-		case "get_state":
+		case "getState":
 			return { value: runtime.get(env.root(), "domain") };
-		case "export_preview":
+		case "exportPreview":
 			return { value: runtime.get(env.root(), "data") };
 	}
 };
@@ -353,6 +376,6 @@ export function hostEnv(runtime, host, steps, { restore } = {}) {
 				return { error: error?.message ?? String(error) };
 			}
 		},
-		restore: restore ?? ((prev) => host.send("set_workspace", [prev], { to: steps.slice(0, -1) })),
+		restore: restore ?? ((prev) => host.send("setWorkspace", [prev], { to: steps.slice(0, -1) })),
 	};
 }

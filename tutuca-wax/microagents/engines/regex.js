@@ -1,10 +1,27 @@
-// Host functions for regex-lab: JavaScript regular expressions.
+// regex-lab's host module: JavaScript regular expressions, as a module a
+// pure-tutuca agent imports (import { error, test } from "microagents/regex").
+// declaration is what pure-tutuca checks the agent against; make() gives the members,
+// which answer rather than throw: a pattern that doesn't compile is null, or
+// the text unhit.
 //
-//   regex_error(pattern, flags)            "" or why it doesn't compile
-//   regex_test(pattern, flags, text)       whether it matches (g and y ignored); throws when invalid
-//   regex_matches(pattern, flags, text, max)
-//                                          every match: [{ index, end, text, groups, named }]
-//   regex_segments(pattern, flags, text)   text cut into [{ text, hit }], the matches hit
+//   error(pattern, flags)              "" or why it doesn't compile
+//   test(pattern, flags, text)         whether it matches (g and y ignored); null when it doesn't compile
+//   matches(pattern, flags, text, max) every match: [{ index, end, text, groups, named }]; null when it
+//                                      doesn't compile
+//   segments(pattern, flags, text)     text cut into [{ text, hit }], the matches hit; the text unhit
+//                                      when it doesn't compile
+export const declaration = {
+	specifier: "microagents/regex",
+	module: "Regex",
+	members: {
+		error: "(pattern: string, flags: string) => string",
+		test: "(pattern: string, flags: string, text: string) => boolean | null",
+		matches:
+			"(pattern: string, flags: string, text: string, max: number) => { index: number; end: number; text: string; groups: (string | null)[]; named: { [key: string]: string } }[] | null",
+		segments: "(pattern: string, flags: string, text: string) => { text: string; hit: boolean }[]",
+	},
+	fresh: ["Regex.matches", "Regex.segments"],
+};
 export const bundle = null;
 
 const MAX = 500;
@@ -37,10 +54,14 @@ const matchesOf = (pattern, flags, text, max = MAX) => {
 };
 
 export const make = () => ({
-	regex_error: (pattern, flags) => compile(pattern, flags).error,
-	regex_test: (pattern, flags, text) => valid(pattern, flags.replace(/[gy]/g, "")).test(text),
-	regex_matches: (pattern, flags, text, max) => matchesOf(pattern, flags, text, Math.min(max || MAX, MAX)),
-	regex_segments: (pattern, flags, text) => {
+	error: (pattern, flags) => compile(pattern, flags).error,
+	test: (pattern, flags, text) => {
+		const { re } = compile(pattern, flags.replace(/[gy]/g, ""));
+		return re === null ? null : re.test(text);
+	},
+	matches: (pattern, flags, text, max) => (compile(pattern, flags).re === null ? null : matchesOf(pattern, flags, text, Math.min(max || MAX, MAX))),
+	segments: (pattern, flags, text) => {
+		if (compile(pattern, flags).re === null) return [{ text, hit: false }];
 		const out = [];
 		let at = 0;
 		for (const m of matchesOf(pattern, flags, text)) {

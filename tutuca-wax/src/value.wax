@@ -11,11 +11,26 @@
 // constructors.
 
 const VALUE_NULL: &value = {value_null| kind: value_kind_null };
+const VALUE_UNDEFINED: &value = {value_undefined| kind: value_kind_undefined };
 const VALUE_FALSE: &value = {value_bool| kind: value_kind_bool, value: 0 };
 const VALUE_TRUE: &value = {value_bool| kind: value_kind_bool, value: 1 };
 
 fn value_null() -> &value {
     VALUE_NULL;
+}
+
+fn value_undefined() -> &value {
+    VALUE_UNDEFINED;
+}
+
+fn value_is_undefined(v: &value) -> i32 {
+    v.kind == value_kind_undefined;
+}
+
+// A JS number, as it is: -0 stays -0, NaN NaN.
+fn value_number(value: f64) -> &value {
+    let out: &value_number = { kind: value_kind_number, value };
+    out;
 }
 
 fn value_bool(value: i32) -> &value {
@@ -24,16 +39,6 @@ fn value_bool(value: i32) -> &value {
     } else {
         VALUE_TRUE;
     }
-}
-
-fn value_int(value: i32) -> &value {
-    let out: &value_int = { kind: value_kind_int, value };
-    out;
-}
-
-fn value_float(value: f64) -> &value {
-    let out: &value_float = { kind: value_kind_float, value };
-    out;
 }
 
 fn value_string(value: js_string) -> &value {
@@ -46,18 +51,8 @@ fn value_list(value: &pv_vector) -> &value {
     out;
 }
 
-fn value_map(value: &phm_map) -> &value {
-    let out: &value_map = { kind: value_kind_map, value };
-    out;
-}
-
-fn value_ok(value: &value) -> &value {
-    let out: &value_result = { kind: value_kind_result, ok: 1, value };
-    out;
-}
-
-fn value_err(value: &value) -> &value {
-    let out: &value_result = { kind: value_kind_result, ok: 0, value };
+fn value_map(value: &phm_map, order: &pv_vector) -> &value {
+    let out: &value_map = { kind: value_kind_map, value, order };
     out;
 }
 
@@ -76,16 +71,13 @@ fn value_is_false(v: &value) -> i32 {
 }
 
 fn value_is_number(v: &value) -> i32 {
-    (v.kind == value_kind_int) | (v.kind == value_kind_float);
+    v.kind == value_kind_number;
 }
 
-// An int or a float as a double; 0 for anything else.
+// A number's double; 0 for anything else.
 fn value_to_f64(v: &value) -> f64 {
-    if v.kind == value_kind_int {
-        return (v as &value_int).value as f64_s;
-    }
-    if v.kind == value_kind_float {
-        return (v as &value_float).value;
+    if v.kind == value_kind_number {
+        return (v as &value_number).value;
     }
     0.0;
 }
@@ -98,11 +90,11 @@ fn value_string_of(v: &value) -> js_string_opt {
     null;
 }
 
-// JS truthiness: null, false, 0, NaN and "" are falsy, everything else, empty
-// lists and maps included, is truthy.
+// JS truthiness: null, undefined, false, 0, NaN and "" are falsy, everything
+// else, empty lists and maps included, is truthy.
 fn value_truthy(v: &value) -> i32 {
     let kind = v.kind;
-    if kind == value_kind_null {
+    if (kind == value_kind_null) | (kind == value_kind_undefined) {
         return 0;
     }
     if kind == value_kind_bool {
@@ -119,9 +111,9 @@ fn value_truthy(v: &value) -> i32 {
     1;
 }
 
-// JS ===, what a render compares props with: numbers by value whatever case
-// holds them (so NaN differs from itself), strings by content, and lists,
-// maps, results and components by reference.
+// JS ===, what a render compares props with: numbers by value (so NaN
+// differs from itself), strings by content, and lists, maps and components
+// by reference.
 fn value_same(a: &value, b: &value) -> i32 {
     // Numbers first, so one NaN value isn't the same as itself either.
     if value_is_number(a) & value_is_number(b) {

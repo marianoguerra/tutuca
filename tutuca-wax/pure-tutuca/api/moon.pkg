@@ -1,0 +1,14 @@
+import {
+  "tutuca/pure-tutuca/diag",
+  "tutuca/pure-tutuca/check",
+  "tutuca/pure-tutuca/pure",
+  "tutuca/pure-tutuca/export",
+  "tutuca/pure-tutuca/gen",
+  "tutuca/pure-tutuca/compose",
+  "marianoguerra/wax",
+  "moonbitlang/core/encoding/utf8",
+}
+
+import {
+  "tutuca/pure-tutuca/api",
+} for "test"

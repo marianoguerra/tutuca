@@ -56,7 +56,7 @@ fn is_prefixed_attr(name: js_string) -> i32 {
 }
 
 // node[name] = value; 0 when it threw. Scalars go as JS strings, numbers and
-// booleans; lists, maps, results and components as the opaque objects they
+// booleans; lists, maps and components as the opaque objects they
 // are, as JS sets an object prop.
 fn set_property(node: dom_node, name: js_string, value: &value) -> i32 {
     let kind = value.kind;

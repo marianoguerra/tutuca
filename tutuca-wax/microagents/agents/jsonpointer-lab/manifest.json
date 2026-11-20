@@ -6,15 +6,50 @@
 	"icon": "📍",
 	"version": "1",
 	"root": "JsonPointerLab",
-	"skills": ["SKILL.md", "reference/rfc6901.md"],
+	"skills": [
+		"SKILL.md",
+		"reference/rfc6901.md"
+	],
 	"tools": [
-		{ "name": "set_pointer", "kind": "message" },
-		{ "name": "add_pointer", "kind": "message" },
-		{ "name": "remove_pointer", "kind": "message" },
-		{ "name": "reorder_pointers", "kind": "message" },
-		{ "name": "set_document", "kind": "message" },
-		{ "name": "resolve", "kind": "view" },
-		{ "name": "resolutions", "kind": "view" },
-		{ "name": "find", "kind": "view" }
+		{
+			"name": "setPointer",
+			"kind": "message",
+			"description": "Change a pointer."
+		},
+		{
+			"name": "addPointer",
+			"kind": "message",
+			"description": "Add a pointer; it gets the next free id (q1, q2, …)."
+		},
+		{
+			"name": "removePointer",
+			"kind": "message",
+			"description": "Remove a pointer."
+		},
+		{
+			"name": "reorderPointers",
+			"kind": "message",
+			"description": "Move a pointer to a position (0 is first)."
+		},
+		{
+			"name": "setDocument",
+			"kind": "message",
+			"description": "Replace the JSON document the pointers resolve in."
+		},
+		{
+			"name": "resolve",
+			"kind": "view",
+			"description": "Where any pointer leads in the document: its unescaped tokens, and the value it reaches, or the segment where it fails and why."
+		},
+		{
+			"name": "resolutions",
+			"kind": "view",
+			"description": "Every pointer's resolution."
+		},
+		{
+			"name": "find",
+			"kind": "view",
+			"description": "The pointers of nodes whose key or (scalar) value contains a text, ignoring case (at most 50)."
+		}
 	]
 }

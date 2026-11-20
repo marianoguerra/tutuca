@@ -1,7 +1,7 @@
 # Micro-agents in tutuca-wax
 
 The micro-agents app, where **an agent is one `.wasm` component module**
-built by tcd. Its code and views are the module. Its manifest, prompt, skills,
+built by the pure-tutuca compiler. Its code and views are the module. Its manifest, prompt, skills,
 tools and samples are JSON in a custom section named `microagent`. The data an
 agent opens is plain JSON; TData and tq aren't used here. It replaced the JS app
 that was in `apps/microagents/` (still in git history, at 257cd94).
@@ -15,10 +15,10 @@ just test-microagents   # each agent's contract, samples and tools; the shell wi
 
 | file | does |
 |---|---|
-| `kit/kit.tcd` | `MicroAgent`, the interface every agent's root implements (`summary`, `domain`, `data`) |
-| `microagents.tcd/.wax` | the shell: `AgentCard`s, `Session` tabs (workspace + chat), `MicroAgents` |
+| `kit/kit.tutuca.ts` | `MicroAgent`, the interface every agent's root implements (`summary`, `domain`, `data`) |
+| `microagents.tutuca.ts` | the shell: `AgentCard`s, `Session` tabs (workspace + chat), `MicroAgents` |
 | `agent.js` | the format: reading/packing the section, loading an agent into a scope, the contract check, matching |
-| `tools.js` | TCD types → JSON Schema, the shared tools, running a tool call (checked, sent, undone on a dev-mode issue) |
+| `tools.js` | the root's schema's types → JSON Schema, the shared tools, running a tool call (checked, sent, undone on a dev-mode issue) |
 | `app.js` | the host's answers to the shell's asks, with no DOM: agents, sessions, the model loop |
 | `loop.js`, `llm.js` | the loop's steps and the model client (ported from `apps/microagents/core`) |
 | `main.js`, `store.js` | the page: styles, dropping files, installed agents in IndexedDB |
@@ -29,10 +29,9 @@ just test-microagents   # each agent's contract, samples and tools; the shell wi
 `agents/<id>/` holds:
 
 ```
-agent.tcd      the root (implements MicroAgent, from ../../kit/kit.tcd) and its rows
-agent.wax      what the .tcd can't say
-manifest.json  { id, title, description, needs, icon, version, root, skills: [paths],
-                 tools: [{ name, kind: "message" | "view", description?, result? }] }
+agent.tutuca.ts  the root (implements MicroAgent, imported from ../../kit/kit.tutuca) and its rows
+manifest.json    { id, title, description, needs, icon, version, root, hostModules: [engines],
+                   skills: [paths], tools: [{ name, kind: "message" | "view", description, result? }] }
 prompt.md      the system prompt (the shell adds the skills index and the root's summary)
 skills/<path>  the read-only skills folder
 samples/*.json JSON documents it opens; empty.json is required
@@ -40,36 +39,38 @@ samples/*.json JSON documents it opens; empty.json is required
 
 - **Opening.** The root's fields are the document's keys. A document opens
   with the agent when the root makes from it with no issue, other than missing
-  fields that have defaults. So the fields' types and `where`s say what the
-  agent opens (`where len(pointers) >= 1` makes `pointers` required). Use
-  `init;` to build child components from the data.
+  fields that have defaults. So the fields' types and `constraints` say what the
+  agent opens (`pointers: { minLength: 1 }`, with no default, makes `pointers`
+  required). Use `init` to build child components from the data.
 - **Tools.**
   - A message tool is a message of the root.
-  - A view tool is a `query` (it takes arguments) or a `get`.
-  - Parameters come from the root's schema: names, types and `where`s become
-    JSON Schema.
-  - A tool without a description takes its member's `///` doc.
-  - `result` names the get a message tool answers with (`summary` by default).
+  - A view tool is a query: a method (it takes arguments) or a getter.
+  - Parameters come from the root's schema: names, types and constraints
+    become JSON Schema.
+  - Its description is the manifest's.
+  - `result` names the query a message tool answers with (`summary` by default).
 - **Checked first, undone after.** A call that `messageProblem` rejects (wrong
-  types, a failing `when`) never runs, and the model reads why. A call that
-  breaks `ensures`, `changes` or an invariant in dev mode is undone.
-- **Data.** `data` is the JSON the agent exports (and `export_preview`
-  shows); `domain` is what `get_state` answers.
-- **What the runtime adds for agents:**
-  - `str_slice`, `str_index_of`, `str_lower`, `str_upper`, `str_trim`,
-    `str_replace_all`, `str_split`, `str_join`;
-  - `value_json(v, indent)`;
-  - `host_call(name, args)` for the page's functions (`runtime.defineHostFn`).
-    `json_parse` is always defined.
+  types, a failing `pre`) never runs, and the model reads why. A call that
+  breaks `post`, `changes` or an invariant in dev mode is undone.
+- **Data.** `data` is the JSON the agent exports (and `exportPreview`
+  shows); `domain` is what `getState` answers.
+- **Engines.** What only the page can do (regular expressions, jq, cron, …)
+  is an engine, `engines/<name>.js`: its `declaration` (a specifier such as
+  `microagents/regex`, a module name, its members' TypeScript signatures)
+  is what an agent imports and the compiler checks it against, and `make()` gives the
+  members, which answer (null, "", a record saying the error) rather than
+  throw. The shell defines each as `Module.member`; what one returns is
+  checked against its declared type. tutuca/data's `parseJson`, `toJson`,
+  `get` and `itemsOf` read and write JSON.
 
-`regex-lab` is the reference; `PORTING.md` is the guide the ports followed.
+`regex-lab` is the reference.
 
 ## The agents
 
 jsonpointer-lab, regex-lab, json-schema-lab, jsonpath-lab, jq-lab, glob-lab,
 vega-lite-lab, echarts-lab, cron-lab and datefmt-lab. The engines are the
 page's host functions (`engines/<module>.js`, named by a manifest's
-`hostFns`). The bundles are copied from tutuca's `demos/deps/` into
+`hostModules`). The bundles are copied from tutuca's `demos/deps/` into
 `dist/engines/` by the build. Charts draw in `<ma-vega>` and `<ma-svg>`
 (`elements.js`).
 

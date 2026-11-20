@@ -132,18 +132,18 @@ fn watch_outcome_name(o: i32) -> js_string {
 
 // What its watcher is told once it settles: { id, outcome, tasks, failed }.
 fn watch_report(w: &watch) -> &value {
-    let m = map_assoc(map_empty(), s_id, value_int(w.id));
+    let m = map_assoc(map_empty(), s_id, value_number(w.id as f64_s));
     m = map_assoc(m, s_outcome, value_string(watch_outcome_name(watch_outcome(w))));
-    m = map_assoc(m, s_w_tasks, value_int(w.tasks));
-    map_assoc(m, s_t_failed, value_int(w.failed));
+    m = map_assoc(m, s_w_tasks, value_number(w.tasks as f64_s));
+    map_assoc(m, s_t_failed, value_number(w.failed as f64_s));
 }
 
 // What a progress message says, as it runs: { id, tasks, open, failed }.
 fn watch_progress_report(w: &watch) -> &value {
-    let m = map_assoc(map_empty(), s_id, value_int(w.id));
-    m = map_assoc(m, s_w_tasks, value_int(w.tasks));
-    m = map_assoc(m, s_w_open, value_int(w.live));
-    map_assoc(m, s_t_failed, value_int(w.failed));
+    let m = map_assoc(map_empty(), s_id, value_number(w.id as f64_s));
+    m = map_assoc(m, s_w_tasks, value_number(w.tasks as f64_s));
+    m = map_assoc(m, s_w_open, value_number(w.live as f64_s));
+    map_assoc(m, s_t_failed, value_number(w.failed as f64_s));
 }
 
 // args, then v.
@@ -196,11 +196,11 @@ fn watch_register(h: &host, w: &watch) {
     if !!w.outer {
         (w.outer!).live = (w.outer!).live + 1;
     }
-    let m = map_assoc(map_empty(), s_w_watch, value_int(w.id));
+    let m = map_assoc(map_empty(), s_w_watch, value_number(w.id as f64_s));
     m = map_assoc(m, s_w_watcher, route_value(w.watcher, 0));
     let timeout = VALUE_NULL;
     if w.timeout >= 0.0 {
-        timeout = value_float(w.timeout);
+        timeout = value_number(w.timeout);
     }
     host_event(h, s_w_opened, map_assoc(m, s_w_timeout, timeout));
 }
@@ -229,7 +229,7 @@ fn watch_release(h: &host, w: &watch) {
 fn watch_settle(h: &host, w: &watch) {
     w.done = 1;
     watches_remove(h, w);
-    let m = map_assoc(watch_report(w), s_w_watch, value_int(w.id));
+    let m = map_assoc(watch_report(w), s_w_watch, value_number(w.id as f64_s));
     host_event(h, s_w_settled, m);
     if !!w.settled {
         let told =
@@ -247,6 +247,7 @@ fn watcher_task(w: &watch, name: js_string, args: &value_array, outer: &?watch) 
     {task|
         kind: task_kind_plain,
         name,
+        answer: answer_none,
         args,
         from: w.watcher,
         from_host: 0,

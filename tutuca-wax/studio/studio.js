@@ -1,8 +1,8 @@
-// The studio's page: the host of studio.tcd's Studio, which has the screens
+// The studio's page: the host of studio.tutuca.ts's Studio, which has the screens
 // as tabs, the picker a new screen's scope is chosen in, the menu and the
 // editor, and which asks the page for what only it can do: keep the library
 // in IndexedDB (store.js), make a screen or a preview in its scope chain
-// (answered with the component made, which Studio renders), build with tcd
+// (answered with the component made, which Studio renders), build with pure-tutuca
 // (the compiler worker), confirm, move the library in and out. A screen is
 // composed by filling a layout's holes with what its scope can make; a
 // hole's list also offers a new component, and a slot's ✎ edits the one in
@@ -65,15 +65,15 @@ const server = await checkServer();
 // ---- Prebuilt modules ---------------------------------------------------------------------
 
 // The modules of dist/components/ a scope can register, with the names they
-// register and their .tcd (for a component's use of their interfaces), as
-// their tutuca section says.
+// register and their source (for a component's import of their interfaces),
+// as their tutuca section says.
 const PREBUILT = ["meta", "layout", "counter", "todo_list", "todo_item", "todo_card", "json", "media", "showcase"];
 const prebuilt = new Map(
 	await Promise.all(
 		PREBUILT.map(async (name) => {
 			const wasm = new Uint8Array(await readBytes(new URL(`../dist/components/${name}.wasm`, import.meta.url)));
-			const { types, tcd } = componentMeta(wasm);
-			return [name, { wasm, types, tcd }];
+			const { types, source } = componentMeta(wasm);
+			return [name, { wasm, types, source }];
 		}),
 	),
 );
@@ -82,10 +82,10 @@ const PREBUILT_PREFIX = "prebuilt:";
 // What a new component starts from: the assistant's tasks example, which
 // shows the model a working module too.
 const text = async (path) => new TextDecoder().decode(await readBytes(new URL(path, import.meta.url)));
-const STARTER = { name: "tasks", tcd: await text("./assistant/examples/tasks.tcd"), wax: await text("./assistant/examples/tasks.wax") };
+const STARTER = { name: "tasks", source: await text("./assistant/examples/tasks.tutuca.ts") };
 // What the editor can start from instead: the examples the build lists
 // (dist/examples.json: the assistant's and the component modules'), each a
-// .tcd and its .wax, fetched when picked.
+// module, fetched when picked.
 const EXAMPLES = new Map(JSON.parse(await text("../dist/examples.json")).map((e) => [e.name, e]));
 
 // ---- The library ---------------------------------------------------------------------------
@@ -125,7 +125,7 @@ const chainOf = (scope) => {
 	for (let s = scope; s; s = lib.scopes.get(s.parent)) chain.unshift(s);
 	return chain;
 };
-// What a scope's holes offer, as ctx_component_names lists them: each name
+// What a scope's holes offer, as ctx.componentNames lists them: each name
 // once, an inner registration hiding an outer one. [{ name, scope, ref }].
 const resolvesIn = (scope) => {
 	const found = new Map();
@@ -143,32 +143,36 @@ const screensInOrder = () => [...lib.screens.values()].sort((a, b) => a.created 
 // ---- Building ------------------------------------------------------------------------------
 
 const hex = (buffer) => [...new Uint8Array(buffer)].map((b) => b.toString(16).padStart(2, "0")).join("");
-let tcdVersion = null;
-const version = async () => (tcdVersion ??= (await compiler("version", {})).version);
+let compilerVersion = null;
+const version = async () => (compilerVersion ??= (await compiler("version", {})).version);
 
-// The files a component's .tcd uses ("name.tcd", or a path ending in it as
-// the component modules write them: another component of the library, or a
-// prebuilt module's, else the one an imported module came with, in kept),
-// and what they use, by the path written.
-function usedFiles(tcd, kept = {}, files = {}) {
-	for (const [, path] of tcd.matchAll(/\buse\s+"([^"]+)"/g)) {
+// The file a component's source is built as.
+const mainOf = (name) => `${name}.tutuca.ts`;
+
+// The files a component's source imports (from "name.tutuca", or a path
+// ending in it as the component modules write them): another component of
+// the library, or a prebuilt module's, else the one an imported module came
+// with, in kept), and what they import, by the path written, with .ts.
+function usedFiles(source, kept = {}, files = {}) {
+	for (const m of source.matchAll(/\bfrom\s+"([^"]+\.tutuca)(?:\.ts)?"/g)) {
+		const path = `${m[1]}.ts`;
 		if (path in files) continue;
-		const name = path.split("/").pop().replace(/\.tcd$/, "");
+		const name = path.split("/").pop().replace(/\.tutuca\.ts$/, "");
 		const own = [...lib.components.values()].find((c) => c.name === name);
-		const source = own?.tcd ?? prebuilt.get(name)?.tcd ?? kept[path] ?? null;
-		if (source === null) continue; // tcd reports it
-		files[path] = source;
-		usedFiles(source, kept, files);
+		const text = own?.source ?? prebuilt.get(name)?.source ?? kept[path] ?? null;
+		if (text === null) continue; // pure-tutuca reports it
+		files[path] = text;
+		usedFiles(text, kept, files);
 	}
 	return files;
 }
 const requestFor = async (c) => {
-	const main = `${c.name}.tcd`;
-	return { main, files: { ...usedFiles(c.tcd, c.uses), [main]: c.tcd }, impls: [{ path: `${c.name}.wax`, text: c.wax }] };
+	const main = mainOf(c.name);
+	return { main, files: { ...usedFiles(c.source, c.uses), [main]: c.source } };
 };
 
 // The component's build, built again only when what it's built from (the
-// request and tcd itself) changed since the last one. Kept with it when
+// request and pure-tutuca itself) changed since the last one. Kept with it when
 // it's the library's, not the editor's copy of it.
 async function buildOf(c) {
 	const request = await requestFor(c);
@@ -219,7 +223,7 @@ const reportLine = (t, type, r) => {
 
 // ---- The page ------------------------------------------------------------------------------
 
-// The studio is studio.tcd's Studio, rendered into studioRoot.
+// The studio is studio.tutuca.ts's Studio, rendered into studioRoot.
 const app = document.querySelector("#app");
 app.className = UI.app;
 app.textContent = "";
@@ -292,7 +296,7 @@ let studioHost = null;
 // handler or a report doesn't send in the middle of a task. Then they run
 // at once.
 const tell = (name, ...args) => queueMicrotask(() => studioHost?.send(name, args, { now: true }));
-// The same, to the editor (studio.tcd's Studio holds it in its field editor).
+// The same, to the editor (studio.tutuca.ts's Studio holds it in its field editor).
 const tellEditor = (name, ...args) => queueMicrotask(() => studioHost?.send(name, args, { to: ["editor"], now: true }));
 const say = (message) => tell("say", message);
 const note = (kind, message) => tell("note", kind, message);
@@ -318,7 +322,7 @@ async function keepLayout() {
 	const root = studioHost.root();
 	const made = runtime.get(root, "shown");
 	const screen = lib.screens.get(mounted.id);
-	if (!made || !screen || runtime.get(root, "shown_id") !== mounted.id) return;
+	if (!made || !screen || runtime.get(root, "shownId") !== mounted.id) return;
 	let layout;
 	try {
 		layout = capture(runtime, mounted.scope, made);
@@ -349,7 +353,7 @@ const autofocus = () => {
 const asks = {
 	// The screen's scope chain made from scratch, each scope's registrations
 	// loaded into it, and its layout made there.
-	open_screen: async (id) => {
+	openScreen: async (id) => {
 		await keepLayout();
 		wanted = id;
 		const screen = lib.screens.get(id);
@@ -372,19 +376,19 @@ const asks = {
 	},
 	// A new screen starts with the default layout, opened edited.
 	// The bar's toggle: sent to the screen shown, answered with what it'll be.
-	toggle_screen: () => {
+	toggleScreen: () => {
 		const screen = runtime.get(studioHost.root(), "shown");
 		if (!screen) return false;
-		studioHost.send("toggle_editing", [], { to: ["shown"] });
+		studioHost.send("toggleEditing", [], { to: ["shown"] });
 		return !runtime.get(screen, "editing");
 	},
-	save_screen: async (id, name, scope, created) => {
+	saveScreen: async (id, name, scope, created) => {
 		const existing = lib.screens.get(id);
 		if (!existing) fresh.add(id);
 		await save("screens", { layout: structuredClone(DEFAULT_LAYOUT), ...existing, id, name, scope, created });
 		return true;
 	},
-	delete_screen: async (id) => {
+	deleteScreen: async (id) => {
 		if (mounted?.id === id) {
 			clearTimeout(pendingSave);
 			unmount();
@@ -392,29 +396,29 @@ const asks = {
 		await remove("screens", id);
 		return true;
 	},
-	save_scope: async (id, name, parent) => {
+	saveScope: async (id, name, parent) => {
 		await save("scopes", { id, name, parent, registrations: [] });
 		return true;
 	},
 	confirm: (text) => confirm(text),
-	export_library: async () => {
+	exportLibrary: async () => {
 		await keepLayout();
 		exportBundle();
 		return true;
 	},
-	export_components: () => exportComponents(),
-	import_library: () =>
+	exportComponents: () => exportComponents(),
+	importLibrary: () =>
 		new Promise((resolve) => {
 			importing = resolve;
 			importInput.click();
 		}),
-	edit_layout_json: (id) => {
+	editLayoutJson: (id) => {
 		showLayoutJson(id);
 		return true;
 	},
 	// The layout's: a hole's new component, a slot's ✎.
-	create_component: () => createComponent(),
-	edit_component: (item) => editComponent(item),
+	createComponent: () => createComponent(),
+	editComponent: (item) => editComponent(item),
 };
 
 // The screen's layout as it's kept, to read or change by hand.
@@ -482,10 +486,10 @@ function choose(title, text, choices) {
 
 // ---- The editor ---------------------------------------------------------------------------
 
-// While a component is written or edited, studio.tcd's Editor is the page;
+// While a component is written or edited, studio.tutuca.ts's Editor is the page;
 // the screen stays in the studio's state, its hole or slot waiting for the
 // answer to its ask. editing: { creating, resolve (that answer), scope (the
-// screen's scope record), draft ({ id, name, tcd, wax, build, chat }: what
+// screen's scope record), draft ({ id, name, source, build, chat }: what
 // the last build was made from), state (the preview's, as last told),
 // preview (the last preview's child of base) }.
 const NAME = /^[a-z][a-z0-9_]*$/;
@@ -501,7 +505,7 @@ function openEditor(creating, c) {
 	return new Promise((resolve) => {
 		const scope = lib.scopes.get(lib.screens.get(mounted.id).scope);
 		editing = { creating, resolve, scope, draft: { ...c, chat: [...(c.chat ?? [])] }, state: "" };
-		tell("open_editor", creating, c.id, c.name, c.tcd, c.wax, c.chat ?? []);
+		tell("openEditor", creating, c.id, c.name, c.source, c.chat ?? []);
 	});
 }
 function closeEditing(answer) {
@@ -513,7 +517,7 @@ function closeEditing(answer) {
 
 // The hole's ask: a new component, from the starter. Answered with its name
 // once it's registered, or "" when the editor is left without saving.
-const createComponent = () => openEditor(true, { id: newId(), name: freeName(STARTER.name), tcd: STARTER.tcd, wax: STARTER.wax });
+const createComponent = () => openEditor(true, { id: newId(), name: freeName(STARTER.name), source: STARTER.source });
 // A slot's ask: the component in it, by the name it's made by here. Only
 // the library's components open; true once it's saved, false otherwise.
 function editComponent(item) {
@@ -550,28 +554,28 @@ const diagnosticRow = (d, sources, seen) => ({
 	file: d.span.file,
 	line: d.span.start.line,
 	col: d.span.start.col,
-	end_line: d.span.end.line,
-	end_col: d.span.end.col,
+	endLine: d.span.end.line,
+	endCol: d.span.end.col,
 	severity: d.severity,
 	message: d.hint ? `${d.message} (${d.hint})` : d.message,
 	text: diagnosticReport(d, sources) + (d.severity === "error" && seen.has(diagnosticKey(d, sources)) ? REPEATED : ""),
 });
 
 // The draft, as the editor has it now.
-const draftAs = (id, name, tcd, wax) => {
+const draftAs = (id, name, source) => {
 	if (editing?.draft.id !== id) throw new Error("that component isn't being edited");
-	return Object.assign(editing.draft, { name, tcd, wax });
+	return Object.assign(editing.draft, { name, source });
 };
 
 // What the editor asks the page for.
 Object.assign(asks, {
-	build: async (id, name, tcd, wax) => {
-		const draft = draftAs(id, name, tcd, wax);
+	build: async (id, name, source) => {
+		const draft = draftAs(id, name, source);
 		const b = await buildOf(draft);
 		const registers = await registersOf(b);
 		// The errors of the build before, to tell the ones still there, and
 		// how many builds in a row had only the same ones (stuck).
-		const sources = { [`${name}.tcd`]: tcd, [`${name}.wax`]: wax };
+		const sources = { [mainOf(name)]: source };
 		const seen = editing.errors ?? new Set();
 		const errors = new Set(b.diags.filter((d) => d.severity === "error").map((d) => diagnosticKey(d, sources)));
 		const same = errors.size > 0 && errors.size === seen.size && [...errors].every((k) => seen.has(k));
@@ -601,11 +605,11 @@ Object.assign(asks, {
 	},
 	// Kept, and registered in the screen's scope when it's new; an edited
 	// one's screen is made again with it.
-	save_component: async (creating, id, name, tcd, wax, chat) => {
+	saveComponent: async (creating, id, name, source, chat) => {
 		if (!NAME.test(name) || [...lib.components.values()].some((c) => c.id !== id && c.name === name)) {
-			throw new Error(`a name is snake_case and unique in the library: ${name} isn't`);
+			throw new Error(`a name is lowercase letters, digits and _, and unique in the library: ${name} isn't`);
 		}
-		const draft = draftAs(id, name, tcd, wax);
+		const draft = draftAs(id, name, source);
 		const b = await buildOf(draft);
 		if (!b.ok) throw new Error("it doesn't build yet: fix what the diagnostics say first");
 		let { scope } = editing;
@@ -621,14 +625,14 @@ Object.assign(asks, {
 			const screen = lib.screens.get(mounted.id);
 			const ask = `${taken.join(", ")} already made in ${scope.name}, for all its screens. Give ${screen.name} a scope of its own, under ${scope.name}, and register ${name} there?`;
 			if (!creating || !confirm(ask)) {
-				throw new Error(`${taken.join(", ")} already made in ${scope.name}: rename the component in ${name}.tcd, or make it in a scope of its own, where it hides ${scope.name}'s`);
+				throw new Error(`${taken.join(", ")} already made in ${scope.name}: rename the component in ${name}.tutuca.ts, or make it in a scope of its own, where it hides ${scope.name}'s`);
 			}
 			await keepLayout();
 			const own = { id: newId(), name: screen.name, parent: scope.id, registrations: [] };
 			await save("scopes", own);
 			await save("screens", { ...lib.screens.get(screen.id), scope: own.id });
-			tell("scope_added", own.id, own.name, own.parent);
-			tell("screen_moved", screen.id, own.id);
+			tell("scopeAdded", own.id, own.name, own.parent);
+			tell("screenMoved", screen.id, own.id);
 			scope = editing.scope = own;
 		}
 		// An edited one other scopes register too changes for all of them, or
@@ -648,7 +652,7 @@ Object.assign(asks, {
 			);
 			if (choice === null) throw new Error("not saved");
 			if (choice === "copy") {
-				const copy = { id: newId(), name: name === was ? freeName(name) : name, tcd, wax, uses: draft.uses, chat };
+				const copy = { id: newId(), name: name === was ? freeName(name) : name, source, uses: draft.uses, chat };
 				if (!(await buildOf(copy)).ok) throw new Error(`${copy.name}, the copy, doesn't build`);
 				await save("components", copy);
 				scope.registrations = scope.registrations.map((r) => (r.component === id ? { component: copy.id } : r));
@@ -660,7 +664,7 @@ Object.assign(asks, {
 				return "saved";
 			}
 		}
-		await save("components", { id, name, tcd, wax, uses: draft.uses, build: b, chat });
+		await save("components", { id, name, source, uses: draft.uses, build: b, chat });
 		if (creating) {
 			// One that hides a name of a parent scope changes what the screen's
 			// components are made from: the screen is kept and made again with it.
@@ -685,25 +689,24 @@ Object.assign(asks, {
 		}
 		return "saved";
 	},
-	// An example's sources, asked first when they'd replace changed ones; a
-	// new component takes a free name after it.
+	// An example's source, asked first when it'd replace a changed one; a new
+	// component takes a free name after it.
 	example: async (name, replacing) => {
-		if (replacing && !confirm(`Replace ${editing.draft.name}'s sources with ${name}'s?`)) return { ok: false, name: "", tcd: "", wax: "" };
+		if (replacing && !confirm(`Replace ${editing.draft.name}'s source with ${name}'s?`)) return { ok: false, name: "", source: "" };
 		const example = EXAMPLES.get(name);
-		const [tcd, wax] = await Promise.all([text(`../${example.tcd}`), text(`../${example.wax}`)]);
-		return { ok: true, name: freeName(name), tcd, wax };
+		return { ok: true, name: freeName(name), source: await text(`../${example.source}`) };
 	},
-	leave_editor: (creating) => {
+	leaveEditor: (creating) => {
 		closeEditing(creating ? "" : false);
 		return true;
 	},
-	// The assistant's: the model's turn, from the server (stop_chat aborts
-	// it: answered "aborted"), and what it's told of a build that failed.
-	chat: async (model, messages, name, tcd, wax) => {
+	// The assistant's: the model's turn, from the server (stopChat aborts it:
+	// answered "aborted").
+	chat: async (model, messages, name, source) => {
 		chatting?.abort();
 		chatting = new AbortController();
 		try {
-			return await askChat(model, messages, { name, tcd, wax }, chatting.signal);
+			return await askChat(model, messages, { name, source }, chatting.signal);
 		} catch (error) {
 			if (error.name === "AbortError") throw new Error("aborted");
 			throw error;
@@ -711,21 +714,17 @@ Object.assign(asks, {
 			chatting = null;
 		}
 	},
-	stop_chat: () => {
+	stopChat: () => {
 		chatting?.abort();
 		return true;
 	},
-	stub: async (id, name, tcd, wax) => {
-		const res = await compiler("stub", await requestFor(draftAs(id, name, tcd, wax)));
-		return res.ok ? res.stub.trim() : "";
-	},
-	prompt: (name, tcd, wax) => askPrompt({ name, tcd, wax }),
-	remember_model: (model) => {
+	prompt: (name, source) => askPrompt({ name, source }),
+	rememberModel: (model) => {
 		rememberModel(model);
 		return true;
 	},
 	// The conversation kept with the component once it's in the library.
-	keep_chat: async (id, messages) => {
+	keepChat: async (id, messages) => {
 		if (editing?.draft.id === id) editing.draft.chat = messages;
 		const c = lib.components.get(id);
 		if (c) await save("components", { ...c, chat: messages });
@@ -747,7 +746,7 @@ function tellPreviewState() {
 	}
 	if (state === editing.state) return;
 	editing.state = state;
-	tellEditor("set_state", state);
+	tellEditor("setState", state);
 }
 
 
@@ -787,16 +786,16 @@ importInput.addEventListener("change", async () => {
 	unmount();
 	for (const [kind, rs] of Object.entries(records)) for (const r of rs) await store.put(kind, r);
 	lib = await store.load();
-	tell("set_library", scopeRows(), screenRows());
+	tell("setLibrary", scopeRows(), screenRows());
 	const next = lib.screens.get(shown) ?? screensInOrder()[0];
-	if (next) tell("show_screen", next.id);
+	if (next) tell("showScreen", next.id);
 	say(`imported ${Object.values(records).reduce((n, rs) => n + rs.length, 0)} records from ${file.name}`);
 	imported(true);
 });
 
 // ---- Components as .wasm --------------------------------------------------------------------
 
-// A component module carries what it's made from and what it is (tcd's
+// A component module carries what it's made from and what it is (pure-tutuca's
 // tutuca section, componentMeta), so one exported from a library is a
 // component of another once imported: kept with its sources, built as it was
 // (its .wasm is its build, checked against the runtime's ABI), registered in
@@ -835,13 +834,12 @@ async function exportComponents() {
 async function componentOf(file) {
 	const wasm = new Uint8Array(await file.arrayBuffer());
 	const meta = componentMeta(wasm);
-	if (!meta) throw new Error("it isn't a component module tcd built (it has no tutuca section)");
-	if (meta.format !== 1) throw new Error(`its tutuca section is format ${meta.format}, this studio reads 1`);
+	if (!meta) throw new Error("it isn't a component module pure-tutuca built (it has no tutuca section)");
+	if (meta.format !== 2) throw new Error(`its tutuca section is format ${meta.format}, this studio reads 2`);
 	// Refused here when it's for another ABI or doesn't load.
 	await tw.loadComponent(wasm.slice(), runtime.scope());
-	const wax = meta.impls.map((i) => i.text).join("\n");
-	const same = [...lib.components.values()].find((c) => c.tcd === meta.tcd && c.wax === wax);
-	const c = same ?? { id: newId(), name: freeName(meta.name), tcd: meta.tcd, wax, uses: meta.uses, chat: [] };
+	const same = [...lib.components.values()].find((c) => c.source === meta.source);
+	const c = same ?? { id: newId(), name: freeName(meta.name), source: meta.source, uses: meta.uses, chat: [] };
 	const key = hex(await crypto.subtle.digest("SHA-256", new TextEncoder().encode(JSON.stringify([await version(), await requestFor(c)]))));
 	return { meta, c: { ...c, build: { key, ok: true, wasm, types: meta.types, diags: [] } }, existed: !!same };
 }
@@ -989,4 +987,4 @@ studioHost = runtime.createHost(
 );
 studioHost.mount();
 const first = lib.screens.get(remembered()) ?? screensInOrder()[0];
-if (first) tell("show_screen", first.id);
+if (first) tell("showScreen", first.id);

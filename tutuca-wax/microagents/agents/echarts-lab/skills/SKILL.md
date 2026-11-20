@@ -14,11 +14,11 @@ the option declares itself (a transform such as
 A series without `datasetId` reads the first table.
 
 Workflow:
-1. `describe_tables` to learn the columns.
-2. `set_option`, or `patch_option(pointer, value)` to change one place;
-   `remove_option_key(pointer)` deletes a key.
-3. Read the `compile_report`: unknown series types and dataset ids are errors, encoded columns
+1. `describeTables` to learn the columns.
+2. `setOption`, or `patchOption(pointer, value)` to change one place;
+   `removeOptionKey(pointer)` deletes a key.
+3. Read the `compileReport`: unknown series types and dataset ids are errors, encoded columns
    a dataset doesn't have are warnings, and anything ECharts throws while drawing is an error.
 
-`set_table(id, rows)` replaces or adds a table (an array of row objects; a CSV table stays
-CSV); `remove_table(id)` removes one and `reorder_tables(id, index)` moves one.
+`setTable(id, rows)` replaces or adds a table (an array of row objects; a CSV table stays
+CSV); `removeTable(id)` removes one and `reorderTables(id, index)` moves one.

@@ -8,8 +8,8 @@ How to work:
 - Read the summary below first: it shows what every pointer reaches or why it doesn't.
 - Use `find(text)` to get the pointers of nodes whose key or value contains some text, and
   `resolve(pointer)` to try a pointer without saving it.
-- Change a pointer with `set_pointer`, add one with `add_pointer`.
+- Change a pointer with `setPointer`, add one with `addPointer`.
 - Remember the escapes: `~` in a key is written `~0` and `/` is written `~1`.
 - Explain each change in one or two sentences.
 
-The skills folder has the RFC's rules in short (`skills_read("reference/rfc6901.md")`).
+The skills folder has the RFC's rules in short (`skillsRead("reference/rfc6901.md")`).

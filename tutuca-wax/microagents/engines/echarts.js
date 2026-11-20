@@ -1,16 +1,38 @@
-// Host functions for echarts-lab: Apache ECharts options drawn to SVG
-// without a DOM (server-side rendering), against tables. A table is
+// echarts-lab's host module: Apache ECharts options drawn to SVG without a
+// DOM (server-side rendering), against tables, as a module a pure-tutuca
+// agent imports (import { check } from "microagents/echarts"). A table is
 // { id, rows } or { id, csv, delimiter? }, as in vega.js, whose table and
 // JSON pointer helpers this shares. The lab puts every table first in the
-// option's dataset as { id, source: rows }.
+// option's dataset as { id, source: rows }. declaration is what pure-tutuca checks
+// the agent against; make() gives the members, which answer rather than
+// throw: an edit that can't be made is { value: null, error }.
 //
-//   echarts_tables(tables)                  [{ id, kind, count, columns: [{ name, type }], rows }]
-//   echarts_describe(tables)                per table: rows, each column's type, min, max, distinct and nulls, 3 sample rows
-//   echarts_check(option, tables, w, h)     { ok, errors, warnings, series, svgBytes, svg }: the option drawn w × h
-//   echarts_patch(doc, pointer, value)      doc with value at pointer; throws why it can't
-//   echarts_remove(doc, pointer)            doc without what pointer names; throws why it can't
-//   echarts_format_csv(rows, delimiter)     rows as CSV text
-import { cached, columnsOf, describe, formatCsv, isObject, patchAt, readTables, removeAt } from "./vega.js";
+//   readTables(tables)              [{ id, kind, count, columns: [{ name, type }], rows }]
+//   describe(tables)                per table: rows, each column's type, min, max, distinct and nulls, 3 sample rows
+//   check(option, tables, w, h)     { ok, errors, warnings, series, svgBytes, svg }: the option drawn w × h
+//   patch(doc, pointer, value)      { value: doc with value at pointer, error: "" }, or { value: null, error: why it can't }
+//   remove(doc, pointer)            { value: doc without what pointer names, error: "" }, or { value: null, error }
+//   formatCsv(rows, delimiter)      rows as CSV text; "" when they can't be
+//   parse(text)                     { value, error: "" }, or { value: null, error: why it isn't JSON }
+//   objectOf(value)                 value when it's an object, {} otherwise
+import { answering, cached, columnsOf, describe, edit, formatCsv, isObject, objectOf, patchAt, readTables, removeAt } from "./vega.js";
+
+export const declaration = {
+	specifier: "microagents/echarts",
+	module: "Echarts",
+	members: {
+		readTables: "(tables: unknown) => { id: string; kind: string; count: number; columns: { name: string; type: string }[]; rows: { [key: string]: unknown }[] }[]",
+		describe: "(tables: unknown) => unknown",
+		check:
+			"(option: unknown, tables: unknown, width: number, height: number) => { ok: boolean; errors: string[]; warnings: string[]; series: { type: unknown; datasetId: unknown }[]; svgBytes: number; svg: string }",
+		patch: "(doc: unknown, pointer: string, value: unknown) => { value: unknown; error: string }",
+		remove: "(doc: unknown, pointer: string) => { value: unknown; error: string }",
+		formatCsv: "(rows: unknown, delimiter: string) => string",
+		parse: "(text: string) => { value: unknown; error: string }",
+		objectOf: "(value: unknown) => { [key: string]: unknown }",
+	},
+	fresh: ["Echarts.describe", "Echarts.patch", "Echarts.remove", "Echarts.parse"],
+};
 
 export const bundle = "echarts";
 
@@ -117,11 +139,17 @@ export const make = (echarts) => {
 		return out();
 	}, 16);
 	return {
-		echarts_tables: cached((tables) => readTables(tables), 16),
-		echarts_describe: (tables) => readTables(tables).map(describe),
-		echarts_check: check,
-		echarts_patch: patchAt,
-		echarts_remove: removeAt,
-		echarts_format_csv: (rows, delimiter) => formatCsv(Array.isArray(rows) ? rows.filter(isObject) : [], delimiter || ","),
+		readTables: cached((tables) => readTables(tables), 16),
+		describe: (raw) => answering(() => readTables(raw).map(describe), (error) => ({ error })),
+		check: (option, raw, width, height) =>
+			answering(
+				() => check(option, raw, width, height),
+				(why) => ({ ok: false, errors: [`the page can't draw options: ${why}`], warnings: [], series: [], svgBytes: 0, svg: "" }),
+			),
+		patch: (doc, pointer, value) => edit(() => patchAt(doc, pointer, value)),
+		remove: (doc, pointer) => edit(() => removeAt(doc, pointer)),
+		formatCsv: (rows, delimiter) => answering(() => formatCsv(Array.isArray(rows) ? rows.filter(isObject) : [], delimiter || ","), () => ""),
+		parse: (text) => edit(() => JSON.parse(text)),
+		objectOf,
 	};
 };

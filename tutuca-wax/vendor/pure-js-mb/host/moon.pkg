@@ -1,0 +1,7 @@
+import {
+  "marianoguerra/pure-js/ast",
+  "marianoguerra/pure-js/parser",
+  "marianoguerra/pure-js/types",
+}
+
+warnings = "-implicit_impl_as_method"

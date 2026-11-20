@@ -13,14 +13,14 @@ A table is `{ "id", "rows": [row objects] }`, or `{ "id", "csv": "CSV text with 
 "delimiter": ";" }` (the delimiter is "," when it's left out).
 
 Workflow:
-1. `describe_tables` to learn the columns and their types.
-2. `set_spec` with a first spec, or `patch_spec(pointer, value)` to change one place;
-   `remove_spec_key(pointer)` deletes a key.
-3. Read the `compile_report`: `errors` stop the chart, `warnings` usually point at a wrong
+1. `describeTables` to learn the columns and their types.
+2. `setSpec` with a first spec, or `patchSpec(pointer, value)` to change one place;
+   `removeSpecKey(pointer)` deletes a key.
+3. Read the `compileReport`: `errors` stop the chart, `warnings` usually point at a wrong
    field name, type or aggregate.
 
 The lab checks before compiling: marks must be known, every `data.name` must be a table, and
 every encoding `field` should be a column (or a name a transform makes with `as`).
 
-`set_table(id, rows)` replaces or adds a table (an array of row objects; a CSV table stays
-CSV); `remove_table(id)` removes one and `reorder_tables(id, index)` moves one.
+`setTable(id, rows)` replaces or adds a table (an array of row objects; a CSV table stays
+CSV); `removeTable(id)` removes one and `reorderTables(id, index)` moves one.

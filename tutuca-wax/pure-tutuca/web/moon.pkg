@@ -1,0 +1,23 @@
+// pure-tutuca compiled to wasm-gc for the playground (js/pt-web.js loads it).
+import {
+  "tutuca/pure-tutuca/diag",
+  "tutuca/pure-tutuca/check",
+  "tutuca/pure-tutuca/compose",
+  "tutuca/pure-tutuca/api",
+  "tutuca/pure-tutuca/pure",
+  "tutuca/pure-tutuca/export",
+  "moonbitlang/core/json",
+}
+
+supported_targets = "wasm-gc"
+
+pkgtype(kind: "executable")
+
+options(
+  link: {
+    "wasm-gc": {
+      "exports": [ "pt_check", "pt_build", "pt_model" ],
+      "use-js-builtin-string": true,
+    },
+  },
+)

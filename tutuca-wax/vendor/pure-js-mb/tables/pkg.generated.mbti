@@ -1,0 +1,211 @@
+// Generated using `moon info`, DON'T EDIT IT
+package "marianoguerra/pure-js/tables"
+
+import {
+  "moonbitlang/core/debug",
+}
+
+// Values
+pub let all_features : Array[Feature]
+
+pub fn assignment_feature(String) -> Feature?
+
+pub let callback_methods : Array[String]
+
+pub fn find_method(Receiver, String) -> Method?
+
+pub fn has_length(Receiver) -> Bool
+
+pub fn is_callback_method(String) -> Bool
+
+pub fn is_keyword(String) -> Bool
+
+pub fn is_module_only(String) -> Bool
+
+pub fn is_reserved(String) -> Bool
+
+pub let keywords : Array[String]
+
+pub let list_methods : Array[Method]
+
+pub fn methods_of(Receiver) -> Array[Method]
+
+pub let module_only_names : Array[String]
+
+pub let number_methods : Array[Method]
+
+pub fn operator_feature(String) -> Feature?
+
+pub let profiles : Array[String]
+
+pub let reserved_names : Array[String]
+
+pub let string_methods : Array[Method]
+
+pub fn type_keyword_feature(String) -> Feature?
+
+pub fn unary_feature(String) -> Feature?
+
+// Errors
+
+// Types and methods
+#derive(Eq, Hash, @debug.Debug)
+pub(all) enum Feature {
+  FunctionProgram
+  MethodProgram
+  GetterProgram
+  ArrowProgram
+  ModuleProgram
+  ImportDeclaration
+  ExportDeclaration
+  HelperFunction
+  TypeAlias
+  InterfaceDeclaration
+  NamespaceMethod
+  ThisParameter
+  ModuleStatement
+  ModuleLet
+  DefaultExport
+  NamespaceImport
+  RecursiveCall
+  ConstDeclaration
+  ExpressionStatement
+  IfStatement
+  BlockStatement
+  ReturnStatement
+  LetDeclaration
+  LetAssignment
+  MultipleDeclarators
+  DestructuringDeclaration
+  ForOfStatement
+  LoopControl
+  TryStatement
+  SwitchStatement
+  VarDeclaration
+  LoopStatement
+  ForInStatement
+  ThrowStatement
+  LabeledStatement
+  EmptyStatement
+  FunctionDeclaration
+  ClassDeclaration
+  WithStatement
+  DebuggerStatement
+  ModuleSyntax
+  UselessExpression
+  LineBreakAfterReturn
+  MissingSemicolon
+  Identifier
+  StringLiteral
+  NumberLiteral
+  BooleanLiteral
+  NullLiteral
+  TemplateLiteral
+  Member
+  ComputedMember
+  OptionalMember
+  Call
+  This
+  ArrayLiteral
+  ObjectLiteral
+  Spread
+  Conditional
+  Logical
+  Not
+  Negate
+  Typeof
+  StrictEquality
+  Comparison
+  Arithmetic
+  Assignment
+  AddAssignment
+  CallbackArrow
+  ArrayPatternParam
+  TypeAnnotation
+  CompoundAssignment
+  ComputedCompoundAssignment
+  Update
+  Bitwise
+  OptionalCall
+  OptionalComputedMember
+  ComputedKey
+  NumericKey
+  BlockArrow
+  ObjectPattern
+  DefaultValue
+  RestElement
+  NestedPattern
+  DestructuringAssignment
+  LooseEquality
+  Exponent
+  InOperator
+  Instanceof
+  UnaryPlus
+  Void
+  Delete
+  Sequence
+  AssignmentExpression
+  Reassignment
+  ArrowNotCallback
+  FunctionExpression
+  ArrayHole
+  ObjectMethod
+  New
+  Class
+  TaggedTemplate
+  Regex
+  Bigint
+  LegacyOctal
+  Async
+  Generator
+  Super
+  PrivateName
+  Decorator
+  DynamicImport
+  MetaProperty
+  IdentifierEscape
+  DollarName
+  ReservedName
+  AnyType
+  TypeAssertion
+  FunctionType
+  GenericType
+  ReadonlyType
+  MethodType
+  TypeKeyword
+  ArrowReturnType
+  OptionalParameter
+}
+pub fn Feature::name(Self) -> String
+pub fn Feature::profile(Self) -> String?
+pub fn Feature::status(Self) -> Status
+pub fn Feature::what(Self) -> String
+pub fn Feature::why(Self) -> String?
+
+#derive(@debug.Debug)
+pub(all) struct Method {
+  name : String
+  sig : String
+  mutates : Bool
+  fresh : Bool
+  self_ : Bool
+  primitive : Bool
+}
+
+#derive(Eq, @debug.Debug)
+pub(all) enum Receiver {
+  ListReceiver
+  StringReceiver
+  NumberReceiver
+}
+
+#derive(Eq, @debug.Debug)
+pub(all) enum Status {
+  Core
+  Omitted
+  ByDesign
+}
+
+// Type aliases
+
+// Traits

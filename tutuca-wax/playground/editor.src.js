@@ -1,11 +1,14 @@
-// The playground's editor: CodeMirror 6 with two small hand-written modes
-// (StreamLanguages, no grammar), TCD and Wax, one EditorState per file so
-// each keeps its undo history, read-only files for what tcd generates, and
-// tcd's diagnostics underlined inline. Its colors are margaui's theme
+// The playground's editor: CodeMirror 6 with CodeMirror's TypeScript for
+// pure-tutuca modules (.tutuca.ts) and two small hand-written modes
+// (StreamLanguages, no grammar) for the Wax and the JSON the compiler
+// generates, one EditorState per file so each keeps its undo history,
+// read-only files for what the compiler generates, and its diagnostics
+// underlined inline. Its colors are margaui's theme
 // variables, so it follows the page's light or dark theme. Bundled with its
 // CodeMirror packages into deps/editor.js by scripts/vendor-editor.mjs; the
 // page imports the bundle.
 import { defaultKeymap, history, historyKeymap, indentWithTab } from "@codemirror/commands";
+import { javascript } from "@codemirror/lang-javascript";
 import { bracketMatching, HighlightStyle, indentUnit, StreamLanguage, syntaxHighlighting } from "@codemirror/language";
 import { lintGutter, setDiagnostics } from "@codemirror/lint";
 import { EditorState } from "@codemirror/state";
@@ -56,17 +59,7 @@ const mode = ({ keywords, types, builtins, attributes = false }) => ({
 });
 
 const LANGUAGES = {
-	tcd: StreamLanguage.define(
-		mode({
-			keywords: words(`package use interface component register as field get message notify ask
-				invariant init loop scope provide view example for start send expect where when changes
-				ensures emits nothing swap source_key and or not in matches ask_handler host_ask prepare
-				iter key filter enrich make`),
-			types: words("bool s32 f64 string any enum option list map record one_of result index"),
-			builtins: words(`field seq_item provided bind if frag render render_each each render_it
-				push_view target_value drag_key event el len keys values all any check next it`),
-		}),
-	),
+	ts: javascript({ typescript: true }),
 	wax: StreamLanguage.define(
 		mode({
 			keywords: words("fn let const type rec if else while loop do br return match import export as mut unreachable open"),
@@ -136,7 +129,7 @@ export function createEditor(parent, { onChange = () => {}, onRun = () => {} } =
 			],
 		});
 	const view = new EditorView({ parent, state: stateFor("", "json", true) });
-	// tcd's diagnostics, as CodeMirror's: offsets from 1-based lines and columns.
+	// The compiler's diagnostics, as CodeMirror's: offsets from 1-based lines and columns.
 	const toCm = (doc, list) =>
 		list.map((d) => {
 			const line = doc.line(Math.min(Math.max(d.line, 1), doc.lines));
@@ -153,7 +146,7 @@ export function createEditor(parent, { onChange = () => {}, onRun = () => {} } =
 		if (current !== null) files.get(current).state = view.state;
 	};
 	const editor = {
-		// Adds or replaces a file; lang is tcd, wax or json.
+		// Adds or replaces a file; lang is ts, wax or json.
 		open(name, text, { lang = "json", readOnly = false } = {}) {
 			const existing = files.get(name);
 			if (existing && current === name) {

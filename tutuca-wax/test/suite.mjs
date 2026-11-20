@@ -34,8 +34,8 @@ export const MODULES = ["counter", "todo_item", "todo_list"];
 // too, so it would take the name over in the shared scope; showcase's,
 // json's and media's types are only for their own cases.
 const OWN_SCOPE_MODULES = ["todo_card", "showcase", "json", "media", "probe", "pbt", "meta", "layout"];
-// The modules defined in TCD, whose models (tcd model) js/pbt.js tests from.
-const TCD_MODULES = ["counter", "todo_item", "todo_list", "todo_card", "showcase", "json", "media", "pbt", "meta", "layout"];
+// The modules whose models (pure-tutuca model --pbt-model) the cases read and js/pbt.js tests from.
+const MODEL_MODULES = ["meta", "todo_item", "todo_list", "todo_card", "counter", "pbt", "media", "showcase", "json", "layout"];
 const test = (name, fn) => cases.push({ name, fn });
 
 test("render mounts, then morphs in place from what the last render returned", ({ vdom, document, container }) => {
@@ -357,20 +357,54 @@ test("values: JS values round-trip through Value", ({ vdom }) => {
 		const js = randomJs(rand);
 		assert.deepEqual(values.to(values.from(js)), js, `case ${i}:`);
 	}
-	// Integers in i32's range are Int, other numbers Float, -0 included.
-	assert.equal(values.kind(values.from(7)), "int");
-	assert.equal(values.kind(values.from(2 ** 31)), "float");
-	assert.equal(values.kind(values.from(0.5)), "float");
+	// Every JS number is a Number, whole or not, -0 and NaN as they are.
+	assert.equal(values.kind(values.from(7)), "number");
+	assert.equal(values.kind(values.from(2 ** 31)), "number");
+	assert.equal(values.kind(values.from(0.5)), "number");
 	assert.ok(Object.is(values.to(values.from(-0)), -0), "-0 stays -0");
 	assert.ok(Number.isNaN(values.to(values.from(Number.NaN))), "NaN stays NaN");
-	// Results and their payloads.
-	assert.deepEqual(values.to(values.ok([1, "x"])), { ok: [1, "x"] });
-	assert.deepEqual(values.to(values.err({ code: 3 })), { err: { code: 3 } });
-	assert.equal(values.kind(values.ok(null)), "result");
+	// An outcome is a plain map with one key, { ok } or { err }.
+	assert.deepEqual(values.to(values.from({ ok: [1, "x"] })), { ok: [1, "x"] });
+	assert.deepEqual(values.to(values.from({ err: { code: 3 } })), { err: { code: 3 } });
+	assert.equal(values.kind(values.from({ ok: null })), "map");
+});
+
+// pure-tutuca's values are JavaScript's: a map keeps the order its keys were
+// set in, undefined is apart from null, and a number is one kind, whole or
+// not.
+test("values: maps keep their keys' order, undefined, numbers", ({ vdom }) => {
+	const { exports: w, values } = vdom;
+	const keys = (m) => Object.keys(values.to(m));
+	const js = { zeta: 1, alpha: 2, mid: 3, b: 4, a: 5 };
+	assert.deepEqual(keys(values.from(js)), Object.keys(js));
+	let m = values.from(js);
+	m = w.map_dissoc(m, "alpha");
+	m = w.map_assoc(m, "zeta", values.from(9));
+	m = w.map_assoc(m, "alpha", values.from(2));
+	assert.deepEqual(keys(m), ["zeta", "mid", "b", "a", "alpha"]);
+	assert.deepEqual(values.to(m), { zeta: 9, mid: 3, b: 4, a: 5, alpha: 2 });
+	// Removing most keys compacts the order and keeps it.
+	for (const k of ["zeta", "mid", "b"]) m = w.map_dissoc(m, k);
+	assert.deepEqual(keys(m), ["a", "alpha"]);
+	assert.equal(w.map_has(m, "a"), 1);
+	assert.equal(w.map_has(m, "zeta"), 0);
+	const u = w.value_undefined();
+	assert.equal(values.kind(u), "undefined");
+	assert.equal(values.to(u), undefined);
+	assert.equal(w.value_truthy(u), 0);
+	assert.equal(values.kind(w.value_number(3)), "number");
+	assert.equal(values.kind(w.value_number(0.5)), "number");
+	assert.ok(Object.is(values.to(w.value_number(-0)), -0));
+	assert.ok(Number.isNaN(values.to(w.value_number(Number.NaN))));
+	assert.equal(values.kind(w.value_number(2 ** 40)), "number");
+	const problem = (v) => values.to(w.constraint_problem(w.constraint_int(), v));
+	assert.equal(problem(values.from(4)), null);
+	assert.equal(problem(values.from(4.5)), "must be a whole number, got 4.5");
+	assert.equal(problem(values.from(Number.POSITIVE_INFINITY)), "must be a whole number, got Infinity");
 });
 
 // A constraint holds of the values it's about, as in the spec: a bound of
-// numbers, a length of strings, lists and maps, a pattern of strings. tcd
+// numbers, a length of strings, lists and maps, a pattern of strings. pure-tutuca
 // only lets one be written where it can hold; on a value of another kind (a
 // schema written by hand) it's broken, not skipped.
 test("schemas: a constraint on a value of a kind it isn't about is broken", ({ vdom }) => {
@@ -712,17 +746,21 @@ test("components: an ask the scope answers now replies in the same run", (env) =
 test("components: an ask the host answers later replies when it settles", async (env) => {
 	const { container } = env;
 	let answer = 7;
-	const { host } = mountRoot(env, "Counter", { count: 1 }, { asks: { fetch_count: async () => answer } });
+	const { host } = mountRoot(env, "Counter", { count: 1 }, { asks: { fetchCount: async () => answer } });
 	host.send("fetch", [], { now: true });
 	assert.deepEqual(counts(container), ["1"]);
 	await host.settled();
 	assert.deepEqual(counts(container), ["7"]);
-	// A failed answer is fetch_count.error, which Counter doesn't handle.
+	// A failed answer is fetchCount's error answer, which Counter doesn't handle.
 	answer = null;
-	const failing = mountRoot(env, "Counter", { count: 1 }, { asks: { fetch_count: async () => Promise.reject(new Error("offline")) } });
+	const failing = mountRoot(env, "Counter", { count: 1 }, { asks: { fetchCount: async () => Promise.reject(new Error("offline")) } });
 	failing.host.send("fetch", [], { now: true });
 	await failing.host.settled();
-	assert.deepEqual(failing.host.unhandled, ["fetch_count.error"]);
+	assert.deepEqual(failing.host.unhandled, ["fetchCount"]);
+	assert.deepEqual(
+		failing.host.reports.filter((r) => r.type === "unhandled"),
+		[{ type: "unhandled", message: "fetchCount", answer: "error", path: [] }],
+	);
 });
 
 // The tree spec's race (spec/tree, M5): a route records the identity of the
@@ -730,7 +768,7 @@ test("components: an ask the host answers later replies when it settles", async 
 // another counter took meanwhile, is dropped as stale instead of reaching it.
 test("components: a reply to an asker that was removed is dropped as stale, not given to its successor", async (env) => {
 	const { window, container } = env;
-	const { host } = mountRoot(env, "Board", { counters: [], total: 0 }, { asks: { fetch_count: async () => 7 } });
+	const { host } = mountRoot(env, "Board", { counters: [], total: 0 }, { asks: { fetchCount: async () => 7 } });
 	click(window, buttons(container, "add")[0]);
 	click(window, buttons(container, "add")[0]);
 	assert.deepEqual(counts(container), ["0", "1"]);
@@ -740,26 +778,27 @@ test("components: a reply to an asker that was removed is dropped as stale, not 
 	await host.settled();
 	assert.deepEqual(counts(container), ["1"]);
 	assert.deepEqual(
-		host.reports.filter((r) => r.type === "stale").map((r) => r.message),
-		["fetch_count.ok"],
+		host.reports.filter((r) => r.type === "stale").map((r) => [r.message, r.answer]),
+		[["fetchCount", "ok"]],
 	);
 	assert.deepEqual(host.failures, []);
 });
 
 // The host answers as tutuca's JS's ask handlers do: a value replies in the
-// ask's own run, a throw with .error, and an ask it has no answer for with
-// .unhandled.
+// ask's own run (the ok answer), a throw with the error answer, and an ask it
+// has no answer for with the unhandled answer.
 test("components: an ask the host answers now replies in the same run; one it can't answer isn't found", (env) => {
 	const { container } = env;
-	const { host } = mountRoot(env, "Counter", { count: 1 }, { asks: { fetch_count: () => 5 } });
+	const { host } = mountRoot(env, "Counter", { count: 1 }, { asks: { fetchCount: () => 5 } });
 	host.send("fetch", [], { now: true });
 	assert.deepEqual(counts(container), ["5"]);
-	const throwing = mountRoot(env, "Counter", { count: 1 }, { asks: { fetch_count: () => { throw new Error("offline"); } } });
+	const throwing = mountRoot(env, "Counter", { count: 1 }, { asks: { fetchCount: () => { throw new Error("offline"); } } });
 	throwing.host.send("fetch", [], { now: true });
-	assert.deepEqual(throwing.host.unhandled, ["fetch_count.error"]);
+	const answersOf = (h) => h.reports.filter((r) => r.type === "unhandled").map((r) => [r.message, r.answer]);
+	assert.deepEqual(answersOf(throwing.host), [["fetchCount", "error"]]);
 	const missing = mountRoot(env, "Counter", { count: 1 });
 	missing.host.send("fetch", [], { now: true });
-	assert.deepEqual(missing.host.unhandled, ["fetch_count.unhandled"]);
+	assert.deepEqual(answersOf(missing.host), [["fetchCount", "unhandled"]]);
 	assert.deepEqual([...host.failures, ...throwing.host.failures, ...missing.host.failures], []);
 });
 
@@ -767,21 +806,26 @@ test("components: an ask the host answers now replies in the same run; one it ca
 // it however it arrives, in the ask's own task or when the host settles it.
 test("components: replies have schemas, and a reply that doesn't fit is rejected", async (env) => {
 	const { runtime } = env.vdom;
-	const { host } = mountRoot(env, "Counter", { count: 1 }, { asks: { fetch_count: async () => "seven" } });
-	const replies = runtime.schema(host.root()).messages.filter((m) => /\.(ok|error|unhandled)$/.test(m.name));
+	const { host } = mountRoot(env, "Counter", { count: 1 }, { asks: { fetchCount: async () => "seven" } });
+	const replies = runtime.schema(host.root()).messages.filter((m) => m.answer !== undefined);
 	assert.deepEqual(
-		replies.map((m) => [m.name, m.args.map((a) => a.type)]),
+		replies.map((m) => [m.name, m.answer, m.args.map((a) => a.type)]),
 		[
-			["load_count.ok", ["s32"]],
-			["load_count.error", ["any"]],
-			["fetch_count.ok", ["s32"]],
+			["loadCount", "ok", ["number"]],
+			["loadCount", "error", ["unknown"]],
+			["fetchCount", "ok", ["number"]],
 		],
+	);
+	// An answer is no message to offer.
+	assert.deepEqual(
+		runtime.contractOf(host.root()).messages.filter((m) => m.name === "loadCount" || m.name === "fetchCount"),
+		[],
 	);
 	host.send("fetch", [], { now: true });
 	await host.settled();
 	assert.deepEqual(
 		host.failures.map((e) => e.rejection),
-		[{ message: "fetch_count.ok", component: "Counter", reason: "wrongArgType", index: 0, problem: 'argument 0 (value): expected s32, got "seven"' }],
+		[{ message: "fetchCount", answer: "ok", component: "Counter", reason: "wrongArgType", index: 0, problem: 'argument 0 (value): expected number, got "seven"' }],
 	);
 	assert.deepEqual(counts(env.container), ["1"]);
 });
@@ -789,7 +833,7 @@ test("components: replies have schemas, and a reply that doesn't fit is rejected
 test("components: a handler can swap its component for one of another type", (env) => {
 	const { vdom, container } = env;
 	const { host } = mountRoot(env, "Counter", { count: 3 });
-	host.send("to_label", [], { now: true });
+	host.send("toLabel", [], { now: true });
 	assert.equal(vdom.runtime.typeName(host.root()), "Label");
 	assert.equal(container.innerHTML, '<!--§{"t":"component"}§--><p class="text-sm italic opacity-70">was 3</p><!--§/§-->');
 });
@@ -808,17 +852,17 @@ test("components: a failing task commits nothing", async (env) => {
 	assert.deepEqual(counts(container), ["5"]);
 });
 
-// An answer's name is the ask's with .ok, .error or .unhandled, which no
-// message can have: sent as a message, it's unhandled, and its handler doesn't
-// run (load_count.error would log).
+// An answer is named as its ask, and only the runtime makes one: a message
+// sent with the ask's name is a message, unhandled, and the answer's handler
+// doesn't run (loadCount's error answer would log).
 test("components: unknown messages are observed and change nothing; a send can't forge an answer", (env) => {
 	const { host } = mountRoot(env, "Counter", { count: 3 });
 	const before = host.root();
 	host.send("nope", [], { now: true });
 	assert.deepEqual(host.unhandled, ["nope"]);
 	assert.equal(host.root(), before);
-	host.send("load_count.error", ["boom"], { now: true });
-	assert.deepEqual(host.unhandled, ["nope", "load_count.error"]);
+	host.send("loadCount", ["boom"], { now: true });
+	assert.deepEqual(host.unhandled, ["nope", "loadCount"]);
 	assert.deepEqual(host.logs, []);
 	assert.equal(host.root(), before);
 });
@@ -830,7 +874,7 @@ test("components: what happens is reported as one list of typed reports", (env) 
 	const seen = [];
 	const { host } = mountRoot(env, "Counter", { count: 3 }, { dev: true, onReport: (type) => seen.push(type) });
 	host.send("nope", [], { now: true });
-	host.send("load_count.error", ["boom"], { now: true });
+	host.send("loadCount", ["boom"], { now: true });
 	host.send("add", ["x"], { now: true });
 	host.send("add", [1], { now: true });
 	const types = host.reports.map((r) => r.type);
@@ -838,9 +882,9 @@ test("components: what happens is reported as one list of typed reports", (env) 
 	assert.deepEqual(seen, types);
 	// Each says where it came from: here, the root.
 	assert.deepEqual(host.reports[1], { type: "unhandled", message: "nope", path: [] });
-	assert.deepEqual(host.reports[2], { type: "unhandled", message: "load_count.error", path: [] });
+	assert.deepEqual(host.reports[2], { type: "unhandled", message: "loadCount", path: [] });
 	assert.equal(host.failures[0], host.reports[3].error);
-	assert.deepEqual([host.unhandled, host.logs, host.issues], [["nope", "load_count.error"], [], []]);
+	assert.deepEqual([host.unhandled, host.logs, host.issues], [["nope", "loadCount"], [], []]);
 });
 
 // ---- Composition, through components/todo_list and todo_item ----------------
@@ -900,7 +944,7 @@ test("todos: an item asks the list to remove it; keyed by id, the others keep th
 	assert.equal(container.querySelectorAll("li")[1], third);
 });
 
-test("todos: the list sends every item set_done, then drops the done ones", (env) => {
+test("todos: the list sends every item setDone, then drops the done ones", (env) => {
 	const { window, container } = env;
 	mountRoot(env, "TodoList", {});
 	addTodos(env, "a", "b", "c");
@@ -916,7 +960,7 @@ test("todos: items made outside the list compose the same", (env) => {
 	const { vdom, container, scope } = env;
 	const { runtime } = vdom;
 	const items = ["x", "y"].map((text, id) => runtime.make(scope, "TodoItem", { id, text, done: id === 1 }));
-	const root = runtime.make(scope, "TodoList", { items, next_id: 2 });
+	const root = runtime.make(scope, "TodoList", { items, nextId: 2 });
 	runtime.createHost(env.document, container, root).mount();
 	assert.deepEqual(todoTexts(container), ["x", "y"]);
 	assert.equal(footerText(container), "1 of 2 left");
@@ -1008,7 +1052,7 @@ test("views: scopes, loop hooks, seq items, floats, provided values, pushView an
 		{ title: "Emma", year: 1815, read: false },
 		{ title: "Ulysses", year: 1922, read: false },
 	];
-	const fields = { books, only_unread: false, tags: ["a", "b", "c"], current: 1, theme: "dark", note: note("pinned"), notes: [note("x"), note("y")] };
+	const fields = { books, onlyUnread: false, tags: ["a", "b", "c"], current: 1, theme: "dark", note: note("pinned"), notes: [note("x"), note("y")] };
 	runtime.createHost(document, container, runtime.make(scope, "Shelf", fields)).mount();
 	const texts = (selector) => [...container.querySelectorAll(selector)].map((e) => e.textContent);
 	// A scope's binds.
@@ -1025,7 +1069,7 @@ test("views: scopes, loop hooks, seq items, floats, provided values, pushView an
 	assert.equal(container.querySelector("small").textContent, "pinned");
 	// renderIt: each note in its main view.
 	assert.deepEqual(texts(".notes p.note"), ["x", "y"]);
-	// by_year: its prepare sorts the indexes by year, its iter gives the books in that order.
+	// byYear: its prepare sorts the indexes by year, its iter gives the books in that order.
 	assert.deepEqual(texts(".by-year span"), ["Emma", "Ulysses", "Dune"]);
 	// The filter drops the read ones; keyed by title, Emma keeps its node.
 	const emma = container.querySelectorAll("li")[1];
@@ -1037,9 +1081,9 @@ test("views: scopes, loop hooks, seq items, floats, provided values, pushView an
 
 // Every example type makes with no fields: its fields have defaults, so a
 // Hole can become any of them.
-test("components: every example type registered by a TCD module makes with no fields", async ({ vdom, modules, models }) => {
+test("components: every example type registered by a module makes with no fields", async ({ vdom, modules, models }) => {
 	const { runtime } = vdom;
-	for (const name of TCD_MODULES) {
+	for (const name of MODEL_MODULES) {
 		const scope = runtime.scope();
 		// TodoItem's interface is declared in todo_list.
 		if (name !== "todo_list") await vdom.loadComponent(modules.todo_list, scope);
@@ -1052,10 +1096,10 @@ test("components: every example type registered by a TCD module makes with no fi
 });
 
 // ---- Asking what a scope can make, through components/layout ------------
-// A Hole's + asks component_names; the package's ask_handler gets the asker's
+// A Hole's + asks componentNames; the module's ask handler gets the asker's
 // context, so it lists the names visible from the scope the hole was made in.
 
-// A Screen holding content, being edited: its layout_edit views are shown.
+// A Screen holding content, being edited: its layoutEdit views are shown.
 const editedScreen = (runtime, scope, content) => runtime.make(scope, "Screen", { content, editing: true });
 const contentOf = (runtime, host) => runtime.get(host.root(), "content");
 // A tab's name as its input shows it: the one given, else the placeholder.
@@ -1184,7 +1228,7 @@ test("layout: a hole that can't make the type picked stays, saying why, and the 
 	assert.equal(runtime.typeName(hole), "Hole");
 	assert.equal(
 		container.querySelector(".hole .error").textContent,
-		"Can't make a component of type TodoItem: Pretender can't be a TodoItem: it has no pure message set_done",
+		"Can't make a component of type TodoItem: Pretender can't be a TodoItem: it has no pure message setDone",
 	);
 	assert.deepEqual(host.failures, []);
 	assert.deepEqual(host.issues, []);
@@ -1201,10 +1245,10 @@ test("layout: the examples hold and random walks find nothing", async ({ vdom, m
 	assert.deepEqual(
 		examples({ runtime, scope, model: models.layout }).map((e) => [e.name, e.ok]),
 		[
-			["add_then_select", true],
-			["remove_keeps_a_tab_shown", true],
-			["rows_follow_the_columns", true],
-			["columns_stay_in_range", true],
+			["addThenSelect", true],
+			["removeKeepsATabShown", true],
+			["rowsFollowTheColumns", true],
+			["columnsStayInRange", true],
 		],
 	);
 	// Not Hole: a walk starts it with made-up choices, which no scope can make.
@@ -1300,7 +1344,7 @@ test("media: the examples hold and random walks find nothing", async ({ vdom, mo
 	await vdom.loadComponent(modules.media, scope);
 	assert.deepEqual(
 		examples({ runtime, scope, model: models.media }).map((e) => [e.name, e.ok]),
-		[["toggles_and_resizes", true], ["sums", true], ["rates", true]],
+		[["togglesAndResizes", true], ["sums", true], ["rates", true]],
 	);
 	for (const component of ["Dot", "Sum", "Rating"]) {
 		assert.deepEqual(walk({ runtime, scope, model: models.media, component, runs: 20, steps: 15, seed: 5 }), { ok: true, runs: 20 }, component);
@@ -1321,7 +1365,7 @@ const mountShelf = async ({ vdom, document, container, modules }) => {
 	const scope = runtime.scope();
 	await vdom.loadComponent(modules.showcase, scope);
 	const note = (text) => runtime.make(scope, "Note", { text });
-	const fields = { books: BOOKS, only_unread: false, tags: ["a"], current: 0, theme: "dark", note: note("pinned"), notes: [note("x"), note("y")] };
+	const fields = { books: BOOKS, onlyUnread: false, tags: ["a"], current: 0, theme: "dark", note: note("pinned"), notes: [note("x"), note("y")] };
 	return runtime.createHost(document, container, runtime.make(scope, "Shelf", fields)).mount();
 };
 // A drag event of type on node, cancelable, with init's fields (relatedTarget).
@@ -1354,7 +1398,7 @@ test("drag and drop: a book dropped on another moves there, with what's dragged 
 	dragEvent(window, "dragover", ulysses);
 	assert.equal(dragEvent(window, "drop", ulysses).defaultPrevented, true);
 	dragEvent(window, "dragend", dune);
-	// move_book(drag_key, source_key): Dune, at 0, to Ulysses' place, 2.
+	// moveBook(dragKey, sourceKey): Dune, at 0, to Ulysses' place, 2.
 	assert.deepEqual(
 		shelfBooks(container).map((li) => li.textContent),
 		["Emma (1815)", "Ulysses (1922)", "Dune (1965)"],
@@ -1380,7 +1424,7 @@ test("drag and drop: drop events reach the nearest enclosing component that hand
 	assert.equal(notes.dataset.draggingover, "book");
 	dragEvent(window, "drop", x);
 	dragEvent(window, "dragend", emma);
-	// note_book(drag_key, source_key): Emma, at 1, to the note at 0, by sendAt.
+	// noteBook(dragKey, sourceKey): Emma, at 1, to the note at 0, by sendAt.
 	assert.deepEqual([...notes.querySelectorAll("p.note")].map((p) => p.textContent), ["Emma", "y"]);
 	assert.equal(notes.dataset.draggingover, undefined);
 	assert.deepEqual(host.failures, []);
@@ -1435,7 +1479,7 @@ const mountJson = async ({ vdom, document, container, modules }, doc = DOC) => {
 	const { runtime } = vdom;
 	const scope = runtime.scope();
 	await vdom.loadComponent(modules.json, scope);
-	const root = runtime.make(scope, "JsonEditor", { value: fromJson(runtime, scope, doc), mode: "view", show_text: true });
+	const root = runtime.make(scope, "JsonEditor", { value: fromJson(runtime, scope, doc), mode: "view", showText: true });
 	return runtime.createHost(document, container, root).mount();
 };
 const jsonText = (container) => container.querySelector("pre").textContent;
@@ -1512,7 +1556,7 @@ test("json: the editor edits every value in place, its text following", async (e
 // ---- Schemas, dev checks, interfaces, through components/probe and the todos ---
 // Probe breaks its own schema on purpose; Pretender registers as TodoItem
 // without implementing TodoList's interface, and Impostor declares it with
-// done an s32.
+// done a number.
 
 const probeScope = async ({ vdom, modules }) => {
 	const scope = vdom.runtime.scope();
@@ -1532,15 +1576,15 @@ const probeHost = async (env) => {
 	return { host, step };
 };
 
-test("schemas: a component type's schema reads as data, types as TCD writes them", async (env) => {
+test("schemas: a component type's schema reads as data, types as the runtime writes them", async (env) => {
 	const { vdom, scope } = env;
 	const { runtime } = vdom;
 	const counter = runtime.schema(runtime.make(scope, "Counter", { count: 1 }));
-	assert.deepEqual(counter.fields, [{ name: "count", type: "s32", constraints: [], sync: "shared", default: 0 }]);
+	assert.deepEqual(counter.fields, [{ name: "count", type: "number", constraints: ["integer"], sync: "shared", default: 0 }]);
 	const add = counter.messages.find((m) => m.name === "add");
 	assert.deepEqual(add, {
 		name: "add",
-		args: [{ name: "n", type: "s32", constraints: [], sync: "shared", default: 0 }],
+		args: [{ name: "n", type: "number", constraints: ["integer"], sync: "shared", default: 0 }],
 		sourceKey: null,
 		pre: false,
 		post: true,
@@ -1550,16 +1594,16 @@ test("schemas: a component type's schema reads as data, types as TCD writes them
 	});
 	assert.deepEqual(counter.messages.find((m) => m.name === "inc").emits, [{ kind: "notify", name: "changed" }]);
 	const list = runtime.schema(runtime.make(scope, "TodoList", {}));
-	assert.equal(list.fields[0].type, "list<TodoItem>");
-	assert.deepEqual(list.messages.find((m) => m.name === "move_item").args.map((a) => [a.type, a.constraints]), [
-		["option<s32>", ["in keys(items)"]],
-		["option<s32>", ["in keys(items)"]],
+	assert.equal(list.fields[0].type, "TodoItem[]");
+	assert.deepEqual(list.messages.find((m) => m.name === "moveItem").args.map((a) => [a.type, a.constraints]), [
+		["number | null", ["integer", "in keys(items)"]],
+		["number | null", ["integer", "in keys(items)"]],
 	]);
-	assert.deepEqual(list.invariants, ["ids_below_next_id"]);
+	assert.deepEqual(list.invariants, ["idsBelowNextId"]);
 	assert.deepEqual(runtime.schema(runtime.make(scope, "TodoItem", { id: 0, text: "a", done: false })).interfaces, ["TodoItem"]);
-	assert.deepEqual(runtime.interface(scope, "TodoItem").fields.map((f) => `${f.name}: ${f.type}`), ["id: s32", "text: string", "done: bool"]);
+	assert.deepEqual(runtime.interface(scope, "TodoItem").fields.map((f) => `${f.name}: ${f.type}`), ["id: number", "text: string", "done: boolean"]);
 	assert.equal(runtime.interface(scope, "Nope"), null);
-	// Generated by tcd from counter.tcd, like Counter's.
+	// Generated by pure-tutuca from counter.tutuca.ts, like Counter's.
 	assert.deepEqual(runtime.schema(runtime.make(scope, "Label", { text: "x" })).fields, [{ name: "text", type: "string", constraints: [], sync: "shared", default: "" }]);
 });
 
@@ -1574,7 +1618,7 @@ test("schemas: arguments that don't fit are rejected before the handler, saying 
 		host.failures.map((e) => e.rejection),
 		[
 			{ message: "bump", component: "Probe", reason: "invalidArg", index: 0, problem: "argument 0 (n): must be at least 1, got 0" },
-			{ message: "bump", component: "Probe", reason: "wrongArgType", index: 0, problem: 'argument 0 (n): expected s32, got "x"' },
+			{ message: "bump", component: "Probe", reason: "wrongArgType", index: 0, problem: 'argument 0 (n): expected number, got "x"' },
 			{ message: "bump", component: "Probe", reason: "wrongArity", problem: "it takes 1 argument, got 0" },
 			{ message: "fail", component: "Probe", reason: "failed", problem: "out of luck", detail: "out of luck" },
 		],
@@ -1667,8 +1711,8 @@ test("interfaces: a type made or registered as an interface's name must implemen
 	await vdom.loadComponent(modules.todo_list, scope);
 	// Made by the interface's name, a type implements it without declaring it,
 	// checked as one that declares it is: tutuca's scope.check.
-	assert.throws(() => runtime.make(scope, "TodoItem"), /Pretender can't be a TodoItem: it has no pure message set_done/);
-	assert.throws(() => runtime.make(scope, "Impostor"), /Impostor can't be a TodoItem: its field done is s32, TodoItem's is bool/);
+	assert.throws(() => runtime.make(scope, "TodoItem"), /Pretender can't be a TodoItem: it has no pure message setDone/);
+	assert.throws(() => runtime.make(scope, "Impostor"), /Impostor can't be a TodoItem: its field done is number, TodoItem's is bool/);
 	// The other way around, registering fails, and the module doesn't load.
 	const later = runtime.scope();
 	await vdom.loadComponent(modules.todo_list, later);
@@ -1746,8 +1790,8 @@ test("hosts: a headless host runs tasks without a document", (env) => {
 	assert.deepEqual(host.failures, []);
 });
 
-// ---- Testing from the TCD model, through components/pbt (js/pbt.js) -----------
-// pbt.tcd's Tally has a seeded bug (add(4) past 8 adds 5); its Lamp breaks for
+// ---- Testing from the model, through components/pbt (js/pbt.js) -----------
+// pbt.tutuca.ts's Tally has a seeded bug (add(4) past 8 adds 5); its Lamp breaks for
 // good and has a message that's never enabled.
 
 const pbtScope = async ({ vdom, modules }) => {
@@ -1795,7 +1839,7 @@ test("pbt: example blocks run, and say which expect didn't hold", async (env) =>
 	const scope = await pbtScope(env);
 	assert.deepEqual(examples({ runtime, scope, model: env.models.pbt }), [
 		{ name: "adds", ok: true, failures: [] },
-		{ name: "wrong_on_purpose", ok: false, failures: ["expected count == 4"] },
+		{ name: "wrongOnPurpose", ok: false, failures: ["expected count to be 4, not 3"] },
 	]);
 	assert.deepEqual(
 		examples({ runtime, scope: env.scope, model: env.models.counter }).map((e) => e.ok),
@@ -1836,7 +1880,7 @@ test("hosts run tasks for up to 16ms, render, and run the rest on the next tick"
 	for (let i = 0; i < 3; i++) click(window, buttons(container, "add")[0]);
 	click(window, buttons(container, "+")[0]);
 	assert.deepEqual(counts(container), ["1", "1", "2"]);
-	// A clock that moves 10ms each time it's read: reset_all runs, then the
+	// A clock that moves 10ms each time it's read: resetAll runs, then the
 	// first counter's reset, and the run is past 16ms.
 	const now = Date.now;
 	let t = 0;
@@ -1975,7 +2019,7 @@ test("modules: TodoList works with another implementation of TodoItem's interfac
 	assert.equal(marks(cardButton(cards(container)[1], "star"), "star", "on"), "star on");
 	const items = runtime.get(host.root(), "items");
 	assert.deepEqual(items.map((c) => runtime.get(c, "starred")), [false, true, false]);
-	// The rest of the interface: remove_me, set_done, done.
+	// The rest of the interface: removeMe, setDone, done.
 	click(window, cardButton(cards(container)[2], "remove"));
 	assert.deepEqual(cardTexts(container), ["milk", "a"]);
 	click(window, buttons(container, "all done")[0]);
@@ -2071,7 +2115,7 @@ test("modules: the loader takes only modules that import the ABI, of the runtime
 	const scope = vdom.runtime.scope();
 	// The runtime itself imports the DOM and the host.
 	await assert.rejects(vdom.loadComponent(modules.runtime, scope), /imports only from tutuca, wasm:js-string and ', not from dom, env, host/);
-	await assert.rejects(vdom.loadComponent(OTHER_ABI, scope), /for ABI version 99, the runtime's is 17/);
+	await assert.rejects(vdom.loadComponent(OTHER_ABI, scope), /for ABI version 99, the runtime's is 19/);
 });
 
 // What every case gets besides its DOM, from the runtime vdom and bytesOf,
@@ -2089,7 +2133,7 @@ export async function prepare(vdom, bytesOf, textOf) {
 	// The CSS compiler, vendored next to dist/.
 	modules.margaui = await bytesOf("../vendor/margaui/margaui-css");
 	const models = {};
-	for (const name of TCD_MODULES) models[name] = JSON.parse(await textOf(`components/${name}.model.json`));
+	for (const name of MODEL_MODULES) models[name] = JSON.parse(await textOf(`components/${name}.pbt-model.json`));
 	return { scope, modules, models };
 }
 

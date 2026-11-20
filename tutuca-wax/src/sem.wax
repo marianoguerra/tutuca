@@ -215,7 +215,7 @@ fn template_new(
         all_names[n] = s_data_eid;
         all_values = [value_array|null; n + 1];
         all_values.copy(0, static_values, 0, n);
-        all_values[n] = value_int(tid);
+        all_values[n] = value_number(tid as f64_s);
     }
     {template|
         tid,

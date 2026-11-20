@@ -1,4 +1,0 @@
-members = [
-  ".",
-  "../.tools/wax-mb/lib",
-]

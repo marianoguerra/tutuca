@@ -6,16 +6,56 @@
 	"icon": "📈",
 	"version": "1",
 	"root": "EchartsLab",
-	"hostFns": ["echarts"],
-	"skills": ["SKILL.md", "reference/series.md"],
+	"hostModules": [
+		"echarts"
+	],
+	"skills": [
+		"SKILL.md",
+		"reference/series.md"
+	],
 	"tools": [
-		{ "name": "set_option", "kind": "message", "result": "edit_report" },
-		{ "name": "patch_option", "kind": "message", "result": "edit_report" },
-		{ "name": "remove_option_key", "kind": "message", "result": "edit_report" },
-		{ "name": "set_table", "kind": "message" },
-		{ "name": "remove_table", "kind": "message" },
-		{ "name": "reorder_tables", "kind": "message" },
-		{ "name": "compile_report", "kind": "view" },
-		{ "name": "describe_tables", "kind": "view" }
+		{
+			"name": "setOption",
+			"kind": "message",
+			"result": "editReport",
+			"description": "Replace the whole ECharts option (a JSON object). Series read tables with datasetId and encode."
+		},
+		{
+			"name": "patchOption",
+			"kind": "message",
+			"result": "editReport",
+			"description": "Set one value in the option at a JSON pointer such as /series/0/encode/y (/- appends to an array). The value is JSON as itself (an object, not its JSON text). The parent must exist: to style a series without lineStyle, set /series/0/lineStyle to {\"color\": \"red\"}, not /series/0/lineStyle/color."
+		},
+		{
+			"name": "removeOptionKey",
+			"kind": "message",
+			"result": "editReport",
+			"description": "Remove the value at a JSON pointer from the option."
+		},
+		{
+			"name": "setTable",
+			"kind": "message",
+			"description": "Replace a table's rows, or add a table with this id; rows is an array of objects. A CSV table stays CSV."
+		},
+		{
+			"name": "removeTable",
+			"kind": "message",
+			"description": "Remove a table."
+		},
+		{
+			"name": "reorderTables",
+			"kind": "message",
+			"description": "Move a table to a position (0 is first): the first one is the option's default dataset."
+		},
+		{
+			"name": "compileReport",
+			"kind": "view",
+			"description": "Whether the option draws: errors, warnings, the tables, the series and the SVG's size."
+		},
+		{
+			"name": "describeTables",
+			"kind": "view",
+			"description": "Every table's columns with type, min, max, distinct and null counts, and 3 sample rows."
+		}
 	]
 }

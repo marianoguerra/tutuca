@@ -1,20 +1,40 @@
-// Host functions for datefmt-lab: instants formatted by strftime patterns
+// datefmt-lab's host module: instants formatted by strftime patterns
 // (implemented here, in UTC) and by Intl.DateTimeFormat (in UTC unless the
 // options name a timeZone, with en-US when the locale is empty), so the
-// output never depends on the machine.
+// output never depends on the machine; as a module a pure-tutuca agent
+// imports (import { strftime } from "microagents/datefmt"). declaration is
+// what pure-tutuca checks the agent against; make() gives the members, which answer
+// rather than throw: null when the instant isn't an ISO time.
 //
-//   datefmt_iso(text)                        text as an ISO time (toISOString); throws when it isn't one
-//   datefmt_strftime(format, iso)            { text, error }: the pattern applied to the instant
-//                                            (error "" when every directive is known)
-//   datefmt_strftime_errors(format)          "" or why the pattern has errors ("; " between them)
-//   datefmt_intl(locale, options, iso)       { text, error }: Intl.DateTimeFormat's output
-//   datefmt_intl_info(locale, options)       { error, resolved: ["option: value"] }
-//   datefmt_parts(locale, options, iso)      Intl's formatToParts: [{ type, value }] ([] when it can't format)
-//   datefmt_option_rows(options)             the Intl options a select offers, with options' values:
-//                                            [{ name, value, choices: [{ value, label }] }]
-//   datefmt_directives()                     { "%a": what it gives, … }
+//   isoOf(text)                     text as an ISO time (toISOString); null when it isn't one
+//   strftime(format, iso)           { text, error }: the pattern applied to the instant (error "" when
+//                                   every directive is known); null when iso isn't an ISO time
+//   strftimeErrors(format)          "" or why the pattern has errors ("; " between them)
+//   intl(locale, options, iso)      { text, error }: Intl.DateTimeFormat's output; null when iso isn't
+//                                   an ISO time
+//   intlInfo(locale, options)       { error, resolved: ["option: value"] }
+//   parts(locale, options, iso)     Intl's formatToParts: [{ type, value }] ([] when it can't format)
+//   optionRows(options)             the Intl options a select offers, with options' values:
+//                                   [{ name, value, choices: [{ value, label }] }]
+//   directives()                    { "%a": what it gives, … }
 //
 // options is a map of strings: hour12 is "true" or "false".
+export const declaration = {
+	specifier: "microagents/datefmt",
+	module: "Datefmt",
+	members: {
+		isoOf: "(text: string) => string | null",
+		strftime: "(format: string, iso: string) => { text: string; error: string } | null",
+		strftimeErrors: "(format: string) => string",
+		intl: "(locale: string, options: { [key: string]: string }, iso: string) => { text: string; error: string } | null",
+		intlInfo: "(locale: string, options: { [key: string]: string }) => { error: string; resolved: string[] }",
+		parts: "(locale: string, options: { [key: string]: string }, iso: string) => { type: string; value: string }[]",
+		optionRows:
+			"(options: { [key: string]: string }) => { name: string; value: string; choices: { value: string; label: string }[] }[]",
+		directives: "() => { [key: string]: string }",
+	},
+	fresh: ["Datefmt.strftime", "Datefmt.intl", "Datefmt.intlInfo", "Datefmt.parts", "Datefmt.optionRows", "Datefmt.directives"],
+};
 export const bundle = null;
 
 const MONTHS = ["January", "February", "March", "April", "May", "June", "July", "August", "September", "October", "November", "December"];
@@ -35,10 +55,11 @@ const parseIso = (text) => {
 	const digits = zone.slice(1).replace(":", "");
 	return ms - sign * (+digits.slice(0, 2) * 60 + +digits.slice(2)) * 60000;
 };
-const msOf = (iso) => {
+
+// The instant at iso as epoch milliseconds, or null when it isn't an ISO time.
+const msOrNull = (iso) => {
 	const ms = parseIso(iso);
-	if (Number.isNaN(ms) || Math.abs(ms) > 8.64e15) throw new Error(`"${iso}" isn't an ISO time`);
-	return ms;
+	return Number.isNaN(ms) || Math.abs(ms) > 8.64e15 ? null : ms;
 };
 
 const yday = (d) => Math.floor((d - Date.UTC(d.getUTCFullYear(), 0, 1)) / DAY_MS); // 0-based
@@ -163,15 +184,22 @@ const formatter = (locale, options) => {
 	return formatters.get(key);
 };
 
+
 export const make = () => ({
-	datefmt_iso: (text) => new Date(msOf(text)).toISOString(),
-	datefmt_strftime: (format, iso) => {
-		const { text, errors } = strftime(String(format), msOf(iso));
+	isoOf: (text) => {
+		const ms = msOrNull(text);
+		return ms === null ? null : new Date(ms).toISOString();
+	},
+	strftime: (format, iso) => {
+		const ms = msOrNull(iso);
+		if (ms === null) return null;
+		const { text, errors } = strftime(String(format), ms);
 		return { text, error: errors.join("; ") };
 	},
-	datefmt_strftime_errors: (format) => strftime(String(format), 0).errors.join("; "),
-	datefmt_intl: (locale, options, iso) => {
-		const ms = msOf(iso);
+	strftimeErrors: (format) => strftime(String(format), 0).errors.join("; "),
+	intl: (locale, options, iso) => {
+		const ms = msOrNull(iso);
+		if (ms === null) return null;
 		const { fmt, error } = formatter(locale, options);
 		if (fmt === null) return { text: "", error };
 		try {
@@ -180,26 +208,27 @@ export const make = () => ({
 			return { text: "", error: e.message };
 		}
 	},
-	datefmt_intl_info: (locale, options) => {
+	intlInfo: (locale, options) => {
 		const { fmt, error } = formatter(locale, options);
 		if (fmt === null) return { error, resolved: [] };
 		return { error: "", resolved: Object.entries(fmt.resolvedOptions()).map(([k, v]) => `${k}: ${v}`) };
 	},
-	datefmt_parts: (locale, options, iso) => {
+	parts: (locale, options, iso) => {
 		const { fmt } = formatter(locale, options);
-		if (fmt === null) return [];
+		const ms = msOrNull(iso);
+		if (fmt === null || ms === null) return [];
 		try {
-			return fmt.formatToParts(msOf(iso)).map(({ type, value }) => ({ type, value }));
+			return fmt.formatToParts(ms).map(({ type, value }) => ({ type, value }));
 		} catch {
 			return [];
 		}
 	},
-	datefmt_option_rows: (options) =>
+	optionRows: (options) =>
 		Object.entries(CHOICES).map(([name, choices]) => {
 			const value = options?.[name] ?? "";
 			const values = ["", ...choices];
 			if (!values.includes(value)) values.push(value);
 			return { name, value, choices: values.map((v) => ({ value: v, label: v || "—" })) };
 		}),
-	datefmt_directives: () => Object.fromEntries(Object.entries(D).map(([c, [what]]) => [`%${c}`, what])),
+	directives: () => Object.fromEntries(Object.entries(D).map(([c, [what]]) => [`%${c}`, what])),
 });

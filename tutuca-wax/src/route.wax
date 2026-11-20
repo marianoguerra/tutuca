@@ -334,7 +334,8 @@ fn selector_freeze(sel: &selector, start: &value) -> &frame_array {
     frames;
 }
 
-// A value as an item key: a string is a name, an int an index, null none.
+// A value as an item key: a string is a name, a whole number an index, null
+// none.
 fn key_from_value(v: &value) -> &?path_key {
     if v.kind == value_kind_null {
         return null;
@@ -342,19 +343,25 @@ fn key_from_value(v: &value) -> &?path_key {
     if v.kind == value_kind_string {
         return path_key_name((v as &value_string).value);
     }
-    if v.kind == value_kind_int {
-        return path_key_index((v as &value_int).value);
+    if v.kind == value_kind_number {
+        let n = (v as &value_number).value;
+        if (n >= 0.0) & (n <= 2147483647.0) {
+            let i = n as i32_s;
+            if i as f64_s == n {
+                return path_key_index(i);
+            }
+        }
     }
     host_fail(s_err_bad_item_key);
     unreachable;
 }
 
-// A path key as a value: a name is a string, an index an int.
+// A path key as a value: a name is a string, an index a number.
 fn value_from_key(key: &path_key) -> &value {
     if key.kind == path_key_kind_name {
         return value_string((key as &path_key_name).name);
     }
-    value_int((key as &path_key_index).index);
+    value_number((key as &path_key_index).index as f64_s);
 }
 
 // The dispatch path a target reaches in root: its base, then the frames its
@@ -369,7 +376,7 @@ fn target_freeze(t: &target, root: &value) -> &dispatch_path {
 // A copy of v in which every component is a new one (tutuca's copy,
 // spec/tree's M8): the same type, scope and state, and a fresh identity for
 // each component at any depth, the fields of a component with a schema
-// copied too. Lists, maps and results holding a component are rebuilt
+// copied too. Lists and maps holding a component are rebuilt
 // around its copy; what holds none is shared, as an update shares it.
 // Putting v in the tree twice instead would put two components with one
 // identity there, and a route would reach either.
@@ -419,17 +426,6 @@ fn value_copy_nodes(v: &value) -> &?value {
             return null;
         }
         return out;
-    }
-    if kind == value_kind_result {
-        let r = v as &value_result;
-        let inner = value_copy_nodes(r.value);
-        if !inner {
-            return null;
-        }
-        if r.ok {
-            return value_ok(inner!);
-        }
-        return value_err(inner!);
     }
     if kind == value_kind_component {
         let c = value_as_component(v)!;

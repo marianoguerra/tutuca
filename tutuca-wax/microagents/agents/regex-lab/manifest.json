@@ -6,19 +6,71 @@
 	"icon": "🔎",
 	"version": "1",
 	"root": "RegexLab",
-	"hostFns": ["regex"],
-	"skills": ["SKILL.md", "reference/flags.md"],
+	"hostModules": [
+		"regex"
+	],
+	"skills": [
+		"SKILL.md",
+		"reference/flags.md"
+	],
 	"tools": [
-		{ "name": "set_regex", "kind": "message", "result": "grid" },
-		{ "name": "add_regex", "kind": "message" },
-		{ "name": "remove_regex", "kind": "message" },
-		{ "name": "reorder_regexes", "kind": "message" },
-		{ "name": "add_text", "kind": "message" },
-		{ "name": "set_text", "kind": "message", "result": "grid" },
-		{ "name": "remove_text", "kind": "message" },
-		{ "name": "reorder_texts", "kind": "message" },
-		{ "name": "set_expectation", "kind": "message", "result": "grid" },
-		{ "name": "grid", "kind": "view" },
-		{ "name": "explain_matches", "kind": "view" }
+		{
+			"name": "setRegex",
+			"kind": "message",
+			"result": "grid",
+			"description": "Change a regex's pattern and flags."
+		},
+		{
+			"name": "addRegex",
+			"kind": "message",
+			"description": "Add a regex; it gets the next free id (r1, r2, …)."
+		},
+		{
+			"name": "removeRegex",
+			"kind": "message",
+			"description": "Remove a regex and the expectations that name it."
+		},
+		{
+			"name": "reorderRegexes",
+			"kind": "message",
+			"description": "Move a regex to a position (0 is first)."
+		},
+		{
+			"name": "addText",
+			"kind": "message",
+			"description": "Add a text to test against; it gets the next free id (t1, t2, …)."
+		},
+		{
+			"name": "setText",
+			"kind": "message",
+			"result": "grid",
+			"description": "Change a text."
+		},
+		{
+			"name": "removeText",
+			"kind": "message",
+			"description": "Remove a text."
+		},
+		{
+			"name": "reorderTexts",
+			"kind": "message",
+			"description": "Move a text to a position (0 is first)."
+		},
+		{
+			"name": "setExpectation",
+			"kind": "message",
+			"result": "grid",
+			"description": "Say whether a regex should match a text: match, no-match, or none to clear it."
+		},
+		{
+			"name": "grid",
+			"kind": "view",
+			"description": "Every text × regex: whether the regex matches, what is expected and whether that passes."
+		},
+		{
+			"name": "explainMatches",
+			"kind": "view",
+			"description": "Where a regex matches a text: each match's position, text and capture groups."
+		}
 	]
 }

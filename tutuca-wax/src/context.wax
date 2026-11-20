@@ -146,9 +146,9 @@ fn ctx_make(ctx: &context, name: js_string, fields: &value) -> &component {
     scope_make_or_fail(ctx.scope, name, fields);
 }
 
-// ctx_make's result instead of its failure: Ok(the component), or Err({
-// error, issues }) saying why it can't be made (scope_try_make), for a
-// handler to show instead of failing its task.
+// ctx_make's outcome instead of its failure: { ok: the component }, or
+// { err: { error, issues } } saying why it can't be made (scope_try_make),
+// for a handler to show instead of failing its task.
 fn ctx_try_make(ctx: &context, name: js_string, fields: &value) -> &value {
     scope_try_make(ctx.scope, name, fields);
 }
@@ -167,7 +167,7 @@ fn init_ctx_make(ctx: &init_context, name: js_string, fields: &value) -> &compon
 }
 
 // The default of owner's field, a component of type name made in ctx's
-// scope, as a result: Ok(the component), or Err of why it can't be made,
+// scope, as an outcome: { ok: the component }, or { err: why it can't be made },
 // prefixed with where (tutuca's prefixed: "Board.child: ..."), which init
 // gives back as its own error (init_made_fail), so a default inside a
 // default says each field on the way.
@@ -179,7 +179,7 @@ fn init_make_field(
 ) -> &value {
     let made = scope_make(ctx.scope, name, map_empty());
     if !!made.component {
-        return value_ok(value_component(made.component!));
+        return outcome_ok(value_component(made.component!));
     }
     let b = text_builder_new();
     text_push(b, owner);
@@ -192,5 +192,5 @@ fn init_make_field(
         text_push(b, s_err_cant_make);
         text_push(b, name);
     }
-    value_err(value_string(text_finish(b)));
+    outcome_err(value_string(text_finish(b)));
 }

@@ -2,20 +2,57 @@
 	"id": "jsonpath-lab",
 	"title": "JSONPath lab",
 	"description": "Write JSONPath expressions against a JSON document, see what each one selects highlighted in the document, and fix them.",
-	"needs": "an object with paths ([{ id, path, expected_count (-1 for none) }], at least one) and a document (any JSON)",
+	"needs": "an object with paths ([{ id, path, expectedCount (-1 for none) }], at least one) and a document (any JSON)",
 	"icon": "🧭",
 	"version": "1",
 	"root": "JsonPathLab",
-	"hostFns": ["jsonpath"],
-	"skills": ["SKILL.md", "reference/syntax.md"],
+	"hostModules": [
+		"jsonpath"
+	],
+	"skills": [
+		"SKILL.md",
+		"reference/syntax.md"
+	],
 	"tools": [
-		{ "name": "set_path", "kind": "message" },
-		{ "name": "add_path", "kind": "message" },
-		{ "name": "remove_path", "kind": "message" },
-		{ "name": "reorder_paths", "kind": "message" },
-		{ "name": "set_expected_count", "kind": "message" },
-		{ "name": "set_document", "kind": "message" },
-		{ "name": "results", "kind": "view" },
-		{ "name": "document_paths", "kind": "view" }
+		{
+			"name": "setPath",
+			"kind": "message",
+			"description": "Change a path's JSONPath expression."
+		},
+		{
+			"name": "addPath",
+			"kind": "message",
+			"description": "Add a JSONPath expression; it gets the next free id (p1, p2, …)."
+		},
+		{
+			"name": "removePath",
+			"kind": "message",
+			"description": "Remove a path."
+		},
+		{
+			"name": "reorderPaths",
+			"kind": "message",
+			"description": "Move a path to a position (0 is first)."
+		},
+		{
+			"name": "setExpectedCount",
+			"kind": "message",
+			"description": "Say how many results a path should give, or -1 for no expectation."
+		},
+		{
+			"name": "setDocument",
+			"kind": "message",
+			"description": "Replace the JSON document the paths run against."
+		},
+		{
+			"name": "results",
+			"kind": "view",
+			"description": "What a path selects: its count, its expected count if any, and each result's JSON Pointer and value (at most 200)."
+		},
+		{
+			"name": "documentPaths",
+			"kind": "view",
+			"description": "The document's nodes as JSON Pointers with their types (at most 200), to learn its shape."
+		}
 	]
 }
