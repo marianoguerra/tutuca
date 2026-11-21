@@ -46,7 +46,6 @@ tutuca.state(); // { count: 2, step: 1 }
 |---|---|
 | `playground/` | an editor: a module is checked, compiled and mounted as you edit it, beside its state, what the runtime reported, its model and the WebAssembly it became |
 | `demos/` | the component modules of `components/`, each demo a root on a runtime of its own |
-| `microagents/` | agents as packages (one component module and its prompt, tools and samples) with a chat that drives them through their messages; see its README |
 | `studio/` | screens composed from layouts and components written in the page, kept in IndexedDB, each screen in a scope chain of its own, with an assistant that edits a component |
 
 ```sh
@@ -76,27 +75,23 @@ What a page asks without running anything: `fits` (whether a type makes from JSO
 ## Build and test
 
 ```sh
-./build.sh                       # dist/: the runtime, pure-js, the glue for a page, the agents
-node --test test/                # 101 tests
+./build.sh                       # dist/: the runtime, pure-js, the glue for a page
+node --test test/                # 42 tests
 ```
 
 `build.sh` needs MoonBit (for the runtime), Node, and `npm install` at the repository's root
 (esbuild, and the `src/pure` the glue imports). pure-js is vendored, built, in
 `vendor/pure-js/`; `vendor-pure-js.sh` refreshes it from a checkout of pure-js in MoonBit
-(`PURE_JS_MB`, `../../mb/pure-js` when unset). The micro-agents' engines are the bundles
-tutuca's `scripts/vendor.js` makes in `../demos/deps/`.
+(`PURE_JS_MB`, `../../mb/pure-js` when unset).
 
 - `test/parity.test.mjs`: scripts of messages, DOM events and drags sent to both runtimes over
   the conformance modules, the counters board and the kanban; after each step, the same state,
   the same problems and the same page. It covers asks answered by a module, by the page (now
   and later) and by nobody, `sendAt`, swaps, notifications handled by a parent, and drops.
-- `test/sweep.test.mjs`: every component of every module in the repository (the micro-agents
-  from their samples, with their engines), made and rendered in both, then sent the same
-  sequence of events; after each, the same state, problems and page.
-- `test/scopes.test.mjs`: the same name in two scopes, a layout and an agent below a scope, and
-  what a page asks of a component.
-- `test/microagents.test.mjs`: every built-in agent's package and tools, and the shell with a
-  scripted model.
+- `test/sweep.test.mjs`: every component of every module in the repository, made and rendered
+  in both, then sent the same sequence of events; after each, the same state, problems and page.
+- `test/scopes.test.mjs`: the same name in two scopes, a layout and a component below a scope,
+  and what a page asks of a component.
 
 The studio has no test of its own yet: it was checked by hand in a browser.
 

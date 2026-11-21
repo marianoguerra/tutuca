@@ -1,12 +1,11 @@
 // The site served with models behind it: _site/'s files, as serve.mjs serves them, and an API
-// the pages find at /api/ (on a static host there's none: the micro-agents' chat can't run, and
-// the studio shows no assistant).
+// the pages find at /api/ (on a static host there's none: the studio shows no assistant).
 //
 //   GET  /api/check   { server: true, assistant, models: [{ provider, id, name }] }: the models
 //                     of the providers with credentials
 //   POST /api/infer   { model: { provider, id }, systemPrompt, tools, transcript } -> { message }:
-//                     one step of a model with the tools the page gives (the micro-agents'),
-//                     keeping nothing between requests
+//                     one step of a model with the tools the page gives, keeping nothing
+//                     between requests
 //   POST /api/chat    { model: { provider, id }, messages, component: { name, source } }
 //                     -> { message }: the studio assistant's next message
 //   POST /api/prompt  { component } -> { prompt }: the system prompt it would get
@@ -122,7 +121,6 @@ if (process.argv[1] === fileURLToPath(import.meta.url)) {
 	const available = await availableModels(models);
 	createServer({ models }).listen(port, "127.0.0.1", () => {
 		console.log(`the studio at http://127.0.0.1:${port}/studio/`);
-		console.log(`the micro-agents at http://127.0.0.1:${port}/microagents/?loadAgents=all`);
 		console.log(modelsReport(available, envFile));
 	});
 }

@@ -9,7 +9,6 @@ import { addDays } from "../../components/todo/dates.js";
 import { TODAY } from "../../components/todo/fixtures.js";
 import { BUNDLES } from "../../demos/canvas/bundles.js";
 import { start as startCanvas } from "../../demos/canvas/main.js";
-import { start as startComposition } from "../../demos/composition/main.js";
 import { start as startDrawing } from "../../demos/drawing/main.js";
 import { start as startStudio } from "../../demos/json-schema/main.js";
 import { start as startKanban } from "../../demos/kanban/main.js";
@@ -73,18 +72,6 @@ test("kanban demo: moves a dragged card to the column it's dropped on", async ()
 		app.state().columns.map((column) => column.cards.length),
 		[2, 1, 1],
 	);
-	await assertClean(app);
-});
-
-test("composition demo: a picker becomes the cell picked, and adds pickers around it", async () => {
-	const app = mountDemo(startComposition);
-	const kinds = () => app.state().order.map((key) => specOf(app.state().entries[key].content).name);
-	app.fire("click", app.$('[data-choice="tracker"]'));
-	app.fire("click", app.$('[data-choice="group:pets/care"]'));
-	assert.deepEqual(kinds(), ["TrackerCell"]);
-	app.fire("click", app.$('[title="Add a cell at the end"]'));
-	app.fire("click", app.$('[data-choice="kanban"]'));
-	assert.deepEqual(kinds(), ["TrackerCell", "Board"]);
 	await assertClean(app);
 });
 

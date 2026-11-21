@@ -8,9 +8,35 @@ import { dom } from "../../test/helpers.js";
 import { createRuntime } from "../js/tutuca-wasm.js";
 
 const read = (path) => readFileSync(new URL(path, import.meta.url), "utf8");
-const dir = "../microagents/";
-const { HOST_MODULES } = await import(new URL(`${dir}engines/index.js`, import.meta.url));
-const regex = { ...HOST_MODULES.regex.declaration, impls: await HOST_MODULES.regex.make(null) };
+
+// A component with a constraint, a query and a message with a precondition.
+const TAGS = `
+import { div, field } from "tutuca/view";
+export type Tag = { id: string; label: string };
+export type Tags = { tags: Tag[]; readonly summary: string };
+export const Tags = {
+	constraints: { tags: { minLength: 1 } },
+	queries: {
+		get summary(): string {
+			return \`\${this.tags.length} tags\`;
+		},
+	},
+	on: {
+		setTag: {
+			pure: true,
+			changes: ["tags"],
+			pre(prev, [id, label]: [string, string]) {
+				return this.tags.some((t) => t.id === id);
+			},
+			run(next, [id, label]: [string, string]) {
+				const i = this.tags.findIndex((t) => t.id === id);
+				if (i >= 0) next.tags[i] = { id, label };
+			},
+		},
+	},
+	view: div(field("summary")),
+};
+`;
 
 const box = (shown) => `
 import { div, field } from "tutuca/view";
@@ -97,35 +123,28 @@ describe("scopes", () => {
 		assert.match(node.innerHTML, /choices/);
 	});
 
-	test("an agent in a scope below the kit's: fits, queries, checks and putting back", async () => {
+	test("a component below a scope: fits, queries, checks and putting back", async () => {
 		const { wasm } = await runtime();
-		const kit = read(`${dir}kit/kit.tutuca.ts`);
-		assert.equal((await wasm.load(kit)).ok, true);
-		const scope = ["agent:regex-lab"];
-		const loaded = await wasm.load(read(`${dir}agents/regex-lab/agent.tutuca.ts`), {
-			scope,
-			hostModules: [regex],
-			resolve: (spec) => (spec.includes("kit.tutuca") ? kit : null),
-		});
+		const scope = ["inner"];
+		const loaded = await wasm.load(TAGS, { scope });
 		assert.deepEqual(loaded.diagnostics, []);
-		assert.deepEqual(loaded.definitions.RegexLab.on.setRegex.names, ["id", "pattern", "flags"]);
-		const sample = JSON.parse(read(`${dir}agents/regex-lab/samples/emails.json`));
-		assert.equal(wasm.fits("RegexLab", sample, { scope }).ok, true);
-		const bad = wasm.fits("RegexLab", { ...sample, regexes: "no" }, { scope });
+		assert.deepEqual(loaded.definitions.Tags.on.setTag.names, ["id", "label"]);
+		const sample = { tags: [{ id: "t1", label: "one" }] };
+		assert.equal(wasm.fits("Tags", sample, { scope }).ok, true);
+		const bad = wasm.fits("Tags", { tags: "no" }, { scope });
 		assert.equal(bad.ok, false);
-		assert.deepEqual(bad.issues, [{ field: "regexes", problem: "invalid" }]);
-		assert.equal(wasm.fits("RegexLab", { texts: [] }, { scope }).ok, false);
-		wasm.start("RegexLab", sample, { scope });
-		assert.equal(typeof wasm.query("summary"), "string");
-		const id = wasm.state().regexes[0].id;
-		assert.equal(wasm.messageProblem("setRegex", [id, "a+", "g"]), null);
-		assert.equal(wasm.messageProblem("setRegex", ["nope", "a+", "g"]), "pre");
-		assert.equal(wasm.messageProblem("setRegex", [id, 3, "g"]), "arg:1");
+		assert.deepEqual(bad.issues, [{ field: "tags", problem: "invalid" }]);
+		assert.equal(wasm.fits("Tags", { tags: [] }, { scope }).ok, false);
+		wasm.start("Tags", sample, { scope });
+		assert.equal(wasm.query("summary"), "1 tags");
+		assert.equal(wasm.messageProblem("setTag", ["t1", "uno"]), null);
+		assert.equal(wasm.messageProblem("setTag", ["nope", "uno"]), "pre");
+		assert.equal(wasm.messageProblem("setTag", ["t1", 3]), "arg:1");
 		assert.equal(wasm.messageProblem("nope", []), "unknown");
 		const held = wasm.hold([]);
 		const before = wasm.state();
-		wasm.send("setRegex", [id, "a+", "g"]);
-		assert.equal(wasm.state().regexes[0].pattern, "a+");
+		wasm.send("setTag", ["t1", "uno"]);
+		assert.equal(wasm.state().tags[0].label, "uno");
 		wasm.put([], held);
 		assert.deepEqual(wasm.state(), before);
 	});

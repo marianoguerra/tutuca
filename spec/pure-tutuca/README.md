@@ -171,7 +171,7 @@ list's item of a value pure-js types `unknown` (what's dragged, JSON), `undefine
 `keysOf(value)`, an `unknown` object's own keys, to walk it; `toJson(value, indent)`, `JSON.stringify(value, null, indent)` (`"null"` for undefined);
 and `parseJson(text)`, `JSON.parse` (undefined when the text isn't JSON).
 
-A page's own host modules (the micro-agents' engines) are declared the same way, a specifier, a
+A page's own host modules are declared the same way, a specifier, a
 module name and its members' signatures, and the page defines each member as `Module.member`;
 what one returns is checked against its declared type.
 

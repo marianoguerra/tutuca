@@ -12,8 +12,6 @@
 //   codemirror  site/deps/codemirror.js: the playground needs one copy of @codemirror/state.
 //   automerge   demos/deps/automerge.js: automerge-repo needs one initialized copy of automerge;
 //               the sync demo's importmap maps every @automerge package to it.
-//   engines     demos/deps/{ajv,jq,jsonpath,picomatch,vega,echarts}.js: the micro-agents' engines,
-//               which tutuca-wasm's build copies into its dist/engines/.
 //   markdownrswasm  components/markdown/vendor/: the <md-view> element and its wasm, copied from
 //               a markdownrswasm checkout beside this one (built with `just dist` there); it
 //               isn't on npm, so the copy is committed.
@@ -170,58 +168,6 @@ const TARGETS = {
 			],
 			minify: true,
 		},
-	},
-	// The micro-agents' engines: tutuca-wasm's build copies them into its dist/engines/, where
-	// its microagents/engines/ modules load them.
-	ajv: {
-		out: "demos/deps/ajv.js",
-		title: () => versions(["ajv", "ajv-formats"]),
-		license: "node_modules/ajv/LICENSE",
-		build: {
-			...reexports([
-				'export { default as Ajv2020 } from "ajv/dist/2020.js";',
-				'export { default as addFormats } from "ajv-formats";',
-			]),
-			minify: true,
-		},
-	},
-	jq: {
-		out: "demos/deps/jq.js",
-		title: () => versions(["jq-wasm"]),
-		license: "node_modules/jq-wasm/LICENSE",
-		// The inline build carries jq.wasm as base64: one file, in Node and browsers alike.
-		build: { ...reexports(['export * from "jq-wasm/inline";']), minify: true },
-	},
-	jsonpath: {
-		out: "demos/deps/jsonpath.js",
-		title: () => versions(["jsonpath-plus"]),
-		license: "node_modules/jsonpath-plus/LICENSE",
-		build: { ...reexports(['export { JSONPath } from "jsonpath-plus";']), minify: true },
-	},
-	picomatch: {
-		out: "demos/deps/picomatch.js",
-		title: () => versions(["picomatch"]),
-		license: "node_modules/picomatch/LICENSE",
-		build: { ...reexports(['export { default } from "picomatch/posix";']), minify: true },
-	},
-	vega: {
-		out: "demos/deps/vega.js",
-		title: () => versions(["vega", "vega-lite", "vega-embed"]),
-		license: "node_modules/vega/LICENSE",
-		build: {
-			...reexports([
-				'export * as vega from "vega";',
-				'export { compile } from "vega-lite";',
-				'export { default as embed } from "vega-embed";',
-			]),
-			minify: true,
-		},
-	},
-	echarts: {
-		out: "demos/deps/echarts.js",
-		title: () => versions(["echarts"]),
-		license: "node_modules/echarts/LICENSE",
-		build: { ...reexports(['export * from "echarts";']), minify: true },
 	},
 	// Copied, not bundled: the element loads its wasm glue by path, and the glue its wasm.
 	markdownrswasm: {

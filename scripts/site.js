@@ -14,20 +14,7 @@ const cdn = (name, path) => `https://cdn.jsdelivr.net/npm/${name}@${version(name
 
 // The playground and the Automerge demo load bundles too big to keep in git; build them when
 // they're missing.
-// tutuca-wasm's micro-agents copy the engines (ajv to echarts) into their dist/ (its build makes
-// them when they're missing too).
-const BUNDLES = [
-	"codemirror",
-	"automerge",
-	"ajv",
-	"jq",
-	"jsonpath",
-	"picomatch",
-	"vega",
-	"echarts",
-	"pdfkit",
-	"docx",
-];
+const BUNDLES = ["codemirror", "automerge", "pdfkit", "docx"];
 for (const name of BUNDLES) await vendorIfMissing(name);
 rmSync(out, { recursive: true, force: true });
 cpSync("site", out, { recursive: true });
@@ -49,7 +36,7 @@ if (existsSync(spec)) {
 	console.warn(`warning: ${spec} is missing, the site links to it: run just spec`);
 }
 
-// tutuca-wasm's pages (the playground, the demos, the micro-agents and the studio), in wasm/:
+// tutuca-wasm's pages (the playground, the demos and the studio), in wasm/:
 // the site its own site.sh assembles (MoonBit builds the runtime; the rest is copied), with
 // only what a page reads.
 const wasm = "tutuca-wasm";

@@ -28,7 +28,6 @@
 			"!tutuca-wasm/playground/editor.src.js",
 			"!tutuca-wasm/**/*.tutuca.ts",
 			"!tutuca-wasm/components",
-			"!tutuca-wasm/microagents/agents",
 			"!tdata/.tools",
 			"!tdata/mbt/_build",
 			"!tdata/mbt/dist",

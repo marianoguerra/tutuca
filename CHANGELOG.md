@@ -192,6 +192,13 @@
   do, instead of `({ key, value }, prepared)`. What it returns is still merged with `value`
   and `key`. pure-tutuca's loops are tutuca's, with no adapter.
 
+### Removed
+
+- The notebook demo (`demos/composition/`); the notebook component (`components/composition/`)
+  stays, in the storybook and under the canvas.
+- tutuca-wasm's micro-agents (`tutuca-wasm/microagents/`), with their engines' vendor targets
+  (`ajv`, `jq`, `jsonpath`, `picomatch`, `vega`, `echarts`) and packages.
+
 ### Fixed
 
 - `render(field("x"))` of a null, an option component field with none, renders nothing
