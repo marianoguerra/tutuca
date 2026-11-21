@@ -23,9 +23,9 @@ import {
 } from "../../src/tutuca.js";
 import { setField } from "../common/card.js";
 import { metaFor } from "../common/meta.js";
+import { applyEach } from "../common/util.js";
 import {
 	allTasks,
-	applyEach,
 	COLORS,
 	dateChecks,
 	dueType,

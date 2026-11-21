@@ -5,8 +5,8 @@
 // Everything is styled with Tailwind and margaui classes, compiled in the page by
 // margaui-css.wasm: the page's own (UI) and the ones the components come to show.
 import { createRuntime } from "../dist/tutuca-wasm.js";
-import { el, moduleSources, pageStyles } from "../js/page.js";
-import { COMPILER, MARGAUI, RUNTIME, SOURCES } from "../js/paths.js";
+import { el, jsonTree, moduleSources, pageStyles } from "../js/page.js";
+import { COMPILER, componentPath, MARGAUI, RUNTIME, SOURCES } from "../js/paths.js";
 
 // The page's own classes. The first of some is a marker that names the part (actions, events,
 // an event's kind), which no stylesheet uses.
@@ -52,7 +52,6 @@ document.querySelector("body > footer").className = UI.footer;
 for (const code of document.querySelectorAll("code")) code.className = UI.code;
 
 const sources = moduleSources(SOURCES);
-const modulePath = (name) => `components/${name}/${name}.tutuca.ts`;
 let compiled = 0;
 const showStatus = () => {
 	document.querySelector("#status").textContent =
@@ -144,7 +143,7 @@ async function runtimeFor(c, modules, { asks = {}, show }) {
 		characterData: true,
 	});
 	const load = async (name) => {
-		const loaded = await sources.load(tutuca, modulePath(name));
+		const loaded = await sources.load(tutuca, componentPath(name));
 		if (!loaded.ok) throw new Error(`${name}: ${loaded.diagnostics[0]?.message ?? "didn't load"}`);
 		compiled++;
 		showStatus();
@@ -214,17 +213,6 @@ async function demo({
 }
 
 const make = (type, fields = {}) => ({ $make: type, fields });
-// The components/json tree of a JSON value, as what to make.
-const jsonTree = (v) => {
-	if (v === null) return make("JsonNull");
-	if (typeof v === "boolean") return make("JsonBool", { value: v });
-	if (typeof v === "number") return make("JsonNumber", { value: v, text: String(v) });
-	if (typeof v === "string") return make("JsonString", { value: v });
-	if (Array.isArray(v)) return make("JsonArray", { items: v.map(jsonTree) });
-	return make("JsonObject", {
-		entries: Object.entries(v).map(([key, x]) => make("JsonEntry", { key, value: jsonTree(x) })),
-	});
-};
 
 // ---- Loading modules as the page runs --------------------------------------------------------
 

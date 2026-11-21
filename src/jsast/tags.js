@@ -6,18 +6,10 @@
 // attr of the wrong kind, a slot its node doesn't have (or has twice), a node outside a slot, a
 // node a slot doesn't take, text. What field, each or render give is only known when the view
 // renders; lower.js checks that.
-import { SchemaError } from "../checked/schema.js";
+import { isTypeName, SchemaError } from "../checked/schema.js";
 import { splitArgs, tagProxy } from "../core/view/tag.js";
 import { CondNode, ConstantNode, ElementNode, h } from "../tutuca.js";
-import {
-	accepts,
-	describeAccepts,
-	describeType,
-	HOLE,
-	isTypeName,
-	SCHEMA,
-	scalarIssue,
-} from "./schema.js";
+import { accepts, describeAccepts, describeType, HOLE, SCHEMA, scalarIssue } from "./schema.js";
 
 export class JsAstError extends SchemaError {}
 

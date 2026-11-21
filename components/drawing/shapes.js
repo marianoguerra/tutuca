@@ -49,6 +49,13 @@ export const shapeChecks = {
 	pairs: pairsCheck(1, "x, y pairs"),
 	twoPairs: pairsCheck(2, "at least two x, y pairs"),
 };
+// Shapes by id, for the components that hold a list of them in `shapes`, and the stroke widths
+// they take.
+export const shapeAt = (self, id) => self.shapes.findIndex((s) => s.id === id);
+export const hasShape = (self, id) => shapeAt(self, id) !== -1;
+export const noShape = (_self, [id]) => `there's no shape ${id}`;
+export const widthType = () => t.enum([2, 1, 4, 8]);
+
 export const COORD_MAX = 10000;
 export const coord = () => t.number({ min: -COORD_MAX, max: COORD_MAX });
 const fit = (v) => clamp(v, -COORD_MAX, COORD_MAX);

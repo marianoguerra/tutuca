@@ -6,11 +6,11 @@
 // page's bottom left, y up. Its categories are Graphic and Segment (a Path's); Text is a literal.
 import { empty, isNumber, literal, oneOf, opt, parent, req, Schema } from "../checked/schema.js";
 
-export const GRAPHIC = "Graphic";
+const GRAPHIC = "Graphic";
 export const SEGMENT = "Segment";
 
-export const LINE_CAPS = ["butt", "round", "square"];
-export const LINE_JOINS = ["miter", "round", "bevel"];
+const LINE_CAPS = ["butt", "round", "square"];
+const LINE_JOINS = ["miter", "round", "bevel"];
 export const ALIGNS = ["left", "center", "right"];
 
 // How a shape strokes; what it says neither fill nor stroke for is in drawing.js's paintOf.

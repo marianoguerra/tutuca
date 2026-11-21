@@ -8,9 +8,9 @@
 	},
 	"tsc": 43,
 	"modules": {
-		"accept": 14,
+		"accept": 15,
 		"reject-syntax": 6,
-		"reject-static": 15,
+		"reject-static": 16,
 		"undefined": 1,
 		"escapes": 6
 	}

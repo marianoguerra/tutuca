@@ -21,7 +21,7 @@ import { ViewNode } from "../tutuca.js";
 import { toVChildren, VFragment } from "../vdom/index.js";
 import { LlmError } from "./build.js";
 
-export const COMPARISONS = {
+const COMPARISONS = {
 	is: (a, b) => a === b,
 	not: (a, b) => a !== b,
 	above: (a, b) => a > b,

@@ -24,7 +24,7 @@ import {
 	textLines,
 } from "../ps/drawing.js";
 
-export const STANDARD_FONTS = Object.freeze([
+const STANDARD_FONTS = Object.freeze([
 	"Courier",
 	"Courier-Bold",
 	"Courier-BoldOblique",

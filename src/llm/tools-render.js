@@ -165,7 +165,7 @@ const lowerTool = ({ node, markers }, where, issues) => {
 
 // The tools, and how to call each, that the vnodes a renders.llmTools rendered say. Tools nest:
 // a child component's are among its parent's.
-export const lowerTools = (vnodes) => {
+const lowerTools = (vnodes) => {
 	const issues = [];
 	const tools = [];
 	const calls = new Map();
@@ -264,7 +264,7 @@ const valueIssues = (value, schema, where, issues) => {
 		}
 	}
 };
-export const inputIssues = (schema, input) => {
+const inputIssues = (schema, input) => {
 	const issues = [];
 	valueIssues(input, schema, "input", issues);
 	return issues;

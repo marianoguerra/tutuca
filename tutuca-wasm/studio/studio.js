@@ -14,8 +14,8 @@
 // Everything runs on one runtime. Its scopes are a tree: the studio's own module in one, and
 // each screen opened and each preview made in another, with the screen's scope chain below it.
 import { createRuntime } from "../dist/tutuca-wasm.js";
-import { el, moduleSources, pageStyles } from "../js/page.js";
-import { COMPILER, MARGAUI, RUNTIME, SOURCES } from "../js/paths.js";
+import { download, dragsFiles, el, moduleSources, pageStyles, placeOf } from "../js/page.js";
+import { COMPILER, componentPath, MARGAUI, RUNTIME, SOURCES } from "../js/paths.js";
 import {
 	askChat,
 	askPrompt,
@@ -82,7 +82,6 @@ const PREBUILT = [
 	"showcase",
 ];
 const PREBUILT_PREFIX = "prebuilt:";
-const prebuiltPath = (name) => `components/${name}/${name}.tutuca.ts`;
 // What a new component starts from: the assistant's tasks example, which shows the model a
 // working module too.
 const STARTER = {
@@ -97,7 +96,7 @@ const EXAMPLES = new Map(
 			name,
 			`studio/assistant/examples/${name}.tutuca.ts`,
 		]),
-		...PREBUILT.filter((name) => name !== "meta").map((name) => [name, prebuiltPath(name)]),
+		...PREBUILT.filter((name) => name !== "meta").map((name) => [name, componentPath(name)]),
 	].map(([name, source]) => [name, { name, source }]),
 );
 
@@ -148,7 +147,7 @@ const tutuca = await createRuntime({
 styles.watch(studioRoot);
 const prebuilt = new Map();
 for (const name of PREBUILT) {
-	const checked = await sources.load(tutuca, prebuiltPath(name), { check: true });
+	const checked = await sources.load(tutuca, componentPath(name), { check: true });
 	prebuilt.set(name, { source: checked.source, types: checked.types ?? [] });
 }
 
@@ -244,11 +243,6 @@ const resolverOf = (c) => {
 	const files = usedFiles(c.source, c.uses);
 	return (spec) => files[spec.endsWith(".ts") ? spec : `${spec}.ts`] ?? null;
 };
-// 1-based line and column of an offset.
-const placeOf = (source, offset) => {
-	const before = source.slice(0, Math.max(0, offset));
-	return { line: before.split("\n").length, col: before.length - before.lastIndexOf("\n") };
-};
 // A diagnostic with where it is as lines and columns of the file it's in.
 const withSpan = (d, file, source) => ({
 	code: d.code,
@@ -286,7 +280,7 @@ async function buildOf(c) {
 async function register(ref, scope) {
 	if (ref.startsWith(PREBUILT_PREFIX)) {
 		const name = ref.slice(PREBUILT_PREFIX.length);
-		const loaded = await sources.load(tutuca, prebuiltPath(name), { scope });
+		const loaded = await sources.load(tutuca, componentPath(name), { scope });
 		if (!loaded.ok) throw new Error(loaded.diagnostics[0]?.message ?? "it doesn't load");
 		return loaded;
 	}
@@ -861,11 +855,6 @@ function tellPreviewState() {
 
 // ---- Export and import ---------------------------------------------------------------------
 
-const download = (name, text, type) => {
-	const href = URL.createObjectURL(new Blob([text], { type }));
-	el("a", { href, download: name }).click();
-	setTimeout(() => URL.revokeObjectURL(href), 1000);
-};
 const exportBundle = () =>
 	download("tutuca-studio.json", JSON.stringify(toBundle(lib), null, 2), "application/json");
 // The import ask's answer, while the file is being picked.
@@ -1027,7 +1016,6 @@ async function importModules(files) {
 // Files dropped anywhere on the page are taken, never opened by the browser: imported into the
 // shown screen's scope when they can be, a toast saying why not otherwise. A drag from inside
 // the page (a layout's) carries no files.
-const dragsFiles = (e) => e.dataTransfer?.types.includes("Files");
 const markDropping = (on) => {
 	for (const c of UI.dropping.split(" ")) studioRoot.classList.toggle(c, on);
 };

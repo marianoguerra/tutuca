@@ -468,7 +468,7 @@ export function paint(
 
 // The text style el's ancestors pass down to it, root first: where a layer starts from, since
 // it isn't painted inside them.
-export function inheritedStyleOf(el) {
+function inheritedStyleOf(el) {
 	const chain = [];
 	for (let n = el.parentNode; n !== null && n.nodeType === 1; n = n.parentNode) chain.unshift(n);
 	return chain.reduce((style, n) => inherit(style, propsOf(n)), {});

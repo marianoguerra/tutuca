@@ -31,7 +31,7 @@
 //   });
 //   renderPs(Bars.make({ values: [3, 5, 2] })) // "%!PS-Adobe-3.0\n..."
 //
-// What's checked, against one table (schema.js): what a view says, when it's built (tags.js),
+// What's checked, against one table (schema.js): what a view says, when it's built (target.js),
 // and the drawing it renders to, when it renders (render.js, every node, with the path to it).
 // Both throw a PsError.
 

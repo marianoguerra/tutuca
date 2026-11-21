@@ -7,7 +7,7 @@
 //   pdfkit      deps/pdfkit.js: PDFKit's browser build, its 14 standard fonts registered and its
 //               toBytes; src/pdf prints the drawings components render with it.
 //   docx        deps/docx.js: docx, which src/docx makes the Word documents components render with.
-//               It and pdfkit are gitignored: CI builds them, as do `just vendor-printers`,
+//               It and pdfkit are gitignored: CI builds them, as do `just vendor pdfkit docx`,
 //               npm test (pretest, when missing) and the site build.
 //   codemirror  site/deps/codemirror.js: the playground needs one copy of @codemirror/state.
 //   automerge   demos/deps/automerge.js: automerge-repo needs one initialized copy of automerge;

@@ -1,7 +1,7 @@
 // What the todo components share: date and app types, priorities, colors, nav styles and list
 // helpers.
 
-import { apply, canApply, checkCall, specOf, t } from "../../src/tutuca.js";
+import { canApply, checkCall, specOf, t } from "../../src/tutuca.js";
 import { addDays, isIso, isoToday } from "./dates.js";
 
 // Dates in a two year window, for generated states.
@@ -55,12 +55,6 @@ export const labelsOf = (text) => [
 			.filter(Boolean),
 	),
 ];
-// Applies the pure message name to each task of tasks, in place.
-export const applyEach = (tasks, name, ...args) => {
-	tasks.forEach((task, i) => {
-		tasks[i] = apply(task, name, ...args);
-	});
-};
 export const allTasks = (tasks) => tasks.flatMap((task) => [task, ...allTasks(task.subtasks)]);
 // Whether task's subtasks hold the task id, at any depth.
 export const hasTaskId = (task, id) => allTasks(task.subtasks).some((sub) => sub.id === id);

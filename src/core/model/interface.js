@@ -19,7 +19,7 @@ export class Interface {
 }
 const SECTIONS = ["messages", "pure", "queries", "notifies", "checks"];
 // What's wrong with data as an interface, [] when nothing is.
-export const interfaceDataProblems = (data) => {
+const interfaceDataProblems = (data) => {
 	if (!isRecord(data)) return [`an interface is { ${SECTIONS.join(", ")} }, not ${String(data)}`];
 	const problems = [];
 	for (const key of Object.keys(data)) {

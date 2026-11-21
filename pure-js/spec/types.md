@@ -129,4 +129,4 @@ otherwise: a dictionary is walked through `Object.entries`).
 `draft` (part of what the entry gave to be changed), `fresh` (made here), `read`, or `value`
 (a primitive); for a draft, its **place**, the path from the parameter it came from
 (`next.cards[at].tags`), when it is one path. Backends that keep values persistent (the
-MoonBit port's Wax generator) lower writes through those places.
+MoonBit port's WebAssembly compiler) lower writes through those places.

@@ -7,6 +7,14 @@ import { DROP_TARGET, droppedFile } from "./files.js";
 
 const { div, p } = tag;
 
+// Whether a drop landed on the lower half of the element that handles it; one without a
+// position, as in tests, lands on the upper half.
+export const isLowerHalf = ({ event, node }) => {
+	if (node === null || node === undefined || typeof event?.clientY !== "number") return false;
+	const rect = node.getBoundingClientRect();
+	return event.clientY > rect.top + rect.height / 2;
+};
+
 // The fields a component that takes dropped JSON files adds.
 export const jsonDropFields = () => ({
 	allowDrop: t.boolean(), // Off by default: a drop goes to what's around it then.

@@ -141,7 +141,7 @@ export const Canvas = {
 `componentModule` gives them as `metaSchemas` (`{ uri: { key: type } }`, what
 `scope.registerMetaSchemas` takes) and the model lists them (`metaSchemas`: name, uri, fields).
 tutuca-wasm registers them where the module is registered, and a module that imports
-one's type gives its meta under it (`components/meta/meta.tutuca.ts`).
+one's type gives its meta under it (`tutuca-wasm/components/meta/meta.tutuca.ts`).
 
 ## Views
 
@@ -155,8 +155,8 @@ arguments: `each(source, child, loop?)`, `renderEach(source, loop?)`, `render(so
 names that start with `$` to its compiler. An event's handler is `"on:type+modifier..."`, as
 tutuca's (`"on:keydown+enter+prevent"`). A send's arguments are what the event gives
 (`sourceKey()`, `targetValue()`, `dragKey()`, `eventKey()`, `eventProperty(name)`): one that
-reads the state (`field`, `seqItem`, `provided`, `query`) is rejected
-(`pure-tutuca.state-in-send`), as tutuca's lint rejects it; send the item's `sourceKey()` and
+reads the state (`field`, `seqItem`, `provided`, `query`) is not valid there, and tutuca's lint
+rejects it; send the item's `sourceKey()` and
 read it in the handler. A view is evaluated once, as the module loads, so a string made of the
 module's constants (`` `${MONO} text-info` ``, `BASE + " active"`) is a constant there (a class
 a page can see).

@@ -270,7 +270,7 @@
        (if (null? issues) '() (list `(message-invalid ,(key-name name) ,@issues)))]))
   (append (if (null? fields) '() (list `(state-invalid ,@fields))) message))
 
-;; Host.handleTask: one transaction.
+;; One task (Scheduler.step, which Host.handleTasks runs): one transaction.
 (define-metafunction Tasks
   handle-task : registry (ask-def ...) value tsk natural -> outcome
   [(handle-task registry (ask-def ...) value tsk natural)

@@ -10,7 +10,7 @@ export const isRecord = (v) => typeof v === "object" && v !== null && !Array.isA
 
 // How far a field's state goes, from most to least: replicated and persisted, persisted on this
 // device only, neither. A sync engine sees the fields up to its level.
-export const SYNC_LEVELS = ["shared", "local", "none"];
+const SYNC_LEVELS = ["shared", "local", "none"];
 export const syncsAt = (type, level) =>
 	SYNC_LEVELS.indexOf(type.syncLevel) <= SYNC_LEVELS.indexOf(level);
 
@@ -119,7 +119,7 @@ export const checkType = (data, at = "") => {
 	if (problems.length > 0) throw new TypeError(`Not a type: ${problems.join("; ")}`);
 	return data;
 };
-const deepFreeze = (v) => {
+export const deepFreeze = (v) => {
 	if (typeof v === "object" && v !== null && !Object.isFrozen(v)) {
 		Object.freeze(v);
 		for (const k of Object.keys(v)) deepFreeze(v[k]);

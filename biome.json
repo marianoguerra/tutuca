@@ -15,7 +15,6 @@
 			"!components/markdown/vendor",
 			"!dist",
 			"!_site",
-			"!tutuca-mb",
 			"!pure-js",
 			"!grow",
 			"!spec/pure-tutuca/golden",

@@ -5,7 +5,7 @@
 // installs), and the models of the server (/api/; a static host has none, and the chat can't
 // run).
 import { createRuntime } from "../dist/tutuca-wasm.js";
-import { el, moduleSources, pageStyles, textOf } from "../js/page.js";
+import { download, dragsFiles, moduleSources, pageStyles, textOf } from "../js/page.js";
 import { COMPILER, MARGAUI, RUNTIME } from "../js/paths.js";
 import { parsePackage } from "./agent.js";
 import { createApp, SHELL } from "./app.js";
@@ -85,11 +85,6 @@ const client = httpClient(new URL("../api/", import.meta.url));
 const models = await client.models();
 const values = models.map((m) => `${m.provider}/${m.id}`);
 const model = values.includes(kept(MODEL_KEY)) ? kept(MODEL_KEY) : (values[0] ?? "");
-const download = (name, text) => {
-	const href = URL.createObjectURL(new Blob([text], { type: "application/json" }));
-	el("a", { href, download: name }).click();
-	setTimeout(() => URL.revokeObjectURL(href), 1000);
-};
 
 const app = await createApp({
 	tutuca,
@@ -132,7 +127,6 @@ tutuca.mount();
 
 // ---- Dropping files -------------------------------------------------------------------------
 
-const dragsFiles = (e) => [...(e.dataTransfer?.types ?? [])].includes("Files");
 const droppingClasses = UI.dropping.split(" ");
 document.addEventListener("dragover", (e) => {
 	if (!dragsFiles(e)) return;

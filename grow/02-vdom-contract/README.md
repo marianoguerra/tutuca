@@ -26,8 +26,8 @@ Two elements with different `tid`s replace each other, even with the same tag.
 
 ## Order of the session
 
-1. Read the `node` grammar and `make-el` in `spec/vdom/vnode.rkt`.
-2. Read the theorem; run `raco test spec/vdom/` to see it checked on random trees.
+1. Read the `node` grammar and `make-el` in `../../spec/vdom/vnode.rkt`.
+2. Read the theorem; run `raco test spec/vdom/` (from the repository root) to see it checked on random trees.
 3. `src/bind/vnode.js`: `text`, `comment`, `group`, `makeEl`. The vdom wants a
    `Shape` per template; `makeEl` keeps one per `tid`, and nothing outside this
    file knows.

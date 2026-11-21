@@ -24,6 +24,7 @@ import {
 	tag,
 } from "../../src/tutuca.js";
 import { setField } from "../common/card.js";
+import { applyEach } from "../common/util.js";
 import { NODE_H, NODE_W } from "./model.js";
 
 const {
@@ -58,13 +59,6 @@ export const COLORS = {
 	meant: "#9ca3af",
 };
 const MODES = ["send", "notify", "request", "response", "misroute", "meant"];
-
-// Applies the pure message name to each component of items, in place.
-const applyEach = (items, name, ...args) => {
-	items.forEach((item, i) => {
-		items[i] = apply(item, name, ...args);
-	});
-};
 
 // ---- the tree, as SVG ---------------------------------------------------------------
 export const Instance = component({

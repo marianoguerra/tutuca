@@ -26,7 +26,6 @@ import { relay } from "../../src/sync/remote.js";
 import { Host, specOf } from "../../src/tutuca.js";
 import { assertClean, dom, mountDemo, settle } from "../helpers.js";
 
-// Boots a demo in jsdom, collecting what would go to console.error.
 // The notebook's bundle on a plain canvas, notes and a hole, for the canvas's own mechanics:
 // what the default bundle starts with is its showcase, which the tests after these check.
 const PLAIN = {

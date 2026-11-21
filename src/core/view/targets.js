@@ -1,6 +1,6 @@
 // Rendering anything but a page is opt in. A component's renders.tui, renders.js, renders.md, ...
 // are each for a render target, which the module that renders it defines (tuiTarget in
-// tutuca/tui/target, jsTarget in tutuca/jsast/target, mdTarget in tutuca/mdast/target), and
+// tutuca/tui/target, jsTarget in tutuca/jsast/target, and so on), and
 // component() takes renders only for the targets enableTargets was given. Without it, tutuca
 // renders view and views and nothing else, and carries none of the others' code.
 

@@ -17,9 +17,9 @@ import {
 	targetValue,
 } from "../../src/tutuca.js";
 import { setField } from "../common/card.js";
+import { applyEach } from "../common/util.js";
 import {
 	allTasks,
-	applyEach,
 	CHECKS,
 	DUES,
 	dateChecks,

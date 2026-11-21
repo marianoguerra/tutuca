@@ -27,7 +27,7 @@ import { dataDrop, jsonDropFields, jsonDropTarget } from "../common/drop.js";
 import { metaFor } from "../common/meta.js";
 import { applyBelow, openAllButtons } from "../common/open.js";
 import { segmented } from "../common/ui.js";
-import { plural } from "../common/util.js";
+import { asNumber, plural } from "../common/util.js";
 import {
 	arrayRenders,
 	boolRenders,
@@ -144,7 +144,6 @@ export const JsonBool = component({
 });
 
 // text is what the user typed; value follows it whenever it reads as a number.
-const asNumber = (text) => (text.trim() === "" ? Number.NaN : Number(text));
 export const JsonNumber = component({
 	name: "JsonNumber",
 	// What textClass can be.

@@ -14,7 +14,7 @@ const FAILURES = {
 	syncFailed: (record) => `sync engine ${record.engine} failed: ${why(record.error)}`,
 	syncRejected: (record) => `sync engine ${record.engine} rejected ${record.ops.length} changes`,
 };
-export const FAILED_TYPES = new Set(Object.keys(FAILURES));
+const FAILED_TYPES = new Set(Object.keys(FAILURES));
 
 // Whether a record is a problem: a task that failed, a host event that is a failure, or
 // anything dev checks found something wrong with.

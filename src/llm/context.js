@@ -20,7 +20,7 @@ import { attr, vocabulary } from "./build.js";
 import { conditionals } from "./cond.js";
 
 export const FLOW_TAGS = ["Section", "Text", "Hint", "Fact", "Items", "Data"];
-export const INLINE_TAGS = ["Strong", "Em", "Code"];
+const INLINE_TAGS = ["Strong", "Em", "Code"];
 const inline = { children: INLINE_TAGS, text: true };
 
 export const CONTEXT = {

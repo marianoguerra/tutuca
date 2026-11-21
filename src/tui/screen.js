@@ -14,7 +14,7 @@ import { paintScreen } from "./paint.js";
 import { makeEvent, TDocument } from "./tdom.js";
 
 // The elements that take focus, in tree order.
-export function focusables(el, out = []) {
+function focusables(el, out = []) {
 	for (const child of el.childNodes) {
 		if (child.nodeType !== 1) continue;
 		if (child.focusable) out.push(child);
@@ -36,7 +36,7 @@ const base64 = (text) =>
 	typeof Buffer !== "undefined"
 		? Buffer.from(text, "utf8").toString("base64")
 		: btoa(String.fromCharCode(...new TextEncoder().encode(text)));
-export const osc52 = (text) => `\x1b]52;c;${base64(text)}\x07`;
+const osc52 = (text) => `\x1b]52;c;${base64(text)}\x07`;
 
 export class Screen {
 	// write(ansi) gets what changed on each flush; terminal is what it shows ({ colors, unicode },

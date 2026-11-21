@@ -19,6 +19,6 @@ and `themes/dark.css` (under `[data-theme="dark"]`) are margaui's, from commit
 (https://github.com/marianoguerra/margaui), the commit the wasm was built
 with, under the MIT License (`LICENSE-margaui`).
 
-To update: change the release and commit in the justfile's `vendor-margaui`
-recipe, run `just vendor-margaui`, which checks the wasm against its
-published SHA-256, and record both here.
+To update: download `margaui-css.wasm` from the new release, check it against
+its published SHA-256, copy `themes/light.css` and `themes/dark.css` from the
+commit the release was built with, and record the release and commit here.

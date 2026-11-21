@@ -335,7 +335,8 @@ the input, so those parts encode to the same bytes as before.
 
 ## 5. Conformance vectors
 
-`tdata/vectors/` holds the vectors both implementations run:
+`tdata/vectors/` holds the vectors the implementations run (JS and Wax all but `queries.json`, tq all but
+`specs.json`):
 
 - `values.json` and `messages.json`: `{name, json, cbor}` entries, with `cbor` in lowercase hex.
   Decoding `json` and decoding `cbor` give equal models, and the model encodes back to exactly

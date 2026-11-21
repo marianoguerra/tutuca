@@ -59,7 +59,7 @@
     "about tutuca and is specified in Appendix A.")
    (string-append
     "Conventions. A metafunction undefined on its input stands for a thrown JS exception. "
-    "The optimizations in src/core/optimize.js and the fast paths in vdom.js are erased; they "
+    "The optimizations in src/core/view/element-plan.js and the fast paths in src/vdom/index.js are erased; they "
     "must preserve the meaning given here. Shaded fragments inside a rule are Racket code. "
     "The rules are executable: raco test spec/ checks them against scenarios ported from "
     "the JS test suite and against random properties.")))
@@ -355,7 +355,7 @@
     (sect
      "Decoding events"
      (string-append
-      "handlerFor. The DOM holds no component references, only data-eid attributes "
+      "bindingFor. The DOM holds no component references, only data-eid attributes "
       "and metadata comments. Decoding walks from the target up, collects eids until the "
       "first component boundary, and reads the metadata enclosing each ancestor to rebuild "
       "the dispatch path; closing comments hide openings and look-alikes are skipped. The "
@@ -422,7 +422,7 @@
    (appx
     "Virtual DOM"
     (string-append
-     "vdom.js, which knows nothing about tutuca: normalized vnodes, the DOM they render to, "
+     "src/vdom/index.js, which knows nothing about tutuca: normalized vnodes, the DOM they render to, "
      "and reconciliation of an existing DOM against new vnodes. DOM nodes carry labels that "
      "stand for their identity, so the model says which nodes survive a morph, not only "
      "what the DOM looks like after it. Checked: erase(morph(mount(old), old, new)) = "

@@ -7,6 +7,7 @@ import { scopeOf, specOrSelf } from "./spec.js";
 import {
 	ArrayType,
 	compileShape,
+	deepFreeze,
 	isRecord,
 	MapType,
 	OptionType,
@@ -44,7 +45,7 @@ export const toMeta = (name, meta) => {
 // value as meta written by hand is read, of type: a record's keys left out take their defaults,
 // at any depth, as a meta's own keys do (those with none stay out, for the check to report).
 // What isn't a record where type says one is stays as it is.
-export const withDefaults = (type, value, scope = null) => {
+const withDefaults = (type, value, scope = null) => {
 	if (value === null || value === undefined) return value;
 	if (type instanceof OptionType) return withDefaults(type.valueType, value, scope);
 	if (type instanceof ArrayType && Array.isArray(value)) {
@@ -129,13 +130,6 @@ const defaultsOf = (shapeData, scope) => {
 		);
 	}
 	return out;
-};
-const deepFreeze = (v) => {
-	if (typeof v === "object" && v !== null && !Object.isFrozen(v)) {
-		Object.freeze(v);
-		for (const k of Object.keys(v)) deepFreeze(v[k]);
-	}
-	return v;
 };
 // metaOf over shape's defaults, so every key is there even where no scope registered shape: a
 // copy, deep frozen.

@@ -2,8 +2,8 @@
 
 tdata is the message format tutuca's components share, with two implementations: JavaScript
 (TypeScript, in `js/`) and WebAssembly (Wax compiled to wasm-gc, in `wax/`). Both follow the same
-specification and pass the same conformance vectors. tq, its query language, is written in
-MoonBit (`mbt/`) and built for JS and wasm-gc.
+specification and pass the same conformance vectors (values, messages, invalid, specs). tq, its
+query language, is written in MoonBit (`mbt/`) and built for JS and wasm-gc.
 
 - **The model**: a Message has an id, a kind, data (a Value) or child messages, and meta (headers
   grouped by dialect URI). A Value is a scalar (Null, Bool, Int (i64), Double (f64), String, Bytes,
@@ -25,7 +25,7 @@ MoonBit (`mbt/`) and built for JS and wasm-gc.
 
 ```
 docs/spec.md     the specification
-vectors/         conformance vectors both implementations run
+vectors/         conformance vectors: JS and Wax run all but queries.json, tq runs all but specs.json
 js/              the TypeScript implementation (erasable syntax only: Node runs it directly)
 wax/             the Wax implementation, built to wax/dist/tdata.wasm
 mbt/             tq in MoonBit, built to mbt/dist/tq.js (ESM) and mbt/dist/tq.wasm (wasm-gc)
@@ -85,7 +85,12 @@ builtins, the imported string constants (`"'"`) and two host functions for numbe
 
 ```
 just setup      install the JS dev dependencies
+just setup-wax  build the pinned wax-mb compiler into .tools/ (once, before the Wax suite)
 just test       every suite: JS (and tsc), the Wax build and its suite, tq (moon test and the vectors)
 just build-mbt  build mbt/dist/tq.js and mbt/dist/tq.wasm (needs moon)
 just vectors    regenerate vectors/values.json and vectors/messages.json
 ```
+
+`just` lists the rest (`test-js`, `test-wax`, `test-mbt`, `build-wax`, `fmt-wax`). The
+cross-implementation tests import `fast-check` from the repository root's `node_modules`
+(`npm install` there).

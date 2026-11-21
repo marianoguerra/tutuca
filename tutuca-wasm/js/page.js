@@ -11,6 +11,34 @@ export const el = (tag, attrs = {}, ...children) => {
 	return node;
 };
 
+// 1-based line and column of an offset in source, as an editor marks a diagnostic.
+export const placeOf = (source, offset) => {
+	const before = source.slice(0, Math.max(0, offset));
+	return { line: before.split("\n").length, col: before.length - before.lastIndexOf("\n") };
+};
+
+// The components/json tree of a JSON value, as what to make.
+export const jsonTree = (v) => {
+	const make = (type, fields = {}) => ({ $make: type, fields });
+	if (v === null) return make("JsonNull");
+	if (typeof v === "boolean") return make("JsonBool", { value: v });
+	if (typeof v === "number") return make("JsonNumber", { value: v, text: String(v) });
+	if (typeof v === "string") return make("JsonString", { value: v });
+	if (Array.isArray(v)) return make("JsonArray", { items: v.map(jsonTree) });
+	return make("JsonObject", {
+		entries: Object.entries(v).map(([key, x]) => make("JsonEntry", { key, value: jsonTree(x) })),
+	});
+};
+
+// Saves text as a file named name.
+export const download = (name, text, type = "application/json") => {
+	const href = URL.createObjectURL(new Blob([text], { type }));
+	el("a", { href, download: name }).click();
+	setTimeout(() => URL.revokeObjectURL(href), 1000);
+};
+// Whether a drag carries files; one from inside the page carries none.
+export const dragsFiles = (e) => [...(e.dataTransfer?.types ?? [])].includes("Files");
+
 export const textOf = async (url) => {
 	const response = await fetch(url);
 	if (!response.ok) throw new Error(`${url} answered ${response.status}`);

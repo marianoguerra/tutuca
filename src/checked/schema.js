@@ -12,6 +12,7 @@
 // - children: what its children can be, or null for a node with none.
 // - literal: its value is its text: the value attr, or the text its children render to.
 
+// Node types are PascalCase; what holds them (a slot, as jsast's js.left) is camelCase.
 export const isTypeName = (name) => /^[A-Z]/.test(name);
 export const isNumber = (v) => typeof v === "number" && Number.isFinite(v);
 

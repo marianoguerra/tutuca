@@ -5,16 +5,9 @@
 // The markers tutuca wraps components and loop items in are comments, and loops are fragments:
 // lowering skips the first and splices the second, so a slot holds what a child component or an
 // each renders as if it were written there.
+import { isTypeName } from "../checked/schema.js";
 import { VComment, VFragment, VNode, VText } from "../vdom/index.js";
-import {
-	accepts,
-	describeAccepts,
-	describeType,
-	HOLE,
-	isTypeName,
-	SCHEMA,
-	scalarIssue,
-} from "./schema.js";
+import { accepts, describeAccepts, describeType, HOLE, SCHEMA, scalarIssue } from "./schema.js";
 import { JsAstError } from "./tags.js";
 
 function* spliced(children) {

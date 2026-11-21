@@ -13,7 +13,7 @@ export const EXIT = Object.freeze({
 	terminated: 6, // a run ended with an error: a host function failed, an index was missing, ...
 });
 
-export const EXCLUSIONS = Object.freeze({ byDesign: "by-design", omitted: "omitted" });
+const EXCLUSIONS = Object.freeze({ byDesign: "by-design", omitted: "omitted" });
 
 export class Diagnostic {
 	constructor({

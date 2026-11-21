@@ -14,7 +14,7 @@ import { wrapRoot } from "../checked/lower.js";
 import { hexDigits } from "../checked/schema.js";
 
 export const PAGE_SIZE = Object.freeze({ width: 595, height: 842 });
-export const DEFAULT_FONT = "Helvetica";
+const DEFAULT_FONT = "Helvetica";
 export const DEFAULT_SIZE = 12;
 export const BLACK = "#000";
 

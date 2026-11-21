@@ -5,8 +5,8 @@
 // The mouse decoder is ported from tuiuiu.js (core/mouse-protocol.ts; MIT, see LICENSE.tuiuiu).
 import { graphemes } from "./text.js";
 
-export const PASTE_START = "\x1b[200~";
-export const PASTE_END = "\x1b[201~";
+const PASTE_START = "\x1b[200~";
+const PASTE_END = "\x1b[201~";
 
 // --- mouse -----------------------------------------------------------------------------------
 
@@ -48,7 +48,7 @@ function decodeMouse(code, x, y, released) {
 }
 
 // The mouse event data starts with, and its length, or null.
-export function parseMouse(data) {
+function parseMouse(data) {
 	let m = SGR_MOUSE.exec(data);
 	if (m) {
 		const event = decodeMouse(Number(m[1]), Number(m[2]), Number(m[3]), m[4] === "m");

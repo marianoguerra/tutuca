@@ -1,4 +1,4 @@
-// The models the studio's assistant offers (scripts/studio-server.mjs), out of
+// The models the studio's assistant offers (scripts/server.mjs), out of
 // everything pi-ai knows: a provider with a key offers the ones matching a
 // rule here. A rule matches a model's id once normalized, so the same model is
 // offered by whichever providers carry it (the vendor's own, aggregators,

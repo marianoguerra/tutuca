@@ -7,6 +7,7 @@ import { siteList } from "../demos/demos.js";
 import { vendorIfMissing } from "./vendor.js";
 
 const out = "_site";
+const pkg = JSON.parse(readFileSync("package.json", "utf8"));
 const lock = JSON.parse(readFileSync("package-lock.json", "utf8"));
 const version = (name) => lock.packages[`node_modules/${name}`].version;
 const cdn = (name, path) => `https://cdn.jsdelivr.net/npm/${name}@${version(name)}/${path}`;
@@ -31,7 +32,8 @@ for (const name of BUNDLES) await vendorIfMissing(name);
 rmSync(out, { recursive: true, force: true });
 cpSync("site", out, { recursive: true });
 // What the storybook and demo pages load; storybook.html is written below, pointed at the CDN.
-// pure-js's lib is what src/pure (the workshop demo's component checks) imports as "pure-js".
+// pure-js's lib is what src/pure (the workshop and canvas demos, the storybook's pure-todo book)
+// imports as "pure-js".
 const pages = ["src", "deps", "components", "demos", "pure-js/lib", ...globSync("storybook*.js")];
 for (const path of pages) {
 	cpSync(path, `${out}/${path}`, { recursive: true });
@@ -58,32 +60,20 @@ if (built.status !== 0) {
 	console.warn(`warning: ${wasm}'s pages weren't built, the site links to them:\n${why}`);
 }
 
-// Site pages import tutuca by name, from the copy of src/ next to them.
-const siteImportMap = (base) => ({
-	imports: {
-		tutuca: `${base}src/tutuca.js`,
-		"tutuca/storybook": `${base}src/storybook/index.js`,
-		"tutuca/playground": `${base}src/playground/element.js`,
-		"tutuca/lint": `${base}src/lint/index.js`,
-		"tutuca/meta": `${base}src/meta/index.js`,
-		"tutuca/jsast": `${base}src/jsast/index.js`,
-		"tutuca/jsast/target": `${base}src/jsast/target.js`,
-		"tutuca/llm": `${base}src/llm/index.js`,
-		"tutuca/llm/target": `${base}src/llm/target.js`,
-		"tutuca/mdast": `${base}src/mdast/index.js`,
-		"tutuca/mdast/target": `${base}src/mdast/target.js`,
-		"tutuca/ps": `${base}src/ps/index.js`,
-		"tutuca/ps/target": `${base}src/ps/target.js`,
-		"tutuca/pdf": `${base}src/pdf/index.js`,
-		"tutuca/docx": `${base}src/docx/index.js`,
-		"tutuca/docx/target": `${base}src/docx/target.js`,
-		"tutuca/tui": `${base}src/tui/index.js`,
-		"tutuca/tui/target": `${base}src/tui/target.js`,
-		"tutuca/tui/element": `${base}src/tui/element.js`,
-		margaui: cdn("margaui", "dist/margaui.min.js"),
-		"fast-check": cdn("fast-check", "+esm"),
-	},
-});
+// What every page gets from the CDN instead of node_modules.
+const cdnImports = {
+	margaui: cdn("margaui", "dist/margaui.min.js"),
+	"fast-check": cdn("fast-check", "+esm"),
+};
+// Site pages import tutuca by name, from the copy of src/ next to them: package.json's exports,
+// at the page's depth.
+const tutucaImports = (base) =>
+	Object.fromEntries(
+		Object.entries(pkg.exports)
+			.filter(([, file]) => file.startsWith("./src/"))
+			.map(([name, file]) => [`tutuca${name.slice(1)}`, base + file.slice(2)]),
+	);
+const siteImportMap = (base) => ({ imports: { ...tutucaImports(base), ...cdnImports } });
 const importMapScript = (map) =>
 	`<script type="importmap">\n${JSON.stringify(map, null, 2)}\n</script>`;
 
@@ -96,12 +86,8 @@ for (const file of globSync(`${out}/demos/**/*.html`)) {
 	writeFileSync(file, toCdn(readFileSync(file, "utf8"), file));
 }
 
-const importMap = {
-	imports: {
-		margaui: cdn("margaui", "dist/margaui.min.js"),
-		"fast-check": cdn("fast-check", "+esm"),
-	},
-};
+// The storybook imports src/ by path; its pure-todo book needs pure-js, copied above.
+const importMap = { imports: { ...cdnImports, "pure-js": "./pure-js/lib/index.js" } };
 // Pages with an importmap marker get one, pointing at their depth.
 for (const file of globSync(`${out}/**/*.html`)) {
 	const page = readFileSync(file, "utf8");

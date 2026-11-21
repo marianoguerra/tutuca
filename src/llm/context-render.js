@@ -149,7 +149,7 @@ const lowerFlow = (entries, depth, where, issues) => {
 };
 
 // The mdast the vnodes a renders.llmContext rendered say, its Sections' headings from depth.
-export const lowerContext = (vnodes, { depth = 1 } = {}) => {
+const lowerContext = (vnodes, { depth = 1 } = {}) => {
 	const issues = [];
 	const entries = [];
 	for (const e of flatten(vnodes)) {
@@ -168,7 +168,7 @@ const FLOW_TAGS = new Set(CONTEXT.Section.children);
 
 // The mdast instance's renders.llmContext (view, or main) renders to; depth is its first
 // heading's, for context that goes under a heading of its own.
-export const renderLlmContextAst = (instance, { view, depth } = {}) =>
+const renderLlmContextAst = (instance, { view, depth } = {}) =>
 	lowerContext(renderedVNodes(instance, llmContextTarget, view), { depth });
 // The markdown what instance renders for a model's context says.
 export const renderLlmContext = (instance, options = {}) =>

@@ -200,7 +200,7 @@ const section = (node, lists) => {
 };
 
 // docx's Document of tree, a Document, a Section or a Block as lower makes them.
-export const toDocxDocument = (tree) => {
+const toDocxDocument = (tree) => {
 	const doc = asDocument(tree);
 	const lists = { next: 0 };
 	return new Document({

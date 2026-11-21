@@ -391,7 +391,7 @@ export function padText(text, columns, align = "left") {
 // boundary.
 
 // The offsets where text's graphemes start, and its length.
-export function graphemeBounds(text) {
+function graphemeBounds(text) {
 	const bounds = [0];
 	let at = 0;
 	for (const g of graphemes(text)) {

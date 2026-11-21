@@ -13,10 +13,10 @@ export const BLOCK = "Block";
 export const INLINE = "Inline";
 
 export const ALIGNS = ["left", "center", "right", "justify"];
-export const PAGE_SIZE_NAMES = ["A4", "Letter"];
-export const ORIENTATIONS = ["portrait", "landscape"];
+const PAGE_SIZE_NAMES = ["A4", "Letter"];
+const ORIENTATIONS = ["portrait", "landscape"];
 // Word's highlight colors.
-export const HIGHLIGHTS = ["yellow", "green", "cyan", "magenta", "blue", "red", "lightGray"];
+const HIGHLIGHTS = ["yellow", "green", "cyan", "magenta", "blue", "red", "lightGray"];
 
 const B = [BLOCK];
 const I = [INLINE];

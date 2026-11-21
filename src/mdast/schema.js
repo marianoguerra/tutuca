@@ -8,8 +8,8 @@
 // literals.
 import { empty, literal, oneOf, opt, parent, Schema } from "../checked/schema.js";
 
-export const FLOW = "Flow";
-export const PHRASING = "Phrasing";
+const FLOW = "Flow";
+const PHRASING = "Phrasing";
 
 const str = { kind: "string" };
 const optStr = opt("string");

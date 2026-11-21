@@ -63,7 +63,7 @@ Exit status: 0 accepted, 1 excluded by design, 2 omitted from this version, 3 il
 
 | Path | |
 |---|---|
-| `lib/` | the library, no dependencies: `index` `lex` `parse` `ast` `sieve` `types` `check` `module` `print` `compile` `interp` `runtime` `host` `std` `declarations` `tables` `diagnostic` `formatters` |
+| `lib/` | the library, no dependencies: `index` `lex` `parse` `ast` `sieve` `types` `check` `module` `print` `compile` `interp` `runtime` `host` `std` `declarations` `doc` `tables` `diagnostic` `formatters` |
 | `cli/` | the `pure-js` command |
 | `spec/` | the language; `features.md` is generated from the tables |
 | `test/conformance/`, `test/golden/` | one program per file by expected outcome, and what each gives |

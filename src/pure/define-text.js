@@ -2,9 +2,7 @@
 // (line and column, the line of source, the span underlined) and how to fix it when that's
 // known, then what a define registered and what of the app's state didn't carry as it was.
 
-import { pathText } from "../tree/index.js";
-
-const jsonText = (value) => JSON.stringify(value) ?? String(value);
+import { jsonText, pathText } from "../tree/index.js";
 
 // One diagnostic: code and message, then where it is. A pure-js one shows its line of source
 // with the span underlined, a tutuca one the component and view it's in.

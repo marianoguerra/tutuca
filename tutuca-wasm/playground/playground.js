@@ -3,8 +3,8 @@
 // with its state, what the runtime reported, its model and the WebAssembly it became.
 
 import { createRuntime } from "../dist/tutuca-wasm.js";
-import { el, moduleSources, pageStyles } from "../js/page.js";
-import { COMPILER, MARGAUI, RUNTIME, SOURCES } from "../js/paths.js";
+import { el, jsonTree, moduleSources, pageStyles, placeOf } from "../js/page.js";
+import { COMPILER, componentPath, MARGAUI, RUNTIME, SOURCES } from "../js/paths.js";
 import { createEditor } from "./deps/editor.js";
 import { EXAMPLES } from "./examples.js";
 
@@ -197,11 +197,6 @@ async function openExample(id, { fresh = false } = {}) {
 
 // ---- Compiling and mounting -----------------------------------------------------------------
 
-// 1-based line and column of an offset, as the editor marks a diagnostic.
-const placeOf = (source, offset) => {
-	const before = source.slice(0, Math.max(0, offset));
-	return { line: before.split("\n").length, col: before.length - before.lastIndexOf("\n") };
-};
 // A diagnostic of either checker, as the editor and the list take one.
 const diagnosticOf = (d, source) => {
 	const start = d.span?.start ?? d.start ?? 0;
@@ -247,18 +242,6 @@ function renderDiagnostics(diags) {
 	editor.setDiagnostics({ [example.main]: diags });
 }
 
-// The components/json tree of a JSON value, as what to make.
-const jsonTree = (v) => {
-	const make = (type, fields = {}) => ({ $make: type, fields });
-	if (v === null) return make("JsonNull");
-	if (typeof v === "boolean") return make("JsonBool", { value: v });
-	if (typeof v === "number") return make("JsonNumber", { value: v, text: String(v) });
-	if (typeof v === "string") return make("JsonString", { value: v });
-	if (Array.isArray(v)) return make("JsonArray", { items: v.map(jsonTree) });
-	return make("JsonObject", {
-		entries: Object.entries(v).map(([key, x]) => make("JsonEntry", { key, value: jsonTree(x) })),
-	});
-};
 const withJson = (v) => {
 	if (Array.isArray(v)) return v.map(withJson);
 	if (v === null || typeof v !== "object") return v;
@@ -339,7 +322,7 @@ async function compile() {
 	}
 	// The modules it composes with first, as a page would have them.
 	for (const dep of example.deps ?? []) {
-		const loaded = await sources.load(tutuca, `components/${dep}/${dep}.tutuca.ts`);
+		const loaded = await sources.load(tutuca, componentPath(dep));
 		if (!loaded.ok) {
 			status.textContent = `${dep} didn't load: ${loaded.diagnostics[0]?.message ?? ""}`;
 			return;

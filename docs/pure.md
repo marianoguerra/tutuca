@@ -1,4 +1,4 @@
-# Handlers as pure-js source
+# Handlers and components as pure-js source
 
 `tutuca/pure` (experimental) lets a handler be source text in [pure-js](../pure-js/README.md),
 a subset of JavaScript and TypeScript that is checked to do nothing but read the instance,

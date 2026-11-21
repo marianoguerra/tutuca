@@ -41,8 +41,8 @@ test-mbt: build-mbt
     cd mbt && moon check --deny-warn && moon test
     cd mbt && node --test test/*.test.mjs
 
-# Regenerate vectors/values.json and vectors/messages.json (invalid.json and specs.json are
-# hand-written).
+# Regenerate vectors/values.json and vectors/messages.json (invalid.json, specs.json and
+# queries.json are hand-written).
 vectors:
     cd js && node scripts/vectors.ts
 

@@ -17,7 +17,7 @@ import { idOf, pathText } from "../tree/index.js";
 // A version of a child that was already in prev (a snapshot an undo restores, a history entry
 // that moved) was put there, not written: the parent's too. Only when there is a candidate is
 // prev walked, to find those.
-export const foreignWrites = (prev, next, ids) => {
+const foreignWrites = (prev, next, ids) => {
 	const writes = [];
 	// Whether the plain data from a to b changed other than through the children in it, which
 	// are walked as they are found.

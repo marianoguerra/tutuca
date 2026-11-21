@@ -12,9 +12,9 @@ import {
 	pushView,
 	render,
 	renderEach,
-	Scope,
 	t,
 } from "../../src/tutuca.js";
+import { failsWith, scopeWith } from "../helpers.js";
 
 enableTargets(mdTarget);
 
@@ -40,18 +40,8 @@ const {
 	ThematicBreak,
 } = md;
 
-const scope = (components) => {
-	const s = new Scope();
-	s.register(components);
-	return s.components;
-};
-const fails = (fn, ...messages) => {
-	assert.throws(fn, (error) => {
-		assert.ok(error instanceof MdAstError, error);
-		assert.deepEqual(error.issues, messages);
-		return true;
-	});
-};
+const scope = (components) => scopeWith(components).components;
+const fails = failsWith(MdAstError);
 
 const Todo = component({
 	name: "Todo",

@@ -17,7 +17,7 @@ import { modelRule } from "./models.mjs";
 export { builtinModels };
 
 // The chat models of the providers that have credentials, those offer picks (by default, the
-// ones studio-models.mjs's rules match).
+// ones models.mjs's rules match).
 export async function availableModels(models, offer = (m) => modelRule(m.id) !== null) {
 	const out = [];
 	for (const provider of models.getProviders()) {

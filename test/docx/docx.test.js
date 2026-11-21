@@ -12,34 +12,16 @@ import {
 	renderDocxTree,
 	SCHEMA,
 } from "../../src/docx/index.js";
-import {
-	$if,
-	component,
-	each,
-	enableTargets,
-	field,
-	renderEach,
-	Scope,
-	t,
-} from "../../src/tutuca.js";
+import { $if, component, each, enableTargets, field, renderEach, t } from "../../src/tutuca.js";
+import { failsWith, scopeWith } from "../helpers.js";
 
 enableTargets(docxTarget);
 
 const { Break, Code, Document, Emphasis, Heading, InlineCode, Link, List, ListItem } = docx;
 const { PageBreak, Paragraph, Section, Span, Strong, Table, TableCell, TableRow, Title } = docx;
 
-const scope = (components) => {
-	const s = new Scope();
-	s.register(components);
-	return s.components;
-};
-const fails = (fn, ...messages) => {
-	assert.throws(fn, (error) => {
-		assert.ok(error instanceof DocxError, error);
-		assert.deepEqual(error.issues, messages);
-		return true;
-	});
-};
+const scope = (components) => scopeWith(components).components;
+const fails = failsWith(DocxError);
 // The .docx's document.xml, which holds its text.
 const documentXml = (bytes) => new TextDecoder().decode(unzipSync(bytes)["word/document.xml"]);
 const ENTITIES = { quot: '"', amp: "&", lt: "<", gt: ">", apos: "'" };

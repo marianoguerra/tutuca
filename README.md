@@ -51,7 +51,7 @@ host.start(host.scope.components.Counter());
 | Import | What |
 |---|---|
 | `tutuca` | components, views, schemas, the host, the `tag` and `button` element builders |
-| `tutuca/dev` | Dev mode: the `DevChecks` a `Host` runs (`new Host({ checks: DevChecks })`) and DevTools formatters |
+| `tutuca/dev` | Dev mode: the `DevChecks` a `Host` runs (`new Host({ checks: DevChecks })`), DevTools formatters (`installFormatters`), `CheckCache` (checks a render cache against an uncached render), `DepsWalker` (the provided values a subtree reads), `pathTree` and `pathTreeText` |
 | `tutuca/tree` | the routing core on its own: paths, addresses, tasks, watches and the `Scheduler` |
 | `tutuca/meta` | the meta conventions a component can follow: classes, display, data and agent |
 | `tutuca/history` | time travel: `Timeline` and `historyEngine` |
@@ -65,7 +65,7 @@ host.start(host.scope.components.Counter());
 | `tutuca/playground` | the `<tutuca-playground>` element: edit a book of stories and run it live (bring your own CodeMirror) |
 | `tutuca/element` | the `<tutuca-app>` custom element |
 | `tutuca/vdom` | the virtual DOM |
-| `tutuca/tui` | tutuca apps in a terminal (opt in: `enableTargets(tuiTarget)`, from `tutuca/tui/target` to declare without the terminal): a component's `renders.tui` (one tree, or views by name with a `main`) is what it renders there, as its `view` (and `views`) is on a page. `runTui({ components, root })` runs one (`node scripts/tui.js counter` runs an example); `startTui` makes one without a terminal, for tests |
+| `tutuca/tui` | tutuca apps in a terminal (opt in: `enableTargets(tuiTarget)`, from `tutuca/tui/target` to declare without the terminal): a component's `renders.tui` (one tree, or views by name with a `main`) is what it renders there, as its `view` (and `views`) is on a page. `runTui({ components, root })` runs one (`node scripts/tui.js counter` runs an example); `startTui` makes one without a terminal, for tests; `tutuca/tui/element` is the `<tutuca-terminal>` element, a terminal preview of an app on a page (`defineTutucaTerminal(window)`) |
 | `tutuca/jsast` | (experimental) components that render JavaScript (opt in: `enableTargets(jsTarget)`, with `js` from `tutuca/jsast/target` to declare without the printer): a component's `renders.js` is an ESTree built with `js.FunctionDeclaration(...)` tags; `renderJs(instance)` prints it (astring) |
 | `tutuca/mdast` | (experimental) components that render markdown (opt in: `enableTargets(mdTarget)`, with `md` from `tutuca/mdast/target` to declare without the printer): a component's `renders.md` is an mdast tree built with `md.Heading(...)` tags; `renderMd(instance)` prints it as GFM (mdast-util-to-markdown) |
 | `tutuca/ps` | (experimental) components that render PostScript (opt in: `enableTargets(psTarget)`, with `ps` from `tutuca/ps/target` to declare without the printer): a component's `renders.ps` is a drawing (`ps.Page`, `Group`, `Rect`, `Circle`, `Line`, `Polyline`, `Path`, `Text`) in points from the bottom left; `renderPs(instance)` prints it as a DSC PostScript document a printer, `gs` or `ps2pdf` reads |
@@ -80,8 +80,17 @@ host.start(host.scope.components.Counter());
 
 - [`docs/paths.md`](docs/paths.md): how key paths, dispatch paths and selectors route messages.
 - [`docs/sync.md`](docs/sync.md): persisting and syncing state with sync engines.
+- [`docs/render-cache.md`](docs/render-cache.md): the render cache, what a render depends on, and its benchmark.
 - [`docs/pure.md`](docs/pure.md): handlers and components as pure-js source text.
 - [`spec/README.md`](spec/README.md): the formal semantics in PLT Redex and how it maps to `src/`.
+
+Projects in this repository with their own README:
+
+- [`pure-js/`](pure-js/README.md): the checked subset of JavaScript and TypeScript `tutuca/pure` reads.
+- [`spec/pure-tutuca/`](spec/pure-tutuca/README.md): the format of a component written as a pure-js module.
+- [`tutuca-wasm/`](tutuca-wasm/README.md): tutuca's runtime in WebAssembly, over components pure-js compiles.
+- [`tdata/`](tdata/README.md): a message format (JSON and CBOR) and tq, its query language.
+- [`grow/`](grow/README.md): tutuca's core and its Redex model rebuilt one concept per step.
 
 ## Development
 
@@ -91,7 +100,7 @@ Tasks are in the `justfile`; `just` lists them.
 just install    # npm install
 just check      # lint, then test
 just storybook  # serve the storybook from the repo
-just site       # build the landing page and storybook into _site/ and serve it
+just site       # build the site (landing page, storybook, demos, spec PDF) into _site/ and serve it (needs Racket)
 just smoke      # build dist/ and check what would be published
 just publish    # publish to npm as latest
 ```

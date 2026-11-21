@@ -221,7 +221,7 @@ const bodyValue = (message) => {
 	const p = parsed(message.body);
 	return p.ok ? p.value : message.body;
 };
-const jsonSchemaOf = (content) => content?.[JSON_TYPE]?.schema;
+export const jsonSchemaOf = (content) => content?.[JSON_TYPE]?.schema;
 
 // The response an operation documents for status: its own, its class's (2XX) or the default.
 export const documentedResponse = (responses, status) => {

@@ -130,7 +130,7 @@ const KEY_MODIFIERS = {
 };
 const HELD_MODIFIERS = { ctrl: "ctrlKey", alt: "altKey", shift: "shiftKey", meta: "metaKey" };
 // The binding of on:spec: { type, action, key, held, prevent, stop }.
-export const eventBinding = (spec, action) => {
+const eventBinding = (spec, action) => {
 	const [type, ...modifiers] = spec.split("+");
 	const binding = { type, action, key: null, held: [], prevent: false, stop: false };
 	for (const m of modifiers) {

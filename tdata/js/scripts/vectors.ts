@@ -1,7 +1,7 @@
 // Writes tdata/vectors/{values,messages}.json from the sources below: for each JSON text, the
 // CBOR hex the JS encoder gives. A `cbor` given here is a hand-checked expectation (most come from
-// RFC 8949 Appendix A) and the script fails if the encoder disagrees. invalid.json and specs.json
-// are written by hand.
+// RFC 8949 Appendix A) and the script fails if the encoder disagrees. invalid.json, specs.json
+// and queries.json are written by hand.
 
 import { writeFileSync } from "node:fs";
 import {

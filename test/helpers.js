@@ -108,6 +108,17 @@ export const scopeWith = (components) => {
 	return scope;
 };
 
+// An assertion that fn throws an ErrorClass whose issues are the messages given.
+export const failsWith =
+	(ErrorClass) =>
+	(fn, ...messages) => {
+		assert.throws(fn, (error) => {
+			assert.ok(error instanceof ErrorClass, error);
+			assert.deepEqual(error.issues, messages);
+			return true;
+		});
+	};
+
 // One turn of the event loop, or ms of them.
 export const tick = (ms = 0) => new Promise((resolve) => setTimeout(resolve, ms));
 // Lets tasks, notifications and the renders they cause settle.

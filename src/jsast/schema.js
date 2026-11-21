@@ -23,7 +23,7 @@ const optStr = { kind: "string", optional: true };
 const bool = { kind: "boolean", optional: true };
 const oneOf = (values, optional = false) => ({ kind: "enum", values, optional });
 
-export const BINARY_OPERATORS = [
+const BINARY_OPERATORS = [
 	"==",
 	"!=",
 	"===",
@@ -47,8 +47,8 @@ export const BINARY_OPERATORS = [
 	"in",
 	"instanceof",
 ];
-export const LOGICAL_OPERATORS = ["||", "&&", "??"];
-export const ASSIGNMENT_OPERATORS = [
+const LOGICAL_OPERATORS = ["||", "&&", "??"];
+const ASSIGNMENT_OPERATORS = [
 	"=",
 	"+=",
 	"-=",
@@ -66,8 +66,8 @@ export const ASSIGNMENT_OPERATORS = [
 	"&&=",
 	"??=",
 ];
-export const UNARY_OPERATORS = ["-", "+", "!", "~", "typeof", "void", "delete"];
-export const UPDATE_OPERATORS = ["++", "--"];
+const UNARY_OPERATORS = ["-", "+", "!", "~", "typeof", "void", "delete"];
+const UPDATE_OPERATORS = ["++", "--"];
 
 const E = "Expression";
 const S = "Statement";
@@ -337,8 +337,6 @@ for (const spec of Object.values(SCHEMA)) {
 
 // The tag that stands for a null in an array slot that has holes.
 export const HOLE = "Hole";
-// Node types are PascalCase, slots camelCase: js.BinaryExpression, js.left.
-export const isTypeName = (name) => /^[A-Z]/.test(name);
 
 const show = (v) => (typeof v === "string" ? JSON.stringify(v) : String(v));
 // What's wrong with value as the scalar name of a type, or null.

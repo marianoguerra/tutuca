@@ -49,7 +49,7 @@ export const staticChildren = (children) => {
 };
 
 // A tag of a vocabulary: check(tag, attrs, node, issues) checks the element it builds.
-export const tagBuilder = (schema, check) => (name, args) => {
+const tagBuilder = (schema, check) => (name, args) => {
 	const spec = schema[name];
 	if (spec === undefined) {
 		throw new LlmError([`unknown tag ${name} (one of ${Object.keys(schema).join(", ")})`]);
@@ -96,7 +96,7 @@ const KINDS = {
 export const attr = (kind, required = false) => ({ kind, required });
 
 // What's wrong with value as attr name of tag, or null; undefined and null are left out.
-export const attrIssue = (tag, spec, name, value) => {
+const attrIssue = (tag, spec, name, value) => {
 	const a = spec.attrs?.[name];
 	if (a === undefined) {
 		const names = Object.keys(spec.attrs ?? {});
@@ -132,7 +132,7 @@ export const textIssue = (tag, spec, text) =>
 // computed one is checked as it renders), its handlers (only a spec with handler takes one, of
 // that type) and the children known then. spec.check(attrs, node, statics, issues) adds a tag's
 // own.
-export const checkTag = (schema) => (tag, attrs, node, issues) => {
+const checkTag = (schema) => (tag, attrs, node, issues) => {
 	const spec = schema[tag];
 	for (const name in attrs) {
 		if (name.startsWith("on:")) continue;

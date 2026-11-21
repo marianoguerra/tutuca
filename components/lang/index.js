@@ -27,8 +27,9 @@ import {
 	targetValue,
 } from "../../src/tutuca.js";
 import { setField } from "../common/card.js";
+import { isLowerHalf } from "../common/drop.js";
 import { segmented } from "../common/ui.js";
-import { isModKey } from "../common/util.js";
+import { asNumber, isModKey } from "../common/util.js";
 
 const { div, input, option, pre, select, span } = tag;
 
@@ -285,7 +286,6 @@ export const Hole = component({
 });
 
 // text is what the user typed; value follows it whenever it reads as a number.
-const asNumber = (text) => (text.trim() === "" ? Number.NaN : Number(text));
 export const Num = component({
 	name: "Num",
 	// What textClass can be.
@@ -746,13 +746,6 @@ export const Assign = component({
 	on: { setName, ...placing },
 });
 
-// Whether a drop landed on the lower half of the element that handles it; one without a
-// position, as in tests, lands on the upper half.
-const isLowerHalf = ({ event, node }) => {
-	if (node === null || typeof event?.clientY !== "number") return false;
-	const rect = node.getBoundingClientRect();
-	return event.clientY > rect.top + rect.height / 2;
-};
 // Whether the drag is of one of this program's statements, by the handle in its row.
 const isOwnStatement = (ctx) =>
 	ctx.drag?.type === "statement" && String(ctx.drag.path.toNodePath()) === String(ctx.path);

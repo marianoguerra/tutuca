@@ -7,10 +7,10 @@ A PLT Redex model of tutuca. It has two sides, joined by a binding layer:
   - views, which evaluate to a semantic tree
   - routing on that tree
   - the host's task queue
-- **The virtual DOM** (`vdom.js`). It covers normalized vnodes, the DOM they render to, and reconciliation with node identity. It knows nothing about tutuca.
+- **The virtual DOM** (`src/vdom/index.js`). It covers normalized vnodes, the DOM they render to, and reconciliation with node identity. It knows nothing about tutuca.
 - **The binding** lowers the semantic tree to vnodes, writing metadata comments and `data-eid` attributes. It also decodes events back from the DOM. The comments are an implementation detail of this layer.
 
-The optimizations in `src/core/view/element-plan.js` and the fast paths in `vdom.js` are not part of the
+The optimizations in `src/core/view/element-plan.js` and the fast paths in `src/vdom/index.js` are not part of the
 model. The model defines the meaning those optimizations must preserve.
 
 ```sh
@@ -36,7 +36,7 @@ Each directory requires only the ones above it in this table, plus `data.rkt`.
 |---|---|---|---|
 | | `data.rkt` | values (atoms, null, arrays, records, components), `String()`, truthiness, property get/set, `entries` | plain JS values, immer drafts |
 | `vdom/` (Appendix A) | `vnode.rkt` | normalized vnodes; comments are plain text | `VText`, `VComment`, `VNode`, `VFragment`, `Shape` |
-| | `dom.rkt` | `toDom`, namespaces | `vdom.js` |
+| | `dom.rkt` | `toDom`, namespaces | `src/vdom/index.js` |
 | | `keys.rkt` | sibling matching | `morphChildren`, first half |
 | | `morph.rkt` | reconciliation over labeled DOM nodes, among the ones render made | `morphNode`, `morphChildren`, `mountBefore`, `owned` |
 | `component/` | `paths.rkt` | update paths, dispatch frames, selectors, routes: `getIn`/`setIn`, `resolve`, `toNodePath`, `sourceKeyIn`, freezing | `KeyPath`, `Frame`, `DispatchPath`, `Selector`, `Target` |
@@ -47,12 +47,12 @@ Each directory requires only the ones above it in this table, plus `data.rkt`.
 | `view/` | `sem.rkt` | the semantic tree | (what `renderView` means) |
 | | `normalize.rkt` | `addChild`/`toVChildren`, keys | `view.js` |
 | | `view.rkt` | view definitions, expressions, registration, `RenderContext`, `eval`, `renderView` | the `ViewNode` subclasses, `ComponentSpec`, `RenderContext` |
-| | `route.rkt` | routing on the semantic tree | (what `handlerFor` means) |
+| | `route.rkt` | routing on the semantic tree | (what `bindingFor` means) |
 | | `wf.rkt` | well-formed views | lint's `unknown-handler`, `send-arity`, `send-arg-type` |
-| `bind/` | `meta.rkt` | metadata comment text | `wrapMarkers`'s objects, `parseMarker` |
-| | `lower.rkt` | semantic tree → vnodes | `wrapMarkers`, `planElement`'s `data-eid`, loop fragments |
-| | `decode.rkt` | `enclosingMarkers`, `handlerFor` | `events.js` |
-| `system/` | `host.rkt` | `handleTask`, the task kinds, `MessageContext`, `Host` scheduling, dev checks | `Task`, `NotifyTask`, `AskTask`, `HostTask`, `Host` |
+| `bind/` | `meta.rkt` | metadata comment text | `wrapComponent`'s and `wrapOpen`'s markers, `parseMarker` |
+| | `lower.rkt` | semantic tree → vnodes | `wrapComponent`, `wrapOpen`, `planElement`'s `data-eid`, loop fragments |
+| | `decode.rkt` | `enclosingMarkers`, `bindingFor` | `events.js` |
+| `system/` | `host.rkt` | `Scheduler.step` (one task), the task kinds, `MessageContext`, `Host` scheduling, dev checks | `Task`, `NotifyTask`, `AskTask`, `HostTask`, `Host` |
 | | `tutuca.rkt` | end-to-end scenarios, routing soundness, the binding theorem | |
 | | `render.rkt` | `semantics.pdf` | |
 
@@ -173,7 +173,7 @@ Other points:
   with handlers. Ids are opaque, so only uniqueness per template matters.
 - **Registration:** `register` follows `component()`. A class needs `"main"`, and `collect` is
   `eventHandlersOf`'s walker: an element's entry, then its attribute expressions, then its children.
-- **Wrappers:** a wrapper holds its children normalized. The runtime keeps `wrapMarkers`'s triple
+- **Wrappers:** a wrapper holds its children normalized. The runtime keeps `wrapComponent`'s triple
   unnormalized until `addChild`. The two differ only for a render used as a prop value whose
   view evaluates to a component instance, which would throw in text position.
 - **Routing on the tree:** an element's dispatch path is the frames of the wrappers above it,
@@ -221,7 +221,7 @@ Metadata comments are `{"t":"component"}` or one frame:
 loop becomes an unkeyed group of keyed item groups, and an element with handlers gets
 `data-eid`.
 
-`event-info` decodes the way `handlerFor` does:
+`event-info` decodes the way `bindingFor` does:
 - It collects eids from the target up to the first component boundary, or for a drop event,
   the eids of each enclosing component in turn, nearest first.
 - It reads enclosing metadata by scanning previous siblings. Each closing comment hides one

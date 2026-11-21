@@ -22,6 +22,7 @@ import {
 	targetValue,
 } from "../../src/tutuca.js";
 import { setField } from "../common/card.js";
+import { isLowerHalf } from "../common/drop.js";
 import { segmented } from "../common/ui.js";
 import { isModKey, mix } from "../common/util.js";
 import { indent, nodes, parse } from "./json.js";
@@ -595,13 +596,6 @@ export const defineAttrElement = (name, attr, { draw, dispose = () => {} }) => {
 };
 
 // --- lists ------------------------------------------------------------------------------------------
-
-// Whether a drop landed on the lower half of the element that handles it (none in tests: above).
-const isLowerHalf = ({ event, node }) => {
-	if (node === null || node === undefined || typeof event?.clientY !== "number") return false;
-	const rect = node.getBoundingClientRect();
-	return event.clientY > rect.top + rect.height / 2;
-};
 
 // A list of component items: each one with a drag handle (drag it onto another item to move it
 // above or below it), its own view and a remove button; a pager over it when there are more

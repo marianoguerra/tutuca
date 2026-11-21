@@ -35,19 +35,14 @@ import {
 	sourceKey,
 	t,
 } from "../../src/tutuca.js";
+import { failsWith } from "../helpers.js";
 
 enableTargets(llmToolsTarget, llmContextTarget);
 
 const { Tools, Tool, Str, Num, Int, Bool, Enum, Option, List } = llmTools;
 const { Section, Text, Hint, Fact, Items, Item, Data, Strong, Code } = llmContext;
 
-const fails = (fn, ...messages) => {
-	assert.throws(fn, (error) => {
-		assert.ok(error instanceof LlmError, error);
-		assert.deepEqual(error.issues, messages);
-		return true;
-	});
-};
+const fails = failsWith(LlmError);
 
 const Task = component({
 	name: "Task",

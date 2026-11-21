@@ -40,9 +40,6 @@ jobs:
           distribution: full
       - run: npm ci
       - run: racket spec/render.rkt
-      # The vendored bundles the site's tutuca/pdf and tutuca/docx import, which aren't in the
-      # repo (site.js would build them too, when missing).
-      - run: node scripts/vendor.js pdfkit docx
       # tutuca-wasm's pages (wasm/ on the site): MoonBit builds the runtime; site.js runs its
       # site.sh, which assembles them with the vendored compiler.
       - name: Install MoonBit

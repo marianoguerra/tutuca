@@ -19,7 +19,7 @@ const BOOLEANS = new Set(
 );
 const isNumeric = (v) => v.trim() !== "" && Number.isFinite(Number(v));
 
-export function parseProp(name, value) {
+function parseProp(name, value) {
 	if (NUMBERS.has(name)) {
 		const n = Number(value);
 		if (!Number.isFinite(n))

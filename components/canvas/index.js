@@ -39,7 +39,17 @@ import { setField } from "../common/card.js";
 import { metaFor } from "../common/meta.js";
 import { clamp, isModKey, mix } from "../common/util.js";
 import { compositionComponents, GROUPS, KINDS, makeContent } from "../composition/index.js";
-import { capture, coord, paintType, shapeChecks, svgPoint } from "../drawing/shapes.js";
+import {
+	capture,
+	coord,
+	hasShape,
+	noShape,
+	paintType,
+	shapeAt,
+	shapeChecks,
+	svgPoint,
+	widthType,
+} from "../drawing/shapes.js";
 import { swatchStyle, TOOL_OFF, TOOL_ON, toolButton, toolButtons } from "../drawing/tools.js";
 import { transcriptComponents } from "../llm/transcript.js";
 import { markdownComponents } from "../markdown/index.js";
@@ -91,10 +101,6 @@ const TOOLS = [
 const TOOL_IDS = TOOLS.map(([id]) => id);
 // What its agent draws with: shapes by id.
 const newShapeId = (ctx) => `s-${ctx.uuid()}`;
-const shapeAt = (self, id) => self.shapes.findIndex((s) => s.id === id);
-const hasShape = (self, id) => shapeAt(self, id) !== -1;
-const noShape = (_self, [id]) => `there's no shape ${id}`;
-const widthType = () => t.enum([2, 1, 4, 8]);
 const growToShape = (self, next, s) => growTo(self, next, s.left + s.boxWidth, s.top + s.boxHeight);
 
 // Whether a tool draws a shape: the ones the ✏ button shows and hides.

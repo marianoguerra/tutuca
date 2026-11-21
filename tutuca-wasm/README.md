@@ -26,7 +26,8 @@ tutuca.state(); // { count: 2, step: 1 }
   trusted, and there is no ABI to version: a component's module imports what every pure-js
   module does.
 - **The runtime** (`runtime/`, MoonBit, one WebAssembly module) is tutuca's own, file for
-  file: types and `make` (`types.mbt`, as `src/core/model/types.js`), components, contracts
+  file: types and `make` (`types.mbt`, as `src/core/model/types.js`), pure-js's values
+  (`values.mbt`), components, contracts
   and dev checks (`runtime.mbt`), paths, tasks and notifications (`tree.mbt`, as `src/tree`),
   views (`view.mbt`, as `src/core/view/view.js`) and the virtual DOM (`vdom.mbt`, as
   `src/vdom`).
@@ -79,7 +80,8 @@ What a page asks without running anything: `fits` (whether a type makes from JSO
 node --test test/                # 101 tests
 ```
 
-`build.sh` needs MoonBit (for the runtime) and Node. pure-js is vendored, built, in
+`build.sh` needs MoonBit (for the runtime), Node, and `npm install` at the repository's root
+(esbuild, and the `src/pure` the glue imports). pure-js is vendored, built, in
 `vendor/pure-js/`; `vendor-pure-js.sh` refreshes it from a checkout of pure-js in MoonBit
 (`PURE_JS_MB`, `../../mb/pure-js` when unset). The micro-agents' engines are the bundles
 tutuca's `scripts/vendor.js` makes in `../demos/deps/`.

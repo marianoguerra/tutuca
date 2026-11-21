@@ -44,6 +44,7 @@ import {
 	targetValue,
 } from "../../src/tutuca.js";
 import { setField } from "../common/card.js";
+import { isLowerHalf } from "../common/drop.js";
 import { metaFor } from "../common/meta.js";
 
 enableTargets(
@@ -84,13 +85,6 @@ const slug = (title) =>
 		.replace(/[^a-z0-9]+/g, "_")
 		.replace(/^_|_$/g, "");
 
-// Whether the drop landed on the lower half of the element that handles it; a drop without a
-// position, as in tests, goes above.
-const isLowerHalf = ({ event, node }) => {
-	if (node === null || typeof event?.clientY !== "number") return false;
-	const rect = node.getBoundingClientRect();
-	return event.clientY > rect.top + rect.height / 2;
-};
 // The id of the card being dragged, if a card is.
 const draggedCardId = (ctx) => (ctx.drag?.type === "card" ? ctx.drag.value?.id : undefined);
 

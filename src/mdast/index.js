@@ -29,7 +29,7 @@
 //   renderMd(TodoList.make({ items: [{ title: "Buy milk", done: false }] }))
 //   // "## Todo\n\n- [ ] Buy milk\n"
 //
-// What's checked, against one table (schema.js): what a view says, when it's built (tags.js),
+// What's checked, against one table (schema.js): what a view says, when it's built (target.js),
 // and the tree it renders to, when it renders (render.js, every node, with the path to it). Both
 // throw an MdAstError.
 export { printMd, renderMd, renderMdAst } from "./render.js";

@@ -28,7 +28,7 @@
 //   const bytes = await renderDocx(TodoList.make({ items: [{ title: "Buy milk", done: false }] }));
 //   new Blob([bytes], { type: DOCX_MIME })
 //
-// What's checked, against one table (schema.js): what a view says, when it's built (tags.js),
+// What's checked, against one table (schema.js): what a view says, when it's built (target.js),
 // and the document it renders to, when it renders (render.js, every node, with the path to it).
 // Both throw a DocxError.
 export { printDocx } from "./print.js";

@@ -2,7 +2,7 @@
 // signal) → Promise<AssistantMessage> }, pi-ai's shapes. A request is one inference step with
 // everything it needs: { model: "provider/id", systemPrompt, tools, transcript }, the transcript
 // being the whole session; the answer is the message to append to it. One client talks to the
-// studio server (scripts/studio-server.mjs, POST /api/infer), which keeps no state; one replays a script.
+// server (scripts/server.mjs, POST /api/infer), which keeps no state; one replays a script.
 
 const post = async (url, body, signal) => {
 	const res = await fetch(url, {

@@ -48,6 +48,7 @@ import {
 	cachingOf,
 	checkExchange,
 	headerDoc,
+	jsonSchemaOf,
 	METHODS,
 	methodTraits,
 	parseUrl,
@@ -1162,7 +1163,6 @@ const responseFields = (C, { status, headers: hs = [], body, bodyType }) => ({
 	headers: headers(C, hs),
 	...bodyOf(C, body, bodyType),
 });
-const jsonSchemaOf = (content) => content?.["application/json"]?.schema;
 // An OpenAPI document's first operation, with its method and path; an operation as it is.
 const firstOperation = (json) => {
 	if (json.paths === undefined) return json;

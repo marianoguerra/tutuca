@@ -22,27 +22,17 @@ import {
 	field,
 	lookupBind,
 	renderEach,
-	Scope,
 	t,
 } from "../../src/tutuca.js";
+import { failsWith, scopeWith } from "../helpers.js";
 
 enableTargets(psTarget);
 
 const { Arc, Circle, ClosePath, CurveTo, Document, Group, Line, LineTo, MoveTo, Page, Path } = ps;
 const { Polyline, Rect, Text } = ps;
 
-const scope = (components) => {
-	const s = new Scope();
-	s.register(components);
-	return s.components;
-};
-const fails = (fn, ...messages) => {
-	assert.throws(fn, (error) => {
-		assert.ok(error instanceof PsError, error);
-		assert.deepEqual(error.issues, messages);
-		return true;
-	});
-};
+const scope = (components) => scopeWith(components).components;
+const fails = failsWith(PsError);
 
 const Bars = component({
 	name: "Bars",

@@ -200,17 +200,19 @@ export class TElement extends TNode {
 	set selectionEnd(at) {
 		this.setSelectionRange(Math.min(this.selectionStart, at), at);
 	}
+	// n as a position in the value.
+	_clamp(n) {
+		return Math.max(0, Math.min(this._value.length, Math.trunc(n) || 0));
+	}
 	// As on a page: start to end, the caret at end unless direction is backward. Clamped to the
 	// value.
 	setSelectionRange(start, end, direction = "forward") {
-		const clamp = (n) => Math.max(0, Math.min(this._value.length, Math.trunc(n) || 0));
-		const [a, b] = [clamp(start), clamp(Math.max(start, end))];
+		const [a, b] = [this._clamp(start), this._clamp(Math.max(start, end))];
 		this.select(direction === "backward" ? b : a, direction === "backward" ? a : b);
 	}
 	// The selection from anchor to focus, the caret at focus; select(at, at) is a caret.
 	select(anchor, focus = anchor) {
-		const clamp = (n) => Math.max(0, Math.min(this._value.length, Math.trunc(n) || 0));
-		const [a, f] = [clamp(anchor), clamp(focus)];
+		const [a, f] = [this._clamp(anchor), this._clamp(focus)];
 		if (a === this._anchor && f === this._focus) return;
 		this._anchor = a;
 		this._focus = f;

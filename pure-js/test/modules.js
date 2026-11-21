@@ -16,34 +16,19 @@ import { existsSync, readdirSync, readFileSync, statSync } from "node:fs";
 import { join } from "node:path";
 import {
 	compileModule,
-	draft,
 	exitCodeOf,
 	instantiate,
 	parseModule,
 	print,
-	read,
 	runEntry,
 	typeToString,
 	verifyModule,
 } from "../lib/index.js";
-import { CONFORMANCE, GOLDEN, OUTCOMES, stripTree } from "./cases.js";
+import { CONFORMANCE, directives, entry, GOLDEN, OUTCOMES, stripTree } from "./cases.js";
 import { moduleHost as host } from "./host.js";
 
 const MODULE_CONFORMANCE = join(CONFORMANCE, "module");
 export const MODULE_GOLDEN = join(GOLDEN, "module");
-
-const directives = (source) => {
-	const out = {};
-	for (const line of source.split("\n")) {
-		const m = /^\s*\/\/\s*@(\w+)\s*(.*)$/.exec(line);
-		if (m === null) {
-			if (/^\s*(\/\/.*)?$/.test(line)) continue;
-			break;
-		}
-		out[m[1]] = m[2].trim();
-	}
-	return out;
-};
 
 export const loadModuleCases = () =>
 	OUTCOMES.flatMap((dir) => {
@@ -72,12 +57,6 @@ export const loadModuleCases = () =>
 			});
 	});
 
-const entry = (s) => {
-	if (typeof s !== "string") return s;
-	const m = /^(read|draft)\s+(.+)$/.exec(s);
-	if (m === null) return s;
-	return m[1] === "read" ? read(m[2]) : draft(m[2]);
-};
 const signatureFrom = (s) => ({
 	...s,
 	this: s.this === undefined ? undefined : entry(s.this),

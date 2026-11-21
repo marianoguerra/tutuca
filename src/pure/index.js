@@ -278,7 +278,7 @@ const where = (source, d) => {
 	const { line, column } = lineColumn(source, d.start);
 	return `line ${line}, column ${column}`;
 };
-export class HandlerSourceError extends Error {
+class HandlerSourceError extends Error {
 	constructor(spec, handler, diagnostics) {
 		const text = diagnostics
 			.map((d) => formatDiagnostic(d, handler.source, `${spec.name}.${handler.name}`))

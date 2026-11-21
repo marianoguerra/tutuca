@@ -51,7 +51,7 @@
   the first time it runs and checked by lint (`handler-source`); `componentModule(source)` loads
   a whole component written as a pure-tutuca module (`name.tutuca.ts`: a state type and a
   namespace in `component({...})`'s shape, with `tutuca/view` and `tutuca/data` as its host
-  modules), the same text tutuca-wax compiles to wasm. `spec/pure-tutuca/` has the format and the
+  modules), the same text tutuca-wasm compiles to WebAssembly. `spec/pure-tutuca/` has the format and the
   corpus both are held to; `components/pure-todo/` is a todo list written both ways.
 - `eventProperty(name)`, a send argument that reads a property of the event, like a
   `CustomEvent`'s `detail`: `send("rate", eventProperty("detail"))`.

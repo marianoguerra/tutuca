@@ -27,14 +27,18 @@ import {
 	capture,
 	coord,
 	Ellipse,
+	hasShape,
 	isPaint,
 	Line,
+	noShape,
 	PALETTE,
 	Polyline,
 	paintType,
 	Rect,
+	shapeAt,
 	shapeChecks,
 	svgPoint,
+	widthType,
 } from "./shapes.js";
 import { swatchStyle, TOOL_OFF, TOOL_ON, toolButton, toolButtons } from "./tools.js";
 
@@ -62,10 +66,6 @@ const remember = (self, next) => {
 const newId = (ctx) => `s-${ctx.uuid()}`;
 
 // What an agent draws with: shapes by id, in canvas coordinates, colors as #rrggbb or none.
-const shapeAt = (self, id) => self.shapes.findIndex((s) => s.id === id);
-const hasShape = (self, id) => shapeAt(self, id) !== -1;
-const noShape = (_self, [id]) => `there's no shape ${id}`;
-const widthType = () => t.enum([2, 1, 4, 8]);
 const shapeLine = (s) => {
 	const kind = specOf(s).name.toLowerCase();
 	const where =

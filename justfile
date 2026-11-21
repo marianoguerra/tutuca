@@ -61,16 +61,13 @@ storybook story="": (serve "storybook.html#" + story)
 dist:
     npm run dist
 
-# immer is deps/immer.js; codemirror (site/deps/), automerge (demos/deps/), pdfkit and docx
-# (deps/) are gitignored and `just site` builds them when missing.
-# Rebuild a vendored bundle after bumping its packages, e.g. `just vendor immer`.
-vendor name:
-    node scripts/vendor.js {{name}}
-
-# Build the gitignored deps/pdfkit.js and deps/docx.js that tutuca/pdf and tutuca/docx import,
-# in a fresh checkout or after bumping pdfkit or docx (npm test builds them only when missing).
-vendor-printers:
-    node scripts/vendor.js pdfkit docx
+# immer, astring and mdast are in deps/; the other bundles (deps/pdfkit.js and docx.js,
+# site/deps/, demos/deps/) are gitignored: `npm test` builds pdfkit and docx when missing and
+# `just site` builds them all. scripts/vendor.js lists them.
+# Rebuild vendored bundles after bumping their packages, e.g. `just vendor immer` or
+# `just vendor pdfkit docx`.
+vendor +names:
+    node scripts/vendor.js {{names}}
 
 # Check what gets published: imports by package name, bundle exports, tarball contents.
 smoke: dist
@@ -84,7 +81,7 @@ spec:
 spec-test:
     raco test spec/
 
-# Build the landing page, storybook and spec PDF into _site/ and serve it.
+# Build the landing page, storybook, demos, tutuca-wasm pages and spec PDF into _site/ and serve it.
 site: spec
     node scripts/site.js
     @echo "http://127.0.0.1:{{port}}/"

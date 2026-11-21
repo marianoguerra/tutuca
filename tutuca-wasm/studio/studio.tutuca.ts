@@ -396,7 +396,7 @@ export type Editor = {
 	/** The models offered, by provider, and the one picked. */
 	models: ModelGroup[];
 	model: string;
-	/** The conversation, in pi's format (scripts/studio-server.mjs): the user's messages, the
+	/** The conversation, in pi's format (scripts/server.mjs): the user's messages, the
 	 * model's, and the results of its tool calls. */
 	transcript: unknown[];
 	draft: string;

@@ -32,7 +32,7 @@ export const CONFORMANCE = join(here, "conformance");
 export const GOLDEN = join(here, "golden");
 export const OUTCOMES = ["accept", "reject-syntax", "reject-static", "undefined", "escapes"];
 
-const directives = (source) => {
+export const directives = (source) => {
 	const out = {};
 	for (const line of source.split("\n")) {
 		const m = /^\s*\/\/\s*@(\w+)\s*(.*)$/.exec(line);
@@ -62,7 +62,7 @@ export const loadCases = () =>
 			}),
 	);
 
-const entry = (s) => {
+export const entry = (s) => {
 	if (typeof s !== "string") return s;
 	const m = /^(read|draft)\s+(.+)$/.exec(s);
 	if (m === null) return s;
