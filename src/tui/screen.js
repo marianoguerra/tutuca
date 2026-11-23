@@ -5,12 +5,18 @@
 // a browser. Keys go to the focused element, and do what a browser does by default when no
 // handler prevents it: Tab moves focus, Enter and space click, an input edits its value at its
 // caret, and the wheel, arrows and page keys scroll a scroll container.
+//
+// It lays out in metrics' units (metrics.js): cells for a terminal, which flush writes as ANSI.
+// Another output lays it out with layOut and draws it with paint(painter) (paint-canvas.js); its
+// width, height and the x and y of mouse events are in the same units.
 import { bufferToAnsi, CellBuffer, patchesToAnsi } from "./buffer.js";
 import { editKey, insert, isEditable, offsetAtCell, placeCaret } from "./editing.js";
 import { hitTest } from "./hit-test.js";
 import { absolutize, calculateLayout } from "./layout.js";
 import { layoutInput } from "./layout-input.js";
+import { cellMetrics } from "./metrics.js";
 import { paintScreen } from "./paint.js";
+import { CellPainter } from "./paint-cells.js";
 import { makeEvent, TDocument } from "./tdom.js";
 
 // The elements that take focus, in tree order.
@@ -40,7 +46,7 @@ const osc52 = (text) => `\x1b]52;c;${base64(text)}\x07`;
 
 export class Screen {
 	// write(ansi) gets what changed on each flush; terminal is what it shows ({ colors, unicode },
-	// capabilities.js's detectTerminal), everything by default.
+	// capabilities.js's detectTerminal), everything by default; metrics, the units it lays out in.
 	constructor({
 		width = 80,
 		height = 24,
@@ -48,7 +54,9 @@ export class Screen {
 		document = new TDocument(),
 		terminal = { colors: "truecolor", unicode: true },
 		onCopy = null,
+		metrics = cellMetrics,
 	} = {}) {
+		this.metrics = metrics;
 		this.terminal = terminal;
 		this.document = document;
 		this.rootNode = document.root;
@@ -75,19 +83,29 @@ export class Screen {
 		this.reveal = el;
 		this.document.invalidate();
 	}
-	// Lays out what morph left in the tree and paints it; returns the new buffer.
-	render() {
-		const tree = layoutInput(this.rootNode);
+	// Lays out what morph left in the tree, a modal's focus trapped and what took focus scrolled
+	// into view; returns the layout.
+	layOut() {
+		const m = this.metrics;
+		const tree = layoutInput(this.rootNode, m);
 		tree.props = { ...tree.props, width: this.width, height: this.height };
-		this.layout = absolutize(calculateLayout(tree, this.width, this.height));
+		this.layout = absolutize(calculateLayout(tree, this.width, this.height, m));
 		this.trapFocus();
 		if (this.reveal !== null && this.reveal === this.focused && this.scrollIntoView(this.reveal)) {
 			absolutize(this.layout);
 		}
 		this.reveal = null;
-		const buffer = new CellBuffer(this.width, this.height);
-		paintScreen(buffer, this.layout, this.focused);
-		return buffer;
+		return this.layout;
+	}
+	// Paints the last layout with painter (paint.js).
+	paint(painter) {
+		paintScreen(painter, this.layout, this.focused);
+		return painter;
+	}
+	// Lays out what morph left in the tree and paints it in cells; returns the new buffer.
+	render() {
+		this.layOut();
+		return this.paint(new CellPainter(new CellBuffer(this.width, this.height))).buffer;
 	}
 	// The layers that are modal (a fixed element with modal), bottom to top.
 	modalLayers() {
@@ -206,7 +224,8 @@ export class Screen {
 			shiftKey,
 		};
 		if (button === "scroll-up" || button === "scroll-down") {
-			const deltaY = button === "scroll-up" ? -WHEEL_ROWS : WHEEL_ROWS;
+			const rows = WHEEL_ROWS * this.metrics.lineHeight;
+			const deltaY = button === "scroll-up" ? -rows : rows;
 			const event = this.dispatch("wheel", target, { ...fields, deltaY });
 			if (event.defaultPrevented) return event;
 			// The innermost container under it that can still scroll that way takes it.
@@ -249,10 +268,14 @@ export class Screen {
 		}
 		return this.dispatch("mousemove", target, fields);
 	}
-	// The offset of el's value drawn at x, y (or nearest it), its scroll counted.
+	// The offset of el's value drawn at x, y (or nearest it), its scroll counted: scrollLeft in
+	// layout units, a textarea's scrollTop in lines.
 	offsetUnder(el, x, y) {
 		const r = el.rect ?? { x: 0, y: 0 };
-		return offsetAtCell(el, x - r.x + el.scrollLeft, y - r.y + el.scrollTop);
+		const m = this.metrics;
+		const row = Math.floor((y - r.y) / m.lineHeight) + el.scrollTop;
+		const measure = el.layout ? m.measureOf(el.layout.node) : undefined;
+		return offsetAtCell(el, x - r.x + el.scrollLeft, row, measure);
 	}
 	// A press and release at x, y: what a click is.
 	click(x, y) {
@@ -292,10 +315,11 @@ export class Screen {
 		const own = target.scrolls ? target : null;
 		const el = own ?? (key === "PageUp" || key === "PageDown" ? scrollerOf(target) : null);
 		if (el === null) return false;
-		const page = Math.max(1, el.clientHeight - 1);
+		const line = this.metrics.lineHeight;
+		const page = Math.max(line, el.clientHeight - line);
 		const rows = {
-			ArrowUp: -1,
-			ArrowDown: 1,
+			ArrowUp: -line,
+			ArrowDown: line,
 			PageUp: -page,
 			PageDown: page,
 			Home: -el.scrollHeight,

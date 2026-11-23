@@ -13,29 +13,11 @@
 // Its height is 24 rows, or its rows, unless the page says otherwise. Shift+drag selects text, and focus
 // stays in it, Tab and all, until it's clicked out of.
 import { mirrorTui } from "./terminal.js";
+import { PALETTE } from "./theme.js";
 import { bindScreen, drawBuffer } from "./web.js";
 
 export const TERMINAL_REQUEST = "tutucaterminal";
 
-// xterm's dark palette, near enough, for the 16 colors; a page sets the variables to theme it.
-const PALETTE = [
-	"#1e1e1e",
-	"#cd3131",
-	"#0dbc79",
-	"#e5e510",
-	"#2472c8",
-	"#bc3fbc",
-	"#11a8cd",
-	"#e5e5e5",
-	"#666666",
-	"#f14c4c",
-	"#23d18b",
-	"#f5f543",
-	"#3b8eea",
-	"#d670d6",
-	"#29b8db",
-	"#ffffff",
-];
 const STYLE = `
 :host {
 	display: block;

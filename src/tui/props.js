@@ -88,16 +88,20 @@ export const clipsOf = (s) => {
 	return { x: clip(s.overflowX ?? s.overflow), y: clip(s.overflowY ?? s.overflow) };
 };
 export const borderWidthOf = (s) => (s.borderStyle && s.borderStyle !== "none" ? 1 : 0);
-// A box's content box: rect ({ x, y, w, h }) inside its border and padding.
-export const contentBox = (rect, s) => {
-	const b = borderWidthOf(s);
-	const pad = paddingOf(s);
+// A box's content box on screen: its rect inside its border and padding (layout's inset), once
+// absolutized.
+const NO_INSET = Object.freeze({ top: 0, bottom: 0, left: 0, right: 0 });
+export const contentOf = (layout) => {
+	const { rect } = layout;
+	const i = layout.inset ?? NO_INSET;
 	return {
-		x: rect.x + b + pad.left,
-		y: rect.y + b + pad.top,
-		w: rect.w - 2 * b - pad.left - pad.right,
-		h: rect.h - 2 * b - pad.top - pad.bottom,
+		x: rect.x + i.left,
+		y: rect.y + i.top,
+		w: rect.w - i.left - i.right,
+		h: rect.h - i.top - i.bottom,
 	};
 };
 // Whether x, y is in rect.
 export const inside = (r, x, y) => x >= r.x && y >= r.y && x < r.x + r.w && y < r.y + r.h;
+// The span an offset of a text's content is in.
+export const spanAt = (spans, at) => spans.find((s) => at >= s.start && at < s.end) ?? spans.at(-1);

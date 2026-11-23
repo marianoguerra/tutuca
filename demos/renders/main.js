@@ -1,6 +1,7 @@
 // The Renders demo: a story's component live on the left, and on the right what else it
 // renders, rendered again after each render of the page: renders.tui as a terminal shows it
-// (<tutuca-terminal>, the same app: what's done in it runs on the page's host), renders.js as
+// (<tutuca-terminal>, the same app: what's done in it runs on the page's host) and on a canvas
+// (<tutuca-canvas>, in pixels with a proportional font and in a grid of cells), renders.js as
 // the code it prints (tutuca/jsast), renders.md as the markdown it prints (tutuca/mdast), raw and
 // through <md-view>, renders.ps as the PostScript it prints (tutuca/ps) and an SVG preview of
 // it, and as a PDF (tutuca/pdf) in a frame, renders.docx as a Word file (tutuca/docx) to download
@@ -19,6 +20,7 @@ import { callLlmTool, renderLlmContext, renderLlmTools } from "../../src/llm/ind
 import { renderMd } from "../../src/mdast/index.js";
 import { printPdf } from "../../src/pdf/index.js";
 import { printPs, renderPsTree } from "../../src/ps/index.js";
+import { defineTutucaCanvas } from "../../src/tui/canvas-element.js";
 import { defineTutucaTerminal } from "../../src/tui/element.js";
 import { DevChecks } from "../../src/tutuca.dev.js";
 import { Host, isProblem, specOf } from "../../src/tutuca.js";
@@ -88,6 +90,28 @@ const download = (document, label) => {
 	return { link, set };
 };
 
+// renders.tui on a <tutuca-canvas> in mode, the same app as the terminal's.
+const canvasPanel = (title, mode) => ({
+	title,
+	target: "tui",
+	make: (document) => {
+		const canvas = el(document, "tutuca-canvas", { rows: "14", mode });
+		const hint = el(
+			document,
+			"p",
+			{ class: "renders-hint" },
+			mode === "grid"
+				? "The terminal's cells, drawn on a canvas: borders are lines, not characters."
+				: "Laid out in pixels with a proportional font; its attributes are still in cells.",
+		);
+		return { node: el(document, "div", {}, canvas, hint), canvas, mirror: null };
+	},
+	attach: (made, host) => {
+		made.mirror = made.canvas.show(host);
+	},
+	show: (made) => made.mirror?.sync(),
+});
+
 // The renders this page shows, in this order, by target (or the target they say). make builds a
 // panel, attach(panel, host) starts it on the page's host once it's on the page, show(panel,
 // instance) fills it, returning a promise when it does so asynchronously.
@@ -109,6 +133,8 @@ const SHOWN = {
 		},
 		show: (made) => made.mirror?.sync(),
 	},
+	canvas: canvasPanel("Canvas", "text"),
+	canvasGrid: canvasPanel("Canvas (grid)", "grid"),
 	js: {
 		title: "JavaScript",
 		make: (document) => {
@@ -318,7 +344,10 @@ const mountOthers = (document, container, spec, host, collapsed) => {
 
 export const start = (document = globalThis.document) => {
 	const window = document.defaultView;
-	if (window !== null) defineTutucaTerminal(window);
+	if (window !== null) {
+		defineTutucaTerminal(window);
+		defineTutucaCanvas(window);
+	}
 	const select = document.getElementById("story");
 	const app = document.getElementById("app");
 	const others = document.getElementById("others");

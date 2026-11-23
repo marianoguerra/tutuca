@@ -58,8 +58,26 @@
 - Agent meta: `instructions`, a zero-arg query like `summary`, what one instance in
   particular is told to do, which `systemPrompt` adds after the domain's prompt.
   `agentProblems` checks it names a query.
+- `tutuca/tui/canvas`: a component's `renders.tui` on a canvas, through the Canvas 2D API, the
+  same `Screen` a terminal shows: what's under a pixel is found by its hit test and routed by
+  the marker walk, so focus, Tab, inputs (caret, selection, clipboard), scrolling, layers and
+  modals work as they do in a terminal. In grid mode it lays out in cells, as the terminal does,
+  each a monospace cell in pixels; in text mode in pixels, text measured in its font
+  (proportional ones too), its attributes still in cells and scaled to the typeface's, so a tree
+  written for a terminal ports unchanged. Box drawing and block elements are drawn as what they
+  are (light, heavy, double, dashed and rounded lines; filled parts of cells), so every border
+  style draws without the font's glyphs. `startCanvas`, `mirrorCanvas`, `CanvasScreen`,
+  `CanvasPainter`, `canvasMetrics`; `<tutuca-canvas>` (`tutuca/tui/canvas-element`, `mode` grid
+  or text) shows a host's app on a page, and the Renders demo has a panel for each mode.
 
 ### Changed
+
+- `tutuca/tui` paints through a painter (`paint.js` walks the tree; `paint-cells.js` draws cells,
+  `paint-canvas.js` a canvas) and lays out in metrics (`metrics.js`): cells by default, as
+  before. `Screen` takes `metrics`, and `layOut()` and `paint(painter)` are its two halves of
+  `render()`; `startTui` and `mirrorTui` take a `screen`. `layoutInput(el, metrics)`,
+  `calculateLayout(node, width, height, metrics)`, and text.js's fitting and caret functions
+  take an optional measure. A layout keeps its `inset` and `border` per side.
 
 - `apiOf`, `modelOf`, `preferModel` and `rememberModel` moved from `demos/canvas/main.js` to
   `demos/agent-api.js`, which the canvas and the paths tour share.

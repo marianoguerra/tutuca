@@ -20,6 +20,8 @@
 		"./tui": "./src/tui/index.js",
 		"./tui/target": "./src/tui/target.js",
 		"./tui/element": "./src/tui/element.js",
+		"./tui/canvas": "./src/tui/canvas.js",
+		"./tui/canvas-element": "./src/tui/canvas-element.js",
 		"./jsast": "./src/jsast/index.js",
 		"./jsast/target": "./src/jsast/target.js",
 		"./llm": "./src/llm/index.js",

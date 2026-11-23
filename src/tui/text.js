@@ -248,14 +248,32 @@ export function truncateText(text, columns, { position = "end", ellipsis = "…"
 // { text, at }, text that isn't in it (the ellipsis of a truncation), styled as offset at is. So
 // styled spans keep their styles across wraps and cuts.
 
+// A measure is a function (grapheme, offset) → width in layout units, for text that isn't laid
+// out in cells (a proportional font, styled by the span at offset): undefined measures cells.
+// The offset is where the grapheme is in the text being fitted.
+
+// The width of text from start to end, by measure (cells without one).
+export function measureWidth(text, measure, start = 0, end = text.length) {
+	if (measure === undefined)
+		return stringWidth(start === 0 && end === text.length ? text : text.slice(start, end));
+	let width = 0;
+	for (let at = start; at < end; ) {
+		const g = readGrapheme(text, at);
+		if (g === null) break;
+		width += measure(g.segment, at);
+		at = g.end;
+	}
+	return width;
+}
+
 // The offset in text, from start, where column cells end (a grapheme cut is left out).
-function offsetAt(text, start, end, columns) {
+function offsetAt(text, start, end, columns, measure) {
 	let col = 0;
 	let at = start;
 	while (at < end) {
 		const g = readGrapheme(text, at);
 		if (g === null) break;
-		const w = graphemeWidth(g.segment);
+		const w = measure === undefined ? graphemeWidth(g.segment) : measure(g.segment, at);
 		if (col + w > columns) break;
 		col += w;
 		at = g.end;
@@ -263,24 +281,25 @@ function offsetAt(text, start, end, columns) {
 	return at;
 }
 // The offset in text, back from end, where the last columns cells start.
-function offsetFromEnd(text, start, end, columns) {
+function offsetFromEnd(text, start, end, columns, measure) {
 	const bounds = graphemeBounds(text.slice(start, end)).map((b) => b + start);
 	let col = 0;
 	let i = bounds.length - 1;
 	while (i > 0) {
-		const w = graphemeWidth(text.slice(bounds[i - 1], bounds[i]));
+		const g = text.slice(bounds[i - 1], bounds[i]);
+		const w = measure === undefined ? graphemeWidth(g) : measure(g, bounds[i - 1]);
 		if (col + w > columns) break;
 		col += w;
 		i--;
 	}
 	return bounds[i];
 }
-const widthOf = (text, start, end) => stringWidth(text.slice(start, end));
+const widthOf = (text, start, end, measure) => measureWidth(text, measure, start, end);
 
 // The rows text from start to end (one paragraph, no newlines) wraps to: words whole when they
 // fit, split by grapheme when wider than the line; the spaces a row breaks at are left out.
-function wrapRange(text, start, end, columns) {
-	if (widthOf(text, start, end) <= columns) return [[{ start, end }]];
+function wrapRange(text, start, end, columns, measure) {
+	if (widthOf(text, start, end, measure) <= columns) return [[{ start, end }]];
 	const rows = [];
 	let row = null; // { start, end, width }
 	let i = start;
@@ -291,8 +310,8 @@ function wrapRange(text, start, end, columns) {
 		while (wordEnd < end && text[wordEnd] !== " ") wordEnd++;
 		// Spaces leading the paragraph are part of its first word.
 		const wordStart = row === null && rows.length === 0 ? i : spaces;
-		const gap = row === null ? 0 : widthOf(text, i, spaces);
-		const word = widthOf(text, wordStart, wordEnd);
+		const gap = row === null ? 0 : widthOf(text, i, spaces, measure);
+		const word = widthOf(text, wordStart, wordEnd, measure);
 		if (wordEnd === spaces && row !== null) break; // Trailing spaces.
 		if (row !== null && row.width + gap + word <= columns) {
 			row.end = wordEnd;
@@ -301,12 +320,15 @@ function wrapRange(text, start, end, columns) {
 			if (row !== null) rows.push([{ start: row.start, end: row.end }]);
 			row = { start: wordStart, end: wordStart, width: 0 };
 			let from = wordStart;
-			while (widthOf(text, from, wordEnd) > columns) {
-				const cut = Math.max(nextBoundary(text, from), offsetAt(text, from, wordEnd, columns));
+			while (widthOf(text, from, wordEnd, measure) > columns) {
+				const cut = Math.max(
+					nextBoundary(text, from),
+					offsetAt(text, from, wordEnd, columns, measure),
+				);
 				rows.push([{ start: from, end: cut }]);
 				from = cut;
 			}
-			row = { start: from, end: wordEnd, width: widthOf(text, from, wordEnd) };
+			row = { start: from, end: wordEnd, width: widthOf(text, from, wordEnd, measure) };
 		}
 		i = wordEnd;
 	}
@@ -315,28 +337,35 @@ function wrapRange(text, start, end, columns) {
 }
 
 // One row of text from start to end, cut at position with an ellipsis when it doesn't fit.
-function truncateRange(text, start, end, columns, position, ellipsis = "…") {
-	if (widthOf(text, start, end) <= columns) return [{ start, end }];
-	const ew = stringWidth(ellipsis);
-	if (columns < ew) return [{ text: sliceColumns(ellipsis, 0, columns), at: start }];
+function truncateRange(text, start, end, columns, position, measure, ellipsis = "…") {
+	if (widthOf(text, start, end, measure) <= columns) return [{ start, end }];
+	const ew =
+		measure === undefined ? stringWidth(ellipsis) : measureWidth(ellipsis, (g) => measure(g, end));
+	if (columns < ew) {
+		const shown = measure === undefined ? sliceColumns(ellipsis, 0, columns) : "";
+		return [{ text: shown, at: start }];
+	}
 	const room = columns - ew;
 	if (position === "start") {
-		const from = offsetFromEnd(text, start, end, room);
+		const from = offsetFromEnd(text, start, end, room, measure);
 		return [
 			{ text: ellipsis, at: from },
 			{ start: from, end },
 		];
 	}
 	if (position === "middle") {
-		const head = offsetAt(text, start, end, Math.ceil(room / 2));
-		const tail = offsetFromEnd(text, head, end, Math.floor(room / 2));
+		const half = measure === undefined ? Math.ceil(room / 2) : room / 2;
+		const head = offsetAt(text, start, end, half, measure);
+		const rest =
+			measure === undefined ? Math.floor(room / 2) : room - widthOf(text, start, head, measure);
+		const tail = offsetFromEnd(text, head, end, rest, measure);
 		return [
 			{ start, end: head },
 			{ text: ellipsis, at: head },
 			{ start: tail, end },
 		];
 	}
-	const cut = offsetAt(text, start, end, room);
+	const cut = offsetAt(text, start, end, room, measure);
 	return [
 		{ start, end: cut },
 		{ text: ellipsis, at: Math.max(start, cut - 1) },
@@ -345,19 +374,20 @@ function truncateRange(text, start, end, columns, position, ellipsis = "…") {
 
 // The rows text shows as in columns cells, as segments, by mode: wrap (the default), truncate (as
 // truncate-end), truncate-start or truncate-middle. Layout measures with this and paint draws
-// with it, so a text is as tall as it's measured.
-export function fitSegments(text, columns, mode = "wrap") {
+// with it, so a text is as tall as it's measured. measure (see measureWidth) fits it in other
+// units than cells.
+export function fitSegments(text, columns, mode = "wrap", measure = undefined) {
 	const rows = [];
 	let start = 0;
 	for (;;) {
 		const nl = text.indexOf("\n", start);
 		const end = nl === -1 ? text.length : nl;
 		if (columns <= 0 || !Number.isFinite(columns)) rows.push([{ start, end }]);
-		else if (mode === "wrap") rows.push(...wrapRange(text, start, end, columns));
+		else if (mode === "wrap") rows.push(...wrapRange(text, start, end, columns, measure));
 		else {
 			const position =
 				mode === "truncate-start" ? "start" : mode === "truncate-middle" ? "middle" : "end";
-			rows.push(truncateRange(text, start, end, columns, position));
+			rows.push(truncateRange(text, start, end, columns, position, measure));
 		}
 		if (nl === -1) return rows;
 		start = nl + 1;
@@ -425,12 +455,12 @@ export function nextWord(text, at) {
 	return bounds[i];
 }
 // The caret nearest a column (a click on the right half of a wide
-// grapheme puts it after).
-export function caretAtColumn(text, column) {
+// grapheme puts it after); by measure, in its units.
+export function caretAtColumn(text, column, measure = undefined) {
 	let col = 0;
 	let at = 0;
 	for (const g of graphemes(text)) {
-		const w = graphemeWidth(g);
+		const w = measure === undefined ? graphemeWidth(g) : measure(g, at);
 		if (col + w / 2 > column) return at;
 		col += w;
 		at += g.length;
@@ -460,6 +490,6 @@ export const lineIndexAt = (lines, at) => {
 	while (i > 0 && lines[i].start > at) i--;
 	return i;
 };
-// The column of an offset in its line, as it's drawn.
-export const columnIn = (value, line, at) =>
-	stringWidth(stripControls(value.slice(line.start, at)));
+// The column of an offset in its line, as it's drawn; by measure, in its units.
+export const columnIn = (value, line, at, measure = undefined) =>
+	measureWidth(stripControls(value.slice(line.start, at)), measure);

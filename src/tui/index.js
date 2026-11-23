@@ -44,8 +44,15 @@
 // a terminal emulator; <tutuca-terminal> (tutuca/tui/element) puts the two together, a terminal
 // preview of an app on the page.
 //
+// Canvases: tutuca/tui/canvas paints the same Screen with the Canvas 2D API, laid out in cells
+// (grid) or in pixels with a proportional font (text): the layout's units are metrics
+// (metrics.js), and paint.js walks the tree for a painter (paint-cells.js for a terminal,
+// paint-canvas.js for a canvas).
+//
 // The cell buffer, text widths, flexbox, drawing and terminal detection are ported from tuiuiu.js
 // (MIT, see LICENSE.tuiuiu).
+
+export { BORDER_STYLES } from "./borders.js";
 export {
 	asciiOf,
 	bufferToAnsi,
@@ -59,7 +66,6 @@ export { detectColors, detectUnicode } from "./capabilities.js";
 export { parseInput } from "./input.js";
 export { absolutize, calculateLayout } from "./layout.js";
 export { layoutInput } from "./layout-input.js";
-export { BORDER_STYLES } from "./paint.js";
 export { Screen } from "./screen.js";
 export { tuiTarget } from "./target.js";
 export { TDocument } from "./tdom.js";

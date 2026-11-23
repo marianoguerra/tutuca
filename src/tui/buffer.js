@@ -4,7 +4,8 @@
 // when their char, style and wide flag are; tuiuiu compares structured colors and attrs instead.
 import { graphemes, graphemeWidth, stringWidth } from "./text.js";
 
-const NAMED = {
+// The 16 colors by name, as their palette index.
+export const COLOR_NAMES = {
 	black: 0,
 	red: 1,
 	green: 2,
@@ -30,7 +31,7 @@ const MAX_CELLS = 4_000_000;
 // The SGR parameters of a color: a name above, #rrggbb or 0-255 (the 256-color palette).
 export function colorToSgr(color, background = false) {
 	if (color == null || color === "") return "";
-	const n = NAMED[color];
+	const n = COLOR_NAMES[color];
 	if (n !== undefined) return String((background ? 40 : 30) + (n < 8 ? n : n + 52));
 	const code = background ? 48 : 38;
 	if (typeof color === "string" && /^#[0-9a-f]{6}$/i.test(color)) {

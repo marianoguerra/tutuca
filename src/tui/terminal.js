@@ -9,7 +9,8 @@ import { tuiTarget } from "./target.js";
 
 // components are registered, root is the instance to start with or a function of the
 // registered factories that makes it, and the rest is what Host takes (checks, env, publish,
-// schedule). write(ansi) gets what changed on each flush.
+// schedule). write(ansi) gets what changed on each flush. screen, when given, is the Screen to
+// render into instead (a canvas.js CanvasScreen), and width, height, write and terminal aren't.
 export function startTui({
 	components = {},
 	root,
@@ -17,9 +18,9 @@ export function startTui({
 	height = 24,
 	write = () => {},
 	terminal,
+	screen = new Screen({ width, height, write, terminal }),
 	...hostOptions
 }) {
-	const screen = new Screen({ width, height, write, terminal });
 	const host = new Host({
 		...hostOptions,
 		document: screen.document,
@@ -61,9 +62,17 @@ class MirrorHost extends Host {
 // renders.tui, as startTui's do, rendered again from source's root on sync(), and the messages
 // its events send run on source. So a page's app and its terminal render are one app: a click
 // on either is a task of source, in its timeline and checks. Call sync after source renders.
-// Returns { host, screen, sync, stop }; write and terminal are as startTui takes them.
-export function mirrorTui(source, { width = 80, height = 24, write = () => {}, terminal } = {}) {
-	const screen = new Screen({ width, height, write, terminal });
+// Returns { host, screen, sync, stop }; write, terminal and screen are as startTui takes them.
+export function mirrorTui(
+	source,
+	{
+		width = 80,
+		height = 24,
+		write = () => {},
+		terminal,
+		screen = new Screen({ width, height, write, terminal }),
+	} = {},
+) {
 	const host = new MirrorHost(source, {
 		document: screen.document,
 		rootNode: screen.rootNode,

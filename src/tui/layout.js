@@ -11,8 +11,14 @@
 // display, position, flexDirection, flexWrap, flexGrow, flexShrink, flexBasis, justifyContent,
 // alignItems, alignSelf, alignContent, padding*, margin*, gap, columnGap, rowGap, width, height
 // (cells, "50%", "fill", "auto"), min/max sizes, top, bottom, left, right, borderStyle, overflow.
+//
+// Units: cells by default; metrics (metrics.js) lay out in others (a canvas's pixels), measuring
+// text by its font and giving borders, rules and the caret their room. Every layout keeps its
+// inset (a box's border and padding on each side, in those units) for absolutize, hit testing
+// and painting, and its border (how thick each side is).
+import { cellMetrics } from "./metrics.js";
 import { borderWidthOf, factor, marginsOf, nonNegative, paddingOf, scrollsOf } from "./props.js";
-import { fitSegments, segmentsText, stringWidth } from "./text.js";
+import { fitSegments, measureWidth, segmentsText } from "./text.js";
 
 const hasSize = (v) => v !== undefined && v !== "auto";
 const alignOf = (style, parent) =>
@@ -80,7 +86,9 @@ function stretchHeight(layout, target, style) {
 
 // A text is as wide as its widest line, unless it has a width or grows (an <input> filling its
 // row): then it takes that.
-function layoutText(node, ctx) {
+function layoutText(node, ctx, m) {
+	const measure = m.measureOf(node);
+	const widest = (lines) => Math.ceil(Math.max(0, ...lines.map((l) => measureWidth(l, measure))));
 	const s = node.props;
 	const own = hasSize(s.width) && s.width !== "fill" ? resolveSize(s.width, ctx.width) : null;
 	const grows = factor(s.flexGrow, "flexGrow") > 0 || s.width === "fill";
@@ -90,10 +98,12 @@ function layoutText(node, ctx) {
 	// unless it has a height (maxHeight caps it), a cell wider for the caret after the longest.
 	if (node.multiline) {
 		const lines = content.split("\n");
-		let height = hasSize(s.height) ? resolveSize(s.height, ctx.height) : lines.length;
+		let height = hasSize(s.height)
+			? resolveSize(s.height, ctx.height)
+			: lines.length * m.lineHeight;
 		if (s.maxHeight !== undefined) height = Math.min(height, nonNegative(s.maxHeight, "maxHeight"));
-		const width = own ?? (grows ? ctx.width : Math.max(0, ...lines.map(stringWidth)) + 1);
-		const h = Math.min(Math.max(1, height), ctx.height);
+		const width = own ?? (grows ? ctx.width : widest(lines) + m.caret);
+		const h = Math.min(Math.max(m.lineHeight, height), ctx.height);
 		return {
 			x: ctx.x,
 			y: ctx.y,
@@ -107,16 +117,16 @@ function layoutText(node, ctx) {
 	}
 	// An input is one line, scrolled sideways to its caret when painted. Anything else: rows are
 	// segments of content (text.js's fitSegments), so spans keep their styles; lines, their text.
-	const rows = node.input ? null : fitSegments(content, room, s.wrap);
+	const rows = node.input ? null : fitSegments(content, room, s.wrap, measure);
 	const lines = node.input
 		? [content.replace(/\n/g, " ")]
 		: rows.map((row) => segmentsText(content, row));
-	const width = own ?? (grows ? ctx.width : Math.max(0, ...lines.map(stringWidth)));
+	const width = own ?? (grows ? ctx.width : widest(lines));
 	return {
 		x: ctx.x,
 		y: ctx.y,
 		width: Math.min(width, ctx.width),
-		height: Math.min(lines.length, ctx.height),
+		height: Math.min(lines.length * m.lineHeight, ctx.height),
 		node,
 		children: [],
 		lines,
@@ -124,18 +134,18 @@ function layoutText(node, ctx) {
 	};
 }
 
-// A divider is one cell thick: as wide as it's let be in a column, and in a row one cell wide
-// and as tall as the row (layoutRow stretches it).
-function layoutDivider(node, ctx) {
+// A divider is one cell thick (a line tall in a column, for its title; a rule wide in a row):
+// as wide as it's let be in a column, and in a row as tall as the row (layoutRow stretches it).
+function layoutDivider(node, ctx, metrics) {
 	const m = marginsOf(node.props);
 	const room = Math.max(0, ctx.width - m.left - m.right);
 	const own = hasSize(node.props.width) ? resolveSize(node.props.width, room) : room;
-	const width = node.vertical ? 1 : Math.min(own, room);
+	const width = node.vertical ? metrics.ruleX : Math.min(own, room);
 	return {
 		x: ctx.x + m.left,
 		y: ctx.y + m.top,
 		width,
-		height: Math.min(1, ctx.height),
+		height: Math.min(node.vertical ? metrics.ruleY : metrics.lineHeight, ctx.height),
 		node,
 		children: [],
 	};
@@ -157,8 +167,9 @@ function layoutSpacer(node, ctx) {
 // The layout of node in width × height. An element with position fixed is on a layer of its own:
 // laid out against the whole screen, placed by top, left, right and bottom (the top left
 // without them), and drawn over everything, by zIndex and then tree order. The root layout's
-// layers lists them, bottom to top, their x and y on the screen.
-export function calculateLayout(node, width, height = Infinity) {
+// layers lists them, bottom to top, their x and y on the screen. m, the metrics (metrics.js) it's
+// laid out in, cells by default, is kept as the root's metrics.
+export function calculateLayout(node, width, height = Infinity, m = cellMetrics) {
 	if (!Number.isFinite(width) || width < 0)
 		throw new RangeError("width must be a non-negative number");
 	if (height !== Infinity && (!Number.isFinite(height) || height < 0)) {
@@ -170,9 +181,10 @@ export function calculateLayout(node, width, height = Infinity) {
 		width: Math.floor(width),
 		height: height === Infinity ? height : Math.floor(height),
 	};
-	const layout = layoutNode(node, screen);
+	const layout = layoutNode(node, screen, m);
+	layout.metrics = m;
 	layout.layers = fixedNodesOf(node)
-		.map((fixed, order) => ({ layer: layoutFixed(fixed, screen), order }))
+		.map((fixed, order) => ({ layer: layoutFixed(fixed, screen, m), order }))
 		.sort(
 			(a, b) =>
 				(a.layer.node.props.zIndex ?? 0) - (b.layer.node.props.zIndex ?? 0) || a.order - b.order,
@@ -191,9 +203,9 @@ function fixedNodesOf(node, out = []) {
 	return out;
 }
 
-function layoutFixed(node, screen) {
+function layoutFixed(node, screen, m) {
 	const s = node.props;
-	const laid = layoutNode(node, { ...screen, x: 0, y: 0 });
+	const laid = layoutNode(node, { ...screen, x: 0, y: 0 }, m);
 	const room = (size, own) => (size === Infinity ? 0 : size - own);
 	const x =
 		s.left !== undefined
@@ -210,17 +222,21 @@ function layoutFixed(node, screen) {
 	return withBox(laid, { x, y });
 }
 
-function layoutNode(node, ctx) {
-	if (node.type === "text") return layoutText(node, ctx);
+function layoutNode(node, ctx, m) {
+	if (node.type === "text") return layoutText(node, ctx, m);
 	if (node.type === "spacer") return layoutSpacer(node, ctx);
-	if (node.type === "divider") return layoutDivider(node, ctx);
+	if (node.type === "divider") return layoutDivider(node, ctx, m);
 	const style = node.props;
 	if (style.display === "none")
 		return { x: ctx.x, y: ctx.y, width: 0, height: 0, node, children: [] };
 
 	const pad = paddingOf(style);
-	const m = marginsOf(style);
+	const margins = marginsOf(style);
 	const border = borderWidthOf(style);
+	const bx = border * m.borderX;
+	const by = border * m.borderY;
+	// A top border with a title in it is as tall as a line, the title on its line.
+	const bt = border && style.borderText ? Math.max(by, m.lineHeight) : by;
 	const explicitWidth = resolveSize(style.width, ctx.width);
 	const explicitHeight = resolveSize(style.height, ctx.height);
 	const hasWidth = hasSize(style.width);
@@ -232,19 +248,19 @@ function layoutNode(node, ctx) {
 		style.maxHeight === undefined ? undefined : nonNegative(style.maxHeight, "maxHeight");
 	const outerWidth = Math.min(hasWidth ? explicitWidth : ctx.width, maxWidth ?? Infinity);
 	const outerHeight = Math.min(hasHeight ? explicitHeight : ctx.height, maxHeight ?? Infinity);
-	const contentWidth = Math.max(0, outerWidth - pad.left - pad.right - border * 2);
-	const contentHeight = Math.max(0, outerHeight - pad.top - pad.bottom - border * 2);
+	const contentWidth = Math.max(0, outerWidth - pad.left - pad.right - bx * 2);
+	const contentHeight = Math.max(0, outerHeight - pad.top - pad.bottom - bt - by);
 
 	const direction = style.flexDirection ?? "column";
 	const isRow = direction === "row" || direction === "row-reverse";
 	const isReverse = direction.endsWith("-reverse");
-	// A split box needs a cell between its children for each line it draws.
+	// A split box needs a rule's room between its children for each line it draws.
 	const split = style.split !== undefined && style.split !== "false";
 	const ownGap = nonNegative(
 		isRow ? (style.columnGap ?? style.gap) : (style.rowGap ?? style.gap),
 		"gap",
 	);
-	const gap = split ? Math.max(1, ownGap) : ownGap;
+	const gap = split ? Math.max(isRow ? m.ruleX : m.ruleY, ownGap) : ownGap;
 	// A divider runs across a column and down a row.
 	for (const child of node.children) if (child.type === "divider") child.vertical = isRow;
 
@@ -258,8 +274,8 @@ function layoutNode(node, ctx) {
 	const scrolls = scrollsOf(style);
 	const childHeight = scrolls ? Infinity : contentHeight;
 	const children = isRow
-		? layoutRow(ordered, contentWidth, childHeight, gap, style, hasHeight && !scrolls)
-		: layoutColumn(ordered, contentWidth, childHeight, gap, style);
+		? layoutRow(ordered, contentWidth, childHeight, gap, style, hasHeight && !scrolls, m)
+		: layoutColumn(ordered, contentWidth, childHeight, gap, style, m);
 
 	let totalWidth = 0;
 	let totalHeight = 0;
@@ -274,15 +290,15 @@ function layoutNode(node, ctx) {
 		? explicitWidth
 		: fillWidth
 			? ctx.width
-			: totalWidth + pad.left + pad.right + border * 2;
-	let height = hasHeight ? explicitHeight : totalHeight + pad.top + pad.bottom + border * 2;
+			: totalWidth + pad.left + pad.right + bx * 2;
+	let height = hasHeight ? explicitHeight : totalHeight + pad.top + pad.bottom + bt + by;
 	width = Math.max(width, nonNegative(style.minWidth, "minWidth"));
 	height = Math.max(height, nonNegative(style.minHeight, "minHeight"));
 	if (maxWidth !== undefined) width = Math.min(width, maxWidth);
 	if (maxHeight !== undefined) height = Math.min(height, maxHeight);
 
 	if (isRow && style.alignItems === "stretch") {
-		const inner = Math.max(0, height - pad.top - pad.bottom - border * 2);
+		const inner = Math.max(0, height - pad.top - pad.bottom - bt - by);
 		for (let i = 0; i < children.length; i++) {
 			const childStyle = children[i].node.props;
 			if (childStyle.height !== undefined) continue;
@@ -290,15 +306,16 @@ function layoutNode(node, ctx) {
 		}
 	}
 
-	const layoutWidth = Math.max(0, Math.min(width, Math.max(0, ctx.width - m.left - m.right)));
-	const layoutHeight = Math.max(0, Math.min(height, Math.max(0, ctx.height - m.top - m.bottom)));
-	const innerWidth = layoutWidth - pad.left - pad.right - border * 2;
-	const innerHeight = layoutHeight - pad.top - pad.bottom - border * 2;
+	const room = (size, a, b) => Math.max(0, size - a - b);
+	const layoutWidth = Math.max(0, Math.min(width, room(ctx.width, margins.left, margins.right)));
+	const layoutHeight = Math.max(0, Math.min(height, room(ctx.height, margins.top, margins.bottom)));
+	const innerWidth = layoutWidth - pad.left - pad.right - bx * 2;
+	const innerHeight = layoutHeight - pad.top - pad.bottom - bt - by;
 
 	// Absolute children take no space and sit in this box's content area by top/left/right/bottom.
 	for (const child of absolute) {
 		const s = child.props;
-		const laid = layoutNode(child, { x: 0, y: 0, width: contentWidth, height: contentHeight });
+		const laid = layoutNode(child, { x: 0, y: 0, width: contentWidth, height: contentHeight }, m);
 		const x =
 			s.left !== undefined ? s.left : s.right !== undefined ? innerWidth - laid.width - s.right : 0;
 		const y =
@@ -311,12 +328,19 @@ function layoutNode(node, ctx) {
 	}
 
 	const layout = {
-		x: ctx.x + m.left,
-		y: ctx.y + m.top,
+		x: ctx.x + margins.left,
+		y: ctx.y + margins.top,
 		width: layoutWidth,
 		height: layoutHeight,
 		node,
 		children,
+		border: { top: bt, bottom: by, left: bx, right: bx },
+		inset: {
+			top: pad.top + bt,
+			bottom: pad.bottom + by,
+			left: pad.left + bx,
+			right: pad.right + bx,
+		},
 	};
 	if (scrolls) {
 		layout.scrollHeight = totalHeight;
@@ -375,10 +399,10 @@ function shrinkReductions(infos, overflow) {
 	return reductions;
 }
 
-function layoutRow(children, width, height, gap, parentStyle, hasExplicitHeight) {
+function layoutRow(children, width, height, gap, parentStyle, hasExplicitHeight, m) {
 	const wrap = parentStyle.flexWrap ?? "nowrap";
 	if (wrap !== "nowrap" && children.length > 0) {
-		return layoutWrappedRows(children, width, height, gap, parentStyle, hasExplicitHeight, wrap);
+		return layoutWrappedRows(children, width, height, gap, parentStyle, hasExplicitHeight, wrap, m);
 	}
 	let fixedWidth = 0;
 	let flexTotal = 0;
@@ -389,7 +413,7 @@ function layoutRow(children, width, height, gap, parentStyle, hasExplicitHeight)
 		const minWidth = nonNegative(s.minWidth, "minWidth");
 		const basis =
 			s.flexBasis === "content"
-				? layoutNode(child, { x: 0, y: 0, width, height }).width
+				? layoutNode(child, { x: 0, y: 0, width, height }, m).width
 				: s.flexBasis === undefined || s.flexBasis === "auto"
 					? minWidth
 					: resolveSize(s.flexBasis, width);
@@ -405,7 +429,7 @@ function layoutRow(children, width, height, gap, parentStyle, hasExplicitHeight)
 			const measuredWidth = ownWidth
 				? resolveSize(s.width, width) + marginLeft + marginRight
 				: width;
-			const layout = layoutNode(child, { x: 0, y: 0, width: measuredWidth, height });
+			const layout = layoutNode(child, { x: 0, y: 0, width: measuredWidth, height }, m);
 			fixedWidth += layout.width + marginLeft + marginRight;
 			infos.push({
 				node: child,
@@ -462,7 +486,7 @@ function layoutRow(children, width, height, gap, parentStyle, hasExplicitHeight)
 		const layout =
 			info.layout && info.measuredWidth === allocated
 				? withBox(info.layout, { x: info.layout.x + cx })
-				: layoutNode(info.node, { x: cx, y: 0, width: allocated, height });
+				: layoutNode(info.node, { x: cx, y: 0, width: allocated, height }, m);
 		rowHeight = Math.max(rowHeight, layout.height);
 		placed.push(layout);
 		x += info.marginLeft + layout.width + info.marginRight;
@@ -496,6 +520,7 @@ function layoutWrappedRows(
 	parentStyle,
 	hasExplicitHeight,
 	wrap,
+	m,
 ) {
 	const lines = [];
 	let line = [];
@@ -503,7 +528,7 @@ function layoutWrappedRows(
 	for (const child of children) {
 		const s = child.props;
 		const { left, right } = marginsOf(s);
-		const measured = layoutNode(child, { x: 0, y: 0, width, height });
+		const measured = layoutNode(child, { x: 0, y: 0, width, height }, m);
 		const basis =
 			s.flexBasis === undefined || s.flexBasis === "auto" || s.flexBasis === "content"
 				? measured.width
@@ -529,8 +554,9 @@ function layoutWrappedRows(
 			columnGap,
 			{ ...parentStyle, flexWrap: "nowrap", alignContent: undefined },
 			false,
+			m,
 		);
-		return { layouts, height: layouts.reduce((m, l) => Math.max(m, l.y + l.height), 0) };
+		return { layouts, height: layouts.reduce((h, l) => Math.max(h, l.y + l.height), 0) };
 	});
 	const contentHeight = laid.reduce((t, l) => t + l.height, rowGap * Math.max(0, laid.length - 1));
 	const free = hasExplicitHeight ? Math.max(0, height - contentHeight) : 0;
@@ -560,7 +586,7 @@ const alignX = (layout, width, align) => {
 	return { x: layout.x, width: layout.width };
 };
 
-function layoutColumn(children, width, height, gap, parentStyle) {
+function layoutColumn(children, width, height, gap, parentStyle, m) {
 	const results = [];
 	if (hasSize(parentStyle.height) && height !== Infinity) {
 		let fixedHeight = 0;
@@ -578,7 +604,7 @@ function layoutColumn(children, width, height, gap, parentStyle) {
 				fixedHeight += top + bottom;
 				infos.push({ node: child, flex, minHeight, maxHeight, top, bottom });
 			} else {
-				const layout = layoutNode(child, { x: 0, y: 0, width, height });
+				const layout = layoutNode(child, { x: 0, y: 0, width, height }, m);
 				fixedHeight += layout.height + top + bottom;
 				infos.push({ node: child, flex: 0, minHeight, maxHeight, top, bottom, layout });
 			}
@@ -592,7 +618,7 @@ function layoutColumn(children, width, height, gap, parentStyle) {
 				if (info.flex > 0) {
 					let h = Math.max(info.minHeight, Math.floor(unit * info.flex));
 					if (info.maxHeight !== undefined) h = Math.min(info.maxHeight, h);
-					layout = withBox(layoutNode(info.node, { x: 0, y, width, height: h }), { height: h });
+					layout = withBox(layoutNode(info.node, { x: 0, y, width, height: h }, m), { height: h });
 				}
 				layout = withBox(layout, {
 					y: y + info.top,
@@ -609,7 +635,7 @@ function layoutColumn(children, width, height, gap, parentStyle) {
 	children.forEach((child, i) => {
 		const s = child.props;
 		const { top, bottom } = marginsOf(s);
-		const layout = layoutNode(child, { x: 0, y, width, height: height - y });
+		const layout = layoutNode(child, { x: 0, y, width, height: height - y }, m);
 		results.push(withBox(layout, alignX(layout, width, alignOf(s, parentStyle))));
 		y += top + layout.height + bottom + (i < children.length - 1 ? gap : 0);
 	});
@@ -636,14 +662,12 @@ export function absolutize(layout, ox = 0, oy = 0) {
 	if (own) {
 		el.place(layout);
 	}
-	const s = layout.node.props;
-	const pad = paddingOf(s);
-	const b = borderWidthOf(s);
-	const cx = x + pad.left + b;
-	const cy = y + pad.top + b;
+	const inset = layout.inset ?? { top: 0, bottom: 0, left: 0, right: 0 };
+	const cx = x + inset.left;
+	const cy = y + inset.top;
 	let top = 0;
 	if (own && layout.scrollHeight !== undefined) {
-		const w = layout.width - pad.left - pad.right - 2 * b;
+		const w = layout.width - inset.left - inset.right;
 		const viewport = { x: cx, y: cy, w, h: layout.clientHeight };
 		el.placeScroll(layout.scrollHeight, layout.clientHeight, viewport);
 		// Settled, not set: layout clamps it without asking for another paint.

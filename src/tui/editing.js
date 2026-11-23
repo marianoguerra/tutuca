@@ -18,12 +18,14 @@ export const isEditable = (el) =>
 	el?.nodeType === 1 && (el.localName === "input" || el.localName === "textarea");
 const isMultiline = (el) => el.localName === "textarea";
 
-// The offset at a column of a row of el's value, as a click there puts the caret.
-export function offsetAtCell(el, column, row = 0) {
+// The offset at a column of a row of el's value, as a click there puts the caret; column in
+// measure's units (text.js's measureWidth), cells without one.
+export function offsetAtCell(el, column, row = 0, measure = undefined) {
 	const value = el.value;
 	const lines = linesOf(value, isMultiline(el));
 	const line = lines[Math.max(0, Math.min(lines.length - 1, row))];
-	return line.start + caretAtColumn(value.slice(line.start, line.end), Math.max(0, column));
+	const text = value.slice(line.start, line.end);
+	return line.start + caretAtColumn(text, Math.max(0, column), measure);
 }
 
 // The column a caret moving up and down a textarea's lines keeps to, by element, while it does.
