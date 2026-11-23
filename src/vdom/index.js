@@ -109,10 +109,17 @@ export class VFragment extends VBase {
 		);
 	}
 }
+// A function as a child is a view reading a method where it meant its result (field("score") for
+// score(x) { ... }): its source as text looks like part of the page, so it shows as an error.
+export const functionChildText = (fn) =>
+	`⚠ ${fn.name || "a function"} is a function, not a value: read what it returns`;
 // Any iterable is spliced into its parent, null and undefined render nothing, other values as text.
 export function addChild(children, child) {
 	if (child == null) return;
-	if (typeof child !== "string" && typeof child[Symbol.iterator] === "function") {
+	if (typeof child === "function") {
+		console.error(functionChildText(child));
+		children.push(new VText(functionChildText(child)));
+	} else if (typeof child !== "string" && typeof child[Symbol.iterator] === "function") {
 		for (const c of child) addChild(children, c);
 	} else if (child instanceof VBase) children.push(child);
 	else children.push(new VText(child));

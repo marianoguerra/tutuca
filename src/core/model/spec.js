@@ -108,6 +108,11 @@ export class QuerySpec {
 // queries' entries: a getter (get), a function (call), { get, returns } or
 // { run, args, params, returns }, args and returns types as data compiled with type. Fields marked
 // public are get queries returning their type. Other entries stay as they are for lint to report.
+// A function or a run that takes no args is a get query too: a query without args reads as a
+// field (field("score") in a view, this.score in a handler), so score() { ... } means the same
+// as get score() { ... }. (fn.length counts the params before the first default, so a query
+// whose args all have defaults says them in args.)
+const takesNoArgs = (fn, args) => fn.length === 0 && (args === undefined || args.length === 0);
 export const toQueries = (queries, fields, type) => {
 	const returns = (name, v) => (v === undefined ? undefined : type(v, `queries.${name}.returns`));
 	const out = Object.create(null);
@@ -119,11 +124,18 @@ export const toQueries = (queries, fields, type) => {
 	for (const [name, d] of Object.entries(Object.getOwnPropertyDescriptors(queries ?? {}))) {
 		const v = d.value;
 		if (d.get !== undefined) out[name] = new QuerySpec(name, { kind: "get", fn: d.get });
-		else if (typeof v === "function") out[name] = new QuerySpec(name, { kind: "call", fn: v });
+		else if (typeof v === "function")
+			out[name] = new QuerySpec(name, { kind: takesNoArgs(v) ? "get" : "call", fn: v });
 		else if (typeof v?.get === "function")
 			out[name] = new QuerySpec(name, {
 				kind: "get",
 				fn: v.get,
+				returns: returns(name, v.returns),
+			});
+		else if (typeof v?.run === "function" && takesNoArgs(v.run, v.args))
+			out[name] = new QuerySpec(name, {
+				kind: "get",
+				fn: v.run,
 				returns: returns(name, v.returns),
 			});
 		else if (typeof v?.run === "function")

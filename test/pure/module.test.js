@@ -443,3 +443,36 @@ describe("componentModule", () => {
 		);
 	});
 });
+
+describe("componentModule, a query that takes no args", () => {
+	// A method like score() reads as a field: field("score") renders what it returns, not its
+	// source, and this.score in a handler is the value.
+	const source = `import { div, field, send, span } from "tutuca/view";
+export type Score = { us: number; them: number; readonly score: string; readonly leads: boolean };
+export const Score = {
+	defaults: { us: 0, them: 0 },
+	on: {
+		add: { run(next, [n]: [number]) { next.us += n; } },
+		lead: { run(next) { if (!this.leads) next.us = next.them + 1; } },
+	},
+	queries: {
+		score() { return \`Us \${this.us} - \${this.them} Them\`; },
+		get leads() { return this.us > this.them; },
+	},
+	view: div(span(field("score")), span({ "on:click": send("add", 2) }, "+2")),
+};`;
+	test("is a get query: the view renders its value, handlers read it", () => {
+		const r = componentModule(source);
+		assert.deepEqual(r.diagnostics, []);
+		assert.equal(r.components.Score.queries.score.kind, "get");
+		const { host, rootNode, C, failures } = setupHost(r.components);
+		host.start(C.Score({ them: 3 }));
+		const text = () => rootNode.querySelector("div > span").textContent;
+		assert.equal(text(), "Us 0 - 3 Them");
+		rootNode.querySelectorAll("span")[1].click();
+		assert.equal(text(), "Us 2 - 3 Them");
+		host.send("lead", [], { now: true });
+		assert.equal(text(), "Us 4 - 3 Them");
+		assert.deepEqual(failures, []);
+	});
+});

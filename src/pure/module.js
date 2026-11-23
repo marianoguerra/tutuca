@@ -800,13 +800,18 @@ const argsTypes = (text, decl, components) => {
 		: undefined;
 };
 
+// A query property that reads as a field: a getter, or a method that takes no args (core's
+// toQueries makes it a get query, as field() and this.name read it).
+const isGetQuery = (p) =>
+	p.kind === "get" || (p.value?.type === "FunctionExpression" && p.value.params.length === 0);
+
 // queries with each call query (a method, not a getter) as { run, args, params }: its
 // parameters' types and names, from their annotations, for checks and tools.
 const callQueries = (c, queries, decl, components) => {
 	const node = propertyOf(c.literal, "queries")?.value;
 	const calls = {};
 	for (const p of node?.type === "ObjectExpression" ? node.properties : []) {
-		if (p.kind === "get" || p.value?.type !== "FunctionExpression") continue;
+		if (isGetQuery(p) || p.value?.type !== "FunctionExpression") continue;
 		const name = p.key.type === "Identifier" ? p.key.name : String(p.key.value);
 		const ps = p.value.params ?? [];
 		if (typeof queries[name] !== "function") continue;
@@ -1186,7 +1191,7 @@ export const componentModuleSource = (
 		const out = {};
 		for (const p of node?.type === "ObjectExpression" ? node.properties : []) {
 			const name = p.key.type === "Identifier" ? p.key.name : String(p.key.value);
-			out[name] = p.kind === "get" ? "get" : "call";
+			out[name] = p.kind === "get" || (group === "queries" && isGetQuery(p)) ? "get" : "call";
 		}
 		return out;
 	};
@@ -1195,7 +1200,7 @@ export const componentModuleSource = (
 		const node = propertyOf(c.literal, "queries")?.value;
 		const out = {};
 		for (const p of node?.type === "ObjectExpression" ? node.properties : []) {
-			if (p.kind === "get") continue;
+			if (isGetQuery(p)) continue;
 			const name = p.key.type === "Identifier" ? p.key.name : String(p.key.value);
 			out[name] = (p.value?.params ?? []).map((q) => ({
 				name: q.name,

@@ -465,9 +465,23 @@ export class Lint extends Walker {
 		}
 	}
 	// The component state is ctx.it only outside loop bodies; items have unknown shapes.
+	// A name that's a function on the prototype (a query that takes args, a method) reads as the
+	// function itself, which renders as its source.
 	checkField(node, name) {
-		const { fields, proto } = this.spec;
-		if (this.env.loop || Object.hasOwn(fields, name) || name in proto) return;
+		const { fields, proto, queries } = this.spec;
+		if (this.env.loop || Object.hasOwn(fields, name)) return;
+		const q = queries[name];
+		if (q instanceof QuerySpec && q.kind === "call") {
+			const text = `field("${name}") reads the query ${name} itself, not its result: it takes args, call it with $query("${name}", ...)`;
+			this.report("error", "field-reads-function", node, text);
+			return;
+		}
+		if (typeof Object.getOwnPropertyDescriptor(proto, name)?.value === "function") {
+			const text = `field("${name}") reads the method ${name} itself, not its result: make it a query, get ${name}() { ... }`;
+			this.report("error", "field-reads-function", node, text);
+			return;
+		}
+		if (name in proto) return;
 		this.report("warning", "unknown-field", node, `${this.spec.name} has no field "${name}"`);
 	}
 	withEnv(env, fn) {

@@ -351,3 +351,31 @@ test("a failed pre says why when the handler has a why", () => {
 		(e) => e.code === "pre" && e.detail === "-1 is negative",
 	);
 });
+
+test("a query that takes no args is a get query, whatever it's written as", () => {
+	const S = component({
+		name: "S",
+		fields: { n: t.number({ default: 2 }) },
+		queries: {
+			twice() {
+				return this.n * 2;
+			},
+			thrice: {
+				returns: t.number(),
+				run() {
+					return this.n * 3;
+				},
+			},
+			plus(x) {
+				return this.n + x;
+			},
+		},
+	});
+	const kinds = Object.fromEntries(Object.entries(S.queries).map(([k, q]) => [k, q.kind]));
+	assert.deepEqual(kinds, { twice: "get", thrice: "get", plus: "call" });
+	const s = S.make({});
+	assert.equal(s.twice, 4);
+	assert.equal(s.thrice, 6);
+	assert.equal(query(s, "twice"), 4);
+	assert.equal(query(s, "plus", 1), 3);
+});

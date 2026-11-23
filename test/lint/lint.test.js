@@ -322,7 +322,7 @@ for (const [name, options, expected] of cases) {
 	});
 }
 
-test("field names are checked against the schema and methods, outside loop bodies", () => {
+test("field names are checked against the schema, outside loop bodies, and never name a method", () => {
 	const Fields = component({
 		name: "Fields",
 		fields: { declared: t.number({ default: 1 }), label: t.string() },
@@ -346,13 +346,18 @@ test("field names are checked against the schema and methods, outside loop bodie
 	assert.deepEqual(
 		issues.map(({ level, code, path }) => `${level} ${code} ${path}`),
 		[
+			"error field-reads-function Fields.main > div > field(computed)",
 			"warning unknown-field Fields.main > div > field(typo)",
 			"warning unknown-field Fields.main > div > field(toString)",
 			"warning unknown-field Fields.main > div > render > seqItem(declared, nokey)",
 			"warning unknown-field Fields.main > div > each() > field(items)",
 		],
 	);
-	assert.equal(issues[0].message, 'Fields has no field "typo"');
+	assert.equal(
+		issues[0].message,
+		'field("computed") reads the method computed itself, not its result: make it a query, get computed() { ... }',
+	);
+	assert.equal(issues[1].message, 'Fields has no field "typo"');
 });
 
 test("lint reports t.component names no scope registers", () => {
@@ -611,4 +616,26 @@ test("a classes meta's classes is a string", () => {
 		views: { main: h("div", { class: "a" }) },
 	});
 	assert.deepEqual(lintOf([Bad]), ["error classes-meta Bad", "error classes-meta Bad"]);
+});
+
+test("field naming a query that takes args reads the function: an error", () => {
+	const Q = component({
+		name: "Q",
+		fields: { n: t.number() },
+		queries: {
+			plus(x) {
+				return this.n + x;
+			},
+			twice() {
+				return this.n * 2;
+			},
+		},
+		view: h("p", {}, field("plus"), field("twice")),
+	});
+	const issues = lint(new Set([Q]));
+	assert.deepEqual(
+		issues.map(({ level, code, path }) => `${level} ${code} ${path}`),
+		["error field-reads-function Q.main > p > field(plus)"],
+	);
+	assert.match(issues[0].message, /call it with \$query\("plus", \.\.\.\)/);
 });

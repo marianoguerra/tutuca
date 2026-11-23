@@ -147,3 +147,19 @@ test("same tag with a different shape replaces the element", () => {
 	assert.notEqual(container.firstChild, first);
 	assert.equal(container.innerHTML, '<div title="t"></div>');
 });
+
+test("a function as a child renders as an error, not its source", () => {
+	const { document, container } = setup();
+	const score = () => "Us 1 - 0 Them";
+	const errors = [];
+	const error = console.error;
+	console.error = (m) => errors.push(m);
+	try {
+		draw(document, container, h("p", {}, score));
+	} finally {
+		console.error = error;
+	}
+	const text = "⚠ score is a function, not a value: read what it returns";
+	assert.equal(container.textContent, text);
+	assert.deepEqual(errors, [text]);
+});
