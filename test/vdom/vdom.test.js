@@ -163,3 +163,45 @@ test("a function as a child renders as an error, not its source", () => {
 	assert.equal(container.textContent, text);
 	assert.deepEqual(errors, [text]);
 });
+
+test("children that pair by index are morphed in place and only the rest matched by key", async () => {
+	const { window, document, container } = setup();
+	const item = (key, text) => vfrag([h("i", { key }, text)], key);
+	const list = (...items) => h("ul", {}, [vfrag(items)]);
+	let prev = draw(document, container, list(item("a", "A"), item("b", "B")));
+	const [a, b] = container.querySelectorAll("i");
+	let records = await mutationsOf(window, container, () => {
+		prev = draw(document, container, list(item("a", "A"), item("b", "B2"), item("c", "C")), prev);
+	});
+	assert.equal(container.textContent, "AB2C");
+	assert.deepEqual([...container.querySelectorAll("i")].slice(0, 2), [a, b]);
+	// One text changed and one element added: nothing before them is touched.
+	assert.deepEqual(records.map((r) => r.type).sort(), ["characterData", "childList"]);
+	records = await mutationsOf(window, container, () => {
+		prev = draw(document, container, list(item("a", "A"), item("c", "C"), item("b", "B2")), prev);
+	});
+	assert.equal(container.textContent, "ACB2");
+	assert.equal(container.querySelectorAll("i")[2], b);
+	// A key that one of the children paired by index has is still a duplicate.
+	assert.throws(
+		() => draw(document, container, list(item("a", "A"), item("x", "X"), item("a", "A")), prev),
+		/Duplicate sibling key: a/,
+	);
+});
+
+test("morphing an equal render reads nothing of the DOM", () => {
+	const { document, container } = setup();
+	const tree = () => [h("div", { class: "a" }, [h("p", {}, "one"), vfrag([h("b", {}, "two")])])];
+	const prev = draw(document, container, tree());
+	// Without its children, morphing anything inside would fail.
+	const div = container.firstChild;
+	Object.defineProperty(div, "childNodes", {
+		get() {
+			throw new Error("read");
+		},
+	});
+	draw(document, container, tree(), prev);
+	assert.throws(() =>
+		draw(document, container, [h("div", { class: "a" }, [h("p", {}, "1")])], prev),
+	);
+});

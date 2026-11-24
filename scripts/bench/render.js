@@ -5,7 +5,8 @@
 // (node --expose-gc, or Chrome's --js-flags=--expose-gc) it also says how much heap each cache
 // holds after them, every state the updates went through still alive, as an undo history would
 // keep them. And it times DepsWalker's pass alone: what a two-pass cache (walk the tree for the
-// provided values it reads, then render keyed by them) adds to a cached render.
+// provided values it reads, then render keyed by them) adds to a cached render, and a first
+// render: the root rendered and all its DOM made.
 import { renderView } from "../../src/core/view/view.js";
 import { DepsWalker } from "../../src/tutuca.dev.js";
 import {
@@ -172,6 +173,14 @@ const hostUpdates = (roots, make, mount) => {
 	unmount();
 	return { time: update, held: withCache === null ? null : withCache - without };
 };
+// Mean ms of a first render: the root rendered and its DOM made, in a fresh root from mount().
+const MOUNTS = 5;
+const mountTime = (root, mount) =>
+	meanTime(Array.from({ length: MOUNTS }), () => {
+		const { document, rootNode, unmount } = mount();
+		new Host({ document, rootNode }).start(root);
+		unmount();
+	});
 // Mean ms of a render alone (no DOM), with a cache from make.
 const renderOnly = (roots, make) => {
 	const cache = make();
@@ -189,7 +198,7 @@ const ms = (x) => `${x.toFixed(3)} ms`.padStart(10);
 const mb = (x) => (x === null ? "" : `${(x / 2 ** 20).toFixed(1)} MB`.padStart(9));
 // Runs every shape, mount() giving each host { document, rootNode, unmount }, log(line) getting
 // the report; returns the results as data: [{ shape, caches: { name: { update, render, held } },
-// walk }]. Awaits between shapes, so a page can show its progress.
+// walk, mount }]. Awaits between shapes, so a page can show its progress.
 export const runBench = async ({ size = 2000, updates = 40, mount, log = () => {} }) => {
 	const results = [];
 	log(`render cache benchmark: ${updates} updates per shape, mean per update\n`);
@@ -203,6 +212,7 @@ export const runBench = async ({ size = 2000, updates = 40, mount, log = () => {
 				renderOnly(roots, make);
 			}
 			walkOnly(roots);
+			mountTime(roots[0], mount);
 		}
 		log(shape.name);
 		log("             update     render  cache heap");
@@ -216,8 +226,10 @@ export const runBench = async ({ size = 2000, updates = 40, mount, log = () => {
 		}
 		const walk = walkOnly(roots);
 		log(`  DepsWalker pass ${ms(walk)}`);
+		const mounted = mountTime(roots[0], mount);
+		log(`  first render    ${ms(mounted)}`);
 		log("");
-		results.push({ shape: shape.name, caches, walk });
+		results.push({ shape: shape.name, caches, walk, mount: mounted });
 		await new Promise((resolve) => setTimeout(resolve, 0));
 	}
 	return results;

@@ -72,6 +72,22 @@
 
 ### Changed
 
+- **Morph walks the two renders once and reads the DOM only where they differ**
+  (`tutuca/vdom`). It no longer compares a subtree (`isEqualTo`) before morphing it, which
+  walked a changed one again at every level; an element is looked up among its parent's
+  children when something in it changes. Children that pair by index (the same key, a fragment
+  for a fragment) are morphed in order, and only the ones after the first that doesn't are
+  matched by key, so an item added at the end of a list leaves the rest alone. A `Shape` takes
+  what its children always are, `kids`, when the view fixes them (elements and constants: no
+  field, `$if`, loop or render), and `fixedChildren` when none has a key: those are morphed by
+  index without looking, and the element is made by cloning a template of it and its children,
+  built once (`cloneNode`), in a document whose nodes clone. Static attributes a clone loses
+  (a property no attribute reflects, as `indeterminate`) are set again on each one; custom
+  elements and `is` are made as before. In Chromium, an update of a 2000-item list with one
+  item edited takes 1.2x less with a cache and 1.7x less without, the worst case of
+  `docs/render-cache.md` 1.6x less, and a first render 1.1x to 1.2x less; switching between two
+  tabs whose lists render equal vnodes takes 0.7 ms more per 2000 items. The benchmark
+  (`scripts/bench/render.js`) also times a first render.
 - `tutuca/tui` paints through a painter (`paint.js` walks the tree; `paint-cells.js` draws cells,
   `paint-canvas.js` a canvas) and lays out in metrics (`metrics.js`): cells by default, as
   before. `Screen` takes `metrics`, and `layOut()` and `paint(painter)` are its two halves of

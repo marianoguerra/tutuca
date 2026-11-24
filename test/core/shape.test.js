@@ -1,8 +1,8 @@
 import assert from "node:assert/strict";
 import test from "node:test";
-import { $if, component, field, h, send, t } from "../../src/tutuca.js";
+import { $if, component, field, h, renderEach, send, t } from "../../src/tutuca.js";
 import { Shape, VNode } from "../../src/vdom/index.js";
-import { mutationsOf, startHost } from "../helpers.js";
+import { mutationsOf, setupHost, startHost } from "../helpers.js";
 
 const SVG = "http://www.w3.org/2000/svg";
 
@@ -138,4 +138,60 @@ test("tutuca normalizes child values: null, iterables, nested arrays and primiti
 	assert.equal(rootNode.querySelector("p").innerHTML, "a1bcfalse<i>x</i>");
 	const p = host._curVDom.flatMap((c) => c.children ?? []).find((c) => c instanceof VNode);
 	assert.ok(p.children.every((c) => !Array.isArray(c)));
+});
+
+test("an element knows its children when every render has the same ones", () => {
+	const fixed = h("li", {}, h("span", {}, field("a")), "text", h("b", {}, "constant"));
+	const { kids } = fixed.plan.shape;
+	assert.equal(kids.length, 3);
+	assert.equal(kids[0], fixed.children[0].plan.shape);
+	assert.equal(kids[1].text, "text");
+	assert.equal(kids[2], fixed.children[2].plan.shape);
+	assert.equal(fixed.plan.shape.fixedChildren, true);
+	// A field renders as text, as nothing or as many; a custom element isn't cloned.
+	assert.equal(h("p", {}, field("a")).plan.shape.kids, null);
+	assert.equal(h("p", {}, $if(field("a"), "x", "y")).plan.shape.kids, null);
+	assert.equal(h("p", {}, h("my-widget", {})).plan.shape.kids, null);
+	// Keyed children are still cloned with it, but matched by key.
+	const keyed = h("p", {}, h("i", { key: field("k") })).plan.shape;
+	assert.equal(keyed.kids.length, 1);
+	assert.equal(keyed.fixedChildren, false);
+});
+
+test("elements cloned from their template are the ones made one by one", () => {
+	const Item = component({
+		name: "Item",
+		fields: { n: t.number(), on: t.boolean() },
+		view: h(
+			"li",
+			{ class: "row", "data-n": field("n") },
+			h("input", { type: "checkbox", indeterminate: true, checked: field("on") }),
+			h("span", { class: "n" }, field("n")),
+			h("svg", { viewBox: "0 0 1 1" }, h("circle", { r: "1" })),
+			"tail",
+		),
+	});
+	const Comp = component({
+		name: "Comp",
+		fields: { items: t.array() },
+		view: h("ul", {}, renderEach(field("items"))),
+	});
+	const { host, rootNode, C } = setupHost({ Comp, Item });
+	host.start(C.Comp({ items: [C.Item({ n: 1 }), C.Item({ n: 2 })] }));
+	const [one, two] = rootNode.querySelectorAll("li");
+	assert.equal(
+		two.outerHTML,
+		one.outerHTML.replaceAll("1</span>", "2</span>").replace('n="1"', 'n="2"'),
+	);
+	assert.equal(two.querySelector("span").textContent, "2");
+	// A property no attribute reflects is set on each clone, and namespaces are the template's.
+	assert.equal(one.querySelector("input").indeterminate, true);
+	assert.equal(two.querySelector("input").indeterminate, true);
+	assert.equal(two.querySelector("circle").namespaceURI, SVG);
+	// The clones are morphed as any other node: in place.
+	host.root = C.Comp({ items: [host.root.items[0], C.Item({ n: 3 })] });
+	host.render();
+	assert.deepEqual([...rootNode.querySelectorAll("li")], [one, two]);
+	assert.equal(two.getAttribute("data-n"), "3");
+	assert.equal(two.lastChild.data, "tail");
 });
