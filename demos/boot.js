@@ -22,6 +22,8 @@ export const boot = ({
 	// Components the page shows beside the app's (in hosts of their own), whose classes it
 	// compiles with the app's.
 	styled = [],
+	// A definitionsRegistry, for the Automerge sync modes to share runtime-defined components.
+	definitions = null,
 }) => {
 	const { host, watch } = setup({ components, askHandlers, metaSchemas, document, styled });
 	const window = document.defaultView;
@@ -36,7 +38,7 @@ export const boot = ({
 		watch();
 		return host;
 	}
-	syncFromQuery(window, { log: bare ? null : addSyncLog(document) })
+	syncFromQuery(window, { log: bare ? null : addSyncLog(document), definitions })
 		.then((engines) => startSynced(host, { engines, make }))
 		.then(watch)
 		.catch((error) => console.error("sync failed to start", error));

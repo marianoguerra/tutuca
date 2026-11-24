@@ -12,9 +12,12 @@ import { lineColumn } from "pure-js";
 import { Scope } from "../core/model/scope.js";
 import { scopeOf, specOf } from "../core/model/spec.js";
 import { lint } from "../lint/index.js";
+import { agentOutline, hasAgentMeta } from "../meta/index.js";
 import { project } from "../sync/codec.js";
 import { rebuild } from "../sync/migrate.js";
+import { isUnknownComponent } from "../sync/unknown.js";
 import { idOf, idSym, isNode } from "../tree/identity.js";
+import { runExamples } from "./examples.js";
 import { componentModule } from "./module.js";
 
 // A diagnostic as the reports have it: where it is as lines and columns (1-based), the line it
@@ -92,7 +95,15 @@ const inReach = (scope) => {
 // the module's specs by name ({} when it doesn't compile).
 const inspect = (source, scope, options) => {
 	const fail = (diagnostics) => ({
-		report: { ok: false, components: [], replaces: [], shadows: [], diagnostics },
+		report: {
+			ok: false,
+			components: [],
+			agents: {},
+			examples: [],
+			replaces: [],
+			shadows: [],
+			diagnostics,
+		},
 		components: {},
 	});
 	let compiled;
@@ -116,9 +127,11 @@ const inspect = (source, scope, options) => {
 		]);
 	}
 	// What the compiler says that doesn't stop it (derived-meta): notes, where they are.
+	// One that says the module does less than it reads (a doc tag read as text, a message with
+	// no tool) is a warning; the others are notes.
 	const diagnostics = (compiled.warnings ?? []).map((d) => ({
 		...located(d, source),
-		severity: "note",
+		severity: d.severity ?? "note",
 	}));
 	// A scope of its own, below the one it goes in: registering there checks what registering in
 	// scope would (interfaces, meta), and making each with its defaults what adding one would.
@@ -139,9 +152,18 @@ const inspect = (source, scope, options) => {
 			);
 		}
 	}
+	// What each one's agent will have, where it has one: to check against what was meant.
+	const agents = {};
 	for (const name of names) {
 		if (!Object.hasOwn(trial.specs, name)) continue;
 		const made = trial.tryMake(name, {});
+		if (made.ok !== undefined && hasAgentMeta(made.ok)) {
+			try {
+				agents[name] = agentOutline(made.ok);
+			} catch {
+				// Its meta's problems are the diagnostics'.
+			}
+		}
 		if (made.err !== undefined) {
 			diagnostics.push(
 				diagnostic({
@@ -152,6 +174,31 @@ const inspect = (source, scope, options) => {
 					help: "every field needs a default to make one with no fields given: add it to defaults",
 				}),
 			);
+		}
+	}
+	// Its examples, run where it would be: each one that fails is an error, at the example.
+	const examples = [];
+	for (const name of names) {
+		if (!Object.hasOwn(trial.specs, name)) continue;
+		const own = compiled.examples?.[name] ?? [];
+		for (const [i, result] of runExamples(own, name, trial).entries()) {
+			examples.push({ component: name, name: result.name, ok: result.ok });
+			if (result.ok) continue;
+			const step = result.step === null ? "" : `, step ${result.step + 1}`;
+			diagnostics.push({
+				...located(
+					{
+						code: "example",
+						stage: "example",
+						message: `${name}'s example ${result.name}${step}: ${result.why}`,
+						start: own[i].at.start,
+						end: own[i].at.end,
+						help: "fix the component, or the example if it's what's wrong",
+					},
+					source,
+				),
+				component: name,
+			});
 		}
 	}
 	const reach = inReach(trial);
@@ -166,6 +213,8 @@ const inspect = (source, scope, options) => {
 		report: {
 			ok,
 			components: names,
+			agents,
+			examples,
 			replaces: names.filter((name) => Object.hasOwn(scope.specs, name)),
 			shadows: names.filter(
 				(name) => !Object.hasOwn(scope.specs, name) && scope.lookupSpec(name) !== null,
@@ -177,8 +226,10 @@ const inspect = (source, scope, options) => {
 	};
 };
 
-// What source would register in scope, and what's wrong with it: { ok, components, replaces,
-// shadows, diagnostics }. ok when no diagnostic is an error (warnings don't stop a define);
+// What source would register in scope, and what's wrong with it: { ok, components, agents,
+// replaces, shadows, diagnostics }, agents what each component's agent will have, by name, for
+// those with agent meta (agentOutline's), examples what each of their examples did ([{
+// component, name, ok }]: one that fails is also an error diagnostic, at it). ok when no diagnostic is an error (warnings don't stop a define);
 // components the names it defines, replaces those registered in scope already (a new
 // definition), shadows those a lookup finds above it (one of its own, here). Changes nothing.
 export const checkComponentSource = (source, scope, options = {}) =>
@@ -206,12 +257,36 @@ const keepIdentities = (next, prev) => {
 // Registers what source defines in scope, when it checks: { ok, scope, registered, replaced,
 // shadowed, root, added, reset, dropped, diagnostics, components }, scope its path from the
 // root ("" for the root). When it gives a name a lookup already finds a new definition (one
-// registered there, replaced, or above it, shadowed), root (the state, a host's root) is made again through it (sync's rebuild,
+// registered there, replaced, or above it, shadowed), or root holds an UnknownComponent (one
+// synced from a peer that defined it), root (the state, a host's root) is made again through it (sync's rebuild,
 // as a hot reload does): root is the new state, added, reset and dropped what didn't carry as
 // it was (paths from the root). root is null when nothing was overridden. When the state can't
-// be made again, what was registered is put back and ok is false.
-export const defineComponentSource = (source, scope, root = null, options = {}) => {
-	const { report, components, compiled } = inspect(source, scope, options);
+// be made again, what was registered is put back and ok is false. options.only, the names to
+// register of those it defines, leaves the others out (they're still checked).
+export const defineComponentSource = (source, scope, root = null, { only, ...options } = {}) => {
+	const inspected = inspect(source, scope, options);
+	const { compiled } = inspected;
+	// only: the names to register of those the module defines (a peer's entry is one of them).
+	const keep = (names) => (only === undefined ? names : names.filter((n) => only.includes(n)));
+	const report = {
+		...inspected.report,
+		// With only, what's wrong with the components it leaves out doesn't stop the others.
+		ok:
+			only === undefined
+				? inspected.report.ok
+				: inspected.report.diagnostics.every(
+						(d) => d.severity !== "error" || (d.component !== null && !only.includes(d.component)),
+					) && keep(inspected.report.components).length > 0,
+		components: keep(inspected.report.components),
+		agents: Object.fromEntries(
+			Object.entries(inspected.report.agents).filter(([name]) => keep([name]).length > 0),
+		),
+		replaces: keep(inspected.report.replaces),
+		shadows: keep(inspected.report.shadows),
+	};
+	const components = Object.fromEntries(
+		Object.entries(inspected.components).filter(([name]) => keep([name]).length > 0),
+	);
 	const where = scopePath(scope);
 	const none = {
 		scope: where,
@@ -238,7 +313,10 @@ export const defineComponentSource = (source, scope, root = null, options = {}) 
 		});
 	let plain = null;
 	try {
-		const changes = replaced.length + shadowed.length > 0;
+		// A component a peer defined, held as an UnknownComponent, becomes the real one.
+		const unknowns =
+			root !== null && instancesIn(root).some(({ instance }) => isUnknownComponent(instance));
+		const changes = replaced.length + shadowed.length > 0 || unknowns;
 		if (changes && root !== null) plain = project(root, { level: "none" });
 	} catch (error) {
 		const failed = carryFailed(error);
@@ -280,6 +358,7 @@ export const defineComponentSource = (source, scope, root = null, options = {}) 
 		replaced,
 		shadowed,
 		...carried,
+		agents: report.agents,
 		diagnostics: report.diagnostics,
 		components,
 	};
@@ -386,8 +465,14 @@ export const removeScope = (scope, path, root = null) => {
 //   unregisterComponent([name, scope]) and removeScope([scope]): { ok, error, inUse }
 // defineComponent gives host the state made again when it overrides or shadows a name, and calls
 // onDefine(specs, scope) with what it registered (to compile their classes, say). host may be a
-// function that gives it, for handlers made before the host is.
-export const componentAsks = ({ host = null, onDefine = null, options = {} } = {}) => {
+// function that gives it, for handlers made before the host is. definitions, a
+// definitionsRegistry (definitions.js), hears what's defined and removed, to share it.
+export const componentAsks = ({
+	host = null,
+	onDefine = null,
+	options = {},
+	definitions = null,
+} = {}) => {
 	const hostOf = typeof host === "function" ? host : () => host;
 	const rootOf = () => hostOf()?.root ?? null;
 	const below = (scope, path, make) => {
@@ -427,13 +512,23 @@ export const componentAsks = ({ host = null, onDefine = null, options = {} } = {
 			);
 			if (answer.ok) {
 				onDefine?.(Object.values(components), scope);
+				definitions?.defined(answer.scope, answer.registered, source);
 				if (root !== null) live.applyChange(() => root);
 			}
 			return answer;
 		},
 		listScopes: (_args, read) => listScopes(read.scope, rootOf()),
-		unregisterComponent: ([name, path = ""], read) =>
-			unregisterComponent(read.scope, name, path ?? "", rootOf()),
-		removeScope: ([path], read) => removeScope(read.scope, path, rootOf()),
+		unregisterComponent: ([name, path = ""], read) => {
+			const at = below(read.scope, path, false);
+			const answer = unregisterComponent(read.scope, name, path ?? "", rootOf());
+			if (answer.ok && at) definitions?.removed(scopePath(at), name);
+			return answer;
+		},
+		removeScope: ([path], read) => {
+			const at = below(read.scope, path, false);
+			const answer = removeScope(read.scope, path, rootOf());
+			if (answer.ok && at) definitions?.scopeRemoved(scopePath(at));
+			return answer;
+		},
 	};
 };

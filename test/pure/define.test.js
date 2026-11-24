@@ -14,6 +14,7 @@ import {
 	scopesText,
 	unregisterComponent,
 } from "../../src/pure/index.js";
+import { hydrate } from "../../src/sync/codec.js";
 import { idOf } from "../../src/tree/identity.js";
 import { component, Scope, specOf, t } from "../../src/tutuca.js";
 
@@ -36,6 +37,8 @@ describe("checkComponentSource", () => {
 		assert.deepEqual(report, {
 			ok: true,
 			components: ["Card"],
+			agents: {},
+			examples: [],
 			replaces: [],
 			shadows: [],
 			diagnostics: [],
@@ -115,6 +118,23 @@ describe("checkComponentSource", () => {
 });
 
 describe("defineComponentSource", () => {
+	test("a component synced from a peer that defined it becomes the real one once it's defined here", () => {
+		const scope = new Scope();
+		const Holder = component({
+			name: "Holder",
+			fields: { content: t.option(t.component()) },
+			view: "<div></div>",
+		});
+		scope.register({ Holder });
+		const root = hydrate({ $: "Holder", content: { $: "Card", title: "synced", count: 3 } }, scope);
+		assert.equal(specOf(root.content).name, "UnknownComponent");
+		const answer = defineComponentSource(CARD, scope, root);
+		assert.equal(answer.ok, true);
+		assert.equal(specOf(answer.root.content), scope.lookupSpec("Card"));
+		assert.equal(answer.root.content.title, "synced");
+		assert.equal(answer.root.content.count, 3);
+	});
+
 	test("registers in the scope given, which makes it by name", () => {
 		const scope = new Scope();
 		const answer = defineComponentSource(CARD, scope);
@@ -246,5 +266,62 @@ describe("scopes below a scope", () => {
 			"Defined Card in scope scratch, over the Card above it.",
 		);
 		assert.equal(scope.lookupSpec("Card"), above);
+	});
+});
+
+describe("a module's examples", () => {
+	const TALLY = (examples, run = "next.count += n;") =>
+		lines(
+			'import { div, field } from "tutuca/view";',
+			"export type Tally = { count: number; readonly twice: number };",
+			"export const Tally = {",
+			"	defaults: { count: 0 },",
+			"	constraints: { count: { max: 10 } },",
+			`	on: { add: { run(next, [n]: [number]) { ${run} } } },`,
+			"	queries: { twice() { return this.count * 2; } },",
+			'	view: div(field("count")),',
+			`	examples: ${examples},`,
+			"};",
+		);
+	const run = (examples, body) => checkComponentSource(TALLY(examples, body), new Scope());
+	const exampleErrors = (r) => r.diagnostics.filter((d) => d.code === "example");
+
+	test("that pass: the report says so, and nothing's wrong", () => {
+		const r = run(
+			'{ adds: { start: { count: 1 }, steps: [{ send: "add", args: [2] }, { expect: { count: 3, twice: 6 } }] } }',
+		);
+		assert.equal(r.ok, true);
+		assert.deepEqual(r.examples, [{ component: "Tally", name: "adds", ok: true }]);
+		assert.match(checkReportText(r), /Examples: 1 of 1 pass \(✓ Tally\.adds\)\./);
+	});
+
+	test("that get something else: an error at the example, with the step, expected and got", () => {
+		const r = run(
+			'{ adds: { steps: [{ send: "add", args: [1] }, { send: "add", args: [2] }, { expect: { count: 3 } }] } }',
+			"next.count = next.count * 5 + n;",
+		);
+		assert.equal(r.ok, false);
+		const [d] = exampleErrors(r);
+		assert.equal(d.message, "Tally's example adds, step 3: expected count to be 3, got 7");
+		assert.equal(d.sourceLine.trim().startsWith("examples: { adds:"), true);
+		assert.equal(d.component, "Tally");
+	});
+
+	test("a send that breaks a contract, a key that isn't there and a start that can't be", () => {
+		const [broke] = exampleErrors(
+			run('{ over: { steps: [{ send: "add", args: [20] }, { expect: { count: 20 } }] } }'),
+		);
+		assert.match(broke.message, /^Tally's example over, step 1: sending add failed: /);
+		// What an expect names is typed: one that isn't there doesn't compile.
+		const missing = run("{ q: { steps: [{ expect: { thrice: 0 } }] } }");
+		assert.deepEqual(
+			missing.diagnostics.map((d) => d.code),
+			["excess-property"],
+		);
+		const [start] = exampleErrors(run("{ s: { start: { count: 99 }, steps: [] } }"));
+		assert.match(
+			start.message,
+			/^Tally's example s: Tally can't start from its start: count 99 isn't one its type allows \(it was made 0\)/,
+		);
 	});
 });

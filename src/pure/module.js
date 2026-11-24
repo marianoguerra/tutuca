@@ -15,8 +15,11 @@
 // and compiled with pure-js; the components are ordinary component() specs; model is format 2,
 // what the shared conformance corpus records.
 //
-//   const { ok, components, interfaces, metaSchemas, askHandlers, hostAsks, diagnostics, model } =
-//     componentModule(source, { resolve, hostModules });
+//   const { ok, components, examples, interfaces, metaSchemas, askHandlers, hostAsks, diagnostics,
+//     model } = componentModule(source, { resolve, hostModules });
+//
+// examples are each component's C.examples, by component: [{ name, start, steps, at }], at where
+// its name is in the source; runExamples (examples.js) runs them.
 //
 // interfaces are the module's interfaces (one whose methods return Pure or Notify), as
 // scope.registerInterfaces takes them; metaSchemas its meta schemas (a const C = { metaSchema:
@@ -373,6 +376,58 @@ const fnArgsText = (fn) => {
 	// An empty pattern takes nothing.
 	return p?.type === "ArrayPattern" && p.elements.length === 0 ? "[]" : "unknown[]";
 };
+// A handler's args, its run's (or answer outcome's) second parameter, are an array: an
+// annotation that can't be one (run(next, n: number)) checks against what it says, but run
+// gets [n], and the handler has no args a tool or a send can be typed by. What's wrong with
+// each, as diagnostics.
+const ARRAY_REFS = new Set(["Array", "ReadonlyArray"]);
+// Whether type, an annotation, can't be an array: a keyword, a literal, an object type, or an
+// alias of one. Anything it can't tell (a union, an import, a generic) may be one.
+const notArray = (type, decl, seen = new Set()) => {
+	switch (type?.type) {
+		case "TypeKeyword":
+			return !["any", "unknown", "never"].includes(type.name);
+		case "TypeLiteral": // "x", 1, true
+		case "TypeObject": // { ... }, an interface, a component's state
+			return true;
+		case "TypeRef": {
+			if (ARRAY_REFS.has(type.name) || seen.has(type.name)) return false;
+			const target = decl.types.get(type.name);
+			return target !== undefined && notArray(target, decl, new Set([...seen, type.name]));
+		}
+		default:
+			return false;
+	}
+};
+const argsProblems = (comps, decl) => {
+	const problems = [];
+	const check = (fn, where) => {
+		const p = fn?.params?.[1];
+		if (p?.type !== "Identifier" || !notArray(p.typeAnnotation, decl)) return;
+		const written = printNode(p.typeAnnotation, { types: true });
+		problems.push({
+			code: "pure-tutuca::handler-args",
+			message: `${where}'s args are an array, not ${written}: run gets [${p.name}], not ${p.name}`,
+			start: p.start,
+			end: p.end,
+			help: `destructure them with a tuple type: run(next, [${p.name}]: [${written}])`,
+		});
+	};
+	for (const c of comps) {
+		for (const h of handlerNames(c, "on")) {
+			check(propertyOf(h.node, "run")?.value, `${c.name}.on.${h.name}`);
+		}
+		for (const h of handlerNames(c, "answers")) {
+			for (const p of h.node?.type === "ObjectExpression" ? h.node.properties : []) {
+				const key = p.key?.type === "Identifier" ? p.key.name : String(p.key?.value);
+				const fn =
+					p.value?.type === "FunctionExpression" ? p.value : propertyOf(p.value, "run")?.value;
+				check(fn, `${c.name}.answers.${h.name}.${key}`);
+			}
+		}
+	}
+	return problems;
+};
 const ctxName = (component, message) =>
 	`Ctx_${component}_${message.replace(/[^A-Za-z0-9_]/g, "_")}`;
 const quoted = (names) =>
@@ -537,7 +592,9 @@ const signatures = (decl) => {
 // against as it's written (a key with a default may be left out, at any depth); mode is
 // "check" (checked when it's there), "require" (missing-meta when it isn't) or "derive" (made
 // with derive(spec, said) when it isn't, and merged with it when it is: derived-meta, a
-// warning); problems(spec) says what the shape can't (a tool naming a message it hasn't).
+// warning); notes(spec, said, docs), with derive, what the derived meta lacks ([{ message,
+// help }], derived-meta warnings too); problems(spec) says what the shape can't (a tool naming
+// a message it hasn't).
 const IDENT_KEY = /^[A-Za-z_$][A-Za-z0-9_$]*$/;
 const keyText = (k) => (IDENT_KEY.test(k) ? k : JSON.stringify(k));
 const parens = (text) => (/[|]/.test(text) ? `(${text})` : text);
@@ -596,6 +653,37 @@ const metaDiagnostic = (code, node, message, help = null) => ({
 	profile: null,
 	help,
 });
+// The doc tags derive reads (@summary, @param, @hidden) written after text on a line, where a
+// doc comment takes them as text: /** Who is ahead. @summary */ says no summary. As warnings,
+// one per doc comment, on the member it documents.
+const DOC_TAGS = /(?:^|\s)@(summary|param|hidden)\b/;
+const misplacedTags = (source, c) => {
+	const out = [];
+	const check = (node, what, span = node) => {
+		if (node?.start === undefined) return;
+		const doc = docAt(source, node.start);
+		const tag = doc?.text?.match(DOC_TAGS)?.[1];
+		if (tag === undefined) return;
+		out.push(
+			metaDiagnostic(
+				"doc-tag",
+				span,
+				`${what}'s doc comment has @${tag} after text on its line, where it's read as text: it says nothing to the agent`,
+				`start the tag on a line of its own, after the text: " * @${tag}${tag === "param" ? " n what n is" : ""}"`,
+			),
+		);
+		out.at(-1).severity = "warning";
+	};
+	for (const group of ["on", "queries"]) {
+		const node = propertyOf(c.literal, group)?.value;
+		for (const p of node?.type === "ObjectExpression" ? node.properties : []) {
+			const key = p.key.type === "Identifier" ? p.key.name : String(p.key.value);
+			check(p, `${c.name}.${group}.${key}`, p.key);
+		}
+	}
+	for (const m of membersOf(c.state)) check(m, `${c.name}.${m.name}`);
+	return out;
+};
 // What c's doc comments say, for a namespace's derive: { text, fields, on, queries }. text is its
 // type's doc (else its const's); fields each field's doc text; on and queries each handler's
 // and query's { text, params, hidden, summary }, params its @param texts by name, hidden
@@ -1017,6 +1105,7 @@ const failed = (diagnostics, model = null) => ({
 	diagnostics,
 	warnings: [],
 	components: {},
+	examples: {},
 	interfaces: {},
 	metaSchemas: {},
 	askHandlers: {},
@@ -1038,6 +1127,8 @@ export const componentModule = (
 	const decl = declarationsOf(parsed.module);
 	decl.imported = imports.types;
 	const comps = componentsOf(decl);
+	const argsWrong = argsProblems(comps, decl);
+	if (argsWrong.length > 0) return failed(argsWrong);
 	const components = new Set(comps.map((c) => c.name));
 	const host = buildHost(decl, hostModules);
 	const options = {
@@ -1062,10 +1153,17 @@ export const componentModule = (
 		const opts = specOptions(c, ns, decl, components, literal(c.literal) ?? {});
 		let spec = component(opts);
 		// What the caller's namespaces derive, over what it said, and what's wrong with it.
-		for (const [uri, { mode, derive, problems: problemsOf }] of Object.entries(meta)) {
+		for (const [uri, { mode, derive, notes, problems: problemsOf }] of Object.entries(meta)) {
 			if (mode === "derive" && typeof derive === "function") {
 				const said = saysMeta(c, uri) ? spec.meta[uri] : null;
-				const derived = derive(spec, said, docsOf(source, parsed.module, c));
+				const docs = docsOf(source, parsed.module, c);
+				warnings.push(...misplacedTags(source, c));
+				const derived = derive(spec, said, docs);
+				// What the namespace says the derived meta lacks (notes(spec, said, docs)).
+				for (const note of notes?.(spec, said, docs) ?? []) {
+					const d = metaDiagnostic("derived-meta", metaNode(c, uri), note.message, note.help);
+					warnings.push({ ...d, severity: "warning" });
+				}
 				spec = component({ ...opts, meta: { ...opts.meta, [uri]: derived } });
 				opts.meta = spec.meta;
 				warnings.push(
@@ -1085,6 +1183,23 @@ export const componentModule = (
 		specs[c.name] = spec;
 	}
 	if (problems.length > 0) return failed(problems, model);
+	// Each component's examples, as data, with where each is in the source: what checks run.
+	const examples = {};
+	for (const c of comps) {
+		const node = propertyOf(c.literal, "examples")?.value;
+		if (node?.type !== "ObjectExpression") continue;
+		examples[c.name] = node.properties
+			.filter((p) => p.type === "Property" && !p.computed)
+			.map((p) => {
+				const data = literal(p.value) ?? {};
+				return {
+					name: p.key.type === "Identifier" ? p.key.name : String(p.key.value),
+					start: data.start ?? {},
+					steps: Array.isArray(data.steps) ? data.steps : [],
+					at: { start: p.key.start, end: p.key.end },
+				};
+			});
+	}
 	// The interfaces, as registerInterfaces takes them: an interface's methods marked Pure are
 	// its pure messages, those marked Notify its notifies.
 	const interfaces = {};
@@ -1118,6 +1233,7 @@ export const componentModule = (
 		// What it says that doesn't stop it: derived-meta.
 		warnings,
 		components: specs,
+		examples,
 		interfaces,
 		metaSchemas,
 		askHandlers,
@@ -1150,6 +1266,8 @@ export const componentModuleSource = (
 	const decl = declarationsOf(parsed.module);
 	decl.imported = imports.types;
 	const comps = componentsOf(decl);
+	const argsWrong = argsProblems(comps, decl);
+	if (argsWrong.length > 0) return failed(argsWrong);
 	const components = new Set(comps.map((c) => c.name));
 	const host = buildHost(decl, hostModules);
 	const signatureOf = signatures(decl);

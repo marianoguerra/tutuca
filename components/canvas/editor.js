@@ -22,7 +22,17 @@
 //
 // A hole lists what was registered in the canvas's scope, beside its kinds: withDefinedKinds.
 
-import { AGENT_META, agentTool } from "../../src/meta/index.js";
+import {
+	AGENT_META,
+	agentTool,
+	hasAgentMeta,
+	pageOutline,
+	pageOutlineText,
+	planToolCall,
+	reportType,
+	settledText,
+	toolsFor,
+} from "../../src/meta/index.js";
 import {
 	checkReportText,
 	defineReportText,
@@ -49,26 +59,71 @@ const { button, details, div, input, li, pre, span, summary, textarea, ul } = ta
 
 // The scope below the editor's that previews are registered in, shared by every editor there.
 export const SCRATCH = "scratch";
+// What c's page shows, for the agent that can't see it: preview and the tools that change the
+// preview answer with it after its state. A view that fails to render says so.
+const onThePage = (c) => {
+	try {
+		return `\nOn the page:\n${pageOutlineText(pageOutline(c))}`;
+	} catch (error) {
+		return `\nOn the page: its view failed to render: ${error?.message ?? error}`;
+	}
+};
 
 // What a new editor starts with: a module that registers as it is.
 export const EDITOR_STARTER = `import { button, div, field, send, span } from "tutuca/view";
 
-export type Counter = { label: string; count: number };
+/** Counts clicks. */
+export type Counter = {
+	/** What it counts. */
+	label: string;
+	count: number;
+	/** What it says it's at. */
+	readonly status: string;
+};
 
 export const Counter = {
 	defaults: { label: "Clicks", count: 0 },
 	on: {
+		/** Count one more. */
 		inc: {
 			run(next) {
 				next.count += 1;
 			},
+		},
+		/**
+		 * Count n more.
+		 * @param n how many.
+		 */
+		add: {
+			run(next, [n]: [number]) {
+				next.count += n;
+			},
+		},
+	},
+	queries: {
+		/**
+		 * Where it's at, in words.
+		 * @summary
+		 */
+		get status() {
+			return \`\${this.label}: \${this.count}\`;
 		},
 	},
 	view: div(
 		{ class: "flex items-center gap-3 p-3" },
 		span({ class: "text-sm opacity-70" }, field("label")),
 		button({ class: "btn btn-sm btn-primary", "on:click": send("inc") }, field("count")),
+		button({ class: "btn btn-sm", "on:click": send("add", 10) }, "+10"),
 	),
+	examples: {
+		countsUp: {
+			steps: [
+				{ send: "inc" },
+				{ send: "add", args: [10] },
+				{ expect: { count: 11, status: "Clicks: 11" } },
+			],
+		},
+	},
 };
 `;
 
@@ -80,14 +135,39 @@ handler reads this and changes next; it can't change this. View functions (div, 
 input, field, send, targetValue, each, when, ...) are imported from "tutuca/view"; classes are
 Tailwind's and daisyUI's.
 
+A handler's arguments come as an array, as send passes them: a handler that takes some
+destructures them with a tuple type, run(next, [n]: [number]) for send("add", 10), and one that
+takes none is run(next). A query is on queries, and a readonly member of the type: one that
+takes no args is a getter, get score() { ... }, read as field("score") in the view and this.score
+in handlers; one that takes args is a method, matches(q: string) { ... }, called in the view with
+$query("matches", field("q")). field never calls anything: a field that names a method shows
+its source on the page, and check reports it.
+
+Examples and check see state, not the page: a view can be wrong while they all pass. Preview,
+and try_preview of a message, answer with the page too, as an outline: each element, the text
+it shows, its inputs' values and [event → message(args)] for what it sends. Read it as the user
+will see it: text that is code, [object Object], ⚠ or missing values is a bug in the view. When
+the user says what they see on the page, believe it and look for what in the view makes it.
+
 What's added to the canvas can be driven by an agent of its own: each message and query is a
-tool. Doc comments (/** ... */) describe them to it: on the type (what the component is), on
-each field, handler and query; @param n says what an argument is, @hidden keeps a message from
-it, @summary marks the query it reads in every step.
+tool, typed by its arguments' types. Doc comments (/** ... */) describe them to it: on the type
+(what the component is), on each field, handler and query; @param n says what an argument is,
+@hidden keeps a message from it, @summary marks the query it reads in every step. A tag starts a
+line of its own, after the text: on the same line it's read as text. Check, preview and register
+say which tools its agent will have and what it sees every step: compare them with what you
+meant.
+
+Write what it should do as examples before you write how: examples: { name: { start: { fields },
+steps: [{ send: "add", args: [2] }, { expect: { count: 2, status: "..." } }] } }, an expect
+naming fields and queries. Check, preview and register run them, and one that fails says which
+step, what it expected and what it got: one example per message, and one for each case that
+matters (a limit, an empty list, a second call that builds on the first).
 
 Work in steps: read_source, change it with replace_in_source (small edits) or set_source (all of
 it), check until it has no errors, preview it (it registers it in the scratch scope, shared by
-every editor, and shows one in the editor: preview answers with its state), and once it's right,
+every editor, and shows one in the editor: preview answers with its state and its page),
+try_preview each of its tools as its agent will call them and see that they do what you meant,
+on the page too, and once it's right,
 register it and add_to_canvas. Errors come with their line and column and often how to fix them.
 To change a component, edit the source and preview or register it again under the same name:
 what's there moves onto the new definition and keeps its state; a field the old one didn't have
@@ -136,6 +216,9 @@ export const ComponentEditor = component({
 		[AGENT_META]: {
 			prompt: PROMPT,
 			summary: "summary",
+			// Writing a component takes many turns: read, edit, check, preview, try each tool,
+			// fix, register and add.
+			maxSteps: 50,
 			tools: [
 				agentTool("read_source", "query", [], "The source, its lines numbered.", {
 					target: "numberedSource",
@@ -170,6 +253,13 @@ export const ComponentEditor = component({
 					[],
 					"Register the source in the scratch scope and show one of the named component in the editor; answers with its state. Previewed again, it keeps its state.",
 					{ result: "lastReport" },
+				),
+				agentTool(
+					"try_preview",
+					"message",
+					["tool", "arguments"],
+					"Call one of the preview's tools as its own agent will (by the tool's name, with its arguments as an object, null for none): answers with what it returns, or what the preview looks like after. A tool it doesn't have says which it has. Try each message, and twice where the second call depends on the first.",
+					{ target: "tryPreview", result: "lastReport" },
 				),
 				agentTool("discard_preview", "message", [], "Take the preview away.", {
 					target: "discardPreview",
@@ -222,6 +312,9 @@ export const ComponentEditor = component({
 		preview: t.option(t.component(), { sync: "none" }),
 		// listScopes' answer, while the scopes panel is open.
 		scopes: t.any({ default: [], sync: "none" }),
+		// The tool try_preview is running in the preview: its job, and what answers it.
+		trying: t.int({ min: 0, sync: "none" }),
+		tryingResult: t.option(t.string(), { sync: "none" }),
 	},
 	queries: {
 		get numberedSource() {
@@ -456,6 +549,50 @@ export const ComponentEditor = component({
 				ctx.ask("defineComponent", [this.source, SCRATCH]);
 			},
 		},
+		// Its agent's try_preview: tool, one of the preview's agent tools, called as its agent
+		// would (planToolCall). One that runs as it's planned answers now; one that needs a
+		// context is sent to the preview, and previewTried answers once it and what it caused
+		// ran. No emits: what it sends is the preview's own message, named by the tool.
+		tryPreview: {
+			args: [t.string({ minLength: 1 }), t.option(t.any())],
+			run(next, [tool, args], ctx) {
+				if (this.preview === null) {
+					next.report = "There's no preview to try: preview it first.";
+					return;
+				}
+				if (!hasAgentMeta(this.preview)) {
+					next.report = `${specOf(this.preview).name} has no agent meta, so its agent would have no tools.`;
+					return;
+				}
+				const has = () =>
+					`It has: ${toolsFor(this.preview)
+						.map((tl) => tl.name)
+						.join(", ")}.`;
+				const plan = planToolCall(this.preview, { name: tool, arguments: args ?? {} });
+				if (plan.done) {
+					const { text, isError } = plan.done;
+					next.report = isError ? `${tool} failed: ${text}\n${has()}` : `${tool}: ${text}`;
+					if (plan.next !== this.preview) next.preview = plan.next;
+					const kind = toolsFor(this.preview).find((tl) => tl.name === tool)?.kind;
+					if (!isError && kind === "message") next.report += onThePage(plan.next);
+					return;
+				}
+				next.report = `Trying ${tool}…`;
+				next.tryingResult = plan.result ?? null;
+				next.trying = ctx.sendAt(plan.send.name, plan.send.args, "preview", {
+					settled: ["previewTried", [tool]],
+				});
+			},
+		},
+		previewTried: {
+			args: [t.string(), reportType],
+			run(next, [tool, report]) {
+				if (report.id !== this.trying || this.preview === null) return;
+				const { text, isError } = settledText(this.preview, this.tryingResult, report);
+				next.report = `${isError ? `${tool} failed: ${text}` : `${tool}: ${text}`}${onThePage(this.preview)}`;
+				next.trying = 0;
+			},
+		},
 		discardPreview: {
 			pure: true,
 			args: [],
@@ -602,7 +739,7 @@ export const ComponentEditor = component({
 							next.preview = shown;
 						}
 						if (this.name === "") next.name = own;
-						next.report += `\nPreviewing ${own}: ${JSON.stringify(plainOf(shown))}`;
+						next.report += `\nPreviewing ${own}: ${JSON.stringify(plainOf(shown))}${onThePage(shown)}`;
 						return;
 					}
 					next.name = where === "" ? own : `${where}/${own}`;

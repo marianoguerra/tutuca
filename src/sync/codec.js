@@ -15,6 +15,7 @@ import {
 } from "../core/model/types.js";
 import { pathText } from "../tree/index.js";
 import { setOwn } from "./ops.js";
+import { isUnknownComponent, unknownComponent, unknownPlain } from "./unknown.js";
 
 const ANY = new AnyType(null);
 // The value at path in a plain value, undefined where it isn't there.
@@ -30,15 +31,32 @@ const holdsData = (type, v) => {
 	const t = narrow(type, v);
 	return t instanceof MapType || t instanceof RecordType;
 };
-// The spec and scope of a component value of type in either form, or null for plain data.
+// The spec and scope ref names from rootScope, or null when this version doesn't define it.
+const resolve = (ref, rootScope) => {
+	const keys = ref.split("/");
+	const name = keys.pop();
+	let scope = rootScope;
+	for (const key of keys) {
+		scope = scope.children[key];
+		if (scope === undefined) return null;
+	}
+	const spec = scope.lookupSpec(name);
+	return spec === null ? null : { spec, scope };
+};
+// The ref of v, a projected component this version doesn't define, or null.
+export const unknownRef = (v, rootScope, type = ANY) => {
+	if (isComponent(v)) return null;
+	const ref = holdsData(type, v) ? null : refOf(v);
+	return ref === null || resolve(ref, rootScope) !== null ? null : ref;
+};
+// The spec and scope of a component value of type in either form, or null for plain data. A
+// component this version doesn't define is plain data: an UnknownComponent keeps its
+// projection, and the projection's keys are its own.
 export const componentOf = (v, rootScope, type = ANY) => {
+	if (isUnknownComponent(v)) return null;
 	if (isComponent(v)) return { spec: specOf(v), scope: scopeOf(v) };
 	const ref = holdsData(type, v) ? null : refOf(v);
-	if (ref === null) return null;
-	const { scope, name } = rootScope.resolveRef(ref);
-	const spec = scope.lookupSpec(name);
-	if (spec === null) throw new Error(`No component ${ref}`);
-	return { spec, scope };
+	return ref === null ? null : resolve(ref, rootScope);
 };
 // The alternative of type that value takes: options and unions narrowed to it.
 export const narrow = (type, value) => {
@@ -79,6 +97,15 @@ export const keysOf = (value, level, rootScope, type = ANY) => {
 	return Object.keys(fields).filter((k) => syncsAt(fields[k], level));
 };
 
+// value with every string, at any depth, as fn makes it.
+const mapStrings = (value, fn) => {
+	if (typeof value === "string") return fn(value);
+	if (Array.isArray(value)) return value.map((v) => mapStrings(v, fn));
+	if (value === null || typeof value !== "object") return value;
+	const out = {};
+	for (const key of Object.keys(value)) setOwn(out, key, mapStrings(value[key], fn));
+	return out;
+};
 const fail = (path, what) => {
 	throw new Error(`can't sync ${what} at ${pathText(path)}`);
 };
@@ -93,6 +120,10 @@ export const project = (value, { level = "shared", type = ANY, leaf = null } = {
 		return value.map((v, i) => project(v, { level, type: itemType, leaf }, [...path, i]));
 	}
 	if (typeof value !== "object") return fail(path, typeof value);
+	if (isUnknownComponent(value)) {
+		const plain = unknownPlain(value);
+		return leaf === null ? plain : mapStrings(plain, (v) => leaf(v, ANY));
+	}
 	const proto = Object.getPrototypeOf(value);
 	const out = {};
 	if (isComponent(value)) {
@@ -135,6 +166,8 @@ export const hydrate = (plain, scope, type = ANY) => {
 			const itemType = itemTypeOf(t, v);
 			return v.map((item) => fitIn(itemType, build(item, itemType, s), s));
 		}
+		const unknown = unknownRef(v, rootScope, t);
+		if (unknown !== null) return unknownComponent(unknown, v, s);
 		const component = componentOf(v, rootScope, t);
 		if (component !== null) {
 			const { spec, scope: own } = component;

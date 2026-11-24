@@ -14,6 +14,7 @@ import {
 	systemPrompt,
 	toolsFor,
 } from "../../src/meta/index.js";
+import { checkComponentSource, checkReportText } from "../../src/pure/index.js";
 import { componentModule } from "../../src/pure/module.js";
 import { Scope } from "../../src/tutuca.js";
 
@@ -199,5 +200,83 @@ export const Counter = {
 			systemPrompt(c),
 			/A counter of things\. Its fields: label \(string\): What it counts; count \(number\)\./,
 		);
+	});
+});
+
+describe("a handler's args", () => {
+	const withAdd = (run) => counter().replace("run(next, [n]: [number]) { next.count += n; }", run);
+
+	test("annotated as what can't be an array are an error, with the tuple to write", () => {
+		for (const [run, written] of [
+			["run(next, n: number) { next.count += n; }", "number"],
+			["run(next, c: Counter) { next.count = c.count; }", "Counter"],
+			['run(next, s: "x") { next.label = s; }', '"x"'],
+		]) {
+			const r = componentModule(withAdd(run));
+			assert.equal(r.ok, false, run);
+			const [d] = r.diagnostics;
+			assert.equal(d.code, "pure-tutuca::handler-args");
+			assert.match(d.message, /Counter\.on\.add's args are an array/);
+			assert.equal(d.help.includes(`[${written}]`), true, d.help);
+		}
+	});
+
+	test("a tuple, an array or no annotation compile", () => {
+		for (const run of [
+			"run(next, [n]: [number]) { next.count += n; }",
+			"run(next, ns: number[]) { next.count += ns.length; }",
+			"run(next, [n]) { next.count += 1; }",
+		]) {
+			assert.equal(componentModule(withAdd(run)).ok, true, run);
+		}
+	});
+
+	test("derive: a message whose args have no type is no tool, and a note says so", () => {
+		const r = componentModule(
+			withAdd("run(next, ns: number[]) { next.count += ns.length; }"),
+			option("derive"),
+		);
+		assert.deepEqual(
+			r.warnings.map((w) => w.message),
+			[
+				"Counter.on.add is no tool for its agent: its args have no type",
+				"Counter's https://tutuca.dev/meta/agent meta is derived from its definition",
+			],
+		);
+		assert.deepEqual(
+			toolsFor(instanceOf(r)).map((tool) => tool.name),
+			["inc", "plus"],
+		);
+	});
+});
+
+describe("what a check says an agent will have", () => {
+	test("its tools with their params' types, and what it sees every step", () => {
+		const r = checkComponentSource(counter(), new Scope(), option("derive"));
+		assert.deepEqual(r.agents.Counter, {
+			tools: [
+				{ name: "inc", kind: "message", params: [] },
+				{ name: "add", kind: "message", params: [{ name: "n", type: '"number"' }] },
+				{ name: "plus", kind: "query", params: [{ name: "n", type: '"number"' }] },
+			],
+			summary: null,
+		});
+		assert.match(
+			checkReportText(r),
+			/Counter's agent will have tools inc\(\), add\(n: number\), plus\(n: number\) \(reads\); it sees its state as JSON every step\./,
+		);
+	});
+
+	test("a doc tag after text on its line is read as text: a warning says where", () => {
+		const source = counter().replace(
+			"add: { pure: true,",
+			"/** Add n. @param n how many. */\n\t\tadd: { pure: true,",
+		);
+		const r = checkComponentSource(source, new Scope(), option("derive"));
+		assert.equal(r.ok, true);
+		const [d] = r.diagnostics.filter((x) => x.code === "doc-tag");
+		assert.equal(d.severity, "warning");
+		assert.match(d.message, /Counter\.on\.add's doc comment has @param after text/);
+		assert.equal(d.sourceLine.trim().startsWith("add:"), true);
 	});
 });

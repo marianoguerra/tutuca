@@ -27,6 +27,7 @@ import {
 	specOf,
 	specOrSelf,
 	t,
+	typeText,
 } from "../tutuca.js";
 import { dataOf, dataSchema, hasDataMeta, isZeroArgQuery, loadData, withSample } from "./data.js";
 import { displayOf } from "./display.js";
@@ -237,6 +238,31 @@ export const toolsFor = (c) => {
 	return [...own, ...shared];
 };
 
+// What c's agent will have, as data, for who writes c to check against what they meant: its
+// tools ({ name, kind: "message" | "query" | "shared", params: [{ name, type }] }, type the
+// arg's typeText, null where it isn't known), and the query it reads every step (summary, null
+// for its state).
+export const agentOutline = (c) => {
+	const spec = specOf(c);
+	const meta = agentOf(c);
+	const own = meta.tools.map((tool) => {
+		const types = operationOf(spec, tool)?.args ?? [];
+		return {
+			name: tool.name,
+			kind: tool.kind,
+			params: tool.params.map((name, i) => ({
+				name,
+				type: types[i] === undefined ? null : typeText(types[i]),
+			})),
+		};
+	});
+	const data = dataMetaOf(c);
+	const shared = Object.entries(SHARED)
+		.filter(([, s]) => s.when(data, meta))
+		.map(([name]) => ({ name, kind: "shared", params: [] }));
+	return { tools: [...own, ...shared], summary: meta.summary ?? null };
+};
+
 const PREAMBLE = `You are an agent working in one component of a web application, through its tools only.
 Every tool that changes something answers with what it looks like after. Use ids from the summary
 to name things. When a tool fails, read why and try something else; don't repeat the same call.
@@ -390,10 +416,30 @@ export const deriveAgentMeta = (spec, said = null, docs = null) => {
 	};
 };
 // What componentModule's meta option takes for AGENT_META: its schema, agentProblems' checks,
-// and with mode "derive", deriveAgentMeta for a component that says none, or over what it says.
+// and with mode "derive", deriveAgentMeta for a component that says none, or over what it says,
+// with a note for each message it couldn't make a tool of (untooledMessages).
 export const agentMetaOption = (mode = "check") => ({
 	schema: agentMetaSchemas[AGENT_META],
 	mode,
 	problems: (spec) => agentProblems(spec),
 	derive: deriveAgentMeta,
+	notes: (spec, said, docs) => untooledMessages(spec, said, docs),
 });
+
+// What deriveAgentMeta leaves out that an agent would likely want: the messages it makes no tool
+// of because their args have no type (run(next, [n]) or run(next, args: number[]), not
+// run(next, [n]: [number])), unless said gives a tool of that name or a doc hides it. As notes:
+// [{ message, help }].
+export const untooledMessages = (spec, said = null, docs = null) => {
+	const own = new Set((said?.tools ?? []).map((tool) => tool.target ?? tool.name));
+	const notes = [];
+	for (const [name, h] of Object.entries(spec.on ?? {})) {
+		if (!(h instanceof HandlerSpec) || h.sourceKey !== undefined || h.args !== undefined) continue;
+		if (own.has(name) || docs?.on?.[name]?.hidden) continue;
+		notes.push({
+			message: `${spec.name}.on.${name} is no tool for its agent: its args have no type`,
+			help: `type them with a tuple: run(next, [n]: [number]), or run(next) when it takes none; @hidden in its doc comment says it's left out on purpose`,
+		});
+	}
+	return notes;
+};

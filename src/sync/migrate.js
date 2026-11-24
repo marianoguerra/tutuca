@@ -9,7 +9,8 @@ import { isRecord, typeText, unlessNoDefault } from "../core/model/types.js";
 import { pathText } from "../tree/index.js";
 import { componentOf, getIn, hydrate, keyType, project, typeAt } from "./codec.js";
 import { diff } from "./diff.js";
-import { applyOps, opFits } from "./ops.js";
+import { applyOps, OpConflictError, opFits } from "./ops.js";
+import { isUnknownComponent } from "./unknown.js";
 
 // The state plain (a projection at level) makes through scope's components, and what didn't
 // come through: { root, added: [path], reset: [{ path, before, after }], dropped: [path] }.
@@ -61,6 +62,20 @@ const declared = (root, path) => {
 	}
 	return true;
 };
+// op with its path into the UnknownComponent it crosses, if it crosses one: the projection's
+// keys are its data's, its $ its ref. null when it doesn't cross one.
+const intoUnknown = (root, op) => {
+	let value = root;
+	for (let i = 0; i < op.path.length; i++) {
+		if (isUnknownComponent(value)) {
+			const [key, ...rest] = op.path.slice(i);
+			const inner = key === "$" ? ["ref", ...rest] : ["data", key, ...rest];
+			return { ...op, path: [...op.path.slice(0, i), ...inner] };
+		}
+		value = value?.[op.path[i]];
+	}
+	return null;
+};
 // A value that can't be made where it goes: its op is dropped and path reported.
 class Unfit extends Error {
 	constructor(path) {
@@ -76,6 +91,17 @@ class Unfit extends Error {
 // result. Adds what it changed, paths
 // from the root, to report's added, reset and dropped. Returns the root, as applyOps does.
 export const applyFitting = (root, op, scope, report, { level = "shared" } = {}) => {
+	// Inside a component this version doesn't define, the op's values stay plain data.
+	const inner = intoUnknown(root, op);
+	if (inner !== null) {
+		try {
+			return applyOps(root, [inner]);
+		} catch (error) {
+			if (!(error instanceof OpConflictError)) throw error;
+			report.dropped.push(op.path);
+			return root;
+		}
+	}
 	if (!declared(root, op.path)) {
 		report.dropped.push(op.path);
 		return root;
@@ -86,6 +112,10 @@ export const applyFitting = (root, op, scope, report, { level = "shared" } = {})
 		try {
 			rebuilt = rebuild(value, scope, { level, type });
 		} catch {
+			throw new Unfit(path);
+		}
+		// One this version doesn't define, where its type wants another: there's nothing to fit.
+		if (isUnknownComponent(rebuilt.root) && !type.isValid(rebuilt.root, owned)) {
 			throw new Unfit(path);
 		}
 		const under = (p) => [...path, ...p];

@@ -31,8 +31,9 @@ const editorOf = (app) => {
 	const content = app.item().content;
 	return specOf(content).name === "Agent" ? content.target : content;
 };
-// A report without its notes (the agent meta each component's definition derives).
-const noNotes = (text) => text.replace(/\nnote: .*/g, "");
+// A report without its notes (the agent meta each component's definition derives) and what each
+// one's agent will have.
+const noNotes = (text) => text.replace(/\n(note: |\S+'s agent will have |Examples: ).*/g, "");
 // The items added after the editor, newest last.
 const addedAfter = (app) => app.state().order.slice(app.state().order.indexOf(app.key) + 1);
 
@@ -47,7 +48,12 @@ test("canvas editor: check, register, add to the canvas, and register again", as
 	app.fire("click", app.button("Check"));
 	assert.equal(
 		editorOf(app).report,
-		"It checks: defines Counter.\nnote: Counter's https://tutuca.dev/meta/agent meta is derived from its definition.",
+		[
+			"It checks: defines Counter.",
+			"Counter's agent will have tools inc(), add(n: number); it sees status every step.",
+			"Examples: 1 of 1 pass (✓ Counter.countsUp).",
+			"note: Counter's https://tutuca.dev/meta/agent meta is derived from its definition.",
+		].join("\n"),
 	);
 	assert.equal(editorOf(app).name, "Counter", "named after what it defines");
 	assert.equal(app.host.scope.lookupSpec("Counter"), null, "checking registers nothing");
@@ -81,9 +87,11 @@ test("canvas editor: check, register, add to the canvas, and register again", as
 	// Registered again: what's on the canvas moves onto the new definition, with its state.
 	const before = specOf(counter().content);
 	const source = editorOf(app)
-		.source.replace("count: number }", "count: number; step: number }")
+		.source.replace("\tcount: number;\n", "\tcount: number;\n\tstep: number;\n")
 		.replace("count: 0 }", "count: 0, step: 5 }")
-		.replace("next.count += 1", "next.count += this.step");
+		.replace("next.count += 1", "next.count += this.step")
+		// Its example says what it does now.
+		.replace('count: 11, status: "Clicks: 11"', 'count: 15, status: "Clicks: 15"');
 	app.fire("input", app.inCard('textarea[aria-label="Component source"]'), source);
 	app.fire("click", app.button("Register"));
 	assert.match(noNotes(editorOf(app).report), /^Gave Counter a new definition/);
@@ -194,6 +202,7 @@ test("canvas editor: a preview is registered in scratch, shown in the editor, an
 	// Previewed again: the new definition, the same state.
 	const source = ed()
 		.source.replace('"Clicks"', '"Taps"')
+		.replace('"Clicks: 11"', '"Taps: 11"')
 		.replace("btn-primary", "btn-primary btn-wide");
 	app.fire("input", app.inCard('textarea[aria-label="Component source"]'), source);
 	app.fire("click", app.button("Preview"));
@@ -303,7 +312,7 @@ test("canvas editor: what it adds to the canvas is wrapped in an agent, with too
 	assert.equal(specOf(counter().content.target).name, "Counter");
 	assert.deepEqual(
 		counter().content.tools.map((tool) => tool.name),
-		["inc"],
+		["inc", "add"],
 	);
 	app.fire("input", card().querySelector('textarea[aria-label="Prompt"]'), "/inc {}");
 	app.fire("submit", card().querySelector("form.agent-prompt"));
@@ -311,6 +320,54 @@ test("canvas editor: what it adds to the canvas is wrapped in an agent, with too
 	while (app.host.tasks.length > 0) app.host.handleTasks();
 	assert.equal(counter().content.target.count, 1);
 	const results = counter().content.transcript.messages.filter((m) => m.role === "toolResult");
-	assert.equal(results.at(-1).content[0].text, '{"label":"Clicks","count":1}');
+	assert.equal(results.at(-1).content[0].text, "Clicks: 1", "its @summary query, status");
+	await assertClean(app);
+});
+
+test("canvas editor: its agent tries the preview's tools as the preview's agent will call them", async () => {
+	const app = withEditor();
+	app.fire("click", app.inCard('[title="Wrap in an agent"]'));
+	const say = async (text) => {
+		app.fire("input", app.inCard('textarea[aria-label="Prompt"]'), text);
+		app.fire("submit", app.inCard("form.agent-prompt"));
+		await app.host.whenIdle();
+		while (app.host.tasks.length > 0) app.host.handleTasks();
+	};
+	const lastResult = () =>
+		app
+			.item()
+			.content.transcript.messages.filter((m) => m.role === "toolResult")
+			.at(-1).content[0].text;
+	await say('/try_preview {"tool": "inc", "arguments": null}');
+	assert.equal(lastResult(), "There's no preview to try: preview it first.");
+	await say("/preview {}");
+	assert.match(
+		lastResult(),
+		/\nOn the page:\ndiv\n {2}span "Clicks"\n {2}button "0" \[click → inc\(\)\]\n/,
+		"preview answers with its page, as an outline",
+	);
+	// A message that needs a context runs in the preview; it answers with its summary after,
+	// and its page.
+	await say('/try_preview {"tool": "add", "arguments": {"n": 2}}');
+	assert.equal(
+		lastResult(),
+		[
+			"add: Clicks: 2",
+			"On the page:",
+			"div",
+			'  span "Clicks"',
+			'  button "2" [click → inc()]',
+			'  button "+10" [click → add(10)]',
+		].join("\n"),
+	);
+	await say('/try_preview {"tool": "add", "arguments": {"n": 3}}');
+	assert.match(lastResult(), /^add: Clicks: 5\nOn the page:\n.*button "5"/s);
+	assert.equal(editorOf(app).preview.count, 5);
+	// One it doesn't have says which it has; bad arguments say why.
+	await say('/try_preview {"tool": "addUs", "arguments": {"n": 1}}');
+	assert.equal(lastResult(), "addUs failed: There's no tool addUs.\nIt has: inc, add.");
+	await say('/try_preview {"tool": "add", "arguments": {"n": "x"}}');
+	assert.match(lastResult(), /^add failed: /);
+	assert.equal(editorOf(app).preview.count, 5);
 	await assertClean(app);
 });

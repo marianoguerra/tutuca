@@ -77,8 +77,10 @@ test("a narrower type keeps the values that still fit", () => {
 	assert.deepEqual(carry(prev, scopeWith({ List: narrower, Item: v1 })).reset, []);
 });
 
-test("a component that's gone or a field without a default can't be carried", () => {
-	assert.throws(() => carry(made(), scopeWith({ List: List() })), /No component Item/);
+test("a component that's gone is kept as it was; a field without a default can't be carried", () => {
+	const { root } = carry(made(), scopeWith({ List: List() }));
+	assert.equal(specOf(root.items[0]).name, "UnknownComponent");
+	assert.deepEqual(project(root, { level: "none" }), project(made(), { level: "none" }));
 	const required = Item({ label: t.string(), owner: t.component() });
 	assert.throws(() => carry(made(), scopeWith({ List: List(), Item: required })), /no default/);
 });

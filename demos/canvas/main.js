@@ -3,13 +3,14 @@
 // is the canvas the page starts with. Without one, or with one that isn't known, it's the
 // notebook's.
 import { agentAskHandlers } from "../../components/agent/llm.js";
-import { withDefinedKinds } from "../../components/canvas/editor.js";
+import { SCRATCH, withDefinedKinds } from "../../components/canvas/editor.js";
 import { checkAsks, checkingTrailComponents } from "../../components/trail/check.js";
 import { mountDrawer } from "../../components/trail/drawer.js";
 import { attachTrail } from "../../components/trail/live.js";
 import { tracesComponents } from "../../components/trail/traces.js";
 import { AGENT_META, agentMetaOption } from "../../src/meta/index.js";
 import { componentAsks } from "../../src/pure/define.js";
+import { definitionsRegistry } from "../../src/pure/definitions.js";
 import { specOf } from "../../src/tutuca.js";
 import { apiOf, modelOf, preferModel, rememberModel } from "../agent-api.js";
 import { boot, browserHandlers } from "../boot.js";
@@ -35,17 +36,30 @@ export const start = (
 	// What component editors register: checked and registered where they are, their classes
 	// compiled, and listed in the holes beside the bundle's kinds.
 	const defined = new Set();
-	const editorHandlers = componentAsks({
-		host: () => host,
-		// Every component an editor writes can be wrapped in an agent: its agent meta is what it
-		// says over what its definition derives, checked as it's written.
-		options: { meta: { [AGENT_META]: agentMetaOption("derive") } },
-		// Only what's registered in the canvas's own scope is a kind; a preview's classes too.
-		onDefine: (specs, scope) => {
-			if (scope === host.scope) for (const spec of specs) defined.add(spec.name);
-			host.classes?.add(specs);
-		},
-	});
+	// Every component an editor writes can be wrapped in an agent: its agent meta is what it
+	// says over what its definition derives, checked as it's written.
+	const options = { meta: { [AGENT_META]: agentMetaOption("derive") } };
+	// Only what's registered in the canvas's own scope is a kind; a preview's classes too.
+	const onDefine = (specs, scope) => {
+		if (scope === host.scope) for (const spec of specs) defined.add(spec.name);
+		host.classes?.add(specs);
+	};
+	const definitions = sharesDefinitions(document)
+		? definitionsRegistry({
+				host: () => host,
+				dangerouslyRegisterExternalComponents: true,
+				options,
+				onDefine,
+				// A preview is the editor's own: scratch isn't shared.
+				shares: (path) => path !== SCRATCH && !path.startsWith(`${SCRATCH}/`),
+				onReport: (event) =>
+					(event.type === "rejected" || event.type === "failed" ? console.warn : console.info)(
+						`external component ${event.ref}: ${event.type}`,
+						event.diagnostics ?? event.error ?? "",
+					),
+			})
+		: null;
+	const editorHandlers = componentAsks({ host: () => host, options, onDefine, definitions });
 	const host = boot({
 		document,
 		components: bundle.components,
@@ -61,6 +75,7 @@ export const start = (
 		metaSchemas: bundle.metaSchemas,
 		make: bundle.make,
 		styled: [...Object.values(checkingTrailComponents), ...Object.values(tracesComponents)],
+		definitions,
 	});
 	// The canvas's component tree and agents on it, in a drawer: read while it's open.
 	const drawer = mountDrawer(document, {
@@ -99,6 +114,14 @@ export const start = (
 	rememberModel(document, host);
 	return host;
 };
+
+// Whether the page shares the components its editors define with the peers it syncs with, and
+// registers theirs: ?dangerouslyRegisterExternalComponents, with an Automerge ?sync=. Their
+// code runs here, checked as pure-tutuca first.
+const sharesDefinitions = (document) =>
+	new URLSearchParams(document.defaultView?.location.search ?? "").has(
+		"dangerouslyRegisterExternalComponents",
+	);
 
 // Runs fn once host has a root.
 const whenStarted = (host, fn, tries = 100) => {

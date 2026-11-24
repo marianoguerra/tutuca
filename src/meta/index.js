@@ -9,6 +9,7 @@ export {
 	agentMetaOption,
 	agentMetaSchemas,
 	agentOf,
+	agentOutline,
 	agentProblems,
 	agentTool,
 	deriveAgentMeta,

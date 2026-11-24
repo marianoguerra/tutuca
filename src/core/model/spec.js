@@ -7,6 +7,8 @@ export const scopeSym = Symbol("TutucaScope");
 export const specOf = (v) => v?.[specSym];
 export const scopeOf = (v) => v?.[scopeSym] ?? null;
 export const isComponent = (v) => specOf(v) !== undefined;
+// A component this version doesn't define, kept as it came (sync/unknown.js): its spec says so.
+export const isUnknownComponent = (v) => specOf(v)?.unknown === true;
 // A ComponentSpec: its prototype's spec is itself.
 export const isSpec = (v) => v?.proto?.[specSym] === v;
 // The spec of c, a component or its spec.

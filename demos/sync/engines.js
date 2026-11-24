@@ -89,6 +89,8 @@ export const repoHandle = async (window, { relay = null } = {}) => {
 // The engines the page's query asks for, or null without one. Each demo (key, its path) keeps
 // its own state; every mode also keeps the "local" fields in the browser's storage. log, a
 // list, shows the ops that sync. connect and open stand in for the worker and the repo.
+// definitions, a definitionsRegistry, shares the components defined at runtime through the
+// Automerge modes' document.
 export const syncFromQuery = async (
 	window,
 	{
@@ -97,6 +99,7 @@ export const syncFromQuery = async (
 		connect = backendPort,
 		open = repoHandle,
 		storage = window.localStorage,
+		definitions = null,
 	} = {},
 ) => {
 	const mode = syncModeOf(window);
@@ -108,7 +111,7 @@ export const syncFromQuery = async (
 	} else if (mode === "automerge" || mode === "relay") {
 		const { automergeEngine } = await import("../../src/sync/automerge.js");
 		const relay = mode === "relay" ? RELAY_URL : null;
-		engines.push(automergeEngine({ handle: await open(window, { relay }) }));
+		engines.push(automergeEngine({ handle: await open(window, { relay }), definitions }));
 	}
 	engines.push(storageEngine(storage, `tutuca-sync:${mode}:${key}`));
 	if (log !== null) engines.push(logEngine(log));

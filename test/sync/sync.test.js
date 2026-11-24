@@ -10,6 +10,7 @@ import {
 	opsOf,
 	overlay,
 	project,
+	rebuild,
 	startSynced,
 	textSplice,
 } from "../../src/sync/index.js";
@@ -790,4 +791,61 @@ test("applying diff(a, b) to a gives b, for generated states", async () => {
 		}),
 		{ numRuns: 200 },
 	);
+});
+
+// --- a component another peer defines ------------------------------------------------------
+const Box = component({
+	name: "Box",
+	fields: { title: t.string(), content: t.option(t.component()) },
+	view: "<span>{.title}</span>",
+});
+const Tally = component({
+	name: "Tally",
+	fields: { label: t.string({ default: "Clicks" }), count: t.number() },
+	view: "<span>{.count}</span>",
+});
+
+test("a component a peer defined and this one doesn't is kept as it came, and its edits still sync", async () => {
+	const failures = [];
+	const peer = async (specs, handle) => {
+		const s = setupHost(specs, {
+			sync: true,
+			onReport: (r) => r.type === "syncFailed" && failures.push(r.error),
+		});
+		await startSynced(s.host, { make: (C) => C.Box(), engines: [automergeEngine({ handle })] });
+		return s.host;
+	};
+	const ha = docHandle();
+	const a = await peer({ Box, Tally }, ha);
+	a.applyChange((d) => {
+		d.content = a.scope.make("Tally", { count: 1 });
+	});
+	const hb = docHandle();
+	hb.merge(ha.doc());
+	const b = await peer({ Box }, hb);
+	assert.equal(specOf(b.root.content).name, "UnknownComponent");
+	assert.deepEqual(project(b.root), fromDoc(hb.doc()));
+	// a's edits inside it land in b's copy; b's own edits beside it keep them.
+	a.applyChange((d) => {
+		d.content.count = 2;
+	});
+	hb.merge(ha.doc());
+	assert.equal(b.root.content.data.count, 2);
+	b.applyChange((d) => {
+		d.title = "box";
+	});
+	ha.merge(hb.doc());
+	assert.deepEqual(fromDoc(ha.doc()), {
+		$: "Box",
+		title: "box",
+		content: { $: "Tally", label: "Clicks", count: 2 },
+	});
+	assert.equal(a.root.content.count, 2);
+	assert.equal(a.root.title, "box");
+	assert.deepEqual(failures, []);
+	// b's projection is the document's, so a rebuild once it's defined makes the real one.
+	b.scope.register({ Tally });
+	const { root } = rebuild(project(b.root), b.scope);
+	assert.equal(specOf(root.content), Tally);
+	assert.equal(root.content.count, 2);
 });

@@ -3,6 +3,10 @@
 // a task it only walks what the task changed.
 import { isRecord, StringType } from "../core/model/types.js";
 import { componentOf, keysOf, keyType, narrow, project } from "./codec.js";
+import { isUnknownComponent, unknownPlain } from "./unknown.js";
+
+// A component this version doesn't define is compared as its projection, which its ops address.
+const asPlain = (v) => (isUnknownComponent(v) ? unknownPlain(v) : v);
 
 // Past this many cells an array's middle is replaced instead of matched item by item.
 const MAX_LCS_CELLS = 1_000_000;
@@ -96,6 +100,8 @@ export const diff = (
 	const set = (path, value, type) => ops.push({ op: "set", path, value: toPlain(value, type) });
 	const walk = (a, b, type, path) => {
 		if (a === b) return;
+		a = asPlain(a);
+		b = asPlain(b);
 		const la = leaf(a);
 		const lb = leaf(b);
 		if (la === lb) return;

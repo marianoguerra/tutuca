@@ -4,7 +4,7 @@
 // same data, checked as it's written. compileType makes the Type a component runs with, once:
 // each kind its class, constraints their checks, named checks the functions they name.
 // Component specs are in ../component.js, their contracts in contract.js.
-import { isComponent, specOf } from "./spec.js";
+import { isComponent, isUnknownComponent, specOf } from "./spec.js";
 
 export const isRecord = (v) => typeof v === "object" && v !== null && !Array.isArray(v);
 
@@ -417,6 +417,12 @@ export class ComponentType extends Type {
 	isValidValue(value, scope) {
 		if (!isComponent(value)) return false;
 		if (this.names.length === 0) return true;
+		// One this version doesn't define (sync/unknown.js) fits where its name could: a type of
+		// that name, or an interface, which it can't be checked against.
+		if (isUnknownComponent(value)) {
+			const name = value.ref.split("/").at(-1);
+			return this.names.some((n) => n === name || scope?.lookupInterface(n) != null);
+		}
 		return this.names.some((name) => {
 			if (scope === null) return true;
 			const iface = scope.lookupInterface(name);

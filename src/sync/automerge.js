@@ -21,6 +21,23 @@ export const fromDoc = (v) => {
 	for (const key of Object.keys(v)) setOwn(out, key, fromDoc(v[key]));
 	return out;
 };
+// The document's key for the components defined at runtime (pure/definitions.js), beside the
+// state's projection: { ref: source }, one flat map so that two peers adding to it at once both
+// land (a map made at the same key by both would keep only one's). Sources are atomic strings:
+// two edits of a module at once keep one, not a merge of both.
+export const DEFINITIONS = "$definitions";
+// The state's projection in a document: its plain data without the definitions.
+const stateOf = (doc) => {
+	const plain = fromDoc(doc);
+	delete plain[DEFINITIONS];
+	return plain;
+};
+// The definitions a document holds, { ref: source }.
+const definitionsOf = (doc) => (doc?.[DEFINITIONS] ? fromDoc(doc[DEFINITIONS]) : {});
+const sameDefinitions = (a, b) => {
+	const ka = Object.keys(a);
+	return ka.length === Object.keys(b).length && ka.every((k) => a[k] === b[k]);
+};
 // Plain data of type as a document value: strings are text only where the schema says so.
 const toDoc = (v, type, rootScope) => {
 	if (typeof v === "string") {
@@ -48,7 +65,7 @@ const writeOp = (d, op, next, scope) => {
 			const value = toDoc(op.value, typeOf(path), scope);
 			if (path.length > 0) parent()[path.at(-1)] = value;
 			else {
-				for (const key of Object.keys(d)) delete d[key];
+				for (const key of Object.keys(d)) if (key !== DEFINITIONS) delete d[key];
 				Object.assign(d, value);
 			}
 			break;
@@ -71,13 +88,41 @@ const writeOp = (d, op, next, scope) => {
 	return d;
 };
 
-export const automergeEngine = ({ handle }) => {
+// definitions: a definitionsRegistry (pure/definitions.js) whose entries the document shares
+// with its peers, or null to share none.
+export const automergeEngine = ({ handle, definitions = null }) => {
 	let link = null;
 	let writing = false;
+	let unsubscribe = null;
+	// What's defined here goes to the document an entry at a time: a removal is that key's
+	// delete, which Automerge merges as one (a peer that changed the entry meanwhile keeps it).
+	const writeDefinition = ({ op, ref, source }) => {
+		writing = true;
+		try {
+			handle.change((d) => {
+				if (op === "put") {
+					d[DEFINITIONS] ??= {};
+					d[DEFINITIONS][ref] = new A.ImmutableString(source);
+				} else if (d[DEFINITIONS] && Object.hasOwn(d[DEFINITIONS], ref)) {
+					delete d[DEFINITIONS][ref];
+				}
+			});
+		} finally {
+			writing = false;
+		}
+	};
 	let loaded = null; // the document load read, to catch what changed before attach
 	const onMigrate = (report) => link.report("migrated", report);
 	const onChange = ({ patchInfo }) => {
 		if (writing || link === null) return;
+		onStateChange(patchInfo);
+		// After the state: what a peer defined makes the UnknownComponents of it the real ones.
+		const defs = definitionsOf(patchInfo.after);
+		if (definitions !== null && !sameDefinitions(definitionsOf(patchInfo.before), defs)) {
+			definitions.receive(defs);
+		}
+	};
+	const onStateChange = (patchInfo) => {
 		const { scope } = link.host;
 		try {
 			const ops = diff(patchInfo.before, patchInfo.after, { scope, leaf, plain: fromDoc });
@@ -86,7 +131,12 @@ export const automergeEngine = ({ handle }) => {
 		} catch (error) {
 			// The state and the document parted ways: bring the state to the document whole.
 			link.report("syncFailed", { error });
-			applyProjection(link, fromDoc(patchInfo.after), { onMigrate, info: patchInfo });
+			try {
+				applyProjection(link, stateOf(patchInfo.after), { onMigrate, info: patchInfo });
+			} catch (resyncError) {
+				// Not even whole: the state stays as it is, and says so, until a change fits.
+				link.report("syncFailed", { error: resyncError, resync: true });
+			}
 		}
 	};
 	// Writes ops of the change to next into the document, made to fit it (writeFitting).
@@ -108,7 +158,9 @@ export const automergeEngine = ({ handle }) => {
 		load() {
 			const doc = handle.doc();
 			loaded = doc ?? null;
-			return doc === undefined || doc.$ === undefined ? null : fromDoc(doc);
+			// Before the state: what peers defined, so it's made with their components.
+			definitions?.receive(definitionsOf(doc));
+			return doc === undefined || doc.$ === undefined ? null : stateOf(doc);
 		},
 		attach(l) {
 			link = l;
@@ -117,10 +169,12 @@ export const automergeEngine = ({ handle }) => {
 			// didn't read) brings the state to it.
 			if (doc?.$ === undefined) write(rootOps(l.root(), "shared"), l.root());
 			else if (doc !== loaded) {
-				applyProjection(l, fromDoc(doc), { onMigrate, info: { attach: true } });
+				definitions?.receive(definitionsOf(doc));
+				applyProjection(l, stateOf(doc), { onMigrate, info: { attach: true } });
 			}
 			loaded = null;
 			handle.on("change", onChange);
+			unsubscribe = definitions?.subscribe(writeDefinition) ?? null;
 		},
 		prepare: (change) => opsOf(change, "shared", link.host.scope),
 		commit(change, ops) {
@@ -128,6 +182,8 @@ export const automergeEngine = ({ handle }) => {
 		},
 		detach() {
 			handle.off("change", onChange);
+			unsubscribe?.();
+			unsubscribe = null;
 			link = null;
 		},
 	};

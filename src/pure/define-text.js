@@ -54,6 +54,29 @@ const diagnosticsText = (all) => {
 	return [...out, ...notes.map((d) => `note: ${d.message}.`)];
 };
 
+// A param's type as the outline has it: a bare kind ("number") without its quotes.
+const paramType = (type) => (type === null ? "?" : type.replace(/^"([a-z]+)"$/, "$1"));
+// What each component's agent will have (a report's agents, agentOutline's by name): its tools
+// as calls, those that only read marked, and what it sees every step. Lines.
+export const agentsText = (agents = {}) =>
+	Object.entries(agents).map(([name, { tools, summary }]) => {
+		const calls = tools.map((tool) => {
+			const params = tool.params.map((p) => `${p.name}: ${paramType(p.type)}`).join(", ");
+			return `${tool.name}(${params})${tool.kind === "query" ? " (reads)" : ""}`;
+		});
+		const sees = summary === null ? "its state as JSON" : summary;
+		const list = calls.length === 0 ? "no tools" : `tools ${calls.join(", ")}`;
+		return `${name}'s agent will have ${list}; it sees ${sees} every step.`;
+	});
+
+// How many of the examples pass, when there are any (those that fail are diagnostics).
+const examplesText = (examples = []) => {
+	if (examples.length === 0) return [];
+	const passed = examples.filter((e) => e.ok).length;
+	const names = examples.map((e) => `${e.ok ? "✓" : "✗"} ${e.component}.${e.name}`);
+	return [`Examples: ${passed} of ${examples.length} pass (${names.join(", ")}).`];
+};
+
 // checkComponentSource's report.
 export const checkReportText = (report) => {
 	const lines = [];
@@ -67,8 +90,11 @@ export const checkReportText = (report) => {
 		for (const name of report.shadows ?? []) {
 			lines.push(`${name} here would be its own, over the ${name} above it.`);
 		}
+		lines.push(...agentsText(report.agents));
+		lines.push(...examplesText(report.examples));
 	} else {
 		lines.push("It doesn't check, so it can't be defined.");
+		lines.push(...examplesText(report.examples));
 	}
 	lines.push(...diagnosticsText(report.diagnostics));
 	return lines.join("\n");
@@ -97,6 +123,7 @@ export const defineReportText = (answer) => {
 		}
 		for (const path of answer.dropped) lines.push(`  ${pathText(path)} dropped`);
 	}
+	lines.push(...agentsText(answer.agents));
 	lines.push(...diagnosticsText(answer.diagnostics));
 	return lines.join("\n");
 };
