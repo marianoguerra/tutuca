@@ -69,6 +69,8 @@ function domImports(document, rootNode, fromValue) {
 		return node;
 	};
 	const ownedChildren = (parent) => Array.from(parent.childNodes).filter((n) => owned.has(n));
+	// The owned children snapshot last took, read one by one by snapshot_child.
+	let snapshot = [];
 	const nextOwned = (node) => {
 		let next = node.nextSibling;
 		while (next !== null && !owned.has(next)) next = next.nextSibling;
@@ -101,10 +103,24 @@ function domImports(document, rootNode, fromValue) {
 		remove: (parent, node) => parent.removeChild(node),
 		replace: (parent, node, old) => parent.replaceChild(node, old),
 		parent: (node) => node.parentNode,
-		owned_count: (parent) => ownedChildren(parent).length,
-		owned_child: (parent, i) => ownedChildren(parent)[i],
+		snapshot(parent) {
+			snapshot = ownedChildren(parent);
+			return snapshot.length;
+		},
+		snapshot_child: (i) => snapshot[i],
 		next_is: (node, other, atEnd) => nextOwned(node) === (atEnd ? null : other),
 		root: () => rootNode,
+		clone: (node) => node.cloneNode(true),
+		own,
+		first_child: (node) => node.firstChild,
+		next_sibling: (node) => node.nextSibling,
+		clear: (node) => node.replaceChildren(),
+		survives_clone(node, name) {
+			if (!(name in node)) return 1;
+			const a = node[name];
+			const b = node.cloneNode(false)[name];
+			return a === b || (typeof a === "object" && a !== null && String(a) === String(b)) ? 1 : 0;
+		},
 	};
 }
 

@@ -1184,16 +1184,7 @@ fn World::render(self : World) -> String {
   let next = self.scope.render_root(root) catch {
     Fault(message, ..) => return message
   }
-  ignore(
-    morph_children(
-      dom_root(),
-      self.rendered.unwrap_or([]),
-      next,
-      None,
-      None,
-      None,
-    ),
-  )
+  morph(dom_root(), self.rendered, next)
   self.rendered = Some(next)
   ""
 }

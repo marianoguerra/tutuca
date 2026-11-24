@@ -34,6 +34,64 @@ priv struct Elem {
   key : View?
   children : Array[View]
   bindings : Array[Binding]
+  /// Where in names the attributes set after the children (or instead of
+  /// them) are; -1 when it has none.
+  value_at : Int32
+  checked_at : Int32
+  is_at : Int32
+  html_at : Int32
+  is_select : Bool
+  /// What each child always is, when every render has the same ones; None
+  /// when they vary.
+  layout : Array[Kid]?
+  /// The layout's children have no keys either, so two renders' children
+  /// pair by index.
+  fixed : Bool
+  /// Whether cloning a template makes it: not a custom element, whose
+  /// constructor would run for the template too, or a customized built-in.
+  plain : Bool
+  /// The last skeleton built of it, for the namespace its parent was in.
+  mut template : (String?, Node)?
+  /// The static attributes a clone loses, set again on each one.
+  mut late : Array[(String, Val)]
+}
+
+///|
+/// A child that every render of an element has: an element of a view, or a
+/// constant's text.
+priv enum Kid {
+  KElem(Elem)
+  KText(String)
+}
+
+///|
+/// What an element's children always are, and whether none has a key, as
+/// tutuca's layoutOf (src/core/view/element-plan.js) says; None when they
+/// vary: a child that isn't an element or a constant's text, or an element
+/// that isn't cloned.
+fn layout_of(children : Array[View]) -> (Array[Kid]?, Bool) {
+  let kids = []
+  let mut keyless = true
+  for c in children {
+    match c {
+      Element(e) => {
+        if !e.plain {
+          return (None, false)
+        }
+        if e.key is Some(_) {
+          keyless = false
+        }
+        kids.push(KElem(e))
+      }
+      Constant(v) =>
+        match kind(v) {
+          Undefined | Null | List => return (None, false)
+          _ => kids.push(KText(text_of(v)))
+        }
+      _ => return (None, false)
+    }
+  }
+  (Some(kids), keyless)
 }
 
 ///|
@@ -213,6 +271,8 @@ fn element(
   let kids = []
   flatten(children, kids)
   views.elems += 1
+  let (layout, keyless) = layout_of(kids)
+  let is_at = index_of(names, "is")
   let elem : Elem = {
     id: views.elems,
     tag,
@@ -223,6 +283,16 @@ fn element(
     key,
     children: kids,
     bindings,
+    value_at: index_of(names, "value"),
+    checked_at: index_of(names, "checked"),
+    is_at,
+    html_at: index_of(names, "dangerouslySetInnerHTML"),
+    is_select: tag.to_lower() == "select",
+    layout,
+    fixed: layout is Some(_) && keyless,
+    plain: is_at < 0 && !tag.contains("-"),
+    template: None,
+    late: [],
   }
   // An element with event bindings says which it is, for an event to find it.
   if bindings.length() > 0 {

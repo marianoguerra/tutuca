@@ -161,6 +161,11 @@ async function sides(modules, type, fields, { asks = {} } = {}) {
 		js: () => JSON.parse(JSON.stringify(js.state)),
 		wasm: () => wasm.state(),
 		html: () => ({ js: shown(js.rootNode), wasm: shown(wasmNode) }),
+		// The elements each page shows, in order: which a morph kept is what's still connected.
+		elements: () => ({
+			js: [...js.rootNode.querySelectorAll("*")],
+			wasm: [...wasmNode.querySelectorAll("*")],
+		}),
 	};
 }
 
@@ -170,6 +175,7 @@ async function walk(modules, type, fields, steps, options) {
 	assert.deepEqual(s.wasm(), s.js(), "made");
 	assert.equal(s.html().wasm, s.html().js, "made: what the page shows");
 	for (const [name, args, init] of steps) {
+		const before = s.elements();
 		// A step is a message (to the root, or where its { to } says), an event on an element (its
 		// name a number), or a drag of one element onto another.
 		const issues =
@@ -183,6 +189,8 @@ async function walk(modules, type, fields, steps, options) {
 		assert.deepEqual(issues.wasm, issues.js, `${at}: what went wrong`);
 		assert.deepEqual(s.wasm(), s.js(), at);
 		assert.equal(s.html().wasm, s.html().js, `${at}: what the page shows`);
+		const kept = (nodes) => nodes.map((n) => n.isConnected);
+		assert.deepEqual(kept(before.wasm), kept(before.js), `${at}: the elements the page kept`);
 	}
 }
 
