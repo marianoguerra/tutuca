@@ -81,7 +81,16 @@
 			}
 		},
 		{
-			"includes": ["site/examples/**/*.js", "demos/renders/examples/**/*.js", "tdata/mbt/load.mjs"],
+			"includes": [
+				"site/examples/**/*.js",
+				"demos/renders/examples/**/*.js",
+				"tdata/mbt/load.mjs",
+				"tutuca-wasm/js/tutuca-wasm.js",
+				"tutuca-wasm/demos/demos.js",
+				"tutuca-wasm/playground/playground.js",
+				"tutuca-wasm/studio/studio.js",
+				"tutuca-wasm/scripts/inference-api.mjs"
+			],
 			"linter": {
 				"rules": {
 					"correctness": {
